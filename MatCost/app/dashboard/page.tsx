@@ -1,39 +1,120 @@
-"use client"
-import { Sidebar } from "@/components/sidebar"
-import { Bell, User } from "lucide-react"
+"use client";
+
+import { Sidebar } from "@/components/sidebar";
+import {
+  Bell,
+  User,
+  Package,
+  Truck,
+  Warehouse,
+  Clock,
+  ArrowUpRight,
+  ArrowDownRight,
+  Activity,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button"
-import { useRouter } from "next/navigation"
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+
+// Define the structure for stats data for cleaner mapping
+interface StatData {
+  label: string;
+  value: string;
+  trend: string;
+  trendDirection: "up" | "down" | "neutral";
+  icon: React.ElementType;
+  theme: "blue" | "orange" | "purple" | "slate";
+}
 
 export default function DashboardPage() {
-  const router = useRouter()
+  const router = useRouter();
 
   const handleLogout = () => {
-    localStorage.removeItem("auth_token")
-    router.push("/")
-  }
+    localStorage.removeItem("auth_token");
+    router.push("/");
+  };
+
+  const statsData: StatData[] = [
+    {
+      label: "Total Materials",
+      value: "12,483",
+      trend: "+2.5%",
+      trendDirection: "up",
+      icon: Package,
+      theme: "blue",
+    },
+    {
+      label: "Active Orders",
+      value: "247",
+      trend: "+12%",
+      trendDirection: "up",
+      icon: Truck,
+      theme: "orange",
+    },
+    {
+      label: "Warehouse Capacity",
+      value: "78%",
+      trend: "-5%",
+      trendDirection: "down",
+      icon: Warehouse,
+      theme: "purple",
+    },
+    {
+      label: "System Status",
+      value: "Operational",
+      trend: "Live Updated",
+      trendDirection: "neutral",
+      icon: Activity, // Changed from Clock for better semantics
+      theme: "slate",
+    },
+  ];
+
+  // Helper function for theme colors
+  const getThemeClasses = (theme: StatData["theme"]) => {
+    switch (theme) {
+      case "blue":
+        return "bg-blue-100 text-blue-600";
+      case "orange":
+        return "bg-orange-100 text-orange-600";
+      case "purple":
+        return "bg-purple-100 text-purple-600";
+      case "slate":
+      default:
+        return "bg-slate-100 text-slate-600";
+    }
+  };
+
+  // Shared class for the "depth" effect on boxes
+  const cardDepthClass =
+    "bg-white rounded-xl border border-slate-200/80 p-6 shadow-md transition-all duration-300";
+  // Additional class for interactive cards that should "lift"
+  const interactiveCardClass =
+    "hover:shadow-xl hover:-translate-y-1 hover:border-slate-300";
 
   return (
-    <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50">
-      {/* Sidebar takes fixed width (animated), does not overlay */}
+    <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
 
-      <main className="flex-grow flex flex-col overflow-hidden">
-        {/* Top Bar */}
-        <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm flex-shrink-0">
-          <div className="px-6 lg:px-8 h-16 flex items-center justify-between">
+      <main className="flex-grow flex flex-col overflow-hidden relative z-10">
+        {/* Top Bar - Increased shadow for depth */}
+        <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-sm flex-shrink-0">
+          <div className="bg-white px-6 lg:px-8 h-16 flex items-center justify-between">
             <div className="hidden md:block">
-              <h2 className="text-lg font-semibold text-slate-900">Dashboard</h2>
+              <h2 className="text-lg font-semibold text-slate-900">
+                Dashboard
+              </h2>
             </div>
             <div className="flex items-center gap-4 ml-auto">
-              <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-600">
+              <button className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-600 relative">
                 <Bell className="w-5 h-5" />
+                {/* Notification dot example */}
+                <span className="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
               </button>
 
               <DropdownMenu>
@@ -41,18 +122,24 @@ export default function DashboardPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white"
+                    className="w-9 h-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                   >
-                    U
+                    <User className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem className="cursor-pointer">
-                    <User className="mr-2 h-4 w-4" />
+                <DropdownMenuContent
+                  align="end"
+                  className="w-56 shadow-lg border-slate-200/80"
+                >
+                  <DropdownMenuItem className="cursor-pointer rounded-lg group focus:bg-primary focus:text-white">
+                    <User className="mr-2 h-4 w-4 text-slate-500 group-focus:text-white transition-colors" />
                     <span>Profile</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="cursor-pointer text-red-600" onClick={handleLogout}>
+                  <DropdownMenuItem
+                    className="cursor-pointer text-red-600 py-2 focus:text-red-600 focus:bg-red-50"
+                    onClick={handleLogout}
+                  >
                     <span>Logout</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -62,114 +149,179 @@ export default function DashboardPage() {
         </header>
 
         <div className="flex-grow overflow-y-auto">
-          <div className="px-6 lg:px-10 py-10">
+          <div className="px-6 lg:px-10 py-8 max-w-7xl mx-auto w-full">
             {/* Welcome Section */}
-            <div className="mb-10">
-              <h1 className="text-4xl font-bold text-slate-900 mb-2">Welcome to MatCost</h1>
-              <p className="text-slate-600 text-lg">Construction material inventory and management overview</p>
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-slate-900 mb-2 tracking-tight">
+                Welcome to MatCost
+              </h1>
+              <p className="text-slate-500 text-lg">
+                Construction material inventory and management overview
+              </p>
             </div>
 
-            {/* Stats Grid */}
+            {/* Stats Grid with Depth and Lucide Icons */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {[
-                {
-                  label: "Total Materials",
-                  value: "12,483",
-                  trend: "+2.5%",
-                  icon: "📦",
-                },
-                {
-                  label: "Active Orders",
-                  value: "247",
-                  trend: "+12%",
-                  icon: "🚚",
-                },
-                {
-                  label: "Warehouse Capacity",
-                  value: "78%",
-                  trend: "-5%",
-                  icon: "🏢",
-                },
-                {
-                  label: "Last Updated",
-                  value: "Now",
-                  trend: "Live",
-                  icon: "⏱️",
-                },
-              ].map((stat, i) => (
-                <div
-                  key={i}
-                  className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className="text-slate-600 text-sm font-medium">{stat.label}</p>
-                      <h3 className="text-2xl font-bold text-slate-900 mt-2">{stat.value}</h3>
-                    </div>
-                    <span className="text-2xl">{stat.icon}</span>
-                  </div>
-                  <p
-                    className={`text-xs font-semibold ${
-                      stat.trend.startsWith("+")
-                        ? "text-green-600"
-                        : stat.trend.startsWith("-")
-                          ? "text-red-600"
-                          : "text-blue-600"
-                    }`}
+              {statsData.map((stat, i) => {
+                const TrendIcon =
+                  stat.trendDirection === "up"
+                    ? ArrowUpRight
+                    : stat.trendDirection === "down"
+                    ? ArrowDownRight
+                    : Clock;
+                const trendColorClass =
+                  stat.trendDirection === "up"
+                    ? "text-green-600 bg-green-50"
+                    : stat.trendDirection === "down"
+                    ? "text-red-600 bg-red-50"
+                    : "text-slate-600 bg-slate-50";
+
+                return (
+                  <div
+                    key={i}
+                    // Applying the depth and interactive classes here
+                    className={`${cardDepthClass} ${interactiveCardClass}`}
                   >
-                    {stat.trend}
-                  </p>
-                </div>
-              ))}
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <p className="text-slate-500 text-sm font-medium mb-1">
+                          {stat.label}
+                        </p>
+                        <h3 className="text-3xl font-bold text-slate-900 tracking-tight">
+                          {stat.value}
+                        </h3>
+                      </div>
+                      {/* Lucide Icon with colored background */}
+                      <div
+                        className={`p-3 rounded-xl ${getThemeClasses(
+                          stat.theme
+                        )} shadow-sm`}
+                      >
+                        <stat.icon className="w-6 h-6" />
+                      </div>
+                    </div>
+
+                    {/* Trend section with Lucide icons */}
+                    <div className="flex items-center text-sm font-medium">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${trendColorClass}`}
+                      >
+                        <TrendIcon className="w-4 h-4" />
+                        {stat.trend}
+                      </span>
+                      {stat.trendDirection !== "neutral" && (
+                        <span className="text-slate-400 ml-2">
+                          from last month
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Charts Section */}
+            {/* Charts Section with Depth containers */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">Material Inventory</h3>
-                <div className="h-48 bg-slate-50 rounded-lg flex items-center justify-center border border-slate-100">
-                  <p className="text-slate-500 text-sm">Chart placeholder - Add chart library</p>
+              <div className={cardDepthClass}>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Material Inventory Overview
+                  </h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 "
+                  >
+                    View Report
+                  </Button>
+                </div>
+
+                <div className="h-64 bg-slate-50/50 rounded-lg flex items-center justify-center border-2 border-dashed border-slate-200">
+                  <div className="text-center text-slate-400 flex flex-col items-center gap-2">
+                    <Activity className="w-8 h-8 opacity-50" />
+                    <p className="text-sm font-medium">Chart placeholder</p>
+                    <p className="text-xs">
+                      Integrate Recharts or Chart.js here
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">Order Status</h3>
-                <div className="h-48 bg-slate-50 rounded-lg flex items-center justify-center border border-slate-100">
-                  <p className="text-slate-500 text-sm">Chart placeholder - Add chart library</p>
+              <div className={cardDepthClass}>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Recent Order Status
+                  </h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 cursor-pointer"
+                  >
+                    View All Orders
+                  </Button>
+                </div>
+                <div className="h-64 bg-slate-50/50 rounded-lg flex items-center justify-center border-2 border-dashed border-slate-200">
+                  <div className="text-center text-slate-400 flex flex-col items-center gap-2">
+                    <Truck className="w-8 h-8 opacity-50" />
+                    <p className="text-sm font-medium">Chart placeholder</p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Recent Activity */}
-            <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4">Recent Activity</h3>
-              <div className="space-y-4">
+            {/* Recent Activity with Depth container */}
+            <div className={cardDepthClass}>
+              <h3 className="text-lg font-semibold text-slate-900 mb-6">
+                Recent Activity
+              </h3>
+              <div className="space-y-1">
                 {[
                   {
                     action: "Material Imported",
                     details: "1,250 steel beams received from supplier",
                     time: "2 hours ago",
+                    icon: Package,
+                    iconBg: "bg-blue-100 text-blue-600",
                   },
                   {
                     action: "Order Shipped",
                     details: "Order #MAT-5847 delivered to site",
                     time: "4 hours ago",
+                    icon: Truck,
+                    iconBg: "bg-orange-100 text-orange-600",
                   },
                   {
                     action: "Stock Alert",
                     details: "Low stock on Concrete Mix - SKU-2891",
                     time: "6 hours ago",
+                    icon: Activity,
+                    iconBg: "bg-red-100 text-red-600",
                   },
                 ].map((activity, i) => (
                   <div
                     key={i}
-                    className="flex items-start justify-between py-3 border-b border-slate-100 last:border-0"
+                    className="cursor-pointer flex items-start gap-4 p-3 hover:bg-slate-50 rounded-lg transition-colors group "
                   >
-                    <div>
-                      <p className="text-slate-900 font-medium">{activity.action}</p>
-                      <p className="text-slate-600 text-sm">{activity.details}</p>
+                    {/* Added icon icons to activity list for visual consistency */}
+                    <div
+                      className={`p-2 rounded-lg shrink-0 ${activity.iconBg} group-hover:shadow-sm transition-all`}
+                    >
+                      <activity.icon className="w-5 h-5" />
                     </div>
-                    <span className="text-xs text-slate-500 whitespace-nowrap ml-4">{activity.time}</span>
+                    <div className="flex-grow">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <p className="text-slate-900 font-semibold text-sm">
+                          {activity.action}
+                        </p>
+                        <span className="text-xs text-slate-500 whitespace-nowrap">
+                          {activity.time}
+                        </span>
+                      </div>
+
+                      <p className="text-slate-600 text-sm line-clamp-1">
+                        {activity.details}
+                      </p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -178,5 +330,5 @@ export default function DashboardPage() {
         </div>
       </main>
     </div>
-  )
+  );
 }
