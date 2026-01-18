@@ -1,0 +1,18 @@
+﻿using System.Text.Json.Serialization;
+
+namespace Backend.Domains.auth.Dtos
+{
+    public class GoogleUserInfo
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; set; }
+
+        [JsonPropertyName("email")]
+        public string Email { get; set; }
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; }
+
+
+    }
+}

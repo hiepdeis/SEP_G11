@@ -21,8 +21,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { setAccessToken } from "@/lib/axios-client";
 
-// Define the structure for stats data for cleaner mapping
 interface StatData {
   label: string;
   value: string;
@@ -35,9 +35,13 @@ interface StatData {
 export default function DashboardPage() {
   const router = useRouter();
 
-  const handleLogout = () => {
-    localStorage.removeItem("auth_token");
-    router.push("/");
+  const handleLogout = async () => {
+    try {
+      setAccessToken(null);
+      router.push("/");
+    } catch (error) {
+      router.push("/");
+    }
   };
 
   const statsData: StatData[] = [
@@ -70,12 +74,11 @@ export default function DashboardPage() {
       value: "Operational",
       trend: "Live Updated",
       trendDirection: "neutral",
-      icon: Activity, // Changed from Clock for better semantics
+      icon: Activity, 
       theme: "slate",
     },
   ];
 
-  // Helper function for theme colors
   const getThemeClasses = (theme: StatData["theme"]) => {
     switch (theme) {
       case "blue":
@@ -90,10 +93,8 @@ export default function DashboardPage() {
     }
   };
 
-  // Shared class for the "depth" effect on boxes
   const cardDepthClass =
     "bg-white rounded-xl border border-slate-200/80 p-6 shadow-md transition-all duration-300";
-  // Additional class for interactive cards that should "lift"
   const interactiveCardClass =
     "hover:shadow-xl hover:-translate-y-1 hover:border-slate-300";
 
@@ -102,7 +103,6 @@ export default function DashboardPage() {
       <Sidebar />
 
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        {/* Top Bar - Increased shadow for depth */}
         <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-sm flex-shrink-0">
           <div className="bg-white px-6 lg:px-8 h-16 flex items-center justify-between">
             <div className="hidden md:block">
@@ -113,7 +113,6 @@ export default function DashboardPage() {
             <div className="flex items-center gap-4 ml-auto">
               <button className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-600 relative">
                 <Bell className="w-5 h-5" />
-                {/* Notification dot example */}
                 <span className="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
               </button>
 
@@ -179,7 +178,6 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={i}
-                    // Applying the depth and interactive classes here
                     className={`${cardDepthClass} ${interactiveCardClass}`}
                   >
                     <div className="flex items-start justify-between mb-4">
