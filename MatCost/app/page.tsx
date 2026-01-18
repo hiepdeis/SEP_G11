@@ -8,13 +8,27 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
 
   const handleGoogleSignIn = async () => {
-    setIsLoading(true)
-    // TODO: Implement Google OAuth logic here
-    // For now, we'll redirect to the dashboard after a delay
-    setTimeout(() => {
-      // In production, this would handle OAuth callback
-      window.location.href = "/dashboard"
-    }, 1500)
+    // setIsLoading(true)
+    // // TODO: Implement Google OAuth logic here
+    // // For now, we'll redirect to the dashboard after a delay
+    // setTimeout(() => {
+    //   // In production, this would handle OAuth callback
+    //   window.location.href = "/dashboard"
+    // }, 1500)
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+    const redirectUri = process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI
+
+    // Build Google OAuth URL
+    const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth')
+    googleAuthUrl.searchParams.append('client_id', clientId || '')
+    googleAuthUrl.searchParams.append('redirect_uri', redirectUri || '')
+    googleAuthUrl.searchParams.append('response_type', 'code')
+    googleAuthUrl.searchParams.append('scope', 'openid email profile')
+    googleAuthUrl.searchParams.append('access_type', 'offline')
+    googleAuthUrl.searchParams.append('prompt', 'consent')
+
+    // Redirect to Google
+    window.location.href = googleAuthUrl.toString()
   }
 
   return (
