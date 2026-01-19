@@ -35,8 +35,15 @@ namespace Backend.Domains.auth.Business
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
             }
+            else
+            {
+                if (!user.Status)
+                {
+                    throw new UnauthorizedAccessException("User is deactivated.");
+                }
+            }
 
-            var userFromDb = await _authService.GetUserByEmailAsync(user.Email)!;
+                var userFromDb = await _authService.GetUserByEmailAsync(user.Email)!;
 
             //var accessToken = await _authService.CreateAccessToken(userFromDb);
             var refreshToken = await _authService.GenerateAndSaveRefreshToken(userFromDb);
