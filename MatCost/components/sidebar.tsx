@@ -23,6 +23,7 @@ import {
 import { useRouter, usePathname } from "next/navigation";
 import { useSidebar } from "./sidebar-context";
 import { useState } from "react";
+import { UserDropdown } from "@/components/user-dropdown";
 
 export function Sidebar() {
   const { isExpanded, setIsExpanded } = useSidebar();
@@ -37,11 +38,6 @@ export function Sidebar() {
     { label: "Export Materials", icon: Upload, href: "/dashboard/export" },
     { label: "Reports", icon: FileText, href: "/dashboard/reports" },
   ];
-
-  const handleLogout = () => {
-    localStorage.removeItem("auth_token");
-    router.push("/");
-  };
 
   return (
     <>
@@ -163,19 +159,19 @@ export function Sidebar() {
 
         {/* User Section - Synced with Dashboard Style */}
         <div className="border-t border-slate-100 p-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          <UserDropdown
+            side="right"
+            align="end"
+            trigger={
               <button
                 className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-slate-50 transition-all duration-200 border border-transparent hover:border-slate-200 outline-none focus:ring-2 focus:ring-indigo-100 ${
                   isExpanded ? "justify-start" : "justify-center"
                 }`}
               >
-                {/* Synced Avatar: Indigo to match dashboard */}
                 <div className="relative flex-shrink-0">
                   <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold text-white shadow-md shadow-indigo-200 ring-2 ring-white">
                     <User className="h-5 w-5" />
                   </div>
-                  {/* Status Dot */}
                   <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></span>
                 </div>
 
@@ -192,37 +188,8 @@ export function Sidebar() {
 
                 {isExpanded && <Settings className="w-4 h-4 text-slate-400" />}
               </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              side="right"
-              className="w-56 mb-2 rounded-xl shadow-xl border-slate-100"
-            >
-              <div className="px-2 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Account
-              </div>
-
-              <DropdownMenuItem className="cursor-pointer rounded-lg group focus:bg-primary focus:text-white">
-                <User className="mr-2 h-4 w-4 text-slate-500 group-focus:text-white transition-colors" />
-                <span>Profile</span>
-              </DropdownMenuItem>
-
-              <DropdownMenuItem className="cursor-pointer rounded-lg group focus:bg-primary focus:text-white">
-                <Settings className="mr-2 h-4 w-4 text-slate-500 group-focus:text-white transition-colors" />
-                <span>Preferences</span>
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator className="bg-slate-100" />
-
-              <DropdownMenuItem
-                className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 rounded-lg"
-                onClick={handleLogout}
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sign out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            }
+          />
         </div>
       </aside>
 
@@ -296,20 +263,26 @@ export function Sidebar() {
             </nav>
 
             <div className="border-t border-slate-100 p-4 bg-slate-50/50">
-              <button className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-white border border-slate-200 shadow-sm">
-                <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold flex-shrink-0 text-white ring-2 ring-indigo-50">
-                  U
-                </div>
-                <div className="flex-1 text-left min-w-0">
-                  <p className="text-sm font-bold text-slate-900 truncate">
-                    User Account
-                  </p>
-                  <p className="text-xs text-slate-500 truncate">
-                    user@matcost.com
-                  </p>
-                </div>
-                <Settings className="w-5 h-5 text-slate-400" />
-              </button>
+              <UserDropdown 
+                side="top"
+                align="center"
+                trigger={
+                  <button className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-white border border-slate-200 shadow-sm">
+                    <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold flex-shrink-0 text-white ring-2 ring-indigo-50">
+                      U
+                    </div>
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="text-sm font-bold text-slate-900 truncate">
+                        User Account
+                      </p>
+                      <p className="text-xs text-slate-500 truncate">
+                        user@matcost.com
+                      </p>
+                    </div>
+                    <Settings className="w-5 h-5 text-slate-400" />
+                  </button>
+                }
+              />
             </div>
           </aside>
         </>

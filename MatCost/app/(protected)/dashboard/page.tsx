@@ -22,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { setAccessToken } from "@/lib/axios-client";
+import { UserDropdown } from "@/components/user-dropdown";
 
 interface StatData {
   label: string;
@@ -34,15 +35,6 @@ interface StatData {
 
 export default function DashboardPage() {
   const router = useRouter();
-
-  const handleLogout = async () => {
-    try {
-      setAccessToken(null);
-      router.push("/");
-    } catch (error) {
-      router.push("/");
-    }
-  };
 
   const statsData: StatData[] = [
     {
@@ -116,8 +108,10 @@ export default function DashboardPage() {
                 <span className="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
               </button>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+              {/* UserDropdown */}
+              <UserDropdown
+                align="end"
+                trigger={
                   <Button
                     variant="ghost"
                     size="icon"
@@ -125,24 +119,8 @@ export default function DashboardPage() {
                   >
                     <User className="h-5 w-5" />
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-56 shadow-lg border-slate-200/80"
-                >
-                  <DropdownMenuItem className="cursor-pointer rounded-lg group focus:bg-primary focus:text-white">
-                    <User className="mr-2 h-4 w-4 text-slate-500 group-focus:text-white transition-colors" />
-                    <span>Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="cursor-pointer text-red-600 py-2 focus:text-red-600 focus:bg-red-50"
-                    onClick={handleLogout}
-                  >
-                    <span>Logout</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                }
+              />
             </div>
           </div>
         </header>
