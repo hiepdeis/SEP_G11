@@ -12,17 +12,11 @@ import {
   ArrowDownRight,
   Activity,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { setAccessToken } from "@/lib/axios-client";
 import { UserDropdown } from "@/components/user-dropdown";
+
+import { Card } from "@/components/ui/custom/card-wrapper";
 
 interface StatData {
   label: string;
@@ -66,7 +60,7 @@ export default function DashboardPage() {
       value: "Operational",
       trend: "Live Updated",
       trendDirection: "neutral",
-      icon: Activity, 
+      icon: Activity,
       theme: "slate",
     },
   ];
@@ -85,15 +79,9 @@ export default function DashboardPage() {
     }
   };
 
-  const cardDepthClass =
-    "bg-white rounded-xl border border-slate-200/80 p-6 shadow-md transition-all duration-300";
-  const interactiveCardClass =
-    "hover:shadow-xl hover:-translate-y-1 hover:border-slate-300";
-
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
-
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
         <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-sm flex-shrink-0">
           <div className="bg-white px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -144,20 +132,17 @@ export default function DashboardPage() {
                   stat.trendDirection === "up"
                     ? ArrowUpRight
                     : stat.trendDirection === "down"
-                    ? ArrowDownRight
-                    : Clock;
+                      ? ArrowDownRight
+                      : Clock;
                 const trendColorClass =
                   stat.trendDirection === "up"
                     ? "text-green-600 bg-green-50"
                     : stat.trendDirection === "down"
-                    ? "text-red-600 bg-red-50"
-                    : "text-slate-600 bg-slate-50";
+                      ? "text-red-600 bg-red-50"
+                      : "text-slate-600 bg-slate-50";
 
                 return (
-                  <div
-                    key={i}
-                    className={`${cardDepthClass} ${interactiveCardClass}`}
-                  >
+                  <Card interactive key={i}>
                     <div className="flex items-start justify-between mb-4">
                       <div>
                         <p className="text-slate-500 text-sm font-medium mb-1">
@@ -170,7 +155,7 @@ export default function DashboardPage() {
                       {/* Lucide Icon with colored background */}
                       <div
                         className={`p-3 rounded-xl ${getThemeClasses(
-                          stat.theme
+                          stat.theme,
                         )} shadow-sm`}
                       >
                         <stat.icon className="w-6 h-6" />
@@ -191,14 +176,14 @@ export default function DashboardPage() {
                         </span>
                       )}
                     </div>
-                  </div>
+                  </Card>
                 );
               })}
             </div>
 
             {/* Charts Section with Depth containers */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              <div className={cardDepthClass}>
+              <Card>
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-slate-900">
                     Material Inventory Overview
@@ -221,9 +206,9 @@ export default function DashboardPage() {
                     </p>
                   </div>
                 </div>
-              </div>
+              </Card>
 
-              <div className={cardDepthClass}>
+              <Card>
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-slate-900">
                     Recent Order Status
@@ -242,11 +227,11 @@ export default function DashboardPage() {
                     <p className="text-sm font-medium">Chart placeholder</p>
                   </div>
                 </div>
-              </div>
+              </Card>
             </div>
 
             {/* Recent Activity with Depth container */}
-            <div className={cardDepthClass}>
+            <Card>
               <h3 className="text-lg font-semibold text-slate-900 mb-6">
                 Recent Activity
               </h3>
@@ -301,7 +286,7 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
           </div>
         </div>
       </main>

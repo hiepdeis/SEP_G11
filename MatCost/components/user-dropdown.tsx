@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  User,
-  Settings,
-  LogOut,
-} from "lucide-react";
+import { User, Settings, LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +9,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
-import { setAccessToken } from "@/lib/axios-client"; 
+import { setAccessToken } from "@/lib/axios-client";
+import Link from "next/link";
 
 interface UserDropdownProps {
   trigger: React.ReactNode;
@@ -22,18 +19,18 @@ interface UserDropdownProps {
   className?: string;
 }
 
-export function UserDropdown({ 
-  trigger, 
-  align = "end", 
+export function UserDropdown({
+  trigger,
+  align = "end",
   side = "bottom",
-  className 
+  className,
 }: UserDropdownProps) {
   const router = useRouter();
 
   const handleLogout = () => {
     try {
       localStorage.removeItem("auth_token");
-      if (typeof setAccessToken === 'function') {
+      if (typeof setAccessToken === "function") {
         setAccessToken(null);
       }
       router.push("/");
@@ -48,7 +45,7 @@ export function UserDropdown({
       <DropdownMenuTrigger asChild className={className}>
         {trigger}
       </DropdownMenuTrigger>
-      
+
       <DropdownMenuContent
         align={align}
         side={side}
@@ -58,9 +55,14 @@ export function UserDropdown({
           Account
         </div>
 
-        <DropdownMenuItem className="cursor-pointer rounded-lg group focus:bg-primary focus:text-white">
-          <User className="mr-2 h-4 w-4 text-slate-500 group-focus:text-white transition-colors" />
-          <span>Profile</span>
+        <DropdownMenuItem asChild>
+          <Link
+            href="/profile"
+            className="cursor-pointer rounded-lg group focus:bg-primary focus:text-white flex items-center w-full"
+          >
+            <User className="mr-2 h-4 w-4 text-slate-500 group-focus:text-white transition-colors" />
+            <span>Profile</span>
+          </Link>
         </DropdownMenuItem>
 
         <DropdownMenuItem className="cursor-pointer rounded-lg group focus:bg-primary focus:text-white">

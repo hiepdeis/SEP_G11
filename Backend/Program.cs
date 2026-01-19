@@ -1,6 +1,8 @@
 using Backend.Data;
 using Backend.Domains.auth.Interfaces;
 using Backend.Domains.auth.Services;
+using Backend.Domains.user.Interface;
+using Backend.Domains.user.Service;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,6 +25,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<GoogleOAuthService>();
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
 builder.Services.AddCors(options =>
 {

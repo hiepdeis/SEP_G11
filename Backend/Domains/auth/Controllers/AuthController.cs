@@ -3,6 +3,7 @@ using Backend.Domains.auth.Business;
 using Backend.Domains.auth.Dtos;
 using Backend.Domains.auth.Entity;
 using Backend.Domains.auth.Interfaces;
+using Backend.Domains.auth.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -37,25 +38,32 @@ namespace Backend.Domains.auth.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GoogleCallback([FromQuery] string code)
         {
-            if (string.IsNullOrEmpty(code))
-                return BadRequest("Missing authorization code");
+            try
+            {
+                if (string.IsNullOrEmpty(code))
+                    return BadRequest("Missing authorization code");
 
-            // 1️⃣ Đổi code → access token
-            var tokenResponse = await _googleOAuthService.ExchangeCodeForToken(code);
+                // 1️⃣ Đổi code → access token
+                var tokenResponse = await _googleOAuthService.ExchangeCodeForToken(code);
 
-            // 2️⃣ Gọi Google lấy user info
-            var googleUser = await _googleOAuthService.GetGoogleUserInfo(tokenResponse.AccessToken);
+                // 2️⃣ Gọi Google lấy user info
+                var googleUser = await _googleOAuthService.GetGoogleUserInfo(tokenResponse.AccessToken);
 
-            // 3️⃣ Login / register
-            GoogleLoginHandler googleLoginHandler = new GoogleLoginHandler(_context, _authService);
-            var result = await googleLoginHandler.HandleGoogleLogin(googleUser);
+                // 3️⃣ Login / register
+                GoogleLoginHandler googleLoginHandler = new GoogleLoginHandler(_context, _authService);
+                var result = await googleLoginHandler.HandleGoogleLogin(googleUser);
 
-            int expiresDays = _configuration.GetValue<int>("Jwt:RefreshTokenDays");
-            // 4️⃣ Set refresh token cookie
-            SetRefreshTokenCookie(result.refreshToken, result.Expiry);
+                int expiresDays = _configuration.GetValue<int>("Jwt:RefreshTokenDays");
+                // 4️⃣ Set refresh token cookie
+                SetRefreshTokenCookie(result.refreshToken, result.Expiry);
 
-            // 5️⃣ Redirect về FE (access token trả qua query hoặc fragment)
-            return Redirect($"http://localhost:3000/login-success");
+                // 5️⃣ Redirect về FE (access token trả qua query hoặc fragment)
+                return Redirect($"http://localhost:3000/login-success");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Redirect($"http://localhost:3000/login-error?message={Uri.EscapeDataString(ex.Message)}");
+            }
         }
 
         private void SetRefreshTokenCookie(string refreshToken, DateTime? expires)
@@ -75,24 +83,33 @@ namespace Backend.Domains.auth.Controllers
         [HttpGet("me")]
         public async Task<IActionResult> Me()
         {
-            var refreshToken = Request.Cookies["refreshToken"];
-            if (string.IsNullOrEmpty(refreshToken)) return Unauthorized();
-
-
-            var userFromDb = await _context.Users
-                       .Include(u => u.Role)
-                       .FirstOrDefaultAsync(u =>
-                           u.RefreshToken == refreshToken &&
-                           u.RefreshTokenExpiry > DateTime.UtcNow
-                       );
-
-            if (userFromDb == null) return Unauthorized();
-
-            var accessToken = await _authService.CreateAccessToken(userFromDb);
-            return Ok(new
+            try
             {
-                accessToken
-            });
+                var refreshToken = Request.Cookies["refreshToken"];
+                if (string.IsNullOrEmpty(refreshToken)) return Unauthorized();
+
+
+                var userFromDb = await _context.Users
+                           .Include(u => u.Role)
+                           .FirstOrDefaultAsync(u =>
+                               u.RefreshToken == refreshToken &&
+                               u.RefreshTokenExpiry > DateTime.UtcNow
+                           );
+
+                if (userFromDb == null) return Unauthorized();
+
+                var accessToken = await _authService.CreateAccessToken(userFromDb);
+
+                return Ok(new AuthResponse
+                {
+                    AccessToken = accessToken,
+                    Status = userFromDb.Status
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
         }
     }
 }

@@ -6,6 +6,7 @@ import { ConstructionIllustration } from "@/components/construction-illustration
 import { authApi } from "@/services/auth-service"; 
 import { setAccessToken } from "@/lib/axios-client";
 import { useRouter } from "next/navigation";
+import { FullPageSpinner } from "@/components/ui/custom/full-page-spinner";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,9 +41,7 @@ export default function LoginPage() {
 
   if (isChecking) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-white">
-        <div className="w-12 h-12 border-4 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
-      </div>
+      <FullPageSpinner />
     );
   }
 

@@ -32,12 +32,24 @@ namespace Backend.Domains.auth.Services
 
         public async Task<string> CreateAccessToken(User user)
         {
+            // user exists but being deactived
+            if (!user.Status)
+            {
+                throw new UnauthorizedAccessException("User is deactivated.");
+            }
+
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Email, user.Email ),
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Role, user.Role.Name ) // Use Role.Name instead of Role
+                new Claim(ClaimTypes.Role, user.Role.Name ), // Use Role.Name instead of Role
+                new Claim("Status", user.Status.ToString()) 
             };
+
+            // thêm 1 cái claims status vào đây (tự thêm đi)
+            // có 2 cách làm cái này : 1 là valid jwt lấy status check ở backend
+            // 2 là khi login xong trả accesstoken ông trả thêm cả status nữa trong body ý
+            // đoạn này nay
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
                 _configuration.GetValue<string>("Jwt:Key")!
