@@ -34,6 +34,7 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [originalUser, setOriginalUser] = useState<UserDto | null>(null);
 
   // GIẢ ĐỊNH: ID của user đang đăng nhập là 1.
   // Thực tế bạn sẽ lấy ID này từ Context, LocalStorage hoặc Decode Token.
@@ -50,6 +51,7 @@ export default function ProfilePage() {
       try {
         const res = await userApi.getById(CURRENT_USER_ID);
         setUser(res.data);
+        setOriginalUser(res.data);
       } catch (error) {
         console.error("Failed to load profile", error);
       } finally {
@@ -78,6 +80,7 @@ export default function ProfilePage() {
           (value.length < 10 || value.length > LIMITS.phoneNumber)
         )
           error = "Phone number must be 10-11 digits.";
+        else if (!value.trim()) error = "Phone number is required.";
         break;
 
       case "bio":
@@ -95,8 +98,9 @@ export default function ProfilePage() {
     setIsSaving(true);
     try {
       await userApi.update(user.id, user);
-
       await new Promise((resolve) => setTimeout(resolve, 500));
+
+      setOriginalUser(user);
 
       toast.success("Update success!");
     } catch (error) {
@@ -108,12 +112,26 @@ export default function ProfilePage() {
     }
   };
 
-  if (loadingData) {
-    return (
-      <FullPageSpinner />
-    );
-  }
+  const handleCancel = () => {
+    if (originalUser) {
+      setUser({ ...originalUser });
+      setErrors({});
+      setFocusedField(null);
+    }
+  };
 
+  const hasChanges =
+    user &&
+    originalUser &&
+    (user.fullName !== originalUser.fullName ||
+      (user.phoneNumber || "") !== (originalUser.phoneNumber || "") ||
+      (user.bio || "") !== (originalUser.bio || ""));
+
+  const hasErrors = Object.values(errors).some((error) => error.length > 0);
+
+  if (loadingData) {
+    return <FullPageSpinner />;
+  }
 
   if (!user)
     return <div className="p-10 text-center">Failed to load user data.</div>;
@@ -165,17 +183,19 @@ export default function ProfilePage() {
                 </p>
               </div>
               <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="text-slate-600 border-slate-300 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200"
-                  onClick={() => router.back()}
-                >
-                  Cancel
-                </Button>
+                {hasChanges && (
+                  <Button
+                    variant="outline"
+                    className="text-slate-600 border-slate-300 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-all duration-300 animate-in fade-in slide-in-from-right-4"
+                    onClick={handleCancel}
+                  >
+                    Cancel
+                  </Button>
+                )}
                 <Button
                   onClick={handleSave}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 min-w-[140px]"
-                  disabled={isSaving}
+                  disabled={isSaving || !hasChanges || hasErrors}
                 >
                   {isSaving ? (
                     <>
@@ -194,7 +214,7 @@ export default function ProfilePage() {
               {/* LEFT COLUMN - Avatar & Key Info */}
               <div className="lg:col-span-1 space-y-6">
                 <Card>
-                  <div className="h-32 bg-gradient-to-r from-blue-500 to-indigo-600 w-full relative">
+                  <div className="h-32 bg-gradient-to-r from-blue-500 to-indigo-600 w-full relative rounded-md">
                     <div className="absolute top-4 right-4">
                       <button className="p-1.5 bg-white/20 hover:bg-white/30 rounded-md text-white backdrop-blur-sm transition-all">
                         <Camera className="w-4 h-4" />
@@ -215,7 +235,7 @@ export default function ProfilePage() {
 
                   <div className="px-6 pb-2">
                     {/* Hiển thị tên từ API */}
-                    <h3 className="text-xl text-center font-bold text-slate-900">
+                    <h3 className="text-xl text-center font-bold text-slate-900 break-all">
                       {user.fullName}
                     </h3>
                     {/* Role từ API (ví dụ: WORKER) */}
@@ -494,7 +514,10 @@ export default function ProfilePage() {
                 </Card>
 
                 {/* Security Zone */}
-                <Card interactive className="border-red-100 hover:border-red-300">
+                <Card
+                  interactive
+                  className="border-red-100 hover:border-red-300"
+                >
                   <div className="flex items-center gap-3 mb-6">
                     <div className="p-2 bg-red-100 text-red-600 rounded-lg">
                       <Shield className="w-5 h-5" />

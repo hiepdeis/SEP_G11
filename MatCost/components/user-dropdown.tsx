@@ -58,14 +58,14 @@ export function UserDropdown({
         <DropdownMenuItem asChild>
           <Link
             href="/profile"
-            className="cursor-pointer rounded-lg group focus:bg-primary focus:text-white flex items-center w-full"
+            className="cursor-pointer rounded-lg group focus:bg-indigo-600 focus:text-white flex items-center w-full"
           >
             <User className="mr-2 h-4 w-4 text-slate-500 group-focus:text-white transition-colors" />
             <span>Profile</span>
           </Link>
         </DropdownMenuItem>
 
-        <DropdownMenuItem className="cursor-pointer rounded-lg group focus:bg-primary focus:text-white">
+        <DropdownMenuItem className="cursor-pointer rounded-lg group focus:bg-indigo-600 focus:text-white">
           <Settings className="mr-2 h-4 w-4 text-slate-500 group-focus:text-white transition-colors" />
           <span>Preferences</span>
         </DropdownMenuItem>
