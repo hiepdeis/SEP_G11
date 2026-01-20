@@ -6,13 +6,38 @@ export interface UserDto {
   fullName: string;
   roleName: string;
   phoneNumber: string | null;
-  status: boolean;
+  status: boolean; 
 }
 
+export interface UserProfileUpdateDto {
+  fullName: string;
+  phoneNumber: string | null;
+}
+
+export interface UserStatusUpdateDto {
+  isActive: boolean;
+}
+
+export interface PaginatedUsersDto {
+  users: UserDto[];
+  totalCount: number;
+  pageIndex: number;
+  pageSize: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
+
 export const userApi = {
-  // GET /api/User
-  getAll: () => {
-    return axiosClient.get<UserDto[]>("/User");
+  // GET /api/User?pageIndex=1&pageSize=10
+  getAll: (pageIndex: number = 1, pageSize: number = 10) => {
+    return axiosClient.get<PaginatedUsersDto>("/User", {
+      params: {
+        pageIndex,
+        pageSize,
+      },
+    });
   },
 
   // GET /api/User/{userId}
@@ -20,18 +45,14 @@ export const userApi = {
     return axiosClient.get<UserDto>(`/User/${userId}`);
   },
 
-  // PUT /api/User/update/{userId}
-  update: (userId: number, data: UserDto) => {
-    return axiosClient.put<UserDto>(`/User/update/${userId}`, data);
+  // PUT /api/User/{userId}
+  update: (userId: number, data: UserProfileUpdateDto) => {
+    return axiosClient.put<UserDto>(`/User/${userId}`, data);
   },
 
-  // PUT /api/User/activate/{userId}
-  activate: (userId: number) => {
-    return axiosClient.put<boolean>(`/User/activate/${userId}`);
-  },
-
-  // PUT /api/User/deactivate/{userId}
-  deactivate: (userId: number) => {
-    return axiosClient.put<boolean>(`/User/deactivate/${userId}`);
+  // PATCH /api/User/{userId}/status
+  updateStatus: (userId: number, isActive: boolean) => {
+    const payload: UserStatusUpdateDto = { isActive };
+    return axiosClient.patch<boolean>(`/User/${userId}/status`, payload);
   },
 };

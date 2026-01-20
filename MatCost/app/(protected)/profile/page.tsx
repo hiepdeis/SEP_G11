@@ -101,7 +101,7 @@ export default function ProfilePage() {
       toast.success("Update success!");
     } catch (error) {
       console.error("Update failed", error);
-      toast.success("Update failed!");
+      toast.error("Update failed!");
       alert("");
     } finally {
       setIsSaving(false);

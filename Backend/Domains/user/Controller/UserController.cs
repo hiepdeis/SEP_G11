@@ -1,11 +1,14 @@
 ﻿using Backend.Domains.user.Interface;
+using Backend.Domains.user.Dtos;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Backend.Domains.user.Controller
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Policy ="ActiveUserOnly")]
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
@@ -15,40 +18,11 @@ namespace Backend.Domains.user.Controller
             _userService = userService;
         }
 
-        [HttpPut("activate/{userId}")]
-        public async Task<IActionResult> ActivateUser(int userId)
+        [HttpGet]
+        public async Task<IActionResult> GetAllUsers([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
         {
-            try
-            {
-                var result = await _userService.ActiveUserAsync(userId);
-                return Ok(result);
-            }
-            catch (ArgumentException ex)
-            {
-                return NotFound(ex.Message);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
-        [HttpPut("deactivate/{userId}")]
-        public async Task<IActionResult> DeactivateUser(int userId)
-        {
-            try
-            {
-                var result = await _userService.DeactiveUserAsync(userId);
-                return Ok(result);
-            }
-            catch (ArgumentException ex)
-            {
-                return NotFound(ex.Message);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var result = await _userService.GetAllUsersAsync(pageIndex, pageSize);
+            return Ok(result);
         }
 
         [HttpGet("{userId}")]
@@ -65,15 +39,8 @@ namespace Backend.Domains.user.Controller
             }
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetAllUsers()
-        {
-            var result = await _userService.GetAllUserAsync();
-            return Ok(result);
-        }
-
-        [HttpPut("update/{userId}")]
-        public async Task<IActionResult> UpdateUserProfile(int userId, [FromBody] Dtos.UserDto userDto)
+        [HttpPut("{userId}")]
+        public async Task<IActionResult> UpdateUserProfile(int userId, [FromBody] UserProfileUpdateDto userDto)
         {
             try
             {
@@ -83,6 +50,24 @@ namespace Backend.Domains.user.Controller
             catch (ArgumentException ex)
             {
                 return NotFound(ex.Message);
+            }
+        }
+
+        [HttpPatch("{userId}/status")]
+        public async Task<IActionResult> UpdateUserStatus(int userId, [FromBody] UserStatusUpdateDto statusDto)
+        {
+            try
+            {
+                var result = await _userService.UpdateUserStatusAsync(userId, statusDto.IsActive);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
             }
         }
     }

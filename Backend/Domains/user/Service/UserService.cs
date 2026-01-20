@@ -14,39 +14,6 @@ namespace Backend.Domains.user.Service
         {
             _context = context;
         }
-        public async Task<UserDto?> ActiveUserAsync(int userId)
-        {   
-            var user = await _context.Users.Include(i => i.Role)
-                       .FirstOrDefaultAsync(u => u.Id == userId);
-
-            if (user == null) throw new ArgumentException($"User with ID {userId} not found.");
-
-            if (user.Status == true) throw new InvalidOperationException($"User with ID {userId} is already active.");
-
-            user.Status = true;
-            await _context.SaveChangesAsync();
-            return MapToUserDto(user);
-        }
-
-        public async Task<UserDto?> DeactiveUserAsync(int userId)
-        {
-            var user = await _context.Users.Include(i => i.Role)
-                       .FirstOrDefaultAsync(u => u.Id == userId);
-
-            if (user == null) throw new ArgumentException($"User with ID {userId} not found.");
-
-            if (user.Status == false) throw new InvalidOperationException($"User with ID {userId} is already inactive.");
-
-            user.Status = false;
-            await _context.SaveChangesAsync();
-            return MapToUserDto(user);
-        }
-
-        public async Task<IEnumerable<UserDto?>> GetAllUserAsync()
-        {
-            var users = await _context.Users.Include(i => i.Role).ToListAsync();
-            return users.Select(MapToUserDto).ToList();
-        }
 
         public async Task<UserDto?> GetUserProfileAsync(int userId)
         {
@@ -58,7 +25,31 @@ namespace Backend.Domains.user.Service
             return MapToUserDto(user);
         }
 
-        public async Task<UserDto?> UpdateUserProfileAsync(int userId, UserDto userDto)
+        public async Task<PaginatedUsersDto> GetAllUsersAsync(int pageIndex = 1, int pageSize = 10)
+        {
+            // Validate pagination parameters
+            if (pageIndex < 1) pageIndex = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 100) pageSize = 100; // Limit max page size
+
+            var totalCount = await _context.Users.CountAsync();
+
+            var users = await _context.Users
+                .Include(i => i.Role)
+                .Skip((pageIndex - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return new PaginatedUsersDto
+            {
+                Users = users.Select(MapToUserDto),
+                TotalCount = totalCount,
+                PageIndex = pageIndex,
+                PageSize = pageSize
+            };
+        }
+
+        public async Task<UserDto?> UpdateUserProfileAsync(int userId, UserProfileUpdateDto userDto)
         {
             var user = await _context.Users.Include(i => i.Role)
                        .FirstOrDefaultAsync(u => u.Id == userId);
@@ -67,6 +58,25 @@ namespace Backend.Domains.user.Service
 
             user.FullName = userDto.FullName;
             user.PhoneNumber = userDto.PhoneNumber;
+
+            await _context.SaveChangesAsync();
+            return MapToUserDto(user);
+        }
+
+        public async Task<UserDto?> UpdateUserStatusAsync(int userId, bool isActive)
+        {
+            var user = await _context.Users.Include(i => i.Role)
+                       .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (user == null) throw new ArgumentException($"User with ID {userId} not found.");
+
+            if (user.Status == isActive)
+            {
+                var statusText = isActive ? "active" : "inactive";
+                throw new InvalidOperationException($"User with ID {userId} is already {statusText}.");
+            }
+
+            user.Status = isActive;
             await _context.SaveChangesAsync();
             return MapToUserDto(user);
         }
