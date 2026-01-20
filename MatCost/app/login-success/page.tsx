@@ -32,12 +32,20 @@ export default function LoginSuccess() {
 
         // 3. Chuyển hướng vào Dashboard
         router.replace("/dashboard");
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error", error);
-        setStatus("Login failed. Try again later.");
-        setTimeout(() => {
-          router.replace("/");
-        }, 2000);
+        // Lấy message lỗi từ Backend
+        let msg = "Login failed. Please try again.";
+        
+        if (error.response) {
+            // Backend trả về lỗi 403 (Forbid) kèm message
+            if (error.response.data) msg = error.response.data;
+            if (error.response.status === 403) msg = "Your account has been deactivated.";
+        } else if (error.request) {
+            msg = "Network error. Cannot connect to server.";
+        }
+
+        router.replace(`/login-error?message=${encodeURIComponent(msg)}`);
       }
     };
 
