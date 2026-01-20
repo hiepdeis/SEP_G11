@@ -191,7 +191,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* LEFT COLUMN - Avatar & Key Info (Binding Data from API) */}
+              {/* LEFT COLUMN - Avatar & Key Info */}
               <div className="lg:col-span-1 space-y-6">
                 <Card>
                   <div className="h-32 bg-gradient-to-r from-blue-500 to-indigo-600 w-full relative">
@@ -290,7 +290,7 @@ export default function ProfilePage() {
 
               {/* RIGHT COLUMN - Edit Forms */}
               <div className="lg:col-span-2 space-y-6">
-                {/* --- PERSONAL INFORMATION (CONNECTED TO API) --- */}
+                {/* --- PERSONAL INFORMATION --- */}
                 <Card interactive>
                   <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
                     <div className="flex items-center gap-3">

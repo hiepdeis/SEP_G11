@@ -17,7 +17,7 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
           noPadding ? "p-0" : "p-6",
 
           interactive &&
-            "hover:shadow-xl hover:-translate-y-1 hover:border-slate-300 cursor-pointer",
+            "hover:shadow-xl hover:-translate-y-1 hover:border-slate-300",
 
           className,
         )}
