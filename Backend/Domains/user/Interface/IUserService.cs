@@ -4,10 +4,9 @@ namespace Backend.Domains.user.Interface
 {
     public interface IUserService
     {
-        Task<UserDto?> ActiveUserAsync(int userId);
-        Task<UserDto?> DeactiveUserAsync(int userId);
         Task<UserDto?> GetUserProfileAsync(int userId);
-        Task<IEnumerable<UserDto?>> GetAllUserAsync();
-        Task<UserDto?> UpdateUserProfileAsync(int userId, UserDto userDto);
+        Task<PaginatedUsersDto> GetAllUsersAsync(int pageIndex = 1, int pageSize = 10);
+        Task<UserDto?> UpdateUserProfileAsync(int userId, UserProfileUpdateDto userDto);
+        Task<UserDto?> UpdateUserStatusAsync(int userId, bool isActive);
     }
 }
