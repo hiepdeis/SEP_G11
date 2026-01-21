@@ -59,6 +59,7 @@ export default function UsersPage() {
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageInput, setPageInput] = useState("1");
   const itemsPerPage = 10;
 
   // Sorting State 
@@ -144,6 +145,32 @@ export default function UsersPage() {
     setCurrentPage(1);
   }, [searchTerm, statusFilter]);
 
+  // Đồng bộ input khi currentPage thay đổi
+  useEffect(() => {
+    setPageInput(currentPage.toString());
+  }, [currentPage]);
+
+  // --- Xử lý Input chuyển trang ---
+  const handlePageInputSubmit = () => {
+    const pageNumber = parseInt(pageInput);
+    if (!isNaN(pageNumber) && pageNumber >= 1 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+    } else {
+      // Nếu nhập sai thì reset về trang hiện tại
+      setPageInput(currentPage.toString());
+      toast({
+        title: "Invalid Page",
+        description: `Please enter a number between 1 and ${totalPages}`,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handlePageInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handlePageInputSubmit();
+    }
+  };
 
   // --- Action Update Status ---
   const handleToggleStatus = async (user: UserDto) => {
@@ -330,6 +357,20 @@ export default function UsersPage() {
               >
                 Previous
               </Button>
+
+              {/* Input chuyển trang */}
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-slate-400">Page</span>
+                <Input 
+                  value={pageInput}
+                  onChange={(e) => setPageInput(e.target.value)}
+                  onBlur={handlePageInputSubmit}
+                  onKeyDown={handlePageInputKeyDown}
+                  className="h-8 w-12 text-center px-1 text-xs"
+                />
+                <span className="text-xs text-slate-400">of {totalPages || 1}</span>
+              </div>
+
               <Button 
                 variant="outline" 
                 size="sm"
