@@ -212,7 +212,7 @@ export default function UsersPage() {
             
             {/* Refresh */}
             <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.3 }}>
-              <Button variant="outline" size="icon" onClick={fetchUsers} className="bg-white hover:bg-orange-50 hover:text-black">
+              <Button variant="outline" size="icon" onClick={fetchUsers} className="bg-white hover:bg-slate-50 hover:text-black">
                 <RotateCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </Button>
             </motion.div>
@@ -326,7 +326,7 @@ export default function UsersPage() {
                 size="sm" 
                 disabled={currentPage <= 1}
                 onClick={() => setCurrentPage(p => p - 1)}
-                className="h-8 bg-white hover:bg-slate-50"
+                className="h-8 bg-white hover:bg-slate-50 hover:text-black"
               >
                 Previous
               </Button>
@@ -335,7 +335,7 @@ export default function UsersPage() {
                 size="sm"
                 disabled={currentPage >= totalPages}
                 onClick={() => setCurrentPage(p => p + 1)}
-                className="h-8 bg-white hover:bg-slate-50"
+                className="h-8 bg-white hover:bg-slate-50 hover:text-black"
               >
                 Next
               </Button>
@@ -366,7 +366,7 @@ function SortableHeader({
     <TableHead className={width}>
       <button 
         onClick={() => onSort(sortKey)}
-        className={`flex items-center gap-1 hover:text-slate-900 transition-colors font-semibold ${isSorted ? "text-indigo-600" : ""}`}
+        className={`flex items-center gap-1 transition-colors font-semibold hover:text-indigo-600 cursor-pointer ${isSorted ? "text-indigo-600" : ""}`}
       >
         {label}
         {isSorted ? (
