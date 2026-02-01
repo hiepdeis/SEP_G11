@@ -44,6 +44,7 @@ export default function ProfilePage() {
     fullName: 50,
     phoneNumber: 11,
     bio: 200,
+    address: 200,
   };
 
   useEffect(() => {
@@ -86,6 +87,10 @@ export default function ProfilePage() {
       case "bio":
         if (value.length > LIMITS.bio) error = "Bio is too long.";
         break;
+
+      case "address":
+        if (value.length > LIMITS.address) error = "Address is too long.";
+        break;
     }
 
     setErrors((prev) => ({ ...prev, [field]: error }));
@@ -125,7 +130,8 @@ export default function ProfilePage() {
     originalUser &&
     (user.fullName !== originalUser.fullName ||
       (user.phoneNumber || "") !== (originalUser.phoneNumber || "") ||
-      (user.bio || "") !== (originalUser.bio || ""));
+      (user.bio || "") !== (originalUser.bio || "") ||
+      (user.address || "") !== (originalUser.address || ""));
 
   const hasErrors = Object.values(errors).some((error) => error.length > 0);
 
@@ -213,7 +219,7 @@ export default function ProfilePage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* LEFT COLUMN - Avatar & Key Info */}
               <div className="lg:col-span-1 space-y-6">
-                <Card>
+                <Card interactive>
                   <div className="h-32 bg-gradient-to-r from-blue-500 to-indigo-600 w-full relative rounded-md">
                     <div className="absolute top-4 right-4">
                       <button className="p-1.5 bg-white/20 hover:bg-white/30 rounded-md text-white backdrop-blur-sm transition-all">
@@ -265,7 +271,7 @@ export default function ProfilePage() {
                 </Card>
 
                 {/* Login History (Static for now) */}
-                <Card>
+                <Card interactive>
                   <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
                     <History className="w-4 h-4 text-indigo-600" />
                     Login History
@@ -469,11 +475,51 @@ export default function ProfilePage() {
                         </p>
                       )}
                     </div>
+                    <div className="col-span-1 md:col-span-2 space-y-2">
+                      <div className="flex justify-between">
+                        <LabelCharCount
+                          className={errors.address ? "text-red-500" : ""}
+                          currentLength={
+                            focusedField === "address"
+                              ? user.address?.length || 0
+                              : undefined
+                          }
+                          maxLength={LIMITS.address}
+                        >
+                          Personal Address
+                        </LabelCharCount>
+                      </div>
+                      <Input
+                        value={user.address || ""}
+                        onChange={(e) => {
+                          setUser({ ...user, address: e.target.value });
+                          if (errors.address)
+                            setErrors({ ...errors, address: "" });
+                        }}
+                        onFocus={() => setFocusedField("address")}
+                        onBlur={() => {
+                          setFocusedField(null);
+                          validateField("address", user.address || "");
+                        }}
+                        placeholder="Enter your personal address"
+                        maxLength={LIMITS.address}
+                        className={
+                          errors.address
+                            ? "border-red-500 focus-visible:ring-red-500"
+                            : ""
+                        }
+                      />
+                      {errors.address && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors.address}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </Card>
 
                 {/* Address & Work */}
-                <Card interactive>
+                {/* <Card interactive>
                   <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-orange-100 text-orange-600 rounded-lg">
@@ -497,7 +543,6 @@ export default function ProfilePage() {
                     </div>
                     <div className="space-y-2">
                       <LabelCharCount>Job Title</LabelCharCount>
-                      {/* Hiển thị Role Name từ API vào đây nếu muốn */}
                       <Input defaultValue={user.roleName || "Employee"} />
                     </div>
                     <div className="col-span-1 md:col-span-2 space-y-2">
@@ -511,48 +556,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   </div>
-                </Card>
-
-                {/* Security Zone */}
-                <Card
-                  interactive
-                  className="border-red-100 hover:border-red-300"
-                >
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 bg-red-100 text-red-600 rounded-lg">
-                      <Shield className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-900">
-                        Security
-                      </h3>
-                      <p className="text-slate-500 text-sm">
-                        Manage your password and security preferences.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100">
-                    <div className="flex items-center gap-3">
-                      <Key className="w-5 h-5 text-slate-400" />
-                      <div>
-                        <p className="font-medium text-slate-900">
-                          Change Password
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Last changed 3 months ago
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-slate-600 hover:text-slate-900 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200"
-                    >
-                      Update
-                    </Button>
-                  </div>
-                </Card>
+                </Card> */}
               </div>
             </div>
           </div>

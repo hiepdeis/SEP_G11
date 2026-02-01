@@ -117,7 +117,7 @@ export default function LoginPage() {
             />
 
             {/* Divider */}
-            <div className="my-8 flex items-center gap-3">
+            {/* <div className="my-8 flex items-center gap-3">
               <div className="flex-1 h-px bg-slate-200"></div>
               <span className="text-xs text-slate-500 uppercase tracking-wide">
                 Or continue with email
@@ -125,10 +125,9 @@ export default function LoginPage() {
               <div className="flex-1 h-px bg-slate-200"></div>
             </div>
 
-            {/* Email Option */}
             <button className="w-full px-4 py-3 border border-slate-300 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition-colors duration-200">
               Sign in with Email
-            </button>
+            </button> */}
 
             {/* Footer */}
             <p className="text-xs text-slate-500 text-center mt-6">
