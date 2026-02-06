@@ -353,7 +353,7 @@ public partial class CapstoneSemester9Context : DbContext
             entity.Property(e => e.RoleDescription).HasMaxLength(255);
             entity.HasData(
                 new Role { RoleId = 1, RoleName = "Admin", RoleDescription = "Administrator role" },
-                new Role { RoleId = 2, RoleName = "User", RoleDescription = "User role" });
+                new Role { RoleId = 3, RoleName = "User", RoleDescription = "User role" });
         });
 
         modelBuilder.Entity<StockTake>(entity =>
