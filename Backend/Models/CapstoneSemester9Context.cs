@@ -288,6 +288,17 @@ public partial class CapstoneSemester9Context : DbContext
             entity.Property(e => e.ReceiptDate)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnType("datetime");
+
+            entity.Property(e => e.SubmittedBy)
+                .HasColumnName("SubmittedBy");
+
+            entity.Property(e => e.SubmittedAt)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnName("SubmittedAt")
+                .HasColumnType("datetime");
+              
+            entity.Property(e => e.Notes).HasColumnName("Notes").HasMaxLength(500);
+
             entity.Property(e => e.Status)
                 .HasMaxLength(20)
                 .IsUnicode(false);
