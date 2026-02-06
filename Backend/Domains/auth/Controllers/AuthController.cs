@@ -4,6 +4,7 @@ using Backend.Domains.auth.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Backend.Domains.auth.Controllers
 {
@@ -23,6 +24,19 @@ namespace Backend.Domains.auth.Controllers
             _authService = authService;
             _googleOAuthService = googleOAuthService;
             _googleLoginHandler = googleLoginHandler;
+        }
+
+        [HttpGet("user-id")]
+        [Authorize]
+        public IActionResult GetUserId()
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userIdClaim))
+            {
+                return Unauthorized();
+            }
+
+            return Ok(new { userId = int.Parse(userIdClaim) });
         }
 
         [HttpGet("login-google")]

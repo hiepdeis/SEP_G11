@@ -17,6 +17,12 @@ public partial class Receipt
 
     public DateTime? ReceiptDate { get; set; }
 
+    public int? SubmittedBy { get; set; }
+
+    public DateTime? SubmittedAt { get; set; }
+
+    public string? Notes { get; set; }
+
     public string? Status { get; set; }
 
     public decimal? TotalAmount { get; set; }
