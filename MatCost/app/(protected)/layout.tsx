@@ -18,7 +18,11 @@ export default function ProtectedLayout({
     const verifySession = async () => {
       try {
         const res = await authApi.getMe();
-        setAccessToken(res.data.accessToken);
+        const token = res.data.accessToken;
+        setAccessToken(token);
+        if (typeof window !== "undefined") {
+          (window as any).jwt = token;
+        }
         setIsLoading(false);
       } catch (error) {
         setIsLoading(false);
@@ -30,9 +34,7 @@ export default function ProtectedLayout({
   }, [router]);
 
   if (isLoading) {
-    return (
-      <FullPageSpinner />
-    );
+    return <FullPageSpinner />;
   }
 
   return <>{children}</>;

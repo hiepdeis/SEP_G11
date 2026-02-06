@@ -38,7 +38,7 @@ export default function ProfilePage() {
 
   // GIẢ ĐỊNH: ID của user đang đăng nhập là 1.
   // Thực tế bạn sẽ lấy ID này từ Context, LocalStorage hoặc Decode Token.
-  const CURRENT_USER_ID = 1;
+  const CURRENT_USER_ID = 4;
 
   const LIMITS = {
     fullName: 50,
