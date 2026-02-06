@@ -4,7 +4,6 @@ import { Sidebar } from "@/components/sidebar";
 import { UserDropdown } from "@/components/user-dropdown";
 import {
   ArrowLeft,
-  Users,
   Calendar,
   Warehouse,
   Save,
@@ -30,6 +29,12 @@ import { useRouter } from "next/navigation";
 
 export default function CreateAuditPage() {
   const router = useRouter();
+
+  const handleSave = () => {
+    // Logic gọi API tạo Audit Plan ở đây
+    alert("Audit Plan created successfully!");
+    router.push("/audit"); // Quay lại danh sách sau khi tạo xong
+  };
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
@@ -65,20 +70,19 @@ export default function CreateAuditPage() {
             <CardHeader className="bg-slate-50 border-b border-slate-100">
               <CardTitle>Audit Configuration</CardTitle>
               <CardDescription>
-                Define scope, timeline, and assign counting teams.
+                Define scope, location and timeline for the new audit.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
               {/* Step 1: Basic Info */}
               <div className="space-y-4">
                 <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                  <Warehouse className="w-4 h-4 text-indigo-600" /> 1. Scope &
-                  Location
+                  <Warehouse className="w-4 h-4 text-indigo-600" /> 1. Scope & Location
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Audit Title</label>
-                    <Input placeholder="e.g. End of Month Count - Zone A" />
+                    <Input placeholder="e.g. Q1 2026 Opening Stock" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
@@ -118,37 +122,15 @@ export default function CreateAuditPage() {
                 </div>
               </div>
 
-              {/* Step 3: Team */}
-              <div className="space-y-4 pt-4 border-t border-slate-100">
-                <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                  <Users className="w-4 h-4 text-indigo-600" /> 3. Team
-                  Assignment
-                </h3>
-                <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                  <div className="flex gap-2 mb-3">
-                    <Select>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Select Staff Member" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="s1">Nguyen Van A (Staff)</SelectItem>
-                        <SelectItem value="s2">Tran Thi B (Staff)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button variant="outline">Assign</Button>
-                  </div>
-                  <div className="text-sm text-slate-500 italic">
-                    No staff assigned yet.
-                  </div>
-                </div>
-              </div>
-
               <div className="pt-6 flex justify-end gap-3">
                 <Button variant="ghost" onClick={() => router.back()}>
                   Cancel
                 </Button>
-                <Button className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[150px]">
-                  <Save className="w-4 h-4 mr-2" /> Create Plan
+                <Button 
+                  onClick={handleSave}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[150px]"
+                >
+                  <Save className="w-4 h-4 mr-2" /> Save & Close
                 </Button>
               </div>
             </CardContent>

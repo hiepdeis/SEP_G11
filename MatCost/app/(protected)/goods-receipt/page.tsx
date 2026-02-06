@@ -65,7 +65,7 @@ export default function ImportProcessingListPage() {
     setTimeout(() => {
       // Trong thực tế: router.push(`/import/create?sourceId=${id}`);
       setLoadingId(null);
-      router.push(`inbound-processing/create`);
+      router.push(`goods-receipt/create`);
     }, 200);
   };
 

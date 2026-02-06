@@ -271,7 +271,7 @@ export default function ProfilePage() {
                 </Card>
 
                 {/* Login History (Static for now) */}
-                <Card interactive>
+                {/* <Card interactive>
                   <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
                     <History className="w-4 h-4 text-indigo-600" />
                     Login History
@@ -311,7 +311,7 @@ export default function ProfilePage() {
                       </div>
                     ))}
                   </div>
-                </Card>
+                </Card> */}
               </div>
 
               {/* RIGHT COLUMN - Edit Forms */}
