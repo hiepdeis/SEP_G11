@@ -1,12 +1,11 @@
-using Backend.Data;
 using Backend.Domains.auth.Business;
 using Backend.Domains.auth.Interfaces;
 using Backend.Domains.auth.Services;
 using Backend.Domains.user.Interface;
 using Backend.Domains.user.Service;
+using Backend.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -17,24 +16,19 @@ builder.Configuration
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json",
                   optional: true, reloadOnChange: true);
 
-builder.Services.AddDbContext<MyDbContext>(options =>
-              options.UseMySql(
-                  builder.Configuration.GetConnectionString("DefaultConnection"),
-                  ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
-              ));
-// Add services to the container.
+// Add DbContext with SQL Server
+builder.Services.AddDbContext<CapstoneSemester9Context>();
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<GoogleOAuthService>();
-builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
+builder.Services.AddScoped<GoogleLoginHandler>();
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthorizationHandler, ActiveUserAuthorizationHandler>();
 
-// Add JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -52,7 +46,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// create custom Authorization Policy
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("ActiveUserOnly", policy =>
@@ -63,16 +56,15 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", policy =>
     {
-          policy.WithOrigins("http://localhost:3000")
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials();
+        policy.WithOrigins("http://localhost:3000")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
