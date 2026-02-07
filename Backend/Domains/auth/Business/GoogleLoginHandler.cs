@@ -27,8 +27,10 @@ namespace Backend.Domains.auth.Business
                 {
                     Email = googleUser.Email,
                     FullName = googleUser.Name,
-                    RoleId = 3,
-                    Status = true
+                    Username = googleUser.Email.Split('@')[0],
+                    RoleId = 1,
+                    Status = true,
+                    PasswordHash = Guid.NewGuid().ToString()
                 };
 
                 _context.Users.Add(user);
