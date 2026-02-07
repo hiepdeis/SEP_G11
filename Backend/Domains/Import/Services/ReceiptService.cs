@@ -18,7 +18,7 @@ namespace Backend.Domains.Import.Services
 
         public async Task CreateDraftAsync(long receiptId, CreateDraftDto dto, int accountantId)
         {
-            // Step 1: Lấy receipt
+            // Step 1: Get receipt
             var receipt = await _context.Receipts
                 .Include(r => r.ReceiptDetails)
                 .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
