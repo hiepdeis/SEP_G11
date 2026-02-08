@@ -481,6 +481,7 @@ public partial class CapstoneSemester9Context : DbContext
                 .HasForeignKey(d => d.ResolvedBy)
                 .OnDelete(DeleteBehavior.NoAction);
         });
+
         modelBuilder.Entity<StockTakeTeamMember>(entity =>
         {
             entity.HasKey(e => e.Id);

@@ -1,3 +1,5 @@
+using Backend.Domains.Audit.Interfaces;
+using Backend.Domains.Audit.Services;
 using Backend.Domains.auth.Business;
 using Backend.Domains.auth.Interfaces;
 using Backend.Domains.auth.Services;
@@ -27,6 +29,7 @@ builder.Configuration
 // Add DbContext with SQL Server
 builder.Services.AddDbContext<CapstoneSemester9Context>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("MyCnn")));
+
 
 
 builder.Services.AddControllers();
@@ -76,6 +79,7 @@ builder.Services.AddScoped<GoogleLoginHandler>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IReceiptService, ReceiptService>();
 builder.Services.AddScoped<IAuthorizationHandler, ActiveUserAuthorizationHandler>();
+builder.Services.AddScoped<IStockTakeService, StockTakeService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
