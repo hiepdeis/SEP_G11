@@ -1,42 +1,56 @@
-// app/login-success/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { setAccessToken } from "@/lib/axios-client"; // Import đúng đường dẫn file axios của bạn
+import { authApi } from "@/services/auth-service";
+import { FullPageSpinner } from "@/components/ui/custom/full-page-spinner";
 
 export default function LoginSuccess() {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState("Checking");
 
   useEffect(() => {
-    const completeLogin = async () => {
+    const initializeAuth = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/Auth/me", {
-          credentials: "include",
-        });
-        console.log("Login success response:", res);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        // Gọi API /Auth/me bằng axiosClient.
+        // Cookie HttpOnly sẽ tự động được gửi kèm request này.
+        const res = await authApi.getMe();
 
-        const data = await res.json();
-        const accessToken = data?.accessToken;
-        if (!accessToken) throw new Error("No access token");
+        const { accessToken } = res.data;
 
-        // ⚠️ demo: KHÔNG lưu localStorage trong production
-        sessionStorage.setItem("accessToken", accessToken);
+        if (!accessToken) throw new Error("Không nhận được access token");
 
-        // ✅ redirect dashboard
+        // 1. Lưu token vào Memory (Biến trong axios-client)
+        setAccessToken(accessToken);
+
+        // 2. (Optional) Nếu bạn có AuthContext, hãy gọi setUser hoặc setToken của Context tại đây
+        // const { setAuth } = useAuth();
+        // setAuth(accessToken);
+
+        setStatus("Login success! Redirecting...");
+
+        // 3. Chuyển hướng vào Dashboard
         router.replace("/dashboard");
-      } catch (e: any) {
-        setError(e.message || "Login failed");
+      } catch (error: any) {
+        console.error("Error", error);
+        // Lấy message lỗi từ Backend
+        let msg = "Login failed. Please try again.";
+        
+        if (error.response) {
+            // Backend trả về lỗi 403 (Forbid) kèm message
+            if (error.response.data) msg = error.response.data;
+            if (error.response.status === 403) msg = "Your account has been deactivated.";
+        } else if (error.request) {
+            msg = "Network error. Cannot connect to server.";
+        }
+
+        router.replace(`/login-error?message=${encodeURIComponent(msg)}`);
       }
     };
 
-    completeLogin();
+    initializeAuth();
   }, [router]);
 
-  return (
-    <div>
-      {error ? <p>Error: {error}</p> : <p>Completing login...</p>}
-    </div>
-  );
+  return <FullPageSpinner text={status} />;
 }

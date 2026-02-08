@@ -17,6 +17,11 @@ public partial class Material
 
     public int? MinStockLevel { get; set; }
 
+    public int? CategoryId { get; set; }
+
+    public virtual MaterialCategory? Category { get; set; } // Navigation
+
+
     public virtual ICollection<Batch> Batches { get; set; } = new List<Batch>();
 
     public virtual ICollection<InventoryCurrent> InventoryCurrents { get; set; } = new List<InventoryCurrent>();

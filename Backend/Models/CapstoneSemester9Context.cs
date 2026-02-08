@@ -17,6 +17,8 @@ public partial class CapstoneSemester9Context : DbContext
 
     public virtual DbSet<Batch> Batches { get; set; }
 
+    public virtual DbSet<MaterialCategory> MaterialCategories { get; set; }
+
     public virtual DbSet<BinLocation> BinLocations { get; set; }
 
     public virtual DbSet<InventoryCurrent> InventoryCurrents { get; set; }
@@ -213,6 +215,26 @@ public partial class CapstoneSemester9Context : DbContext
             entity.Property(e => e.MassPerUnit).HasColumnType("decimal(10, 2)");
             entity.Property(e => e.Name).HasMaxLength(255);
             entity.Property(e => e.Unit).HasMaxLength(20);
+            entity.Property(e => e.CategoryId).HasColumnName("CategoryID");
+
+            entity.HasOne(d => d.Category)
+                .WithMany(p => p.Materials)
+                .HasForeignKey(d => d.CategoryId)
+                .HasConstraintName("FK_Materials_Category");
+        });
+
+        modelBuilder.Entity<MaterialCategory>(entity =>
+        {
+            entity.HasKey(e => e.CategoryId).HasName("PK__MaterialCategories");
+
+            entity.HasIndex(e => e.Code, "UQ__MaterialCategories_Code").IsUnique();
+
+            entity.Property(e => e.CategoryId).HasColumnName("CategoryID");
+            entity.Property(e => e.Code)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.Description).HasMaxLength(255);
         });
 
         modelBuilder.Entity<MaterialLossNorm>(entity =>

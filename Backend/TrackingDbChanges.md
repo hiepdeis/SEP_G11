@@ -13,3 +13,6 @@
 
 - To do this, please run this migration using the command:
   + dotnet ef database update
+	+ 
+
+## 2 - Thongdnm change
