@@ -9,6 +9,7 @@ using Backend.Filters;
 using Backend.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using OfficeOpenXml;
@@ -24,7 +25,9 @@ builder.Configuration
                   optional: true, reloadOnChange: true);
 
 // Add DbContext with SQL Server
-builder.Services.AddDbContext<CapstoneSemester9Context>();
+builder.Services.AddDbContext<CapstoneSemester9Context>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("MyCnn")));
+
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
