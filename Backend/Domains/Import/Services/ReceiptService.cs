@@ -71,9 +71,13 @@ namespace Backend.Domains.Import.Services
                 .Where(m => materialCodes.Contains(m.Code))
                 .ToDictionaryAsync(m => m.Code, m => m.MaterialId);
 
-            // Step 3: Create new Receipt
+            // Step 3: Generate unique ReceiptCode
+            var receiptCode = await GenerateReceiptCodeAsync();
+
+            // Step 4: Create new Receipt
             var newRequestReceipt = new Receipt
             {
+                ReceiptCode = receiptCode,
                 WarehouseId = dto.WarehouseId,
                 CreatedBy = currentUserId,
                 ReceiptDate = DateTime.UtcNow,
@@ -93,6 +97,20 @@ namespace Backend.Domains.Import.Services
             return newRequestReceipt.ReceiptId;
         }
 
+        private async Task<string> GenerateReceiptCodeAsync()
+        {
+            var today = DateTime.UtcNow;
+            var prefix = $"RC{today:yyyyMMdd}"; // RC20250208
+
+            // Get today's receipts count
+            var count = await _context.Receipts
+                .Where(r => r.ReceiptCode!.StartsWith(prefix))
+                .CountAsync();
+
+            // Format: RC20250208-0001
+            return $"{prefix}-{(count + 1):D4}";
+        }
+
         public async Task<List<MaterialSuppliersDto>> GetAvailableSuppliersAsync(long receiptId)
         {
             // Step 1: Lấy danh sách MaterialId trong receipt
@@ -108,7 +126,7 @@ namespace Backend.Domains.Import.Services
                 .Include(sq => sq.Material)
                 .Where(sq => materialIds.Contains(sq.MaterialId ?? 0))
                 .Where(sq => sq.IsActive == true) // Chỉ lấy quotation đang active
-                .Where(sq => sq.ValidTo == null || sq.ValidTo >= DateTime.UtcNow) // Còn hiệu lực
+                .Where(sq => sq.ValidTo == null || sq.ValidTo >= DateTime.UtcNow)
                 .ToListAsync();
 
             // Step 3: Group by MaterialId
