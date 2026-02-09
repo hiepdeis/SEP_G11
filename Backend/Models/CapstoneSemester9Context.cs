@@ -215,6 +215,8 @@ public partial class CapstoneSemester9Context : DbContext
             entity.Property(e => e.MassPerUnit).HasColumnType("decimal(10, 2)");
             entity.Property(e => e.Name).HasMaxLength(255);
             entity.Property(e => e.Unit).HasMaxLength(20);
+            entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 2)");
+
             entity.Property(e => e.CategoryId).HasColumnName("CategoryID");
 
             entity.HasOne(d => d.Category)
@@ -318,7 +320,12 @@ public partial class CapstoneSemester9Context : DbContext
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnName("SubmittedAt")
                 .HasColumnType("datetime");
-              
+
+            entity.Property(e => e.ApprovedBy).HasColumnName("ApprovedBy");
+            entity.Property(e => e.ApprovedAt)
+                .HasColumnName("ApprovedAt")
+                .HasColumnType("datetime");
+
             entity.Property(e => e.Notes).HasColumnName("Notes").HasMaxLength(500);
 
             entity.Property(e => e.Status)

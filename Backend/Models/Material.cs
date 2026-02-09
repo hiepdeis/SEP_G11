@@ -13,6 +13,8 @@ public partial class Material
 
     public string? Unit { get; set; }
 
+    public decimal? UnitPrice { get; set; }
+
     public decimal? MassPerUnit { get; set; }
 
     public int? MinStockLevel { get; set; }

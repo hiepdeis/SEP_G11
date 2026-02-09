@@ -6,7 +6,7 @@ using System.Security.Claims;
 
 namespace Backend.Domains.Import.Controllers.Accountants
 {
-    [Route("api/[controller]")]
+    [Route("api/accountant/[controller]")]
     [ApiController]
     [Authorize]
     public class ReceiptsController : ControllerBase

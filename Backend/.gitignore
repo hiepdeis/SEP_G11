@@ -15,6 +15,7 @@ appsettings.json
 appsettings.*.json
 appsettings.Development.json
 appsettings.Production.json
+BUSINESS_lOGIC_INBOUND.txt
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 

@@ -13,6 +13,10 @@
 
 - To do this, please run this migration using the command:
   + dotnet ef database update
-	+ 
+  + 
 
-## 2 - Thongdnm change
+## 2 - Add Approval Fields to Receipts (thongdnm change)
+
+- Added two new columns to track Manager approval:
+  + `ApprovedBy` (int, nullable): Manager who approved/rejected the receipt
+  + `ApprovedAt` (datetime, nullable): Timestamp of approval/rejection decision

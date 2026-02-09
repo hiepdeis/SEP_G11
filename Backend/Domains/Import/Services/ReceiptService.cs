@@ -1,5 +1,6 @@
 ﻿using Backend.Domains.Import.DTOs.Accountants;
 using Backend.Domains.Import.DTOs.Construction;
+using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.Interfaces;
 using Backend.Models;
 using Microsoft.EntityFrameworkCore;
@@ -345,5 +346,166 @@ namespace Backend.Domains.Import.Services
 
             return 0;
         }
+
+
+        #region Manager Approval Methods
+
+        public async Task<List<PendingReceiptDto>> GetPendingApprovalsAsync()
+        {
+            var receipts = await _context.Receipts
+                .Include(r => r.Warehouse)
+                .Include(r => r.Supplier)
+                .Include(r => r.CreatedByNavigation)
+                .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.Material)
+                .Where(r => r.Status == "Submitted")
+                .OrderByDescending(r => r.ReceiptDate)
+                .ToListAsync();
+
+            return receipts.Select(r => new PendingReceiptDto
+            {
+                ReceiptId = r.ReceiptId,
+                ReceiptDate = r.ReceiptDate,
+                WarehouseName = r.Warehouse?.Name,
+                SupplierName = r.Supplier?.Name,
+                TotalAmount = r.ReceiptDetails.Sum(rd => rd.Quantity * rd.UnitPrice),
+                Status = r.Status ?? "Unknown",
+                CreatedByName = r.CreatedByNavigation?.FullName,
+                CreatedDate = r.ReceiptDate,
+                Details = r.ReceiptDetails.Select(rd => new PendingReceiptDetailDto
+                {
+                    DetailId = rd.DetailId,
+                    MaterialCode = rd.Material?.Code,
+                    MaterialName = rd.Material?.Name,
+                    Quantity = rd.Quantity,
+                    Unit = rd.Material?.Unit,
+                    UnitPrice = rd.UnitPrice,
+                    SubTotal = rd.Quantity * rd.UnitPrice
+                }).ToList()
+            }).ToList();
+        }
+
+        public async Task<PendingReceiptDto> GetReceiptDetailForApprovalAsync(long receiptId)
+        {
+            var receipt = await _context.Receipts
+                .Include(r => r.Warehouse)
+                .Include(r => r.Supplier)
+                .Include(r => r.CreatedByNavigation)
+                .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.Material)
+                .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
+
+            if (receipt == null)
+            {
+                throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
+            }
+
+            return new PendingReceiptDto
+            {
+                ReceiptId = receipt.ReceiptId,
+                ReceiptDate = receipt.ReceiptDate,
+                WarehouseName = receipt.Warehouse?.Name,
+                SupplierName = receipt.Supplier?.Name,
+                TotalAmount = receipt.ReceiptDetails.Sum(rd => rd.Quantity * rd.UnitPrice),
+                Status = receipt.Status ?? "Unknown",
+                CreatedByName = receipt.CreatedByNavigation?.FullName,
+                CreatedDate = receipt.ReceiptDate,
+                Details = receipt.ReceiptDetails.Select(rd => new PendingReceiptDetailDto
+                {
+                    DetailId = rd.DetailId,
+                    MaterialCode = rd.Material?.Code,
+                    MaterialName = rd.Material?.Name,
+                    Quantity = rd.Quantity,
+                    Unit = rd.Material?.Unit,
+                    UnitPrice = rd.UnitPrice,
+                    SubTotal = rd.Quantity * rd.UnitPrice
+                }).ToList()
+            };
+        }
+
+        public async Task ApproveReceiptAsync(long receiptId, int managerId, ApproveReceiptDto dto)
+        {
+            var receipt = await _context.Receipts
+                .Include(r => r.ReceiptDetails)
+                .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
+
+            if (receipt == null)
+            {
+                throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
+            }
+
+            // Business Rule: Only "Submitted" receipts can be approved
+            if (receipt.Status != "Submitted")
+            {
+                throw new InvalidOperationException(
+                    $"Cannot approve receipt. Current status is '{receipt.Status}'. Only 'Submitted' receipts can be approved."
+                );
+            }
+
+            // Validate that receipt has details
+            if (!receipt.ReceiptDetails.Any())
+            {
+                throw new InvalidOperationException("Cannot approve receipt without any items");
+            }
+
+            // Validate that all items have supplier and price
+            if (receipt.SupplierId == null)
+            {
+                throw new InvalidOperationException("Cannot approve receipt without supplier information");
+            }
+
+            if (receipt.ReceiptDetails.Any(rd => rd.UnitPrice <= 0))
+            {
+                throw new InvalidOperationException("Cannot approve receipt with items having invalid price");
+            }
+
+            // Update receipt status
+            receipt.Status = "Approved";
+            receipt.ApprovedBy = managerId;
+            receipt.ApprovedAt = DateTime.UtcNow;
+
+            if (!string.IsNullOrWhiteSpace(dto.ApprovalNotes))
+            {
+                receipt.Notes = dto.ApprovalNotes;
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task RejectReceiptAsync(long receiptId, int managerId, RejectReceiptDto dto)
+        {
+            var receipt = await _context.Receipts
+                .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
+
+            if (receipt == null)
+            {
+                throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
+            }
+
+            // Business Rule: Only "Submitted" receipts can be rejected
+            if (receipt.Status != "Submitted")
+            {
+                throw new InvalidOperationException(
+                    $"Cannot reject receipt. Current status is '{receipt.Status}'. Only 'Submitted' receipts can be rejected."
+                );
+            }
+
+            // Validate rejection reason
+            if (string.IsNullOrWhiteSpace(dto.RejectionReason))
+            {
+                throw new ArgumentException("Rejection reason is required");
+            }
+
+            // Update receipt status
+            receipt.Status = "Rejected";
+            receipt.ApprovedBy = managerId;
+            receipt.ApprovedAt = DateTime.UtcNow;
+            receipt.Notes = dto.RejectionReason;
+
+            await _context.SaveChangesAsync();
+        }
+
+        #endregion
+
     }
 }

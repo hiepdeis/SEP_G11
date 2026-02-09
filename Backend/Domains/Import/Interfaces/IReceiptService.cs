@@ -1,6 +1,7 @@
 ﻿using Backend.Domains.Import.DTOs;
 using Backend.Domains.Import.DTOs.Accountants;
 using Backend.Domains.Import.DTOs.Construction;
+using Backend.Domains.Import.DTOs.Managers;
 
 namespace Backend.Domains.Import.Interfaces
 {
@@ -44,5 +45,11 @@ namespace Backend.Domains.Import.Interfaces
         /// Submit Draft for Manager approval (Draft -> Submitted)
         /// </summary>
         Task SubmitForApprovalAsync(long receiptId, int accountantId);
+
+        // Manager Approval flow
+        Task<List<PendingReceiptDto>> GetPendingApprovalsAsync();
+        Task ApproveReceiptAsync(long receiptId, int managerId, ApproveReceiptDto dto);
+        Task RejectReceiptAsync(long receiptId, int managerId, RejectReceiptDto dto);
+        Task<PendingReceiptDto> GetReceiptDetailForApprovalAsync(long receiptId);
     }
 }

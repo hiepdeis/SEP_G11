@@ -17,9 +17,15 @@ public partial class Receipt
 
     public DateTime? ReceiptDate { get; set; }
 
+    // Accountant submission
     public int? SubmittedBy { get; set; }
 
     public DateTime? SubmittedAt { get; set; }
+
+    // Manager approval
+    public int? ApprovedBy { get; set; }
+
+    public DateTime? ApprovedAt { get; set; }
 
     public string? Notes { get; set; }
 
