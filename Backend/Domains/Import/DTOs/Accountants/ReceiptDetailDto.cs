@@ -6,8 +6,6 @@
         public string ReceiptCode { get; set; } = string.Empty;
         public int? WarehouseId { get; set; }
         public string? WarehouseName { get; set; }
-        public int? SupplierId { get; set; }
-        public string? SupplierName { get; set; }
         public DateTime? ReceiptDate { get; set; }
         public string? Status { get; set; }
         public decimal? TotalAmount { get; set; }
@@ -21,6 +19,7 @@
         public string MaterialCode { get; set; } = string.Empty;
         public string MaterialName { get; set; } = string.Empty;
         public decimal? Quantity { get; set; }
+        public int? SupplierId { get; set; }
         public decimal? UnitPrice { get; set; }
         public decimal? LineTotal { get; set; }
     }

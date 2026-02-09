@@ -17,12 +17,12 @@ namespace Backend.Domains.Import.Interfaces
         /// <summary>
         /// Get list of receipts "REQUESTED" for accountant action
         /// </summary>
-        Task<List<ReceiptSummaryDto>> GetPendingAccountantAsync();
+        Task<List<ReceiptSummaryDto>> GetReceiptsForAccountantReviewAsync();
 
         /// <summary>
         /// Get detail of a receipt by id
         /// </summary>
-        Task<ReceiptDetailDto?> GetReceiptDetailAsync(long receiptId);
+        Task<ReceiptDetailDto?> GetReceiptDetailForAccountantReviewAsync(long receiptId);
 
         /// <summary>
         /// Get list of suppliers that can provide materials for this receipt
@@ -47,9 +47,9 @@ namespace Backend.Domains.Import.Interfaces
         Task SubmitForApprovalAsync(long receiptId, int accountantId);
 
         // Manager Approval flow
-        Task<List<PendingReceiptDto>> GetPendingApprovalsAsync();
+        Task<List<PendingReceiptDto>> GetReceiptForManagerReviewAsync();
         Task ApproveReceiptAsync(long receiptId, int managerId, ApproveReceiptDto dto);
         Task RejectReceiptAsync(long receiptId, int managerId, RejectReceiptDto dto);
-        Task<PendingReceiptDto> GetReceiptDetailForApprovalAsync(long receiptId);
+        Task<PendingReceiptDto> GetReceiptDetailForManagerReviewAsync(long receiptId);
     }
 }

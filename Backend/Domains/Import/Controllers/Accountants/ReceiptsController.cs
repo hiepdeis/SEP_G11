@@ -30,12 +30,12 @@ namespace Backend.Domains.Import.Controllers.Accountants
 
 
 
-        [HttpGet("pending-accountant")]
-        public async Task<IActionResult> GetPendingAccountant()
+        [HttpGet("pending-review")]
+        public async Task<IActionResult> GetReceiptsForAccountantReview()
         {
             try
             {
-                var receipts = await _receiptService.GetPendingAccountantAsync();
+                var receipts = await _receiptService.GetReceiptsForAccountantReviewAsync();
                 return Ok(receipts);
             }
             catch (Exception ex)
@@ -45,11 +45,11 @@ namespace Backend.Domains.Import.Controllers.Accountants
         }
 
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetReceiptDetail(long id)
+        public async Task<IActionResult> GetReceiptDetailForAccountantReview(long id)
         {
             try
             {
-                var receipt = await _receiptService.GetReceiptDetailAsync(id);
+                var receipt = await _receiptService.GetReceiptDetailForAccountantReviewAsync(id);
 
                 if (receipt == null)
                 {

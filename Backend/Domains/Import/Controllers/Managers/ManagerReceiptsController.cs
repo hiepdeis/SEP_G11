@@ -23,11 +23,11 @@ namespace Backend.Domains.Import.Controllers.Managers
         [HttpGet("pending")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult<List<PendingReceiptDto>>> GetPendingApprovals()
+        public async Task<ActionResult<List<PendingReceiptDto>>> GetReceiptForManagerReview()
         {
             try
             {
-                var receipts = await _receiptService.GetPendingApprovalsAsync();
+                var receipts = await _receiptService.GetReceiptForManagerReviewAsync();
                 return Ok(receipts);
             }
             catch (Exception ex)
@@ -40,11 +40,11 @@ namespace Backend.Domains.Import.Controllers.Managers
         [HttpGet("{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<PendingReceiptDto>> GetReceiptDetail(long id)
+        public async Task<ActionResult<PendingReceiptDto>> GetReceiptDetailForManagerReview(long id)
         {
             try
             {
-                var receipt = await _receiptService.GetReceiptDetailForApprovalAsync(id);
+                var receipt = await _receiptService.GetReceiptDetailForManagerReviewAsync(id);
                 return Ok(receipt);
             }
             catch (KeyNotFoundException ex)

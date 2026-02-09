@@ -12,10 +12,10 @@ public partial class Supplier
     public string? Name { get; set; }
 
     public string? TaxCode { get; set; }
-
+        
     public string? Address { get; set; }
 
-    public virtual ICollection<Receipt> Receipts { get; set; } = new List<Receipt>();
-
     public virtual ICollection<SupplierQuotation> SupplierQuotations { get; set; } = new List<SupplierQuotation>();
+
+    public virtual ICollection<ReceiptDetail> ReceiptDetails { get; set; } = new List<ReceiptDetail>();
 }

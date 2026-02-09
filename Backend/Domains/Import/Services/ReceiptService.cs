@@ -31,19 +31,11 @@ namespace Backend.Domains.Import.Services
             if (receipt.Status != "Requested")
                 throw new Exception($"Cannot create draft. Current status: {receipt.Status}");
 
-            // Step 3: Validate supplier
-            var supplierExists = await _context.Suppliers
-                .AnyAsync(s => s.SupplierId == dto.SupplierId);
-
-            if (!supplierExists)
-                throw new Exception("Supplier not found");
-
-            // Step 4: Update receipt
-            receipt.SupplierId = dto.SupplierId;
+            // Step 3: Update receipt
             receipt.Status = "Draft";
             receipt.Notes = dto.Notes;
 
-            // Step 5: Update receipt details (quantity & unit price)
+            // Step 4: Update receipt details (quantity & unit price)
             foreach (var item in dto.Items)
             {
                 var detail = receipt.ReceiptDetails
@@ -53,6 +45,7 @@ namespace Backend.Domains.Import.Services
                 {
                     detail.Quantity = item.Quantity;
                     detail.UnitPrice = item.UnitPrice;
+                    detail.SupplierId = item.SupplierId;
                 }
             }
 
@@ -147,7 +140,7 @@ namespace Backend.Domains.Import.Services
                         ValidTo = sq.ValidTo,
                         IsActive = sq.IsActive ?? false
                     })
-                    .OrderBy(s => s.Price) // Sắp xếp theo giá tăng dần
+                    .OrderBy(s => s.Price)
                     .ToList()
                 })
                 .ToList();
@@ -175,13 +168,13 @@ namespace Backend.Domains.Import.Services
         }
 
         // Get all receipts that are REQUESTED status
-        public async Task<List<ReceiptSummaryDto>> GetPendingAccountantAsync()
+        public async Task<List<ReceiptSummaryDto>> GetReceiptsForAccountantReviewAsync()
         {
             var receipts = await _context.Receipts
                 .Include(r => r.Warehouse)
                 .Include(r => r.CreatedByNavigation)
                 .Include(r => r.ReceiptDetails)
-                .Where(r => r.Status == "Requested")
+                .Where(r => r.Status == "Requested" || r.Status == "Submitted" || r.Status == "Draft") // draft - submitted
                 .OrderByDescending(r => r.ReceiptDate)
                 .Select(r => new ReceiptSummaryDto
                 {
@@ -201,11 +194,10 @@ namespace Backend.Domains.Import.Services
             return receipts;
         }
 
-        public async Task<ReceiptDetailDto?> GetReceiptDetailAsync(long receiptId)
+        public async Task<ReceiptDetailDto?> GetReceiptDetailForAccountantReviewAsync(long receiptId)
         {
             var receipt = await _context.Receipts
                 .Include(r => r.Warehouse)
-                .Include(r => r.Supplier)
                 .Include(r => r.ReceiptDetails)
                     .ThenInclude(rd => rd.Material)
                 .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
@@ -219,8 +211,6 @@ namespace Backend.Domains.Import.Services
                 ReceiptCode = receipt.ReceiptCode,
                 WarehouseId = receipt.WarehouseId,
                 WarehouseName = receipt.Warehouse?.Name,
-                SupplierId = receipt.SupplierId,
-                SupplierName = receipt.Supplier?.Name,
                 ReceiptDate = receipt.ReceiptDate,
                 Status = receipt.Status,
                 TotalAmount = receipt.ReceiptDetails.Sum(rd => rd.Quantity * (rd.UnitPrice ?? 0)),
@@ -230,6 +220,7 @@ namespace Backend.Domains.Import.Services
                     MaterialId = rd.MaterialId,
                     MaterialCode = rd.Material?.Code ?? "",
                     MaterialName = rd.Material?.Name ?? "",
+                    SupplierId = rd.SupplierId,
                     Quantity = rd.Quantity,
                     UnitPrice = rd.UnitPrice,
                     LineTotal = rd.Quantity * (rd.UnitPrice ?? 0)
@@ -280,14 +271,15 @@ namespace Backend.Domains.Import.Services
             if (receipt == null)
                 throw new Exception("Receipt not found");
 
-            // Step 2: Validate status
+            // Step 2: Validate status and items without supplier
             if (receipt.Status != "Draft")
                 throw new Exception($"Cannot submit. Current status: {receipt.Status}");
 
-            // Step 3: Validate data (phải có supplier và tất cả items phải có giá)
-            if (receipt.SupplierId == null)
-                throw new Exception("Supplier must be selected before submitting");
+            var itemsWithoutSupplier = receipt.ReceiptDetails
+                .Where(rd => rd.SupplierId == null || rd.SupplierId == 0)
+                .ToList();
 
+            // Step 3: Validate data
             var hasInvalidItems = receipt.ReceiptDetails
                 .Any(rd => rd.UnitPrice == null || rd.UnitPrice <= 0);
 
@@ -319,18 +311,10 @@ namespace Backend.Domains.Import.Services
             if (receipt.Status != "Draft")
                 throw new Exception($"Cannot update. Current status: {receipt.Status}");
 
-            // Step 3: Validate supplier
-            var supplierExists = await _context.Suppliers
-                .AnyAsync(s => s.SupplierId == dto.SupplierId);
-
-            if (!supplierExists)
-                throw new Exception("Supplier not found");
-
-            // Step 4: Update receipt
-            receipt.SupplierId = dto.SupplierId;
+            // Step 3: Update receipt
             receipt.Notes = dto.Notes;
 
-            // Step 5: Update receipt details
+            // Step 4: Update receipt details
             foreach (var item in dto.Items)
             {
                 var detail = receipt.ReceiptDetails
@@ -340,6 +324,7 @@ namespace Backend.Domains.Import.Services
                 {
                     detail.Quantity = item.Quantity;
                     detail.UnitPrice = item.UnitPrice;
+                    detail.SupplierId = item.SupplierId;
                 }
             }
 
@@ -368,15 +353,14 @@ namespace Backend.Domains.Import.Services
 
         #region Manager Approval Methods
 
-        public async Task<List<PendingReceiptDto>> GetPendingApprovalsAsync()
+        public async Task<List<PendingReceiptDto>> GetReceiptForManagerReviewAsync()
         {
             var receipts = await _context.Receipts
                 .Include(r => r.Warehouse)
-                .Include(r => r.Supplier)
                 .Include(r => r.CreatedByNavigation)
                 .Include(r => r.ReceiptDetails)
                     .ThenInclude(rd => rd.Material)
-                .Where(r => r.Status == "Submitted")
+                .Where(r => r.Status == "Submitted" || r.Status == "Approved" || r.Status == "Rejected") // reject, approval
                 .OrderByDescending(r => r.ReceiptDate)
                 .ToListAsync();
 
@@ -385,7 +369,6 @@ namespace Backend.Domains.Import.Services
                 ReceiptId = r.ReceiptId,
                 ReceiptDate = r.ReceiptDate,
                 WarehouseName = r.Warehouse?.Name,
-                SupplierName = r.Supplier?.Name,
                 TotalAmount = r.ReceiptDetails.Sum(rd => rd.Quantity * rd.UnitPrice),
                 Status = r.Status ?? "Unknown",
                 CreatedByName = r.CreatedByNavigation?.FullName,
@@ -395,6 +378,7 @@ namespace Backend.Domains.Import.Services
                     DetailId = rd.DetailId,
                     MaterialCode = rd.Material?.Code,
                     MaterialName = rd.Material?.Name,
+                    SupplierName = rd.Supplier?.Name,
                     Quantity = rd.Quantity,
                     Unit = rd.Material?.Unit,
                     UnitPrice = rd.UnitPrice,
@@ -403,11 +387,10 @@ namespace Backend.Domains.Import.Services
             }).ToList();
         }
 
-        public async Task<PendingReceiptDto> GetReceiptDetailForApprovalAsync(long receiptId)
+        public async Task<PendingReceiptDto> GetReceiptDetailForManagerReviewAsync(long receiptId)
         {
             var receipt = await _context.Receipts
                 .Include(r => r.Warehouse)
-                .Include(r => r.Supplier)
                 .Include(r => r.CreatedByNavigation)
                 .Include(r => r.ReceiptDetails)
                     .ThenInclude(rd => rd.Material)
@@ -423,7 +406,6 @@ namespace Backend.Domains.Import.Services
                 ReceiptId = receipt.ReceiptId,
                 ReceiptDate = receipt.ReceiptDate,
                 WarehouseName = receipt.Warehouse?.Name,
-                SupplierName = receipt.Supplier?.Name,
                 TotalAmount = receipt.ReceiptDetails.Sum(rd => rd.Quantity * rd.UnitPrice),
                 Status = receipt.Status ?? "Unknown",
                 CreatedByName = receipt.CreatedByNavigation?.FullName,
@@ -433,6 +415,7 @@ namespace Backend.Domains.Import.Services
                     DetailId = rd.DetailId,
                     MaterialCode = rd.Material?.Code,
                     MaterialName = rd.Material?.Name,
+                    SupplierName = rd.Supplier?.Name,
                     Quantity = rd.Quantity,
                     Unit = rd.Material?.Unit,
                     UnitPrice = rd.UnitPrice,
@@ -466,16 +449,14 @@ namespace Backend.Domains.Import.Services
                 throw new InvalidOperationException("Cannot approve receipt without any items");
             }
 
-            // Validate that all items have supplier and price
-            if (receipt.SupplierId == null)
-            {
-                throw new InvalidOperationException("Cannot approve receipt without supplier information");
-            }
 
             if (receipt.ReceiptDetails.Any(rd => rd.UnitPrice <= 0))
             {
                 throw new InvalidOperationException("Cannot approve receipt with items having invalid price");
             }
+
+            if (receipt.ReceiptDetails.Any(rd => rd.SupplierId == null || rd.SupplierId == 0))
+                throw new InvalidOperationException("All items must have supplier information");
 
             // Update receipt status
             receipt.Status = "Approved";

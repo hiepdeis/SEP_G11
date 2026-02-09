@@ -20,3 +20,5 @@
 - Added two new columns to track Manager approval:
   + `ApprovedBy` (int, nullable): Manager who approved/rejected the receipt
   + `ApprovedAt` (datetime, nullable): Timestamp of approval/rejection decision
+
+##3 - Add supplierId Field to ReceiptsDetails and Delete supplierId from Receipts (thongdnm change)

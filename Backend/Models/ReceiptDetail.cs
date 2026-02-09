@@ -11,6 +11,8 @@ public partial class ReceiptDetail
 
     public int? MaterialId { get; set; }
 
+    public int? SupplierId { get; set; }
+
     public int? BatchId { get; set; }
 
     public decimal? Quantity { get; set; }
@@ -24,4 +26,7 @@ public partial class ReceiptDetail
     public virtual Material? Material { get; set; }
 
     public virtual Receipt? Receipt { get; set; }
+
+    public virtual Supplier? Supplier { get; set; }
+
 }

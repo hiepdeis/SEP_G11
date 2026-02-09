@@ -331,17 +331,12 @@ public partial class CapstoneSemester9Context : DbContext
             entity.Property(e => e.Status)
                 .HasMaxLength(20)
                 .IsUnicode(false);
-            entity.Property(e => e.SupplierId).HasColumnName("SupplierID");
             entity.Property(e => e.TotalAmount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
 
             entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.Receipts)
                 .HasForeignKey(d => d.CreatedBy)
                 .HasConstraintName("FK__Receipts__Create__6D0D32F4");
-
-            entity.HasOne(d => d.Supplier).WithMany(p => p.Receipts)
-                .HasForeignKey(d => d.SupplierId)
-                .HasConstraintName("FK__Receipts__Suppli__6B24EA82");
 
             entity.HasOne(d => d.Warehouse).WithMany(p => p.Receipts)
                 .HasForeignKey(d => d.WarehouseId)
@@ -353,6 +348,7 @@ public partial class CapstoneSemester9Context : DbContext
             entity.HasKey(e => e.DetailId).HasName("PK__ReceiptD__135C314D0A64E3AD");
 
             entity.Property(e => e.DetailId).HasColumnName("DetailID");
+            entity.Property(e => e.SupplierId).HasColumnName("SupplierID");
             entity.Property(e => e.BatchId).HasColumnName("BatchID");
             entity.Property(e => e.LineTotal).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
@@ -371,6 +367,10 @@ public partial class CapstoneSemester9Context : DbContext
             entity.HasOne(d => d.Receipt).WithMany(p => p.ReceiptDetails)
                 .HasForeignKey(d => d.ReceiptId)
                 .HasConstraintName("FK__ReceiptDe__Recei__70DDC3D8");
+
+            entity.HasOne(d => d.Supplier).WithMany(p => p.ReceiptDetails)
+                .HasForeignKey(d => d.SupplierId)
+                .HasConstraintName("FK__ReceiptDetail__Supplier");
         });
 
         modelBuilder.Entity<Role>(entity =>
