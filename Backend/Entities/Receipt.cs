@@ -35,6 +35,13 @@ public partial class Receipt
     [Column(TypeName = "decimal(18, 2)")]
     public decimal? TotalAmount { get; set; }
 
+    public int? SubmittedBy { get; set; }
+    public DateTime? SubmittedAt { get; set; }
+    public int? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public string? Notes { get; set; }
+
+
     [ForeignKey("CreatedBy")]
     [InverseProperty("Receipts")]
     public virtual User CreatedByNavigation { get; set; } = null!;
@@ -42,10 +49,7 @@ public partial class Receipt
     [InverseProperty("Receipt")]
     public virtual ICollection<ReceiptDetail> ReceiptDetails { get; set; } = new List<ReceiptDetail>();
 
-    [ForeignKey("SupplierId")]
-    [InverseProperty("Receipts")]
-    public virtual Supplier Supplier { get; set; } = null!;
-
+ 
     [ForeignKey("WarehouseId")]
     [InverseProperty("Receipts")]
     public virtual Warehouse Warehouse { get; set; } = null!;

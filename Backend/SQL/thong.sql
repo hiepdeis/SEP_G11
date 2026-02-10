@@ -22,7 +22,7 @@ GO
 -- Add Email (NOT NULL)
 ALTER TABLE Users ADD Email VARCHAR(100);
 GO
-UPDATE Users SET Email = 'user' + CAST(UserID AS VARCHAR) + '@example.com' WHERE Email IS NULL;
+UPDATE Users SET Email = 'user' + CAST(UserID AS VARCHAR) + '@gmail.com' WHERE Email IS NULL;
 GO
 ALTER TABLE Users ALTER COLUMN Email VARCHAR(100) NOT NULL;
 GO
@@ -118,7 +118,7 @@ WHERE parent_object_id = OBJECT_ID('Receipts')
 
 IF @ConstraintName IS NOT NULL
     EXEC('ALTER TABLE Receipts DROP CONSTRAINT ' + @ConstraintName);
-GO
+GO 
 
 -- Drop index from Receipts
 DROP INDEX IF EXISTS IX_Receipts_SupplierID ON Receipts;

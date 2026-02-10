@@ -31,6 +31,11 @@ public partial class User
     [Unicode(false)]
     public string? Email { get; set; }
 
+    public string? RefreshToken { get; set; }
+    public DateTime? RefreshTokenExpiry { get; set; }
+    public string? PhoneNumber { get; set; }
+    public bool Status { get; set; }
+
     [InverseProperty("CreatedByNavigation")]
     public virtual ICollection<IssueSlip> IssueSlips { get; set; } = new List<IssueSlip>();
 

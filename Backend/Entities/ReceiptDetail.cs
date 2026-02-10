@@ -18,6 +18,8 @@ public partial class ReceiptDetail
     [Column("MaterialID")]
     public int MaterialId { get; set; }
 
+    public int? SupplierId { get; set; }
+
     [Column("BatchID")]
     public int? BatchId { get; set; }
 
@@ -30,6 +32,8 @@ public partial class ReceiptDetail
     [Column(TypeName = "decimal(18, 2)")]
     public decimal? LineTotal { get; set; }
 
+
+
     [ForeignKey("BatchId")]
     [InverseProperty("ReceiptDetails")]
     public virtual Batch? Batch { get; set; }
@@ -41,4 +45,6 @@ public partial class ReceiptDetail
     [ForeignKey("ReceiptId")]
     [InverseProperty("ReceiptDetails")]
     public virtual Receipt Receipt { get; set; } = null!;
+
+    public virtual Supplier? Supplier { get; set; }
 }

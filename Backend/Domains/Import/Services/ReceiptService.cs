@@ -1,8 +1,9 @@
-﻿using Backend.Domains.Import.DTOs.Accountants;
+﻿using Backend.Data;
+using Backend.Domains.Import.DTOs.Accountants;
 using Backend.Domains.Import.DTOs.Construction;
 using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.Interfaces;
-using Backend.Models;
+using Backend.Entities;
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 using System.Text.RegularExpressions;
@@ -11,8 +12,8 @@ namespace Backend.Domains.Import.Services
 {
     public class ReceiptService : IReceiptService
     {
-        private readonly CapstoneSemester9Context _context;
-        public ReceiptService(CapstoneSemester9Context context)
+        private readonly MyDbContext _context;
+        public ReceiptService(MyDbContext context)
         {
             _context = context;
         }

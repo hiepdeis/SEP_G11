@@ -58,11 +58,12 @@
 
 ﻿using Backend.Domains.auth.Dtos;
 using Backend.Domains.auth.Interfaces;
-using Backend.Models;
+using Backend.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Backend.Data;
 using System.Text;
 
 namespace Backend.Domains.auth.Services
@@ -70,9 +71,9 @@ namespace Backend.Domains.auth.Services
     public class AuthService : IAuthService
     {
         private readonly IConfiguration _configuration;
-        private readonly CapstoneSemester9Context _context;
+        private readonly MyDbContext _context;
 
-        public AuthService(IConfiguration configuration, CapstoneSemester9Context context)
+        public AuthService(IConfiguration configuration, MyDbContext context)
         {
             _configuration = configuration;
             _context = context;

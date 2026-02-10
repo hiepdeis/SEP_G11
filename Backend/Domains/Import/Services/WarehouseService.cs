@@ -1,15 +1,15 @@
-﻿using Backend.Domains.Import.DTOs.Constructions;
+﻿using Backend.Data;
+using Backend.Domains.Import.DTOs.Constructions;
 using Backend.Domains.Import.Interfaces;
-using Backend.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Domains.Import.Services
 {
     public class WarehouseService : IWarehouseService
     {
-        private readonly CapstoneSemester9Context _context;
+        private readonly MyDbContext _context;
 
-        public WarehouseService(CapstoneSemester9Context context)
+        public WarehouseService(MyDbContext context)
         {
             _context = context;
         }

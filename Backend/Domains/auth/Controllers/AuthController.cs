@@ -157,27 +157,28 @@ namespace Backend.Domains.auth.Controllers
             };
 
 
-//            Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
-//        }
+
+            Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
+        }
 
 
-//        [HttpGet("me")]
-//        public async Task<IActionResult> Me()
-//        {
-//            try
-//            {
-//                var refreshToken = Request.Cookies["refreshToken"];
-//                if (string.IsNullOrEmpty(refreshToken)) return Unauthorized();
+        //        [HttpGet("me")]
+        //        public async Task<IActionResult> Me()
+        //        {
+        //            try
+        //            {
+        //                var refreshToken = Request.Cookies["refreshToken"];
+        //                if (string.IsNullOrEmpty(refreshToken)) return Unauthorized();
 
 
-//                var userFromDb = await _context.Users
-//                           .Include(u => u.Role)
-//                           .FirstOrDefaultAsync(u =>
-//                               u.RefreshToken == refreshToken &&
-//                               u.RefreshTokenExpiry > DateTime.UtcNow
-//                           );
+        //                var userFromDb = await _context.Users
+        //                           .Include(u => u.Role)
+        //                           .FirstOrDefaultAsync(u =>
+        //                               u.RefreshToken == refreshToken &&
+        //                               u.RefreshTokenExpiry > DateTime.UtcNow
+        //                           );
 
-//                if (userFromDb == null) return Unauthorized();
+        //                if (userFromDb == null) return Unauthorized();
 
         [HttpGet("me")]
         public async Task<IActionResult> Me()
@@ -197,22 +198,8 @@ namespace Backend.Domains.auth.Controllers
                 }
 
 
-//                var accessToken = await _authService.CreateAccessToken(userFromDb);
+                var accessToken = await _authService.CreateAccessToken(userFromDb);
 
-
-//                return Ok(new AuthResponse
-//                {
-//                    AccessToken = accessToken,
-//                    Status = userFromDb.Status
-//                });
-//            }
-//            catch (UnauthorizedAccessException ex)
-//            {
-//                return Forbid(ex.Message);
-//            }
-//        }
-//    }
-//}
 
                 return Ok(new AuthResponse
                 {
@@ -227,4 +214,6 @@ namespace Backend.Domains.auth.Controllers
         }
     }
 }
+
+
 

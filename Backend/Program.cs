@@ -4,11 +4,11 @@ using Backend.Domains.auth.Services;
 using Backend.Domains.Import.Interfaces;
 using Backend.Domains.Import.Services;
 using Backend.Domains.user.Interface;
-
+using Backend.Data;
 using Backend.Domains.user.Service;
 using Backend.Filters;
-using Backend.Models;
-
+using Backend.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;

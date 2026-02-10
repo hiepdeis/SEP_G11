@@ -27,6 +27,10 @@ public partial class Material
     public decimal? MassPerUnit { get; set; }
 
     public int? MinStockLevel { get; set; }
+    public int? CategoryId { get; set; }
+    public decimal? UnitPrice { get; set; }
+
+    public virtual MaterialCategory? Category { get; set; } // Navigation
 
     [InverseProperty("Material")]
     public virtual ICollection<Batch> Batches { get; set; } = new List<Batch>();

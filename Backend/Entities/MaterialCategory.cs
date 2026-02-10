@@ -1,4 +1,4 @@
-﻿namespace Backend.Models
+﻿namespace Backend.Entities
 {
     public class MaterialCategory
     {
@@ -11,5 +11,6 @@
         public string? Description { get; set; }
 
         public virtual ICollection<Material> Materials { get; set; } = new List<Material>();
+
     }
 }
