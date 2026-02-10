@@ -25,20 +25,18 @@ import { Input } from "@/components/ui/input";
 import { LabelCharCount } from "@/components/ui/custom/label-charcount";
 import { Card } from "@/components/ui/custom/card-wrapper";
 import { FullPageSpinner } from "@/components/ui/custom/full-page-spinner";
+import { useAuth } from "@/components/providers/auth-provider";
+import { Header } from "@/components/ui/custom/header";
 
 export default function ProfilePage() {
   const router = useRouter();
-
   const [user, setUser] = useState<UserDto | null>(null);
+  const { user: userDecode } = useAuth();
   const [loadingData, setLoadingData] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [originalUser, setOriginalUser] = useState<UserDto | null>(null);
-
-  // GIẢ ĐỊNH: ID của user đang đăng nhập là 1.
-  // Thực tế bạn sẽ lấy ID này từ Context, LocalStorage hoặc Decode Token.
-  const CURRENT_USER_ID = 4;
 
   const LIMITS = {
     fullName: 50,
@@ -49,8 +47,9 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const fetchProfile = async () => {
+      if (!userDecode?.id) return;
       try {
-        const res = await userApi.getById(CURRENT_USER_ID);
+        const res = await userApi.getById(userDecode?.id);
         setUser(res.data);
         setOriginalUser(res.data);
       } catch (error) {
@@ -111,7 +110,6 @@ export default function ProfilePage() {
     } catch (error) {
       console.error("Update failed", error);
       toast.error("Update failed!");
-      alert("");
     } finally {
       setIsSaving(false);
     }
@@ -147,34 +145,7 @@ export default function ProfilePage() {
       <Sidebar />
 
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-sm flex-shrink-0">
-          <div className="bg-white px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div className="hidden md:block">
-              <h2 className="text-lg font-semibold text-slate-900">
-                My Profile
-              </h2>
-            </div>
-            <div className="flex items-center gap-4 ml-auto">
-              <button className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-600 relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
-              </button>
-
-              <UserDropdown
-                align="end"
-                trigger={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-9 h-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-                  >
-                    <User className="h-5 w-5" />
-                  </Button>
-                }
-              />
-            </div>
-          </div>
-        </header>
+        <Header title="My Profile"></Header>
 
         <div className="flex-grow overflow-y-auto">
           <div className="px-6 lg:px-10 py-8 max-w-5xl mx-auto w-full">
