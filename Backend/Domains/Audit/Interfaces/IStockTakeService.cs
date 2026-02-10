@@ -1,4 +1,5 @@
-﻿using Backend.Domains.Audit.DTOs.Accountant;
+﻿using Backend.Domains.Audit.DTOs;
+using Backend.Domains.Audit.DTOs.Accountant;
 using Backend.Domains.Audit.DTOs.Manager;
 using Backend.Domains.Audit.DTOs.Staff;
 
@@ -12,6 +13,10 @@ namespace Backend.Domains.Audit.Interfaces
         Task<List<MyAssignmentsResponse>> GetMyAssignmentsAsync(int currentUserId, CancellationToken ct = default);
 
         Task<bool> RespondAssignmentAsync(int currentUserId, long teamMemberId, AcceptAssignmentRequest request, CancellationToken ct = default);
+        Task<ActiveAuditDetailsResponse> GetCountingListByWarehouseAsync(int staffUserId, int warehouseId, CancellationToken ct = default);
+
+        Task<CountDetailResponse> CountActiveAuditDetailAsync(int staffUserId, long id, CountDetailRequest request, CancellationToken ct = default);
+        Task<List<StockTakeDetailForManagerResponse>> GetDetailsForManagerAsync(int stockTakeId, string? status, CancellationToken ct = default);
 
     }
 }

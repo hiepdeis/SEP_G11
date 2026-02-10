@@ -322,5 +322,198 @@ public class StockTakeService : IStockTakeService
         await _db.SaveChangesAsync(ct);
         return true;
     }
+    public async Task<ActiveAuditDetailsResponse> GetCountingListByWarehouseAsync(int staffUserId, int warehouseId, CancellationToken ct = default)
+    {
+        if (warehouseId <= 0) throw new ArgumentException("Invalid warehouseId.");
+
+        // Find active audit (InProcess) in this warehouse that staff Accepted
+        var audit = await _db.StockTakeTeamMember.AsNoTracking()
+            .Where(tm => tm.UserId == staffUserId && tm.Status == "Accepted")
+            .Join(_db.StockTakes.AsNoTracking()
+                    .Where(st => st.Status == "InProcess" && st.WarehouseId == warehouseId),
+                  tm => tm.StockTakeId,
+                  st => st.StockTakeId,
+                  (tm, st) => st)
+            .OrderByDescending(st => st.StockTakeId)
+            .FirstOrDefaultAsync(ct);
+
+        if (audit == null)
+            throw new InvalidOperationException("No active audit (InProcess) assigned to you in this warehouse.");
+
+        var stockTakeId = audit.StockTakeId;
+
+        // Load detail lines (blind count: DO NOT select SystemQty)
+        var details = await _db.StockTakeDetails.AsNoTracking()
+            .Where(d => d.StockTakeId == stockTakeId)
+            .Join(_db.Materials.AsNoTracking(),
+                  d => d.MaterialId, m => m.MaterialId,
+                  (d, m) => new { d, m })
+            .GroupJoin(_db.Batches.AsNoTracking(),
+                  dm => dm.d.BatchId, b => b.BatchId,
+                  (dm, batches) => new { dm.d, dm.m, batches })
+            .SelectMany(x => x.batches.DefaultIfEmpty(),
+                  (x, b) => new { x.d, x.m, b })
+            .GroupJoin(_db.BinLocations.AsNoTracking(),
+                  dmb => dmb.d.BinId, bin => bin.BinId,
+                  (dmb, bins) => new { dmb.d, dmb.m, dmb.b, bins })
+            .SelectMany(x => x.bins.DefaultIfEmpty(),
+                  (x, bin) => new StockTakeDetailForCountResponse
+                  {
+                      Id = x.d.Id,
+                      BinId = x.d.BinId,
+                      BinCode = bin != null ? bin.Code : null,
+
+                      MaterialId = x.m.MaterialId,
+                      MaterialCode = x.m.Code,
+                      MaterialName = x.m.Name,
+                      Unit = x.m.Unit,
+
+                      BatchId = x.d.BatchId,
+                      BatchCode = x.b != null ? x.b.BatchCode : null,
+
+                      CountQty = x.d.CountQty,
+                      LineStatus = x.d.LineStatus
+                  })
+            .OrderBy(x => x.BinCode)
+            .ThenBy(x => x.MaterialCode)
+            .ThenBy(x => x.BatchCode)
+            .ToListAsync(ct);
+
+        var total = details.Count;
+        var counted = details.Count(x => x.LineStatus == "Counted" || x.LineStatus == "Discrepancy" || x.LineStatus == "Resolved");
+        var progress = total == 0 ? 0 : (int)Math.Round((double)counted * 100.0 / total);
+
+        return new ActiveAuditDetailsResponse
+        {
+            StockTakeId = stockTakeId,
+            WarehouseId = warehouseId,
+            Title = audit.Title,
+            Status = audit.Status ?? "InProcess",
+            TotalLines = total,
+            CountedLines = counted,
+            ProgressPercent = progress,
+            Details = details
+        };
+    }
+
+    public async Task<CountDetailResponse> CountActiveAuditDetailAsync(int staffUserId, long id, CountDetailRequest request, CancellationToken ct = default)
+    {
+        if (id <= 0) throw new ArgumentException("Invalid id.");
+        if (request.CountQty < 0) throw new ArgumentException("CountQty must be >= 0.");
+
+        // Find active audit (InProcess) that staff Accepted
+        var activeAuditId = await _db.StockTakeTeamMember.AsNoTracking()
+            .Where(tm => tm.UserId == staffUserId && tm.Status == "Accepted")
+            .Join(_db.StockTakes.AsNoTracking().Where(st => st.Status == "InProcess"),
+                  tm => tm.StockTakeId,
+                  st => st.StockTakeId,
+                  (tm, st) => st.StockTakeId)
+            .OrderByDescending(x => x)
+            .FirstOrDefaultAsync(ct);
+
+        if (activeAuditId == 0)
+            throw new InvalidOperationException("You do not have any active audit (InProcess) assigned.");
+
+        // Load detail belongs to active audit
+        var detail = await _db.StockTakeDetails
+            .FirstOrDefaultAsync(d => d.Id == id && d.StockTakeId == activeAuditId, ct);
+
+        if (detail == null)
+            throw new ArgumentException("This detail does not belong to your active audit.");
+
+        var now = DateTime.UtcNow;
+
+        detail.CountQty = request.CountQty;
+
+        var systemQty = detail.SystemQty ?? 0m;
+        var variance = request.CountQty - systemQty;
+
+        detail.Variance = variance;
+        detail.LineStatus = variance == 0m ? "Counted" : "Discrepancy";
+        detail.CountedBy = staffUserId;
+        detail.CountedAt = now;
+
+        if (!string.IsNullOrWhiteSpace(request.Note))
+        {
+            var note = request.Note.Trim();
+            detail.ReasonNote = string.IsNullOrWhiteSpace(detail.ReasonNote)
+                ? $"[STAFF] {note}"
+                : $"{detail.ReasonNote}\n[STAFF] {note}";
+        }
+
+        await _db.SaveChangesAsync(ct);
+
+        return new CountDetailResponse
+        {
+            Id = detail.Id,
+            StockTakeId = activeAuditId,
+            CountQty = detail.CountQty ?? request.CountQty,
+            Variance = detail.Variance ?? variance,
+            LineStatus = detail.LineStatus ?? (variance == 0m ? "Counted" : "Discrepancy"),
+            CountedBy = detail.CountedBy ?? staffUserId,
+            CountedAt = detail.CountedAt ?? now
+        };
+    }
+    public async Task<List<StockTakeDetailForManagerResponse>> GetDetailsForManagerAsync(int stockTakeId, string? status, CancellationToken ct = default)
+    {
+        if (stockTakeId <= 0) throw new ArgumentException("Invalid stockTakeId.");
+
+        var q = _db.StockTakeDetails.AsNoTracking()
+            .Where(d => d.StockTakeId == stockTakeId);
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            var s = status.Trim();
+            q = q.Where(d => d.LineStatus == s);
+        }
+
+        var result = await q
+            .Join(_db.Materials.AsNoTracking(),
+                  d => d.MaterialId, m => m.MaterialId,
+                  (d, m) => new { d, m })
+            .GroupJoin(_db.Batches.AsNoTracking(),
+                  dm => dm.d.BatchId, b => b.BatchId,
+                  (dm, batches) => new { dm.d, dm.m, batches })
+            .SelectMany(x => x.batches.DefaultIfEmpty(),
+                  (x, b) => new { x.d, x.m, b })
+            .GroupJoin(_db.BinLocations.AsNoTracking(),
+                  dmb => dmb.d.BinId, bin => bin.BinId,
+                  (dmb, bins) => new { dmb.d, dmb.m, dmb.b, bins })
+            .SelectMany(x => x.bins.DefaultIfEmpty(),
+                  (x, bin) => new StockTakeDetailForManagerResponse
+                  {
+                      Id = x.d.Id,
+                      StockTakeId = x.d.StockTakeId ?? stockTakeId,
+
+                      BinId = x.d.BinId,
+                      BinCode = bin != null ? bin.Code : null,
+
+                      MaterialId = x.m.MaterialId,
+                      MaterialCode = x.m.Code,
+                      MaterialName = x.m.Name,
+                      Unit = x.m.Unit,
+
+                      BatchId = x.d.BatchId,
+                      BatchCode = x.b != null ? x.b.BatchCode : null,
+
+                      SystemQty = x.d.SystemQty,
+                      CountQty = x.d.CountQty,
+                      Variance = x.d.Variance,
+
+                      LineStatus = x.d.LineStatus,
+                      ReasonCode = x.d.ReasonCode,
+                      ReasonNote = x.d.ReasonNote,
+
+                      CountedBy = x.d.CountedBy,
+                      CountedAt = x.d.CountedAt
+                  })
+            .OrderByDescending(x => x.Variance)   // lệch nhiều lên đầu (tuỳ bạn)
+            .ThenBy(x => x.BinCode)
+            .ThenBy(x => x.MaterialCode)
+            .ThenBy(x => x.BatchCode)
+            .ToListAsync(ct);
+
+        return result;
+    }
 }
    
