@@ -118,8 +118,8 @@ namespace Backend.Domains.Import.Services
             var quotations = await _context.SupplierQuotations
                 .Include(sq => sq.Supplier)
                 .Include(sq => sq.Material)
-                .Where(sq => materialIds.Contains(sq.MaterialId ?? 0))
-                .Where(sq => sq.IsActive == true) // Chỉ lấy quotation đang active
+                .Where(sq => materialIds.Contains(sq.MaterialId))
+                .Where(sq => sq.IsActive == true)
                 .Where(sq => sq.ValidTo == null || sq.ValidTo >= DateTime.UtcNow)
                 .ToListAsync();
 
@@ -128,14 +128,14 @@ namespace Backend.Domains.Import.Services
                 .GroupBy(sq => sq.MaterialId)
                 .Select(g => new MaterialSuppliersDto
                 {
-                    MaterialId = g.Key ?? 0,
+                    MaterialId = g.Key,
                     MaterialCode = g.First().Material?.Code ?? "",
                     MaterialName = g.First().Material?.Name ?? "",
                     Suppliers = g.Select(sq => new SupplierQuotationDto
                     {
-                        SupplierId = sq.SupplierId ?? 0,
+                        SupplierId = sq.SupplierId,
                         SupplierName = sq.Supplier?.Name ?? "",
-                        Price = sq.Price ?? 0,
+                        Price = sq.Price,
                         Currency = sq.Currency ?? "VND",
                         ValidFrom = sq.ValidFrom,
                         ValidTo = sq.ValidTo,

@@ -116,29 +116,29 @@ namespace Backend.Domains.auth.Services
             ));
 
 
-//            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256Signature);
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256Signature);
 
-//            int expiresInMinutes = _configuration.GetValue<int>("Jwt:ExpiresInMinutes", 30);
+            int expiresInMinutes = _configuration.GetValue<int>("Jwt:ExpiresInMinutes", 30);
 
-//            var tokenDistributer = new JwtSecurityToken(
-//                issuer: _configuration["Jwt:Issuer"],
-//                audience: _configuration["Jwt:Audience"],
-//                claims: claims,
-//                expires: DateTime.UtcNow.AddMinutes(expiresInMinutes),
-//                signingCredentials: creds
-//            );
-//            return new JwtSecurityTokenHandler().WriteToken(tokenDistributer);
-//        }
+            //            var tokenDistributer = new JwtSecurityToken(
+            //                issuer: _configuration["Jwt:Issuer"],
+            //                audience: _configuration["Jwt:Audience"],
+            //                claims: claims,
+            //                expires: DateTime.UtcNow.AddMinutes(expiresInMinutes),
+            //                signingCredentials: creds
+            //            );
+            //            return new JwtSecurityTokenHandler().WriteToken(tokenDistributer);
+            //        }
 
-//        public async Task<RefreshTokenResult> GenerateAndSaveRefreshToken(User user)
-//        {
-//            var refreshToken = $"{user.Id}.{Guid.NewGuid()}";
+            //        public async Task<RefreshTokenResult> GenerateAndSaveRefreshToken(User user)
+            //        {
+            //            var refreshToken = $"{user.Id}.{Guid.NewGuid()}";
 
-//            user.RefreshToken = refreshToken;
-//            // user.RefreshToken = BCrypt.Net.BCrypt.HashPassword(refreshToken);
-//            user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(
-//                _configuration.GetValue<int>("Jwt:RefreshTokenDays")
-//            );
+            //            user.RefreshToken = refreshToken;
+            //            // user.RefreshToken = BCrypt.Net.BCrypt.HashPassword(refreshToken);
+            //            user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(
+            //                _configuration.GetValue<int>("Jwt:RefreshTokenDays")
+            //            );
 
             var tokenDistributer = new JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"],
