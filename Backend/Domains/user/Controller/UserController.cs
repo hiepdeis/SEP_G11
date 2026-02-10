@@ -8,7 +8,7 @@ namespace Backend.Domains.user.Controller
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Policy ="ActiveUserOnly")]
+   // [Authorize(Policy ="ActiveUserOnly")]
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
