@@ -1,22 +1,33 @@
-using Backend.Data;
 using Backend.Domains.auth.Business;
 using Backend.Domains.auth.Interfaces;
 using Backend.Domains.auth.Services;
+using Backend.Domains.Import.Interfaces;
+using Backend.Domains.Import.Services;
 using Backend.Domains.user.Interface;
-//using Backend.Domains.user.Service;
+
+using Backend.Domains.user.Service;
+using Backend.Filters;
+using Backend.Models;
+
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+
 using System;
+using Microsoft.OpenApi.Models;
+using OfficeOpenXml;
+
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
 builder.Configuration
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json",
                   optional: true, reloadOnChange: true);
+
 
 builder.Services.AddDbContext<MyDbContext>(options =>
               options.UseSqlServer(
@@ -25,17 +36,61 @@ builder.Services.AddDbContext<MyDbContext>(options =>
               ));
 // Add services to the container.
 
+
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
 //builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<GoogleOAuthService>();
 //builder.Services.AddScoped<IUserService, UserService>();
+
+// Configure Swagger to support file uploads
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "MatCost API",
+        Version = "v1",
+        Description = "Construction Warehouse Management System API"
+    });
+
+    // Support JWT Authorization in Swagger UI
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+
+    c.OperationFilter<FileUploadOperationFilter>();
+});
+
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IWarehouseService, WarehouseService>();
+
 builder.Services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
+builder.Services.AddScoped<GoogleLoginHandler>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IReceiptService, ReceiptService>();
 builder.Services.AddScoped<IAuthorizationHandler, ActiveUserAuthorizationHandler>();
 
-// Add JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -53,7 +108,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// create custom Authorization Policy
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("ActiveUserOnly", policy =>
@@ -64,14 +118,15 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", policy =>
     {
-          policy.WithOrigins("http://localhost:3000")
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials();
+        policy.WithOrigins("http://localhost:3000")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
 var app = builder.Build();
+
 
 using (var scope = app.Services.CreateScope())
 {
@@ -79,11 +134,15 @@ using (var scope = app.Services.CreateScope())
     await SeedData.InitializeAsync(context);
 }
 
-// Configure the HTTP request pipeline.
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "MatCost API v1");
+        c.RoutePrefix = "swagger";
+    });
 }
 
 app.UseHttpsRedirection();
