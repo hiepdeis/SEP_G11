@@ -47,6 +47,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddScoped<GoogleOAuthService>();
 //builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuditPlanService, AuditPlanService>();
+builder.Services.AddScoped<IAuditTeamService, AuditTeamService>();
 
 // Configure Swagger to support file uploads
 builder.Services.AddSwaggerGen(c =>
