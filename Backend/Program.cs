@@ -1,5 +1,4 @@
-using Backend.Domains.Audit.Interfaces;
-using Backend.Domains.Audit.Services;
+
 using Backend.Domains.auth.Business;
 using Backend.Domains.auth.Interfaces;
 using Backend.Domains.auth.Services;
@@ -13,7 +12,7 @@ using Backend.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
+
 using Microsoft.IdentityModel.Tokens;
 
 using System;
@@ -95,7 +94,7 @@ builder.Services.AddScoped<GoogleLoginHandler>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IReceiptService, ReceiptService>();
 builder.Services.AddScoped<IAuthorizationHandler, ActiveUserAuthorizationHandler>();
-builder.Services.AddScoped<IStockTakeService, StockTakeService>();
+
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

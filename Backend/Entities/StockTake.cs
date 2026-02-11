@@ -19,7 +19,7 @@ public partial class StockTake
     [Column(TypeName = "datetime")]
     public DateTime? CheckDate { get; set; }
 
-    public virtual User? CreatedBy { get; set; }
+    public int CreatedBy { get; set; }
 
     [StringLength(20)]
     [Unicode(false)]
