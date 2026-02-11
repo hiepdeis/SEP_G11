@@ -211,7 +211,7 @@ export default function ReceiptReviewPage() {
   const constructPayload = () => {
     return {
       items: items.map((i) => ({
-        supplierId: Number(i.supplierId), // Supplier riêng của từng item
+        supplierId: Number(i.supplierId),
         materialId: i.materialId,
         quantity: Number(i.approvedQty),
         unitPrice: Number(i.unitPrice),
