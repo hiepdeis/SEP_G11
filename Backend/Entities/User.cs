@@ -62,16 +62,21 @@ public partial class User
     [InverseProperty("Users")]
     public virtual Role Role { get; set; } = null!;
 
-    [InverseProperty("CreatedByNavigation")]
+    [InverseProperty(nameof(StockTake.CreatedByNavigation))]
+    public virtual ICollection<StockTake> StockTakeCreatedByNavigations { get; set; } = new List<StockTake>();
+
+    [InverseProperty(nameof(StockTake.LockedByNavigation))]
+    public virtual ICollection<StockTake> StockTakeLockedByNavigations { get; set; } = new List<StockTake>();
+
+    [InverseProperty(nameof(StockTake.CompletedByNavigation))]
     public virtual ICollection<StockTake> StockTakeCompletedByNavigations { get; set; } = new List<StockTake>();
 
-    public virtual ICollection<StockTake> StockTakeCreatedByNavigations { get; set; } = new List<StockTake>();
 
     public virtual ICollection<StockTakeDetail> StockTakeDetailCountedByNavigations { get; set; } = new List<StockTakeDetail>();
 
     public virtual ICollection<StockTakeDetail> StockTakeDetailResolvedByNavigations { get; set; } = new List<StockTakeDetail>();
 
-    public virtual ICollection<StockTake> StockTakeLockedByNavigations { get; set; } = new List<StockTake>();
+   
 
     public virtual ICollection<StockTakeSignature> StockTakeSignatures { get; set; } = new List<StockTakeSignature>();
 
@@ -82,8 +87,6 @@ public partial class User
 
     [InverseProperty("CreatedByNavigation")]
     public virtual ICollection<TransferOrder> TransferOrderCreatedByNavigations { get; set; } = new List<TransferOrder>();
-    public virtual ICollection<StockTake> StockTakesCreatedBy { get; set; } = new HashSet<StockTake>();
-public virtual ICollection<StockTake> StockTakesLockedBy { get; set; } = new HashSet<StockTake>();
-public virtual ICollection<StockTake> StockTakesCompletedBy { get; set; } = new HashSet<StockTake>();
+    
 
 }

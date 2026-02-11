@@ -23,17 +23,17 @@ namespace Backend.Domains.Audit.Controllers.Accountants
         [HttpPost("plans")]
         public async Task<IActionResult> CreatePlan([FromBody] CreateAuditPlanRequest request, CancellationToken ct)
         {
-           
+            int userID = 1; // FIX CỨNG để test
             //Lấy userId từ JWT claim(tuỳ bạn đang lưu claim kiểu gì)
             var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
                            ?? User.FindFirstValue("userId");
 
-            if (!int.TryParse(userIdStr, out var userId))
-                return Unauthorized(new { message = "Invalid user identity." });
+            //if (!int.TryParse(userIdStr, out var userId))
+            //    return Unauthorized(new { message = "Invalid user identity." });
 
             try
             {
-                var result = await _service.CreateAsync(request, userId, ct);
+                var result = await _service.CreateAsync(request, userID, ct);
                 return CreatedAtAction(nameof(GetPlanById), new { id = result.StockTakeId }, result);
             }
             catch (ArgumentException ex)

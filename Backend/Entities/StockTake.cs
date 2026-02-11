@@ -1,4 +1,4 @@
-﻿using Backend.Models;
+﻿
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -37,14 +37,21 @@ public partial class StockTake
 
     public string? Notes { get; set; }
 
-    public virtual User? CompletedByNavigation { get; set; }
-
+ 
     public virtual User CreatedByNavigation { get; set; } = null!;
+
+ 
+    public virtual User? LockedByNavigation { get; set; }
+
+
+    public virtual User? CompletedByNavigation { get; set; }
+   
+
+    
 
     public virtual ICollection<InventoryAdjustmentEntry> InventoryAdjustmentEntries { get; set; } = new List<InventoryAdjustmentEntry>();
 
-    public virtual User? LockedByNavigation { get; set; }
-
+    
     public virtual ICollection<StockTakeDetail> StockTakeDetails { get; set; } = new List<StockTakeDetail>();
 
     public virtual ICollection<StockTakeSignature> StockTakeSignatures { get; set; } = new List<StockTakeSignature>();
