@@ -66,4 +66,5 @@ public partial class User
 
     [InverseProperty("CreatedByNavigation")]
     public virtual ICollection<TransferOrder> TransferOrderCreatedByNavigations { get; set; } = new List<TransferOrder>();
+    
 }

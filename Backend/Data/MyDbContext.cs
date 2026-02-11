@@ -48,7 +48,7 @@ public partial class MyDbContext : DbContext
     public virtual DbSet<StockTake> StockTakes { get; set; }
 
     public virtual DbSet<StockTakeDetail> StockTakeDetails { get; set; }
-    public virtual DbSet<StockTakeTeamMember> StockTakeTeamMember { get; set; }
+    
 
     public virtual DbSet<Supplier> Suppliers { get; set; }
 
@@ -350,178 +350,48 @@ public partial class MyDbContext : DbContext
 
         modelBuilder.Entity<StockTake>(entity =>
         {
-            entity.HasKey(e => e.StockTakeId).HasName("PK__StockTak__6D3F3A76B7995198");
+            entity.HasKey(e => e.StockTakeId).HasName("PK__StockTak__6D3F3A76F3069398");
+
             entity.Property(e => e.StockTakeId).HasColumnName("StockTakeID");
-
-            entity.Property(e => e.CheckDate).HasDefaultValueSql("(getdate())");
-
-            entity.Property(e => e.Title).HasMaxLength(255);
-            entity.Property(e => e.Note).HasMaxLength(500);
-
-            entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
-
-            
-            entity.Property(e => e.CreatedAt).HasColumnType("datetime");
-
-            entity.Property(e => e.PlannedStartDate).HasColumnType("datetime");
-            entity.Property(e => e.PlannedEndDate).HasColumnType("datetime");
-
+            entity.Property(e => e.CheckDate).HasColumnType("datetime");
             entity.Property(e => e.Status)
                 .HasMaxLength(20)
                 .IsUnicode(false);
+            entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
 
-            entity.Property(e => e.LockedAt).HasColumnType("datetime");
-            entity.Property(e => e.ApprovedAt).HasColumnType("datetime");
-            entity.Property(e => e.CompletedAt).HasColumnType("datetime");
-
-            // Index gợi ý
-            
-            entity.HasIndex(e => new { e.WarehouseId, e.Status });
-
-            // FK: CreatedBy
             entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.StockTakes)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_StockTakes_Users");
+      .HasForeignKey(d => d.CreatedBy)
+      .HasConstraintName("FK__StockTake__Creat__14270015");
 
-            // FK: Warehouse
             entity.HasOne(d => d.Warehouse).WithMany(p => p.StockTakes)
-           .HasForeignKey(d => d.WarehouseId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_StockTakes_Warehouses");
-
-            // FK: LockedBy / ApprovedBy / CompletedBy (NEW)
-            entity.HasOne(d => d.LockedByNavigation).WithMany()
-                .HasForeignKey(d => d.LockedBy)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            entity.HasOne(d => d.ApprovedByNavigation).WithMany()
-                .HasForeignKey(d => d.ApprovedBy)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            entity.HasOne(d => d.CompletedByNavigation).WithMany()
-                .HasForeignKey(d => d.CompletedBy)
-                .OnDelete(DeleteBehavior.NoAction);
-
+                .HasForeignKey(d => d.WarehouseId)
+                .HasConstraintName("FK__StockTake__Wareh__1332DBDC");
         });
-
 
         modelBuilder.Entity<StockTakeDetail>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__StockTak__3214EC2798C2AD55");
+            entity.HasKey(e => e.Id).HasName("PK__StockTak__3214EC27058EA390");
+
             entity.Property(e => e.Id).HasColumnName("ID");
-
-            entity.Property(e => e.StockTakeId).HasColumnName("StockTakeID");
-            entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
             entity.Property(e => e.BatchId).HasColumnName("BatchID");
-
-            // Bin (NEW) - map to BinLocations.BinID
-            entity.Property(e => e.BinId).HasColumnName("BinID");
-
-            entity.Property(e => e.SystemQty).HasColumnType("decimal(18, 4)");
             entity.Property(e => e.CountQty).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
+            entity.Property(e => e.Reason).HasMaxLength(255);
+            entity.Property(e => e.StockTakeId).HasColumnName("StockTakeID");
+            entity.Property(e => e.SystemQty).HasColumnType("decimal(18, 4)");
             entity.Property(e => e.Variance).HasColumnType("decimal(18, 4)");
-
-
-            entity.HasOne(d => d.Batch).WithMany(p => p.StockTakeDetails).HasConstraintName("FK_StockTakeDetails_Batches");
-
-            // Reason split (NEW)
-            entity.Property(e => e.ReasonCode)
-                .HasMaxLength(50)
-                .IsUnicode(false);
-
-            entity.Property(e => e.ReasonNote).HasMaxLength(255);
-
-            // LineStatus (NEW)
-            entity.Property(e => e.LineStatus)
-                .HasMaxLength(20)
-                .IsUnicode(false);
-
-            // CountedBy/At (NEW)
-            entity.Property(e => e.CountedAt).HasColumnType("datetime");
-
-            // Resolve fields (NEW)
-            entity.Property(e => e.ResolutionAction)
-                .HasMaxLength(30)
-                .IsUnicode(false);
-
-            entity.Property(e => e.ResolvedAt).HasColumnType("datetime");
-            entity.Property(e => e.ManagerNote).HasMaxLength(255);
-
-            // Index gợi ý
-            entity.HasIndex(e => new { e.StockTakeId, e.LineStatus });
-
-            entity.HasOne(d => d.StockTake).WithMany(p => p.StockTakeDetails)
-                .HasForeignKey(d => d.StockTakeId)
-                .HasConstraintName("FK__StockTake__Stock__17036CC0");
-
-            entity.HasOne(d => d.Material).WithMany(p => p.StockTakeDetails)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_StockTakeDetails_Materials");
 
             entity.HasOne(d => d.Batch).WithMany(p => p.StockTakeDetails)
                 .HasForeignKey(d => d.BatchId)
                 .HasConstraintName("FK__StockTake__Batch__18EBB532");
 
-            // FK: Bin (NEW) => BinLocation
-            entity.HasOne(d => d.Bin).WithMany()
-                .HasForeignKey(d => d.BinId)
-                .OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(d => d.Material).WithMany(p => p.StockTakeDetails)
+                .HasForeignKey(d => d.MaterialId)
+                .HasConstraintName("FK__StockTake__Mater__17F790F9");
 
-            // FK: CountedBy / ResolvedBy (NEW)
-            entity.HasOne(d => d.CountedByNavigation).WithMany()
-                .HasForeignKey(d => d.CountedBy)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            entity.HasOne(d => d.ResolvedByNavigation).WithMany()
-                .HasForeignKey(d => d.ResolvedBy)
-                .OnDelete(DeleteBehavior.NoAction);
-        });
-
-        modelBuilder.Entity<StockTakeTeamMember>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-
-            entity.ToTable("StockTakeTeamMembers");
-
-            entity.Property(e => e.Id).HasColumnName("ID");
-
-            entity.Property(e => e.StockTakeId).HasColumnName("StockTakeID");
-            entity.Property(e => e.UserId).HasColumnName("UserID");
-
-            entity.Property(e => e.RoleInAudit)
-                .HasMaxLength(20)
-                .IsUnicode(false);
-
-            entity.Property(e => e.AssignedBy).HasColumnName("AssignedBy");
-
-            entity.Property(e => e.AssignedAt)
-                .HasColumnType("datetime")
-                .HasDefaultValueSql("(getdate())");
-
-            entity.Property(e => e.Status)
-                .HasMaxLength(20)
-                .IsUnicode(false);
-
-            entity.Property(e => e.Note).HasMaxLength(255);
-
-            // 1 audit -> nhiều member
-            entity.HasOne(d => d.StockTake).WithMany(p => p.StockTakeAssignments)
+            entity.HasOne(d => d.StockTake).WithMany(p => p.StockTakeDetails)
                 .HasForeignKey(d => d.StockTakeId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            // member staff
-            entity.HasOne(d => d.User).WithMany()
-                .HasForeignKey(d => d.UserId)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            // manager assigned
-            entity.HasOne(d => d.AssignedByNavigation).WithMany()
-                .HasForeignKey(d => d.AssignedBy)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            // tránh assign trùng 1 user vào 1 audit
-            entity.HasIndex(e => new { e.StockTakeId, e.UserId }).IsUnique();
-
+                .HasConstraintName("FK__StockTake__Stock__17036CC0");
         });
 
         modelBuilder.Entity<Supplier>(entity =>
