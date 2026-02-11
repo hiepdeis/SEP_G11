@@ -39,9 +39,39 @@ public partial class StockTakeDetail
 
     [ForeignKey("MaterialId")]
     [InverseProperty("StockTakeDetails")]
-    public virtual Material Material { get; set; } = null!;
+    public virtual Material? Material { get; set; } = null!;
 
     [ForeignKey("StockTakeId")]
     [InverseProperty("StockTakeDetails")]
-    public virtual StockTake StockTake { get; set; } = null!;
+    public virtual StockTake? StockTake { get; set; } = null!;
+
+    // Optional (only if your inventory is per-bin)
+    public int? BinId { get; set; }
+
+
+    // Variance reason
+    public string? ReasonCode { get; set; }   // e.g. BROKEN / LOST / FOUND / ADMIN_ERROR
+
+    public string? ReasonNote { get; set; }
+
+    // Line status: PendingCount / Counted / Discrepancy / Resolved / etc.
+    public string? LineStatus { get; set; }
+
+    // Audit trail for counting
+    public int? CountedBy { get; set; }
+    public DateTime? CountedAt { get; set; }
+
+    // Reconcile / resolve discrepancy
+    public string? ResolutionAction { get; set; } // AdjustToCount / RequestRecount / Ignore / etc.
+    public int? ResolvedBy { get; set; }
+    public DateTime? ResolvedAt { get; set; }
+    public string? ManagerNote { get; set; }
+
+    public virtual BinLocation? Bin { get; set; }
+
+    public virtual User? CountedByNavigation { get; set; }
+    public virtual User? ResolvedByNavigation { get; set; }
+
+
+
 }
