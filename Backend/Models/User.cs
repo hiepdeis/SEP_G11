@@ -1,68 +1,48 @@
-﻿
+﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
-namespace Backend.Entities;
+namespace Backend.Models;
 
-[Index("Username", Name = "UQ__Users__536C85E41DEBB7A3", IsUnique = true)]
 public partial class User
 {
-    [Key]
-    [Column("UserID")]
     public int UserId { get; set; }
 
-    [StringLength(50)]
-    [Unicode(false)]
     public string Username { get; set; } = null!;
 
-    [StringLength(255)]
-    [Unicode(false)]
     public string PasswordHash { get; set; } = null!;
 
-    [Column("RoleID")]
     public int RoleId { get; set; }
 
-    [StringLength(100)]
     public string? FullName { get; set; }
 
-    [StringLength(100)]
-    [Unicode(false)]
     public string? Email { get; set; }
 
     public string? RefreshToken { get; set; }
+
     public DateTime? RefreshTokenExpiry { get; set; }
+
     public string? PhoneNumber { get; set; }
+
     public bool Status { get; set; }
+
     public virtual ICollection<InventoryAdjustmentEntry> InventoryAdjustmentEntryApprovedByNavigations { get; set; } = new List<InventoryAdjustmentEntry>();
 
     public virtual ICollection<InventoryAdjustmentEntry> InventoryAdjustmentEntryCreatedByNavigations { get; set; } = new List<InventoryAdjustmentEntry>();
 
-
-    [InverseProperty("CreatedByNavigation")]
     public virtual ICollection<IssueSlip> IssueSlips { get; set; } = new List<IssueSlip>();
 
-    [InverseProperty("ApprovedByNavigation")]
     public virtual ICollection<LossReport> LossReportApprovedByNavigations { get; set; } = new List<LossReport>();
 
-    [InverseProperty("CreatedByNavigation")]
     public virtual ICollection<LossReport> LossReportCreatedByNavigations { get; set; } = new List<LossReport>();
 
-    [InverseProperty("CreatedByNavigation")]
     public virtual ICollection<MaterialLossNorm> MaterialLossNorms { get; set; } = new List<MaterialLossNorm>();
 
-    [InverseProperty("User")]
     public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 
-    [InverseProperty("CreatedByNavigation")]
     public virtual ICollection<Receipt> Receipts { get; set; } = new List<Receipt>();
 
-    [ForeignKey("RoleId")]
-    [InverseProperty("Users")]
     public virtual Role Role { get; set; } = null!;
 
-    [InverseProperty("CreatedByNavigation")]
     public virtual ICollection<StockTake> StockTakeCompletedByNavigations { get; set; } = new List<StockTake>();
 
     public virtual ICollection<StockTake> StockTakeCreatedByNavigations { get; set; } = new List<StockTake>();
@@ -77,13 +57,11 @@ public partial class User
 
     public virtual ICollection<StockTakeTeamMember> StockTakeTeamMembers { get; set; } = new List<StockTakeTeamMember>();
 
-    [InverseProperty("AssignedToNavigation")]
     public virtual ICollection<TransferOrder> TransferOrderAssignedToNavigations { get; set; } = new List<TransferOrder>();
 
-    [InverseProperty("CreatedByNavigation")]
     public virtual ICollection<TransferOrder> TransferOrderCreatedByNavigations { get; set; } = new List<TransferOrder>();
     public virtual ICollection<StockTake> StockTakesCreatedBy { get; set; } = new HashSet<StockTake>();
-public virtual ICollection<StockTake> StockTakesLockedBy { get; set; } = new HashSet<StockTake>();
-public virtual ICollection<StockTake> StockTakesCompletedBy { get; set; } = new HashSet<StockTake>();
+    public virtual ICollection<StockTake> StockTakesLockedBy { get; set; } = new HashSet<StockTake>();
+    public virtual ICollection<StockTake> StockTakesCompletedBy { get; set; } = new HashSet<StockTake>();
 
 }

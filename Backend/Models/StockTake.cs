@@ -1,11 +1,7 @@
-﻿using Backend.Models;
-using Microsoft.EntityFrameworkCore;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Backend.Entities;
+namespace Backend.Models;
 
 public partial class StockTake
 {

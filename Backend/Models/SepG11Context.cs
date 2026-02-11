@@ -1,16 +1,16 @@
-﻿using Backend.Entities;
-using Microsoft.AspNetCore;
-using Microsoft.EntityFrameworkCore;
-using System;
+﻿using System;
 using System.Collections.Generic;
-namespace Backend.Data;
+using Microsoft.EntityFrameworkCore;
 
-public partial class MyDbContext : DbContext
+namespace Backend.Models;
+
+public partial class SepG11Context : DbContext
 {
-    public MyDbContext()
+    public SepG11Context()
     {
     }
-    public MyDbContext(DbContextOptions<MyDbContext> options)
+
+    public SepG11Context(DbContextOptions<SepG11Context> options)
         : base(options)
     {
     }
@@ -18,8 +18,6 @@ public partial class MyDbContext : DbContext
     public virtual DbSet<AdjustmentReason> AdjustmentReasons { get; set; }
 
     public virtual DbSet<Batch> Batches { get; set; }
-
-    public virtual DbSet<MaterialCategory> MaterialCategories { get; set; }
 
     public virtual DbSet<BinLocation> BinLocations { get; set; }
 
@@ -36,6 +34,8 @@ public partial class MyDbContext : DbContext
     public virtual DbSet<LossReport> LossReports { get; set; }
 
     public virtual DbSet<Material> Materials { get; set; }
+
+    public virtual DbSet<MaterialCategory> MaterialCategories { get; set; }
 
     public virtual DbSet<MaterialLossNorm> MaterialLossNorms { get; set; }
 
@@ -69,6 +69,12 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<Warehouse> Warehouses { get; set; }
 
+ protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+{
+    if (!optionsBuilder.IsConfigured)
+        optionsBuilder.UseSqlServer("Server=localhost;Database=sep_g11;Trusted_Connection=True;TrustServerCertificate=True;");
+}
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AdjustmentReason>(entity =>
@@ -90,9 +96,21 @@ public partial class MyDbContext : DbContext
         {
             entity.HasKey(e => e.BatchId).HasName("PK__Batches__5D55CE38E53D7EE6");
 
-            entity.Property(e => e.CreatedDate).HasDefaultValueSql("(getdate())");
+            entity.HasIndex(e => e.MaterialId, "IX_Batches_MaterialID");
+
+            entity.Property(e => e.BatchId).HasColumnName("BatchID");
+            entity.Property(e => e.BatchCode)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.CertificateImage).IsUnicode(false);
+            entity.Property(e => e.CreatedDate)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
+            entity.Property(e => e.MfgDate).HasColumnType("datetime");
 
             entity.HasOne(d => d.Material).WithMany(p => p.Batches)
+                .HasForeignKey(d => d.MaterialId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Batches_Materials");
         });
@@ -101,7 +119,19 @@ public partial class MyDbContext : DbContext
         {
             entity.HasKey(e => e.BinId).HasName("PK__BinLocat__4BFF5A4EB0552000");
 
+            entity.HasIndex(e => e.WarehouseId, "IX_BinLocations_WarehouseID");
+
+            entity.Property(e => e.BinId).HasColumnName("BinID");
+            entity.Property(e => e.Code)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.Type)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
+
             entity.HasOne(d => d.Warehouse).WithMany(p => p.BinLocations)
+                .HasForeignKey(d => d.WarehouseId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_BinLocations_Warehouses");
         });
@@ -176,23 +206,48 @@ public partial class MyDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__Inventor__3214EC27F4BDF359");
 
-            entity.Property(e => e.LastUpdated).HasDefaultValueSql("(getdate())");
-            entity.Property(e => e.QuantityAllocated).HasDefaultValue(0m);
-            entity.Property(e => e.QuantityOnHand).HasDefaultValue(0m);
+            entity.ToTable("InventoryCurrent");
+
+            entity.HasIndex(e => e.BatchId, "IX_InventoryCurrent_BatchID");
+
+            entity.HasIndex(e => e.BinId, "IX_InventoryCurrent_BinID");
+
+            entity.HasIndex(e => e.MaterialId, "IX_InventoryCurrent_MaterialID");
+
+            entity.HasIndex(e => e.WarehouseId, "IX_InventoryCurrent_WarehouseID");
+
+            entity.Property(e => e.Id).HasColumnName("ID");
+            entity.Property(e => e.BatchId).HasColumnName("BatchID");
+            entity.Property(e => e.BinId).HasColumnName("BinID");
+            entity.Property(e => e.LastUpdated)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
+            entity.Property(e => e.QuantityAllocated)
+                .HasDefaultValue(0.0m)
+                .HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.QuantityOnHand)
+                .HasDefaultValue(0.0m)
+                .HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
 
             entity.HasOne(d => d.Batch).WithMany(p => p.InventoryCurrents)
+                .HasForeignKey(d => d.BatchId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Inventory_Batches");
 
             entity.HasOne(d => d.Bin).WithMany(p => p.InventoryCurrents)
+                .HasForeignKey(d => d.BinId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Inventory_Bins");
 
             entity.HasOne(d => d.Material).WithMany(p => p.InventoryCurrents)
+                .HasForeignKey(d => d.MaterialId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Inventory_Materials");
 
             entity.HasOne(d => d.Warehouse).WithMany(p => p.InventoryCurrents)
+                .HasForeignKey(d => d.WarehouseId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Inventory_Warehouses");
         });
@@ -201,13 +256,30 @@ public partial class MyDbContext : DbContext
         {
             entity.HasKey(e => e.DetailId).HasName("PK__IssueDet__135C314D255F7FF3");
 
-            entity.HasOne(d => d.Batch).WithMany(p => p.IssueDetails).HasConstraintName("FK_IssueDetails_Batches");
+            entity.HasIndex(e => e.BatchId, "IX_IssueDetails_BatchID");
+
+            entity.HasIndex(e => e.IssueId, "IX_IssueDetails_IssueID");
+
+            entity.HasIndex(e => e.MaterialId, "IX_IssueDetails_MaterialID");
+
+            entity.Property(e => e.DetailId).HasColumnName("DetailID");
+            entity.Property(e => e.BatchId).HasColumnName("BatchID");
+            entity.Property(e => e.IssueId).HasColumnName("IssueID");
+            entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
+            entity.Property(e => e.Quantity).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 2)");
+
+            entity.HasOne(d => d.Batch).WithMany(p => p.IssueDetails)
+                .HasForeignKey(d => d.BatchId)
+                .HasConstraintName("FK_IssueDetails_Batches");
 
             entity.HasOne(d => d.Issue).WithMany(p => p.IssueDetails)
+                .HasForeignKey(d => d.IssueId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_IssueDetails_Issues");
 
             entity.HasOne(d => d.Material).WithMany(p => p.IssueDetails)
+                .HasForeignKey(d => d.MaterialId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_IssueDetails_Materials");
         });
@@ -216,18 +288,45 @@ public partial class MyDbContext : DbContext
         {
             entity.HasKey(e => e.IssueId).HasName("PK__IssueSli__6C86162463E05F16");
 
-            entity.Property(e => e.IssueDate).HasDefaultValueSql("(getdate())");
+            entity.HasIndex(e => e.CreatedBy, "IX_IssueSlips_CreatedBy");
+
+            entity.HasIndex(e => e.ParentIssueId, "IX_IssueSlips_ParentIssueID");
+
+            entity.HasIndex(e => e.ProjectId, "IX_IssueSlips_ProjectID");
+
+            entity.HasIndex(e => e.WarehouseId, "IX_IssueSlips_WarehouseID");
+
+            entity.HasIndex(e => e.IssueCode, "UQ__IssueSli__1CF9DA76384C2914").IsUnique();
+
+            entity.Property(e => e.IssueId).HasColumnName("IssueID");
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.IssueCode)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.IssueDate)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.ParentIssueId).HasColumnName("ParentIssueID");
+            entity.Property(e => e.ProjectId).HasColumnName("ProjectID");
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
 
             entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.IssueSlips)
+                .HasForeignKey(d => d.CreatedBy)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_IssueSlips_Users");
 
+            entity.HasOne(d => d.ParentIssue).WithMany(p => p.InverseParentIssue).HasForeignKey(d => d.ParentIssueId);
+
             entity.HasOne(d => d.Project).WithMany(p => p.IssueSlips)
+                .HasForeignKey(d => d.ProjectId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_IssueSlips_Projects");
 
             entity.HasOne(d => d.Warehouse).WithMany(p => p.IssueSlips)
-                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasForeignKey(d => d.WarehouseId)
                 .HasConstraintName("FK_IssueSlips_Warehouses");
         });
 
@@ -235,15 +334,37 @@ public partial class MyDbContext : DbContext
         {
             entity.HasKey(e => e.DetailId).HasName("PK__LossDeta__135C314D29B31BE8");
 
-            entity.HasOne(d => d.Batch).WithMany(p => p.LossDetails).HasConstraintName("FK_LossDetails_Batches");
+            entity.HasIndex(e => e.BatchId, "IX_LossDetails_BatchID");
 
-            entity.HasOne(d => d.Bin).WithMany(p => p.LossDetails).HasConstraintName("FK_LossDetails_Bins");
+            entity.HasIndex(e => e.BinId, "IX_LossDetails_BinID");
+
+            entity.HasIndex(e => e.LossId, "IX_LossDetails_LossID");
+
+            entity.HasIndex(e => e.MaterialId, "IX_LossDetails_MaterialID");
+
+            entity.Property(e => e.DetailId).HasColumnName("DetailID");
+            entity.Property(e => e.BatchId).HasColumnName("BatchID");
+            entity.Property(e => e.BinId).HasColumnName("BinID");
+            entity.Property(e => e.LossId).HasColumnName("LossID");
+            entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
+            entity.Property(e => e.Quantity).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.Reason).HasMaxLength(255);
+
+            entity.HasOne(d => d.Batch).WithMany(p => p.LossDetails)
+                .HasForeignKey(d => d.BatchId)
+                .HasConstraintName("FK_LossDetails_Batches");
+
+            entity.HasOne(d => d.Bin).WithMany(p => p.LossDetails)
+                .HasForeignKey(d => d.BinId)
+                .HasConstraintName("FK_LossDetails_Bins");
 
             entity.HasOne(d => d.Loss).WithMany(p => p.LossDetails)
+                .HasForeignKey(d => d.LossId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_LossDetails_LossReports");
 
             entity.HasOne(d => d.Material).WithMany(p => p.LossDetails)
+                .HasForeignKey(d => d.MaterialId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_LossDetails_Materials");
         });
@@ -252,15 +373,41 @@ public partial class MyDbContext : DbContext
         {
             entity.HasKey(e => e.LossId).HasName("PK__LossRepo__7025E3943DEC77AE");
 
-            entity.Property(e => e.ReportDate).HasDefaultValueSql("(getdate())");
+            entity.HasIndex(e => e.ApprovedBy, "IX_LossReports_ApprovedBy");
 
-            entity.HasOne(d => d.ApprovedByNavigation).WithMany(p => p.LossReportApprovedByNavigations).HasConstraintName("FK_LossReports_Approvers");
+            entity.HasIndex(e => e.CreatedBy, "IX_LossReports_CreatedBy");
+
+            entity.HasIndex(e => e.WarehouseId, "IX_LossReports_WarehouseID");
+
+            entity.HasIndex(e => e.LossCode, "UQ__LossRepo__B9216BF629D331BF").IsUnique();
+
+            entity.Property(e => e.LossId).HasColumnName("LossID");
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.LossCode)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.ReportDate)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.Type)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
+
+            entity.HasOne(d => d.ApprovedByNavigation).WithMany(p => p.LossReportApprovedByNavigations)
+                .HasForeignKey(d => d.ApprovedBy)
+                .HasConstraintName("FK_LossReports_Approvers");
 
             entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.LossReportCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_LossReports_Creators");
 
             entity.HasOne(d => d.Warehouse).WithMany(p => p.LossReports)
+                .HasForeignKey(d => d.WarehouseId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_LossReports_Warehouses");
         });
@@ -269,9 +416,14 @@ public partial class MyDbContext : DbContext
         {
             entity.HasKey(e => e.MaterialId).HasName("PK__Material__C50613177E51101E");
 
+            entity.HasIndex(e => e.CategoryId, "IX_Materials_CategoryID");
+
+            entity.HasIndex(e => e.Code, "UQ__Material__A25C5AA759901DD0").IsUnique();
+
             entity.HasIndex(e => e.Code, "UQ__Material__A25C5AA789A34F1C").IsUnique();
 
             entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
+            entity.Property(e => e.CategoryId).HasColumnName("CategoryID");
             entity.Property(e => e.Code)
                 .HasMaxLength(50)
                 .IsUnicode(false);
@@ -280,14 +432,9 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.Unit).HasMaxLength(20);
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 2)");
 
-            entity.Property(e => e.CategoryId).HasColumnName("CategoryID");
-
-            entity.HasOne(d => d.Category)
-                .WithMany(p => p.Materials)
+            entity.HasOne(d => d.Category).WithMany(p => p.Materials)
                 .HasForeignKey(d => d.CategoryId)
                 .HasConstraintName("FK_Materials_Category");
-
-
         });
 
         modelBuilder.Entity<MaterialCategory>(entity =>
@@ -300,42 +447,58 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.Code)
                 .HasMaxLength(50)
                 .IsUnicode(false);
-            entity.Property(e => e.Name).HasMaxLength(100);
             entity.Property(e => e.Description).HasMaxLength(255);
+            entity.Property(e => e.Name).HasMaxLength(100);
         });
 
         modelBuilder.Entity<MaterialLossNorm>(entity =>
         {
             entity.HasKey(e => e.NormId).HasName("PK__Material__02BC227BE15553C0");
+
+            entity.HasIndex(e => e.CreatedBy, "IX_MaterialLossNorms_CreatedBy");
+
+            entity.HasIndex(e => e.MaterialId, "IX_MaterialLossNorms_MaterialID");
+
+            entity.HasIndex(e => e.ProjectId, "IX_MaterialLossNorms_ProjectID");
+
             entity.Property(e => e.NormId).HasColumnName("NormID");
+            entity.Property(e => e.Description).HasMaxLength(255);
             entity.Property(e => e.EffectiveDate).HasColumnType("datetime");
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.LossPercentage).HasColumnType("decimal(5, 2)");
             entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
             entity.Property(e => e.ProjectId).HasColumnName("ProjectID");
 
-
-
-            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.MaterialLossNorms).HasConstraintName("FK_LossNorms_Users");
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.MaterialLossNorms)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_LossNorms_Users");
 
             entity.HasOne(d => d.Material).WithMany(p => p.MaterialLossNorms)
+                .HasForeignKey(d => d.MaterialId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_LossNorms_Materials");
 
-            entity.HasOne(d => d.Project).WithMany(p => p.MaterialLossNorms).HasConstraintName("FK_LossNorms_Projects");
+            entity.HasOne(d => d.Project).WithMany(p => p.MaterialLossNorms)
+                .HasForeignKey(d => d.ProjectId)
+                .HasConstraintName("FK_LossNorms_Projects");
         });
 
         modelBuilder.Entity<Notification>(entity =>
         {
             entity.HasKey(e => e.NotiId).HasName("PK__Notifica__EDC08EF21EEBC2DD");
-            entity.Property(e => e.NotiId).HasColumnName("NotiID");
 
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
+            entity.HasIndex(e => e.UserId, "IX_Notifications_UserID");
+
+            entity.Property(e => e.NotiId).HasColumnName("NotiID");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
             entity.Property(e => e.IsRead).HasDefaultValue(false);
             entity.Property(e => e.Message).HasMaxLength(500);
             entity.Property(e => e.UserId).HasColumnName("UserID");
 
             entity.HasOne(d => d.User).WithMany(p => p.Notifications)
+                .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Notifications_Users");
         });
@@ -343,6 +506,9 @@ public partial class MyDbContext : DbContext
         modelBuilder.Entity<Project>(entity =>
         {
             entity.HasKey(e => e.ProjectId).HasName("PK__Projects__761ABED002E87244");
+
+            entity.HasIndex(e => e.Code, "UQ__Projects__A25C5AA71AE31F84").IsUnique();
+
             entity.HasIndex(e => e.Code, "UQ__Projects__A25C5AA7CBF51432").IsUnique();
 
             entity.Property(e => e.ProjectId).HasColumnName("ProjectID");
@@ -356,48 +522,46 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.Status)
                 .HasMaxLength(20)
                 .IsUnicode(false);
-
         });
 
         modelBuilder.Entity<Receipt>(entity =>
         {
             entity.HasKey(e => e.ReceiptId).HasName("PK__Receipts__CC08C400A8F71B86");
+
+            entity.HasIndex(e => e.CreatedBy, "IX_Receipts_CreatedBy");
+
+            entity.HasIndex(e => e.WarehouseId, "IX_Receipts_WarehouseID");
+
+            entity.HasIndex(e => e.ReceiptCode, "UQ__Receipts__1AB76D000841B5BB").IsUnique();
+
             entity.HasIndex(e => e.ReceiptCode, "UQ__Receipts__1AB76D008CF3FB06").IsUnique();
 
             entity.Property(e => e.ReceiptId).HasColumnName("ReceiptID");
+            entity.Property(e => e.ApprovedAt).HasColumnType("datetime");
+            entity.Property(e => e.Notes).HasMaxLength(500);
             entity.Property(e => e.ReceiptCode)
                 .HasMaxLength(50)
                 .IsUnicode(false);
-
-
-            entity.Property(e => e.ReceiptDate).HasDefaultValueSql("(getdate())");
-
-            entity.Property(e => e.SubmittedBy)
-               .HasColumnName("SubmittedBy");
-
-            entity.Property(e => e.SubmittedAt)
+            entity.Property(e => e.ReceiptDate)
                 .HasDefaultValueSql("(getdate())")
-                .HasColumnName("SubmittedAt")
                 .HasColumnType("datetime");
-
-            entity.Property(e => e.ApprovedBy).HasColumnName("ApprovedBy");
-            entity.Property(e => e.ApprovedAt)
-                .HasColumnName("ApprovedAt")
-                .HasColumnType("datetime");
-
-            entity.Property(e => e.Notes).HasColumnName("Notes").HasMaxLength(500);
-
             entity.Property(e => e.Status)
                 .HasMaxLength(20)
                 .IsUnicode(false);
+            entity.Property(e => e.SubmittedAt)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.SupplierId).HasColumnName("SupplierID");
             entity.Property(e => e.TotalAmount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
 
-
             entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.Receipts)
+                .HasForeignKey(d => d.CreatedBy)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Receipts_Users");
+
             entity.HasOne(d => d.Warehouse).WithMany(p => p.Receipts)
+                .HasForeignKey(d => d.WarehouseId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Receipts_Warehouses");
         });
@@ -406,34 +570,48 @@ public partial class MyDbContext : DbContext
         {
             entity.HasKey(e => e.DetailId).HasName("PK__ReceiptD__135C314D324534DF");
 
+            entity.HasIndex(e => e.BatchId, "IX_ReceiptDetails_BatchID");
+
+            entity.HasIndex(e => e.MaterialId, "IX_ReceiptDetails_MaterialID");
+
+            entity.HasIndex(e => e.ReceiptId, "IX_ReceiptDetails_ReceiptID");
+
+            entity.HasIndex(e => e.SupplierId, "IX_ReceiptDetails_SupplierID");
+
             entity.Property(e => e.DetailId).HasColumnName("DetailID");
-            entity.Property(e => e.SupplierId).HasColumnName("SupplierID");
             entity.Property(e => e.BatchId).HasColumnName("BatchID");
             entity.Property(e => e.LineTotal).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
             entity.Property(e => e.Quantity).HasColumnType("decimal(18, 4)");
             entity.Property(e => e.ReceiptId).HasColumnName("ReceiptID");
+            entity.Property(e => e.SupplierId).HasColumnName("SupplierID");
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 2)");
 
-
-
-            entity.HasOne(d => d.Batch).WithMany(p => p.ReceiptDetails).HasConstraintName("FK_ReceiptDetails_Batches");
+            entity.HasOne(d => d.Batch).WithMany(p => p.ReceiptDetails)
+                .HasForeignKey(d => d.BatchId)
+                .HasConstraintName("FK_ReceiptDetails_Batches");
 
             entity.HasOne(d => d.Material).WithMany(p => p.ReceiptDetails)
+                .HasForeignKey(d => d.MaterialId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_ReceiptDetails_Materials");
 
             entity.HasOne(d => d.Receipt).WithMany(p => p.ReceiptDetails)
+                .HasForeignKey(d => d.ReceiptId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_ReceiptDetails_Receipts");
+
             entity.HasOne(d => d.Supplier).WithMany(p => p.ReceiptDetails)
-             .HasForeignKey(d => d.SupplierId)
-            .HasConstraintName("FK__ReceiptDetail__Supplier");
+                .HasForeignKey(d => d.SupplierId)
+                .HasConstraintName("FK__ReceiptDetail__Supplier");
         });
 
         modelBuilder.Entity<Role>(entity =>
         {
             entity.HasKey(e => e.RoleId).HasName("PK__Roles__8AFACE3A1FD94F1F");
+
+            entity.Property(e => e.RoleId).HasColumnName("RoleID");
+            entity.Property(e => e.RoleName).HasMaxLength(50);
         });
 
         modelBuilder.Entity<StockTake>(entity =>
@@ -603,6 +781,8 @@ public partial class MyDbContext : DbContext
         {
             entity.HasKey(e => e.SupplierId).HasName("PK__Supplier__4BE666940BC01D20");
 
+            entity.HasIndex(e => e.Code, "UQ__Supplier__A25C5AA753AE5015").IsUnique();
+
             entity.HasIndex(e => e.Code, "UQ__Supplier__A25C5AA7DC395881").IsUnique();
 
             entity.Property(e => e.SupplierId).HasColumnName("SupplierID");
@@ -614,14 +794,21 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.TaxCode)
                 .HasMaxLength(50)
                 .IsUnicode(false);
-
         });
 
         modelBuilder.Entity<SupplierQuotation>(entity =>
         {
             entity.HasKey(e => e.QuoteId).HasName("PK__Supplier__AF9688E1AA857063");
 
-            entity.Property(e => e.Currency).HasDefaultValue("VND");
+            entity.HasIndex(e => e.MaterialId, "IX_SupplierQuotations_MaterialID");
+
+            entity.HasIndex(e => e.SupplierId, "IX_SupplierQuotations_SupplierID");
+
+            entity.Property(e => e.QuoteId).HasColumnName("QuoteID");
+            entity.Property(e => e.Currency)
+                .HasMaxLength(10)
+                .IsUnicode(false)
+                .HasDefaultValue("VND");
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
             entity.Property(e => e.Price).HasColumnType("decimal(18, 2)");
@@ -629,13 +816,13 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.ValidFrom).HasColumnType("datetime");
             entity.Property(e => e.ValidTo).HasColumnType("datetime");
 
-
-
             entity.HasOne(d => d.Material).WithMany(p => p.SupplierQuotations)
+                .HasForeignKey(d => d.MaterialId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Quotations_Materials");
 
             entity.HasOne(d => d.Supplier).WithMany(p => p.SupplierQuotations)
+                .HasForeignKey(d => d.SupplierId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Quotations_Suppliers");
         });
@@ -643,6 +830,16 @@ public partial class MyDbContext : DbContext
         modelBuilder.Entity<TransferDetail>(entity =>
         {
             entity.HasKey(e => e.DetailId).HasName("PK__Transfer__135C314D734A24C1");
+
+            entity.HasIndex(e => e.BatchId, "IX_TransferDetails_BatchID");
+
+            entity.HasIndex(e => e.FromBinId, "IX_TransferDetails_FromBinID");
+
+            entity.HasIndex(e => e.MaterialId, "IX_TransferDetails_MaterialID");
+
+            entity.HasIndex(e => e.ToBinId, "IX_TransferDetails_ToBinID");
+
+            entity.HasIndex(e => e.TransferId, "IX_TransferDetails_TransferID");
 
             entity.Property(e => e.DetailId).HasColumnName("DetailID");
             entity.Property(e => e.BatchId).HasColumnName("BatchID");
@@ -652,19 +849,25 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.ToBinId).HasColumnName("ToBinID");
             entity.Property(e => e.TransferId).HasColumnName("TransferID");
 
+            entity.HasOne(d => d.Batch).WithMany(p => p.TransferDetails)
+                .HasForeignKey(d => d.BatchId)
+                .HasConstraintName("FK_TransferDetails_Batches");
 
-
-            entity.HasOne(d => d.Batch).WithMany(p => p.TransferDetails).HasConstraintName("FK_TransferDetails_Batches");
-
-            entity.HasOne(d => d.FromBin).WithMany(p => p.TransferDetailFromBins).HasConstraintName("FK_TransferDetails_FromBin");
+            entity.HasOne(d => d.FromBin).WithMany(p => p.TransferDetailFromBins)
+                .HasForeignKey(d => d.FromBinId)
+                .HasConstraintName("FK_TransferDetails_FromBin");
 
             entity.HasOne(d => d.Material).WithMany(p => p.TransferDetails)
+                .HasForeignKey(d => d.MaterialId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_TransferDetails_Materials");
 
-            entity.HasOne(d => d.ToBin).WithMany(p => p.TransferDetailToBins).HasConstraintName("FK_TransferDetails_ToBin");
+            entity.HasOne(d => d.ToBin).WithMany(p => p.TransferDetailToBins)
+                .HasForeignKey(d => d.ToBinId)
+                .HasConstraintName("FK_TransferDetails_ToBin");
 
             entity.HasOne(d => d.Transfer).WithMany(p => p.TransferDetails)
+                .HasForeignKey(d => d.TransferId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_TransferDetails_Transfers");
         });
@@ -673,6 +876,12 @@ public partial class MyDbContext : DbContext
         {
             entity.HasKey(e => e.TransferId).HasName("PK__Transfer__9549017150467018");
 
+            entity.HasIndex(e => e.AssignedTo, "IX_TransferOrders_AssignedTo");
+
+            entity.HasIndex(e => e.CreatedBy, "IX_TransferOrders_CreatedBy");
+
+            entity.HasIndex(e => e.WarehouseId, "IX_TransferOrders_WarehouseID");
+
             entity.Property(e => e.TransferId).HasColumnName("TransferID");
             entity.Property(e => e.Status)
                 .HasMaxLength(20)
@@ -680,24 +889,25 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.TransferCode)
                 .HasMaxLength(50)
                 .IsUnicode(false);
-
-            entity.Property(e => e.TransferDate).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.TransferDate)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
             entity.Property(e => e.Type)
-               .HasMaxLength(20)
-               .IsUnicode(false);
+                .HasMaxLength(20)
+                .IsUnicode(false);
             entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
-
-            entity.HasOne(d => d.AssignedToNavigation).WithMany(p => p.TransferOrderAssignedToNavigations).HasConstraintName("FK_Transfers_Assignees");
 
             entity.HasOne(d => d.AssignedToNavigation).WithMany(p => p.TransferOrderAssignedToNavigations)
                 .HasForeignKey(d => d.AssignedTo)
                 .HasConstraintName("FK__TransferO__Assig__02FC7413");
 
             entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.TransferOrderCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Transfers_Creators");
 
             entity.HasOne(d => d.Warehouse).WithMany(p => p.TransferOrders)
+                .HasForeignKey(d => d.WarehouseId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Transfers_Warehouses");
         });
@@ -706,32 +916,41 @@ public partial class MyDbContext : DbContext
         {
             entity.HasKey(e => e.UserId).HasName("PK__Users__1788CCACC0310C28");
 
-            entity.HasIndex(e => e.Email).IsUnique();
-            entity.HasIndex(e => e.RefreshToken).IsUnique();
+            entity.HasIndex(e => e.Email, "IX_Users_Email")
+                .IsUnique()
+                .HasFilter("([Email] IS NOT NULL)");
+
+            entity.HasIndex(e => e.RefreshToken, "IX_Users_RefreshToken")
+                .IsUnique()
+                .HasFilter("([RefreshToken] IS NOT NULL)");
+
+            entity.HasIndex(e => e.RoleId, "IX_Users_RoleID");
+
+            entity.HasIndex(e => e.Username, "UQ__Users__536C85E41DEBB7A3").IsUnique();
+
             entity.Property(e => e.UserId).HasColumnName("UserID");
             entity.Property(e => e.Email)
-            .HasMaxLength(100)
-            .IsUnicode(false);
+                .HasMaxLength(100)
+                .IsUnicode(false);
             entity.Property(e => e.FullName).HasMaxLength(100);
             entity.Property(e => e.PasswordHash)
                 .HasMaxLength(255)
                 .IsUnicode(false);
-
-            entity.Property(e => e.RoleId).HasColumnName("RoleID");
-            entity.Property(e => e.Username)
-            .HasMaxLength(50)
-            .IsUnicode(false);
-            entity.Property(e => e.RefreshToken)
-                .HasMaxLength(255)
-                .IsUnicode(false);
-            entity.Property(e => e.RefreshTokenExpiry)
-          .HasColumnType("datetime");
             entity.Property(e => e.PhoneNumber)
                 .HasMaxLength(20)
                 .IsUnicode(false);
+            entity.Property(e => e.RefreshToken)
+                .HasMaxLength(255)
+                .IsUnicode(false);
+            entity.Property(e => e.RefreshTokenExpiry).HasColumnType("datetime");
+            entity.Property(e => e.RoleId).HasColumnName("RoleID");
             entity.Property(e => e.Status).HasDefaultValue(true);
+            entity.Property(e => e.Username)
+                .HasMaxLength(50)
+                .IsUnicode(false);
 
             entity.HasOne(d => d.Role).WithMany(p => p.Users)
+                .HasForeignKey(d => d.RoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Users_Roles");
         });
@@ -739,6 +958,7 @@ public partial class MyDbContext : DbContext
         modelBuilder.Entity<Warehouse>(entity =>
         {
             entity.HasKey(e => e.WarehouseId).HasName("PK__Warehous__2608AFD9BF0EE584");
+
             entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
             entity.Property(e => e.Address).HasMaxLength(255);
             entity.Property(e => e.Name).HasMaxLength(100);
