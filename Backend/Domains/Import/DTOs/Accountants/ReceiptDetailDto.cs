@@ -20,6 +20,7 @@
         public string MaterialName { get; set; } = string.Empty;
         public decimal? Quantity { get; set; }
         public int? SupplierId { get; set; }
+        public string SupplierName { get; set; } = string.Empty;
         public decimal? UnitPrice { get; set; }
         public decimal? LineTotal { get; set; }
     }

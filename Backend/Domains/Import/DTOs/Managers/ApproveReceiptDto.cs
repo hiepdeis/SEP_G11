@@ -13,9 +13,9 @@
     public class PendingReceiptDto
     {
         public long ReceiptId { get; set; }
+        public string? ReceiptCode { get; set; }
         public DateTime? ReceiptDate { get; set; }
         public string? WarehouseName { get; set; }
-        public string? SupplierName { get; set; }
         public decimal? TotalAmount { get; set; }
         public string Status { get; set; } = string.Empty;
         public string? CreatedByName { get; set; }

@@ -4,14 +4,19 @@ using Backend.Domains.auth.Services;
 using Backend.Domains.Import.Interfaces;
 using Backend.Domains.Import.Services;
 using Backend.Domains.user.Interface;
+using Backend.Data;
 using Backend.Domains.user.Service;
 using Backend.Filters;
-using Backend.Models;
+using Backend.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
+
+using System;
 using Microsoft.OpenApi.Models;
 using OfficeOpenXml;
+
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,11 +28,21 @@ builder.Configuration
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json",
                   optional: true, reloadOnChange: true);
 
-// Add DbContext with SQL Server
-builder.Services.AddDbContext<CapstoneSemester9Context>();
+
+builder.Services.AddDbContext<MyDbContext>(options =>
+              options.UseSqlServer(
+                  builder.Configuration.GetConnectionString("DefaultConnection")
+                 // ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
+              ));
+// Add services to the container.
+
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+//builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<GoogleOAuthService>();
+//builder.Services.AddScoped<IUserService, UserService>();
 
 // Configure Swagger to support file uploads
 builder.Services.AddSwaggerGen(c =>
@@ -69,6 +84,7 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IWarehouseService, WarehouseService>();
+
 builder.Services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
 builder.Services.AddScoped<GoogleLoginHandler>();
 builder.Services.AddScoped<IUserService, UserService>();
@@ -110,6 +126,14 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<MyDbContext>();
+    await SeedData.InitializeAsync(context);
+}
+
 
 if (app.Environment.IsDevelopment())
 {

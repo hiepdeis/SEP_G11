@@ -1,5 +1,5 @@
 ﻿using Backend.Domains.auth.Dtos;
-using Backend.Models;
+using Backend.Entities;
 
 namespace Backend.Domains.auth.Interfaces
 {

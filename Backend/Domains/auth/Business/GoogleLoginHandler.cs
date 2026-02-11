@@ -1,16 +1,17 @@
-﻿using Backend.Domains.auth.Dtos;
+﻿using Backend.Data;
+using Backend.Domains.auth.Dtos;
 using Backend.Domains.auth.Interfaces;
-using Backend.Models;
+using Backend.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Domains.auth.Business
 {
     public class GoogleLoginHandler
     {
-        private readonly CapstoneSemester9Context _context;
+        private readonly MyDbContext _context;
         private readonly IAuthService _authService;
 
-        public GoogleLoginHandler(CapstoneSemester9Context context, IAuthService authService)
+        public GoogleLoginHandler(MyDbContext context, IAuthService authService)
         {
             _context = context;
             _authService = authService;

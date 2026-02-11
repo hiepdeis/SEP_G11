@@ -1,8 +1,9 @@
-﻿using Backend.Domains.Import.DTOs.Accountants;
+﻿using Backend.Data;
+using Backend.Domains.Import.DTOs.Accountants;
 using Backend.Domains.Import.DTOs.Construction;
 using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.Interfaces;
-using Backend.Models;
+using Backend.Entities;
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 using System.Text.RegularExpressions;
@@ -11,8 +12,8 @@ namespace Backend.Domains.Import.Services
 {
     public class ReceiptService : IReceiptService
     {
-        private readonly CapstoneSemester9Context _context;
-        public ReceiptService(CapstoneSemester9Context context)
+        private readonly MyDbContext _context;
+        public ReceiptService(MyDbContext context)
         {
             _context = context;
         }
@@ -117,8 +118,8 @@ namespace Backend.Domains.Import.Services
             var quotations = await _context.SupplierQuotations
                 .Include(sq => sq.Supplier)
                 .Include(sq => sq.Material)
-                .Where(sq => materialIds.Contains(sq.MaterialId ?? 0))
-                .Where(sq => sq.IsActive == true) // Chỉ lấy quotation đang active
+                .Where(sq => materialIds.Contains(sq.MaterialId))
+                .Where(sq => sq.IsActive == true)
                 .Where(sq => sq.ValidTo == null || sq.ValidTo >= DateTime.UtcNow)
                 .ToListAsync();
 
@@ -127,14 +128,14 @@ namespace Backend.Domains.Import.Services
                 .GroupBy(sq => sq.MaterialId)
                 .Select(g => new MaterialSuppliersDto
                 {
-                    MaterialId = g.Key ?? 0,
+                    MaterialId = g.Key,
                     MaterialCode = g.First().Material?.Code ?? "",
                     MaterialName = g.First().Material?.Name ?? "",
                     Suppliers = g.Select(sq => new SupplierQuotationDto
                     {
-                        SupplierId = sq.SupplierId ?? 0,
+                        SupplierId = sq.SupplierId,
                         SupplierName = sq.Supplier?.Name ?? "",
-                        Price = sq.Price ?? 0,
+                        Price = sq.Price,
                         Currency = sq.Currency ?? "VND",
                         ValidFrom = sq.ValidFrom,
                         ValidTo = sq.ValidTo,
@@ -153,11 +154,14 @@ namespace Backend.Domains.Import.Services
         {
             var receipts = await _context.Receipts
                 .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.Material)
+                .Include(r => r.Warehouse)
                 .Where(r => r.CreatedBy == userId)
                 .OrderByDescending(r => r.ReceiptDate)
                 .Select(r => new CreateImportRequestDto
                 {
                     WarehouseId = r.WarehouseId,
+                    WarehouseName = r.Warehouse != null ? r.Warehouse.Name : null,
                     Items = r.ReceiptDetails.Select(rd => new ImportItemDto
                     {
                         MaterialCode = rd.Material != null ? rd.Material.Code : "",
@@ -174,7 +178,8 @@ namespace Backend.Domains.Import.Services
                 .Include(r => r.Warehouse)
                 .Include(r => r.CreatedByNavigation)
                 .Include(r => r.ReceiptDetails)
-                .Where(r => r.Status == "Requested" || r.Status == "Submitted" || r.Status == "Draft") // draft - submitted
+                .Where(r => r.Status == "Requested" || r.Status == "Submitted"
+                || r.Status == "Draft" || r.Status == "Rejected") // draft - submitted
                 .OrderByDescending(r => r.ReceiptDate)
                 .Select(r => new ReceiptSummaryDto
                 {
@@ -221,6 +226,7 @@ namespace Backend.Domains.Import.Services
                     MaterialCode = rd.Material?.Code ?? "",
                     MaterialName = rd.Material?.Name ?? "",
                     SupplierId = rd.SupplierId,
+                    SupplierName = rd.Supplier?.Name ?? "",
                     Quantity = rd.Quantity,
                     UnitPrice = rd.UnitPrice,
                     LineTotal = rd.Quantity * (rd.UnitPrice ?? 0)
@@ -274,10 +280,6 @@ namespace Backend.Domains.Import.Services
             // Step 2: Validate status and items without supplier
             if (receipt.Status != "Draft")
                 throw new Exception($"Cannot submit. Current status: {receipt.Status}");
-
-            var itemsWithoutSupplier = receipt.ReceiptDetails
-                .Where(rd => rd.SupplierId == null || rd.SupplierId == 0)
-                .ToList();
 
             // Step 3: Validate data
             var hasInvalidItems = receipt.ReceiptDetails
@@ -360,6 +362,8 @@ namespace Backend.Domains.Import.Services
                 .Include(r => r.CreatedByNavigation)
                 .Include(r => r.ReceiptDetails)
                     .ThenInclude(rd => rd.Material)
+                .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.Supplier)
                 .Where(r => r.Status == "Submitted" || r.Status == "Approved" || r.Status == "Rejected") // reject, approval
                 .OrderByDescending(r => r.ReceiptDate)
                 .ToListAsync();
@@ -367,6 +371,7 @@ namespace Backend.Domains.Import.Services
             return receipts.Select(r => new PendingReceiptDto
             {
                 ReceiptId = r.ReceiptId,
+                ReceiptCode = r.ReceiptCode,
                 ReceiptDate = r.ReceiptDate,
                 WarehouseName = r.Warehouse?.Name,
                 TotalAmount = r.ReceiptDetails.Sum(rd => rd.Quantity * rd.UnitPrice),
