@@ -72,7 +72,6 @@ namespace Backend.Domains.Import.Controllers.Accountants
             {
                 var suppliers = await _receiptService.GetAvailableSuppliersAsync(id);
 
-                // Nếu không có supplier nào → warning
                 if (!suppliers.Any() || suppliers.All(m => !m.Suppliers.Any()))
                 {
                     return Ok(new

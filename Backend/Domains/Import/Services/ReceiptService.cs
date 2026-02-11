@@ -154,11 +154,14 @@ namespace Backend.Domains.Import.Services
         {
             var receipts = await _context.Receipts
                 .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.Material)
+                .Include(r => r.Warehouse)
                 .Where(r => r.CreatedBy == userId)
                 .OrderByDescending(r => r.ReceiptDate)
                 .Select(r => new CreateImportRequestDto
                 {
                     WarehouseId = r.WarehouseId,
+                    WarehouseName = r.Warehouse != null ? r.Warehouse.Name : null,
                     Items = r.ReceiptDetails.Select(rd => new ImportItemDto
                     {
                         MaterialCode = rd.Material != null ? rd.Material.Code : "",
@@ -175,7 +178,8 @@ namespace Backend.Domains.Import.Services
                 .Include(r => r.Warehouse)
                 .Include(r => r.CreatedByNavigation)
                 .Include(r => r.ReceiptDetails)
-                .Where(r => r.Status == "Requested" || r.Status == "Submitted" || r.Status == "Draft") // draft - submitted
+                .Where(r => r.Status == "Requested" || r.Status == "Submitted"
+                || r.Status == "Draft" || r.Status == "Rejected") // draft - submitted
                 .OrderByDescending(r => r.ReceiptDate)
                 .Select(r => new ReceiptSummaryDto
                 {
@@ -222,6 +226,7 @@ namespace Backend.Domains.Import.Services
                     MaterialCode = rd.Material?.Code ?? "",
                     MaterialName = rd.Material?.Name ?? "",
                     SupplierId = rd.SupplierId,
+                    SupplierName = rd.Supplier?.Name ?? "",
                     Quantity = rd.Quantity,
                     UnitPrice = rd.UnitPrice,
                     LineTotal = rd.Quantity * (rd.UnitPrice ?? 0)
@@ -275,10 +280,6 @@ namespace Backend.Domains.Import.Services
             // Step 2: Validate status and items without supplier
             if (receipt.Status != "Draft")
                 throw new Exception($"Cannot submit. Current status: {receipt.Status}");
-
-            var itemsWithoutSupplier = receipt.ReceiptDetails
-                .Where(rd => rd.SupplierId == null || rd.SupplierId == 0)
-                .ToList();
 
             // Step 3: Validate data
             var hasInvalidItems = receipt.ReceiptDetails
@@ -361,6 +362,8 @@ namespace Backend.Domains.Import.Services
                 .Include(r => r.CreatedByNavigation)
                 .Include(r => r.ReceiptDetails)
                     .ThenInclude(rd => rd.Material)
+                .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.Supplier)
                 .Where(r => r.Status == "Submitted" || r.Status == "Approved" || r.Status == "Rejected") // reject, approval
                 .OrderByDescending(r => r.ReceiptDate)
                 .ToListAsync();
@@ -368,6 +371,7 @@ namespace Backend.Domains.Import.Services
             return receipts.Select(r => new PendingReceiptDto
             {
                 ReceiptId = r.ReceiptId,
+                ReceiptCode = r.ReceiptCode,
                 ReceiptDate = r.ReceiptDate,
                 WarehouseName = r.Warehouse?.Name,
                 TotalAmount = r.ReceiptDetails.Sum(rd => rd.Quantity * rd.UnitPrice),

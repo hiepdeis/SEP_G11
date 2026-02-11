@@ -161,18 +161,18 @@ namespace Backend.Domains.auth.Services
             );
 
 
-//            _context.Users.Update(user);
-//            await _context.SaveChangesAsync();
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
 
 
-//            return new RefreshTokenResult { 
-//                refreshToken = refreshToken,
-//                Expiry = user.RefreshTokenExpiry
-//            }; 
-//        }
+            //            return new RefreshTokenResult { 
+            //                refreshToken = refreshToken,
+            //                Expiry = user.RefreshTokenExpiry
+            //            }; 
+            //        }
 
-//    }
-//}
+            //    }
+            //}
 
             return new RefreshTokenResult
             {

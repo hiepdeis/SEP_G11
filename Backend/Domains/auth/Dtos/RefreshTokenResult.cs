@@ -3,6 +3,6 @@
     public class RefreshTokenResult
     {
         public string refreshToken { get; set; } = null!;
-        public DateTime Expiry { get; set; }
+        public DateTime? Expiry { get; set; }
     }
 }
