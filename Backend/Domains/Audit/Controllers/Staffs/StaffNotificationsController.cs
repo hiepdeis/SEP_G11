@@ -7,7 +7,7 @@ using System.Security.Claims;
 namespace Backend.Domains.Notifications.Controllers.Staffs;
 
 [ApiController]
-[Route("api/staff")]
+[Route("api/staff/notifications")]
 //[Authorize(Roles = "Warehouse Staff")]
 public class StaffNotificationsController : ControllerBase
 {
