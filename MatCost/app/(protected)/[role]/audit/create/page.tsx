@@ -25,10 +25,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
+import { useEffect } from "react";
 
 export default function CreateAuditPage() {
   const router = useRouter();
+  const params = useParams();
+  const role = params?.role as string;
+
+  useEffect(() => {
+    const allowedRoles = ["accountant", "admin"];
+    if (!allowedRoles.includes(role)) {
+      router.push(`/${role}/audit`); 
+    }
+  }, [role, router]);
+
+  if (!["accountant", "admin"].includes(role)) return null;
 
   const handleSave = () => {
     // Logic gọi API tạo Audit Plan ở đây

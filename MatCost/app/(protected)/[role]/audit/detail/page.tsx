@@ -46,7 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Separator } from "@/components/ui/separator";
 
 // Fake Data
@@ -80,6 +80,12 @@ const RECON_ROWS = [
 export default function AuditDetailPage() {
   const router = useRouter();
   const [isFinalizing, setIsFinalizing] = useState(false);
+  const params = useParams();
+  const role = params?.role as string;
+
+  const canResolve = ["manager"].includes(role);
+  const canFinalize = ["manager"].includes(role);
+  const canExport = ["accountant", "admin"].includes(role);
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
@@ -160,9 +166,11 @@ export default function AuditDetailPage() {
             <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 pb-4">
               <CardTitle>Reconciliation Data</CardTitle>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <Download className="w-4 h-4 mr-2" /> Export Data
-                </Button>
+                {canExport && (
+                    <Button variant="outline" size="sm">
+                    <Download className="w-4 h-4 mr-2" /> Export Data
+                    </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -210,7 +218,7 @@ export default function AuditDetailPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {row.diff !== 0 ? (
+                        {row.diff !== 0 && canResolve ? (
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button
@@ -266,60 +274,62 @@ export default function AuditDetailPage() {
           </Card>
 
           {/* Finalize Section (Footer) */}
-          <div className="mt-8">
-            <Card className="bg-slate-50 border-slate-200">
-              <CardContent className="p-8 flex flex-col items-center text-center space-y-6">
-                <h3 className="text-xl font-bold text-slate-900">
-                  Finalize & Sign Audit
-                </h3>
-                <p className="text-slate-500 max-w-lg">
-                  Ensure all discrepancies are resolved. This action will
-                  generate the final Stocktake Report, adjust inventory levels
-                  in the ledger, and unlock the system.
-                </p>
+          {canFinalize && (
+            <div className="mt-8">
+              <Card className="bg-slate-50 border-slate-200">
+                <CardContent className="p-8 flex flex-col items-center text-center space-y-6">
+                  <h3 className="text-xl font-bold text-slate-900">
+                    Finalize & Sign Audit
+                  </h3>
+                  <p className="text-slate-500 max-w-lg">
+                    Ensure all discrepancies are resolved. This action will
+                    generate the final Stocktake Report, adjust inventory levels
+                    in the ledger, and unlock the system.
+                  </p>
 
-                <div className="flex gap-8 w-full max-w-2xl justify-center py-4">
-                  <div className="flex-1 border-b-2 border-slate-300 pb-2 text-left">
-                    <p className="text-xs uppercase font-bold text-slate-400 mb-2">
-                      Warehouse Staff
-                    </p>
-                    <div className="font-script text-2xl text-slate-600">
-                      Nguyen Van A
-                    </div>
-                    <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
-                      <CheckCircle className="w-3 h-3" /> Signed
-                    </p>
-                  </div>
-                  <div className="flex-1 border-b-2 border-slate-300 pb-2 text-left relative">
-                    <p className="text-xs uppercase font-bold text-slate-400 mb-2">
-                      Manager Approval
-                    </p>
-                    {!isFinalizing ? (
-                      <Button
-                        variant="outline"
-                        className="w-full border-dashed text-slate-400 h-10"
-                        onClick={() => setIsFinalizing(true)}
-                      >
-                        Click to Sign
-                      </Button>
-                    ) : (
-                      <div className="font-script text-2xl text-indigo-600 animate-in fade-in">
-                        Manager Signature
+                  <div className="flex gap-8 w-full max-w-2xl justify-center py-4">
+                    <div className="flex-1 border-b-2 border-slate-300 pb-2 text-left">
+                      <p className="text-xs uppercase font-bold text-slate-400 mb-2">
+                        Warehouse Staff
+                      </p>
+                      <div className="font-script text-2xl text-slate-600">
+                        Nguyen Van A
                       </div>
-                    )}
+                      <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                        <CheckCircle className="w-3 h-3" /> Signed
+                      </p>
+                    </div>
+                    <div className="flex-1 border-b-2 border-slate-300 pb-2 text-left relative">
+                      <p className="text-xs uppercase font-bold text-slate-400 mb-2">
+                        Manager Approval
+                      </p>
+                      {!isFinalizing ? (
+                        <Button
+                          variant="outline"
+                          className="w-full border-dashed text-slate-400 h-10"
+                          onClick={() => setIsFinalizing(true)}
+                        >
+                          Click to Sign
+                        </Button>
+                      ) : (
+                        <div className="font-script text-2xl text-indigo-600 animate-in fade-in">
+                          Manager Signature
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <Button
-                  size="lg"
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg min-w-[200px]"
-                  disabled={!isFinalizing}
-                >
-                  <FileSignature className="w-5 h-5 mr-2" /> Complete & Unlock
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+                  <Button
+                    size="lg"
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg min-w-[200px]"
+                    disabled={!isFinalizing}
+                  >
+                    <FileSignature className="w-5 h-5 mr-2" /> Complete & Unlock
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </main>
     </div>
