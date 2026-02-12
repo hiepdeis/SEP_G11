@@ -45,15 +45,37 @@ public class AuditTeamsController : ControllerBase
     public async Task<ActionResult<List<EligibleStaffDto>>> EligibleStaff(int stockTakeId, CancellationToken ct)
         => Ok(await _svc.GetEligibleStaffAsync(stockTakeId, ct));
 
-    [HttpPost("{stockTakeId:int}/team")]
-    public async Task<IActionResult> SaveTeam(int stockTakeId, [FromBody] SaveTeamRequest req, CancellationToken ct)
+
+[HttpPost("{stockTakeId:int}/team")]
+[ProducesResponseType(StatusCodes.Status200OK)]
+[ProducesResponseType(StatusCodes.Status404NotFound)]
+[ProducesResponseType(StatusCodes.Status409Conflict)]
+[ProducesResponseType(StatusCodes.Status400BadRequest)]
+public async Task<IActionResult> SaveTeam(int stockTakeId, [FromBody] SaveTeamRequest req, CancellationToken ct)
+{
+    try
     {
         var managerId = GetUserIdOrDevFallback();
         await _svc.SaveTeamAsync(stockTakeId, req, managerId, ct);
-        return Ok(new { message = "Assigned successfully." });
-    }
 
-    [HttpDelete("{stockTakeId:int}/team/{userId:int}")]
+        return Ok(new { message = "Assigned successfully." });
+        // hoặc return NoContent(); (thường chuẩn hơn cho update)
+    }
+    catch (ArgumentException ex)
+    {
+        // Audit không tồn tại / dữ liệu không hợp lệ kiểu "WarehouseId không tồn tại"
+        return NotFound(new { message = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        // Business rule: staff đang bận audit khác, audit không đúng trạng thái, ...
+        return Conflict(new { message = ex.Message }); // 409
+    }
+}
+
+
+
+[HttpDelete("{stockTakeId:int}/team/{userId:int}")]
     public async Task<IActionResult> Remove(int stockTakeId, int userId, CancellationToken ct)
     {
         var managerId = GetUserIdOrDevFallback();

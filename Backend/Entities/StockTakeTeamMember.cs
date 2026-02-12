@@ -8,7 +8,7 @@
 
         public int UserId { get; set; }
 
-        public string? RoleInTeam { get; set; }
+    
 
         public DateTime AssignedAt { get; set; }
 
@@ -16,6 +16,8 @@
 
         public bool IsActive { get; set; }
 
+        // NEW: staff hoàn thành phần của mình lúc nào
+        public DateTime? MemberCompletedAt { get; set; }
         public virtual StockTake StockTake { get; set; } = null!;
 
         public virtual User User { get; set; } = null!;

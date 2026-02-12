@@ -21,7 +21,9 @@ public sealed class CountItemDto
 public sealed class UpsertCountRequest
 {
     public int MaterialId { get; set; }
-    public int BinId { get; set; }
+    // Accept BinCode from staff (scanned/entered) instead of BinId
+    public string BinCode { get; set; } = null!;
     public string BatchCode { get; set; } = null!; // Staff đọc từ tag
     public decimal CountQty { get; set; }
+    public string? Reason { get; set; }
 }

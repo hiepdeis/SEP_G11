@@ -24,7 +24,7 @@ public class StockTakeCountingController : ControllerBase
     private int GetUserId()
     {
         // DEV: fix cứng cho test
-        if (_env.IsDevelopment()) return 13;
+        if (_env.IsDevelopment()) return 4;
 
         var idStr =
             User.FindFirstValue(ClaimTypes.NameIdentifier) ??
@@ -152,7 +152,27 @@ public class StockTakeCountingController : ControllerBase
 
         var st = await _db.StockTakes.FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
         if (st == null) return NotFound(new { message = "Audit not found." });
-
+        // Prevent edits if audit is already completed
+        if (st.CompletedAt != null || string.Equals(st.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { message = "Audit is already completed and cannot be modified." });
+        }
+        if (!string.Equals(st.Status, "InProgress", StringComparison.OrdinalIgnoreCase))
+        {
+            // Chỉ cho phép từ Planned/Assigned (tùy bạn đang dùng status nào)
+            if (string.Equals(st.Status, "Planned", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(st.Status, "Assigned", StringComparison.OrdinalIgnoreCase))
+            {
+                st.Status = "InProgress";
+                st.CheckDate ??= DateTime.UtcNow; // dùng CheckDate làm thời điểm bắt đầu (nếu bạn dùng cột này)
+                                                  // Không SaveChanges ở đây cũng được, cuối hàm SaveChanges sẽ lưu luôn
+            }
+            else
+            {
+                // nếu đang Locked/Completed/... thì không cho nhập
+                return BadRequest(new { message = $"Audit is not countable in status '{st.Status}'." });
+            }
+        }
         // 1) tìm BatchId từ BatchCode (mã lô staff đọc trên tag)
         var batchId = await _db.Batches.AsNoTracking()
             .Where(b => b.BatchCode == req.BatchCode && b.MaterialId == req.MaterialId) // siết chặt theo material
@@ -162,12 +182,23 @@ public class StockTakeCountingController : ControllerBase
         if (batchId == 0)
             return BadRequest(new { message = "BatchCode not found for this material." });
 
-        // 2) lấy InventoryCurrent đúng WH + material + bin + batchId
+        // 2) resolve BinId from BinCode (staff inputs BinCode) and lấy InventoryCurrent đúng WH + material + bin + batchId
+        var binCode = req.BinCode?.Trim() ?? string.Empty;
+        var binCodeLower = binCode.ToLower();
+
+        var binId = await _db.BinLocations.AsNoTracking()
+            .Where(b => b.WarehouseId == st.WarehouseId && b.Code.ToLower() == binCodeLower)
+            .Select(b => b.BinId)
+            .FirstOrDefaultAsync(ct);
+
+        if (binId == 0)
+            return BadRequest(new { message = "BinCode not found in this warehouse." });
+
         var ic = await _db.InventoryCurrents.AsNoTracking()
             .FirstOrDefaultAsync(x =>
                 x.WarehouseId == st.WarehouseId &&
                 x.MaterialId == req.MaterialId &&
-                x.BinId == req.BinId &&
+                x.BinId == binId &&
                 x.BatchId == batchId, ct);
 
         if (ic == null)
@@ -182,7 +213,7 @@ public class StockTakeCountingController : ControllerBase
                 x.StockTakeId == stockTakeId &&
                 x.MaterialId == req.MaterialId &&
                 x.BatchId == batchId &&
-                x.BinId == req.BinId, ct);
+                x.BinId == binId, ct);
 
         if (d == null)
         {
@@ -191,7 +222,7 @@ public class StockTakeCountingController : ControllerBase
                 StockTakeId = stockTakeId,
                 MaterialId = req.MaterialId,
                 BatchId = batchId,
-                BinId = req.BinId,
+                BinId = binId,
 
                 SystemQty = systemQty,
                 CountQty = req.CountQty,
@@ -200,7 +231,8 @@ public class StockTakeCountingController : ControllerBase
                 CountedBy = userId,
                 CountedAt = DateTime.UtcNow,
 
-                DiscrepancyStatus = variance == 0 ? "Matched" : "Discrepancy"
+                DiscrepancyStatus = variance == 0 ? "Matched" : "Discrepancy",
+                Reason = req.Reason?.Trim()
             };
             _db.StockTakeDetails.Add(d);
         }
@@ -214,6 +246,7 @@ public class StockTakeCountingController : ControllerBase
             d.CountedAt = DateTime.UtcNow;
 
             d.DiscrepancyStatus = variance == 0 ? "Matched" : "Discrepancy";
+            d.Reason = req.Reason?.Trim();
         }
 
         await _db.SaveChangesAsync(ct);

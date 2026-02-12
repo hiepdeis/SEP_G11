@@ -571,20 +571,26 @@ public partial class MyDbContext : DbContext
             entity.HasKey(e => e.Id).HasName("PK__StockTak__3214EC27DBDFEB96");
 
             entity.HasIndex(e => e.StockTakeId, "IX_StockTakeTeamMembers_StockTakeID");
-
             entity.HasIndex(e => e.UserId, "IX_StockTakeTeamMembers_UserID");
 
             entity.HasIndex(e => new { e.StockTakeId, e.UserId }, "UX_StockTakeTeamMembers_StockTake_User").IsUnique();
 
             entity.Property(e => e.Id).HasColumnName("ID");
+
             entity.Property(e => e.AssignedAt)
                 .HasPrecision(0)
                 .HasDefaultValueSql("(sysdatetime())");
+
             entity.Property(e => e.IsActive).HasDefaultValue(true);
+
             entity.Property(e => e.RemovedAt).HasPrecision(0);
-            entity.Property(e => e.RoleInTeam)
-                .HasMaxLength(30)
-                .IsUnicode(false);
+
+            // NEW: staff hoàn thành phần mình
+            entity.Property(e => e.MemberCompletedAt)
+                .HasPrecision(0);                 // nếu DB bạn để datetime2 (7) thì có thể bỏ HasPrecision
+
+          
+
             entity.Property(e => e.StockTakeId).HasColumnName("StockTakeID");
             entity.Property(e => e.UserId).HasColumnName("UserID");
 
@@ -598,6 +604,7 @@ public partial class MyDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_StockTakeTeamMembers_Users");
         });
+
 
         modelBuilder.Entity<Supplier>(entity =>
         {

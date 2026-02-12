@@ -22,7 +22,7 @@ public class StaffNotificationsController : ControllerBase
 
     private int GetUserId()
     {
-        return 13;// FIX CỨNG để test
+        return 5;// FIX CỨNG để test
         //var idStr =
         //    User.FindFirstValue(ClaimTypes.NameIdentifier) ??
         //    User.FindFirstValue("userId") ??
