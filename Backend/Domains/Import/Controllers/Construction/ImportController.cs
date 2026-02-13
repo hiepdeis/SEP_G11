@@ -9,7 +9,6 @@ namespace Backend.Domains.Import.Controllers.Construction
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
     public class ImportController : ControllerBase
     {
         private readonly IReceiptService _receiptService;

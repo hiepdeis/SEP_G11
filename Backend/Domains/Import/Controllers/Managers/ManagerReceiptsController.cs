@@ -8,7 +8,6 @@ namespace Backend.Domains.Import.Controllers.Managers
 {
     [Route("api/manager/[controller]")]
     [ApiController]
-    [Authorize]
     public class ManagerReceiptsController : ControllerBase
     {
         private readonly IReceiptService _receiptService;
