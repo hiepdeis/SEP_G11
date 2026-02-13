@@ -51,7 +51,6 @@ interface AuditDetailProps {
   role: UserRole;
 }
 
-// Fake Data
 const RECON_ROWS = [
   {
     id: 1,
@@ -83,7 +82,6 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   const router = useRouter();
   const [isFinalizing, setIsFinalizing] = useState(false);
 
-  // Quyền hạn
   const canExport = ["accountant", "admin"].includes(role);
   const canResolve = ["manager"].includes(role);
   const canFinalize = ["manager"].includes(role);
@@ -126,7 +124,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
         </header>
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-8">
-          {/* Summary Stats - GIỮ NGUYÊN GIAO DIỆN CŨ */}
+          {/* Summary Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4">

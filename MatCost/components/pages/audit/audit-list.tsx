@@ -29,14 +29,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-// Type định nghĩa Role
 type UserRole = "admin" | "manager" | "accountant" | "staff";
 
 interface AuditListProps {
   role: UserRole;
 }
 
-// Mock Data
 const AUDIT_SESSIONS = [
   {
     id: "AUD-2026-Q1",
@@ -70,7 +68,6 @@ const AUDIT_SESSIONS = [
 export default function SharedAuditList({ role }: AuditListProps) {
   const router = useRouter();
 
-  // Helper điều hướng
   const navigateTo = (path: string) => {
     if (path.startsWith("/")) router.push(path);
     else router.push(`/${role}/audit/${path}`);
@@ -115,8 +112,8 @@ export default function SharedAuditList({ role }: AuditListProps) {
                 Manage stocktaking plans and reconciliation.
               </p>
             </div>
-            {/* Logic hiển thị nút Create: Chỉ Accountant/Admin */}
-            {["accountant"].includes(role) && (
+            {/* Create Button */}
+            {role === "accountant" && (
               <Button
                 onClick={() => navigateTo("create")}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
@@ -126,7 +123,7 @@ export default function SharedAuditList({ role }: AuditListProps) {
             )}
           </div>
 
-          {/* Stats Cards - GIỮ NGUYÊN GIAO DIỆN CŨ */}
+          {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="border-slate-200">
               <CardContent className="p-6 flex items-center gap-4">
@@ -227,9 +224,9 @@ export default function SharedAuditList({ role }: AuditListProps) {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        {/* LOGIC NÚT BẤM DỰA TRÊN TRẠNG THÁI VÀ ROLE */}
+                        {/* Assign Team */}
                         {audit.status === "Planned" ? (
-                          ["manager"].includes(role) ? (
+                          role === "manager" ? (
                             <Button
                               size="sm"
                               className="bg-indigo-600 hover:bg-indigo-700 text-white"
@@ -238,8 +235,9 @@ export default function SharedAuditList({ role }: AuditListProps) {
                               <Users className="w-3 h-3 mr-2" /> Assign Team
                             </Button>
                           ) : (
+                            // Nếu không phải Manager thì hiện text chờ
                             <span className="text-slate-400 text-xs italic">
-                              Pending
+                              Pending Manager
                             </span>
                           )
                         ) : (
