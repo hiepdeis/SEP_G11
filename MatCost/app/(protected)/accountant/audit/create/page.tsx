@@ -33,7 +33,7 @@ export default function CreateAuditPage() {
   const handleSave = () => {
     // Logic gọi API tạo Audit Plan ở đây
     alert("Audit Plan created successfully!");
-    router.push("/audit"); // Quay lại danh sách sau khi tạo xong
+    router.push("/accountant/audit"); // Quay lại danh sách sau khi tạo xong
   };
 
   return (

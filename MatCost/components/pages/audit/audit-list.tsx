@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { UserDropdown } from "@/components/user-dropdown";
 import {
@@ -13,11 +14,11 @@ import {
   Bell,
   User,
   ClipboardList,
-  Users, // Import thêm icon Users
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -27,16 +28,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useRouter } from "next/navigation";
 
-// Fake Data
+// Type định nghĩa Role
+type UserRole = "admin" | "manager" | "accountant" | "staff";
+
+interface AuditListProps {
+  role: UserRole;
+}
+
+// Mock Data
 const AUDIT_SESSIONS = [
   {
-    id: "AUD-2026-Q1", // Dữ liệu mới cho dòng Assign Team
+    id: "AUD-2026-Q1",
     title: "Q1 2026 Opening Stock",
     warehouse: "Central Storage D1",
     date: "2026-01-10",
-    status: "Planned", // Trạng thái mới
+    status: "Planned",
     progress: "0%",
     isLocked: false,
   },
@@ -60,8 +67,14 @@ const AUDIT_SESSIONS = [
   },
 ];
 
-export default function AuditListPage() {
+export default function SharedAuditList({ role }: AuditListProps) {
   const router = useRouter();
+
+  // Helper điều hướng
+  const navigateTo = (path: string) => {
+    if (path.startsWith("/")) router.push(path);
+    else router.push(`/${role}/audit/${path}`);
+  };
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
@@ -70,7 +83,7 @@ export default function AuditListPage() {
         <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-sm flex-shrink-0">
           <div className="bg-white px-6 lg:px-8 h-16 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">
-              Inventory Audit
+              Inventory Audit ({role.toUpperCase()})
             </h2>
             <div className="flex items-center gap-4 ml-auto">
               <button className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-600 relative">
@@ -102,15 +115,18 @@ export default function AuditListPage() {
                 Manage stocktaking plans and reconciliation.
               </p>
             </div>
-            <Button
-              onClick={() => router.push("/audit/create")}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
-            >
-              <Plus className="w-4 h-4 mr-2" /> New Audit Plan
-            </Button>
+            {/* Logic hiển thị nút Create: Chỉ Accountant/Admin */}
+            {["accountant"].includes(role) && (
+              <Button
+                onClick={() => navigateTo("create")}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
+              >
+                <Plus className="w-4 h-4 mr-2" /> New Audit Plan
+              </Button>
+            )}
           </div>
 
-          {/* Stats Cards */}
+          {/* Stats Cards - GIỮ NGUYÊN GIAO DIỆN CŨ */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="border-slate-200">
               <CardContent className="p-6 flex items-center gap-4">
@@ -211,41 +227,48 @@ export default function AuditListPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        
-                        {/* Logic hiển thị nút bấm dựa trên trạng thái */}
+                        {/* LOGIC NÚT BẤM DỰA TRÊN TRẠNG THÁI VÀ ROLE */}
                         {audit.status === "Planned" ? (
-                          <Button
-                            size="sm"
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                            onClick={() => router.push(`/audit/assign-team`)}
-                          >
-                            <Users className="w-3 h-3 mr-2" /> Assign Team
-                          </Button>
+                          ["manager"].includes(role) ? (
+                            <Button
+                              size="sm"
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                              onClick={() => navigateTo("assign-team")}
+                            >
+                              <Users className="w-3 h-3 mr-2" /> Assign Team
+                            </Button>
+                          ) : (
+                            <span className="text-slate-400 text-xs italic">
+                              Pending
+                            </span>
+                          )
                         ) : (
-                          // Các nút cho trạng thái In Progress / Completed
                           <div className="flex flex-col gap-2 items-end">
-                            {audit.status === "In Progress" && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => router.push(`/audit/manual-count`)}
-                              >
-                                Manual Count
-                                <ArrowRight className="w-3 h-3 ml-1" />
-                              </Button>
-                            )}
-                            
+                            {audit.status === "In Progress" &&
+                              role === "staff" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => navigateTo("manual-count")}
+                                >
+                                  Manual Count
+                                  <ArrowRight className="w-3 h-3 ml-1" />
+                                </Button>
+                              )}
+
                             <Button
                               size="sm"
                               variant={
-                                audit.status === "Completed" ? "outline" : "default"
+                                audit.status === "Completed"
+                                  ? "outline"
+                                  : "default"
                               }
                               className={
                                 audit.status === "Completed"
                                   ? ""
                                   : "bg-indigo-600 hover:bg-indigo-700 text-white"
                               }
-                              onClick={() => router.push(`/audit/detail`)}
+                              onClick={() => navigateTo("detail")}
                             >
                               {audit.status === "Completed"
                                 ? "View Report"
@@ -254,7 +277,6 @@ export default function AuditListPage() {
                             </Button>
                           </div>
                         )}
-
                       </TableCell>
                     </TableRow>
                   ))}

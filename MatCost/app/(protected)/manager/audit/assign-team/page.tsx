@@ -65,7 +65,7 @@ export default function AssignTeamPage() {
   const handleSave = () => {
     // API Call to save team
     alert("Team assigned successfully!");
-    router.push("/audit");
+    router.push("/manager/audit");
   };
 
   return (
