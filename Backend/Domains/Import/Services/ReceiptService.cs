@@ -2,6 +2,7 @@
 using Backend.Domains.Import.DTOs.Accountants;
 using Backend.Domains.Import.DTOs.Construction;
 using Backend.Domains.Import.DTOs.Managers;
+using Backend.Domains.Import.DTOs.Staff;
 using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,8 @@ namespace Backend.Domains.Import.Services
         {
             _context = context;
         }
+
+        #region Accountant Methods
 
         public async Task CreateDraftAsync(long receiptId, CreateDraftDto dto, int accountantId)
         {
@@ -55,55 +58,7 @@ namespace Backend.Domains.Import.Services
             await _context.SaveChangesAsync();
         }
 
-        public async Task<long> CreateRequest(CreateImportRequestDto dto, int currentUserId)
-        {
-            // Step 1: get all materials code that Surveyor wants to import
-            var materialCodes = dto.Items.Select(c => c.MaterialCode).Distinct().ToList();
 
-            // Step 2: Dictionary to map MaterialCode to MaterialId
-            var materialDictionary = await _context.Materials
-                .Where(m => materialCodes.Contains(m.Code))
-                .ToDictionaryAsync(m => m.Code, m => m.MaterialId);
-
-            // Step 3: Generate unique ReceiptCode
-            var receiptCode = await GenerateReceiptCodeAsync();
-
-            // Step 4: Create new Receipt
-            var newRequestReceipt = new Receipt
-            {
-                ReceiptCode = receiptCode,
-                WarehouseId = dto.WarehouseId,
-                CreatedBy = currentUserId,
-                ReceiptDate = DateTime.UtcNow,
-                Status = "Requested",
-                ReceiptDetails = dto.Items
-                .Where(c => materialDictionary.ContainsKey(c.MaterialCode))
-                .Select(c => new ReceiptDetail
-                {
-                    MaterialId = materialDictionary[c.MaterialCode],
-                    Quantity = c.Quantity,
-                }).ToList()
-            };
-
-            // Step 4: Save to database
-            _context.Receipts.Add(newRequestReceipt);
-            await _context.SaveChangesAsync();
-            return newRequestReceipt.ReceiptId;
-        }
-
-        private async Task<string> GenerateReceiptCodeAsync()
-        {
-            var today = DateTime.UtcNow;
-            var prefix = $"RC{today:yyyyMMdd}"; // RC20250208
-
-            // Get today's receipts count
-            var count = await _context.Receipts
-                .Where(r => r.ReceiptCode!.StartsWith(prefix))
-                .CountAsync();
-
-            // Format: RC20250208-0001
-            return $"{prefix}-{(count + 1):D4}";
-        }
 
         public async Task<List<MaterialSuppliersDto>> GetAvailableSuppliersAsync(long receiptId)
         {
@@ -234,38 +189,6 @@ namespace Backend.Domains.Import.Services
             };
         }
 
-        public async Task ImportFromExcelAsync(Stream fileStream, int warehouseId, int currentUserId)
-        {
-            using (var package = new ExcelPackage(fileStream))
-            {
-                var worksheet = package.Workbook.Worksheets[0]; // Assuming data is in the first worksheet
-                var rowCount = worksheet.Dimension.Rows;
-                var importItems = new List<ImportItemDto>();
-                for (int row = 2; row <= rowCount; row++) // Assuming first row is header
-                {
-                    var materialCode = worksheet.Cells[row, 1].Text?.Trim(); // Assuming MaterialCode is in column 1
-                    var quantityText = worksheet.Cells[row, 2].Text; // Assuming Quantity is in column 2
-
-                    var quantity = ParseCleanNumber(quantityText);
-                    if (!string.IsNullOrEmpty(materialCode) && quantity > 0)
-                    {
-                        importItems.Add(new ImportItemDto
-                        {
-                            MaterialCode = materialCode,
-                            Quantity = quantity
-                        });
-                    }
-                }
-                // create a receipt request
-                var requestReceiptDto = new CreateImportRequestDto
-                {
-                    WarehouseId = warehouseId,
-                    Items = importItems
-                };
-
-                await CreateRequest(requestReceiptDto, currentUserId);
-            }
-        }
 
         public async Task SubmitForApprovalAsync(long receiptId, int accountantId)
         {
@@ -335,6 +258,92 @@ namespace Backend.Domains.Import.Services
             await _context.SaveChangesAsync();
         }
 
+        #endregion
+
+        #region Construction Methods
+        public async Task ImportFromExcelAsync(Stream fileStream, int warehouseId, int currentUserId)
+        {
+            using (var package = new ExcelPackage(fileStream))
+            {
+                var worksheet = package.Workbook.Worksheets[0]; // Assuming data is in the first worksheet
+                var rowCount = worksheet.Dimension.Rows;
+                var importItems = new List<ImportItemDto>();
+                for (int row = 2; row <= rowCount; row++) // Assuming first row is header
+                {
+                    var materialCode = worksheet.Cells[row, 1].Text?.Trim(); // Assuming MaterialCode is in column 1
+                    var quantityText = worksheet.Cells[row, 2].Text; // Assuming Quantity is in column 2
+
+                    var quantity = ParseCleanNumber(quantityText);
+                    if (!string.IsNullOrEmpty(materialCode) && quantity > 0)
+                    {
+                        importItems.Add(new ImportItemDto
+                        {
+                            MaterialCode = materialCode,
+                            Quantity = quantity
+                        });
+                    }
+                }
+                // create a receipt request
+                var requestReceiptDto = new CreateImportRequestDto
+                {
+                    WarehouseId = warehouseId,
+                    Items = importItems
+                };
+
+                await CreateRequest(requestReceiptDto, currentUserId);
+            }
+        }
+
+        public async Task<long> CreateRequest(CreateImportRequestDto dto, int currentUserId)
+        {
+            // Step 1: get all materials code that Surveyor wants to import
+            var materialCodes = dto.Items.Select(c => c.MaterialCode).Distinct().ToList();
+
+            // Step 2: Dictionary to map MaterialCode to MaterialId
+            var materialDictionary = await _context.Materials
+                .Where(m => materialCodes.Contains(m.Code))
+                .ToDictionaryAsync(m => m.Code, m => m.MaterialId);
+
+            // Step 3: Generate unique ReceiptCode
+            var receiptCode = await GenerateReceiptCodeAsync();
+
+            // Step 4: Create new Receipt
+            var newRequestReceipt = new Receipt
+            {
+                ReceiptCode = receiptCode,
+                WarehouseId = dto.WarehouseId,
+                CreatedBy = currentUserId,
+                ReceiptDate = DateTime.UtcNow,
+                Status = "Requested",
+                ReceiptDetails = dto.Items
+                .Where(c => materialDictionary.ContainsKey(c.MaterialCode))
+                .Select(c => new ReceiptDetail
+                {
+                    MaterialId = materialDictionary[c.MaterialCode],
+                    Quantity = c.Quantity,
+                }).ToList()
+            };
+
+            // Step 4: Save to database
+            _context.Receipts.Add(newRequestReceipt);
+            await _context.SaveChangesAsync();
+            return newRequestReceipt.ReceiptId;
+        }
+
+        private async Task<string> GenerateReceiptCodeAsync()
+        {
+            var today = DateTime.UtcNow;
+            var prefix = $"RC{today:yyyyMMdd}"; // RC20250208
+
+            // Get today's receipts count
+            var count = await _context.Receipts
+                .Where(r => r.ReceiptCode!.StartsWith(prefix))
+                .CountAsync();
+
+            // Format: RC20250208-0001
+            return $"{prefix}-{(count + 1):D4}";
+        }
+
         private int ParseCleanNumber(string input)
         {
             if (string.IsNullOrEmpty(input)) return 0;
@@ -352,6 +361,7 @@ namespace Backend.Domains.Import.Services
             return 0;
         }
 
+        #endregion 
 
         #region Manager Approval Methods
 
@@ -509,6 +519,76 @@ namespace Backend.Domains.Import.Services
             await _context.SaveChangesAsync();
         }
 
+        #endregion
+
+        #region Warehouse Staff Methods
+
+        public async Task<List<GetInboundRequestListDto>> GetReceiptsForWarehouseAsync()
+        {
+            var receipts = await _context.Receipts
+                           .Include(r => r.Warehouse)
+                            .Include(r => r.ReceiptDetails)
+                            .ThenInclude(rd => rd.Material)
+                            .Where(r => r.Status == "Approved")
+                            .OrderByDescending(r => r.ReceiptDate)
+                            .Select(r => new GetInboundRequestListDto
+                            {
+                                ReceiptId = r.ReceiptId,
+                                ReceiptCode = r.ReceiptCode,
+                                WarehouseId = r.WarehouseId,
+                                WarehouseName = r.Warehouse != null ? r.Warehouse.Name : null,
+                                ReceiptApprovalDate = r.ApprovedAt,
+                                TotalQuantity = r.ReceiptDetails.Sum(rd => rd.Quantity),
+                                Items = r.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
+                                {
+                                    DetailId = rd.DetailId,
+                                    MaterialId = rd.MaterialId,
+                                    MaterialCode = rd.Material != null ? rd.Material.Code : "",
+                                    MaterialName = rd.Material != null ? rd.Material.Name : "",
+                                    Quantity = rd.Quantity,
+                                    UnitPrice = rd.UnitPrice,
+                                    SupplierName = rd.Supplier != null ? rd.Supplier.Name : "",
+                                    SupplierId = rd.SupplierId,
+                                    LineTotal = rd.Quantity * (rd.UnitPrice ?? 0)
+                                }).ToList()
+                            }).ToListAsync();
+            return receipts;
+        }
+
+        public async Task<GetInboundRequestListDto> GetReceiptDetailForWarehouseAsync(long receiptId)
+        {
+            var receipt = await _context.Receipts
+                                        .Include(r => r.Warehouse)
+                                        .Include(r => r.ReceiptDetails)
+                                        .ThenInclude(rd => rd.Material)
+                                        .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
+            if (receipt == null)
+            {
+                throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
+            }
+
+            return new GetInboundRequestListDto
+            {
+                ReceiptId = receipt.ReceiptId,
+                ReceiptCode = receipt.ReceiptCode,
+                WarehouseId = receipt.WarehouseId,
+                WarehouseName = receipt.Warehouse != null ? receipt.Warehouse.Name : null,
+                ReceiptApprovalDate = receipt.ApprovedAt,
+                TotalQuantity = receipt.ReceiptDetails.Sum(rd => rd.Quantity),
+                Items = receipt.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
+                {
+                    DetailId = rd.DetailId,
+                    MaterialId = rd.MaterialId,
+                    MaterialCode = rd.Material != null ? rd.Material.Code : "",
+                    MaterialName = rd.Material != null ? rd.Material.Name : "",
+                    Quantity = rd.Quantity,
+                    UnitPrice = rd.UnitPrice,
+                    SupplierName = rd.Supplier != null ? rd.Supplier.Name : "",
+                    SupplierId = rd.SupplierId,
+                    LineTotal = rd.Quantity * (rd.UnitPrice ?? 0)
+                }).ToList()
+            };
+        }
         #endregion
 
     }

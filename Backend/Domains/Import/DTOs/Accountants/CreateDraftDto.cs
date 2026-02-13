@@ -3,6 +3,7 @@
     public class CreateDraftDto
     {
         //public int SupplierId { get; set; }
+        public int WarehouseId { get; set; }
         public List<DraftItemDto> Items { get; set; } = new();
         public string? Notes { get; set; }
     }

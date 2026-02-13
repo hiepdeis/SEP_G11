@@ -1,0 +1,26 @@
+﻿namespace Backend.Domains.Import.DTOs.Staff
+{
+    public class GetInboundRequestListDto
+    {
+        public long ReceiptId { get; set; }
+        public string ReceiptCode { get; set; }
+        public int WarehouseId { get; set; }
+        public string WarehouseName { get; set; }
+        public DateTime? ReceiptApprovalDate { get; set; }
+        public decimal TotalQuantity { get; set; }
+        public List<GetInboundRequestItemDto> Items { get; set; }
+    }
+
+    public class GetInboundRequestItemDto
+    {
+        public long DetailId { get; set; }
+        public int? MaterialId { get; set; }
+        public string MaterialCode { get; set; } = string.Empty;
+        public string MaterialName { get; set; } = string.Empty;
+        public decimal? Quantity { get; set; }
+        public int? SupplierId { get; set; }
+        public string SupplierName { get; set; } = string.Empty;
+        public decimal? UnitPrice { get; set; }
+        public decimal? LineTotal { get; set; }
+    }
+}
