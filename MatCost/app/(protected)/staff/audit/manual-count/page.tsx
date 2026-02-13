@@ -5,13 +5,14 @@ import { Sidebar } from "@/components/sidebar";
 import { UserDropdown } from "@/components/user-dropdown";
 import { 
   Calculator, ChevronRight, Save, Check, 
-  Search, Bell, User, LayoutGrid
+  Search, Bell, User, LayoutGrid, ArrowLeft, Send
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 const COUNT_TASKS = [
   { id: 1, name: "Steel Beam I-200", sku: "89350012", location: "Zone A-12", counted: null as number | null },
@@ -23,6 +24,7 @@ export default function StaffCountingPage() {
   const [tasks, setTasks] = useState(COUNT_TASKS);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [tempCount, setTempCount] = useState("");
+  const router = useRouter();
 
   const startEdit = (id: number, currentVal: number | null) => {
     setEditingId(id);
@@ -36,6 +38,14 @@ export default function StaffCountingPage() {
     }
   };
 
+  const handleCompleteAudit = () => {
+    console.log("Submitting audit data:", tasks);
+    
+    alert("Audit results submitted successfully!");
+
+    router.push("/staff/audit");
+  };
+
   const progress = Math.round((tasks.filter(t => t.counted !== null).length / tasks.length) * 100);
 
   return (
@@ -44,7 +54,12 @@ export default function StaffCountingPage() {
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
         <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-sm flex-shrink-0">
           <div className="bg-white px-6 lg:px-8 h-16 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">My Count Tasks</h2>
+            <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon" onClick={() => router.back()}>
+                    <ArrowLeft className="w-5 h-5 text-slate-500" />
+                </Button>
+                <h2 className="text-lg font-semibold text-slate-900">My Count Tasks</h2>
+            </div>
             <div className="flex items-center gap-4 ml-auto">
                <button className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-600 relative">
                   <Bell className="w-5 h-5" />
@@ -110,6 +125,17 @@ export default function StaffCountingPage() {
                     </Card>
                  </motion.div>
               ))}
+           </div>
+
+           {/* Save */}
+           <div className="pt-4">
+             <Button 
+                size="lg" 
+                className="w-full h-12 text-base font-bold bg-green-600 hover:bg-green-700 text-white shadow-md"
+                onClick={handleCompleteAudit}
+             >
+                <Send className="w-5 h-5 mr-2" /> Submit Count
+             </Button>
            </div>
 
            {/* Edit Modal / Bottom Sheet Simulation */}
