@@ -67,6 +67,10 @@ public partial class MyDbContext : DbContext
         {
             entity.HasKey(e => e.BatchId).HasName("PK__Batches__5D55CE38E53D7EE6");
 
+            entity.Property(e => e.BatchId)
+                .ValueGeneratedOnAdd()
+                .UseIdentityColumn(1, 1);
+
             entity.Property(e => e.CreatedDate).HasDefaultValueSql("(getdate())");
 
             entity.HasOne(d => d.Material).WithMany(p => p.Batches)
@@ -311,6 +315,13 @@ public partial class MyDbContext : DbContext
             entity.HasOne(d => d.Warehouse).WithMany(p => p.Receipts)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Receipts_Warehouses");
+
+            // Self-referencing relationship for backorders
+            entity.HasOne(d => d.ParentRequest)
+                .WithMany(p => p.ChildRequests)
+                .HasForeignKey(d => d.ParentRequestId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_Receipts_ParentRequest");
         });
 
         modelBuilder.Entity<ReceiptDetail>(entity =>
@@ -325,10 +336,17 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.Quantity).HasColumnType("decimal(18, 4)");
             entity.Property(e => e.ReceiptId).HasColumnName("ReceiptID");
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.ActualQuantity).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.BinLocationId).HasColumnName("BinLocationID");
 
 
 
             entity.HasOne(d => d.Batch).WithMany(p => p.ReceiptDetails).HasConstraintName("FK_ReceiptDetails_Batches");
+
+            entity.HasOne(d => d.BinLocation).WithMany(p => p.ReceiptDetails)
+                .HasForeignKey(d => d.BinLocationId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_ReceiptDetails_BinLocations");
 
             entity.HasOne(d => d.Material).WithMany(p => p.ReceiptDetails)
                 .OnDelete(DeleteBehavior.ClientSetNull)
@@ -481,7 +499,7 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
 
             entity.HasOne(d => d.AssignedToNavigation).WithMany(p => p.TransferOrderAssignedToNavigations).HasConstraintName("FK_Transfers_Assignees");
-            
+
             entity.HasOne(d => d.AssignedToNavigation).WithMany(p => p.TransferOrderAssignedToNavigations)
                 .HasForeignKey(d => d.AssignedTo)
                 .HasConstraintName("FK__TransferO__Assig__02FC7413");

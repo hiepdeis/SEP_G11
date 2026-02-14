@@ -29,6 +29,9 @@ public partial class BinLocation
     [InverseProperty("Bin")]
     public virtual ICollection<LossDetail> LossDetails { get; set; } = new List<LossDetail>();
 
+    [InverseProperty("BinLocation")]
+    public virtual ICollection<ReceiptDetail> ReceiptDetails { get; set; } = new List<ReceiptDetail>();
+
     [InverseProperty("FromBin")]
     public virtual ICollection<TransferDetail> TransferDetailFromBins { get; set; } = new List<TransferDetail>();
 

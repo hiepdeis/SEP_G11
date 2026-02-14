@@ -36,6 +36,7 @@ namespace Backend.Domains.Import.Services
                 throw new Exception($"Cannot create draft. Current status: {receipt.Status}");
 
             // Step 3: Update receipt
+            receipt.WarehouseId = dto.WarehouseId;
             receipt.Status = "Draft";
             receipt.Notes = dto.Notes;
 
@@ -115,8 +116,6 @@ namespace Backend.Domains.Import.Services
                 .OrderByDescending(r => r.ReceiptDate)
                 .Select(r => new CreateImportRequestDto
                 {
-                    WarehouseId = r.WarehouseId,
-                    WarehouseName = r.Warehouse != null ? r.Warehouse.Name : null,
                     Items = r.ReceiptDetails.Select(rd => new ImportItemDto
                     {
                         MaterialCode = rd.Material != null ? rd.Material.Code : "",
@@ -286,7 +285,6 @@ namespace Backend.Domains.Import.Services
                 // create a receipt request
                 var requestReceiptDto = new CreateImportRequestDto
                 {
-                    WarehouseId = warehouseId,
                     Items = importItems
                 };
 
@@ -311,7 +309,6 @@ namespace Backend.Domains.Import.Services
             var newRequestReceipt = new Receipt
             {
                 ReceiptCode = receiptCode,
-                WarehouseId = dto.WarehouseId,
                 CreatedBy = currentUserId,
                 ReceiptDate = DateTime.UtcNow,
                 Status = "Requested",
@@ -393,6 +390,7 @@ namespace Backend.Domains.Import.Services
                     DetailId = rd.DetailId,
                     MaterialCode = rd.Material?.Code,
                     MaterialName = rd.Material?.Name,
+                    SupplierId = rd.Supplier.SupplierId,
                     SupplierName = rd.Supplier?.Name,
                     Quantity = rd.Quantity,
                     Unit = rd.Material?.Unit,
@@ -409,6 +407,8 @@ namespace Backend.Domains.Import.Services
                 .Include(r => r.CreatedByNavigation)
                 .Include(r => r.ReceiptDetails)
                     .ThenInclude(rd => rd.Material)
+                .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.Supplier)
                 .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
 
             if (receipt == null)
@@ -419,6 +419,7 @@ namespace Backend.Domains.Import.Services
             return new PendingReceiptDto
             {
                 ReceiptId = receipt.ReceiptId,
+                ReceiptCode = receipt.ReceiptCode,
                 ReceiptDate = receipt.ReceiptDate,
                 WarehouseName = receipt.Warehouse?.Name,
                 TotalAmount = receipt.ReceiptDetails.Sum(rd => rd.Quantity * rd.UnitPrice),
@@ -430,6 +431,7 @@ namespace Backend.Domains.Import.Services
                     DetailId = rd.DetailId,
                     MaterialCode = rd.Material?.Code,
                     MaterialName = rd.Material?.Name,
+                    SupplierId = rd.Supplier.SupplierId,
                     SupplierName = rd.Supplier?.Name,
                     Quantity = rd.Quantity,
                     Unit = rd.Material?.Unit,
@@ -527,9 +529,11 @@ namespace Backend.Domains.Import.Services
         {
             var receipts = await _context.Receipts
                            .Include(r => r.Warehouse)
-                            .Include(r => r.ReceiptDetails)
-                            .ThenInclude(rd => rd.Material)
-                            .Where(r => r.Status == "Approved")
+                                        .Include(r => r.ReceiptDetails)
+                                        .ThenInclude(rd => rd.Material)
+                                        .Include(r => r.ReceiptDetails)
+                                        .ThenInclude(rd => rd.Supplier)
+                            .Where(r => r.Status == "Approved" || r.Status == "Backorder")
                             .OrderByDescending(r => r.ReceiptDate)
                             .Select(r => new GetInboundRequestListDto
                             {
@@ -561,6 +565,8 @@ namespace Backend.Domains.Import.Services
                                         .Include(r => r.Warehouse)
                                         .Include(r => r.ReceiptDetails)
                                         .ThenInclude(rd => rd.Material)
+                                        .Include(r => r.ReceiptDetails)
+                                        .ThenInclude(rd => rd.Supplier)
                                         .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
             if (receipt == null)
             {
@@ -583,12 +589,227 @@ namespace Backend.Domains.Import.Services
                     MaterialName = rd.Material != null ? rd.Material.Name : "",
                     Quantity = rd.Quantity,
                     UnitPrice = rd.UnitPrice,
-                    SupplierName = rd.Supplier != null ? rd.Supplier.Name : "",
+                    Unit = rd.Material?.Unit,
+                    SupplierName = rd.Supplier?.Name,
                     SupplierId = rd.SupplierId,
                     LineTotal = rd.Quantity * (rd.UnitPrice ?? 0)
                 }).ToList()
             };
         }
+
+        public async Task ConfirmGoodsReceiptAsync(long receiptId, ConfirmGoodsReceiptDto dto)
+        {
+            // Start transaction for ACID compliance
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // STEP 1: validate receipt and inputs
+                var receipt = await _context.Receipts
+                    .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.Material)
+                    .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
+
+                if (receipt == null)
+                    throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
+
+                if (receipt.Status != "Approved")
+                    throw new InvalidOperationException("Receipt must be approved before confirmation");
+
+                if (receipt.Status == "Completed")
+                    throw new InvalidOperationException("Receipt has already been confirmed");
+
+                if (dto.Items == null || !dto.Items.Any())
+                    throw new ArgumentException("Items list cannot be empty");
+
+                // Validate all DetailIds belong to this Receipt
+                var receiptDetailIds = receipt.ReceiptDetails.Select(rd => rd.DetailId).ToHashSet();
+                var invalidDetailIds = dto.Items.Where(i => !receiptDetailIds.Contains(i.DetailId)).ToList();
+                if (invalidDetailIds.Any())
+                    throw new InvalidOperationException($"Invalid detail IDs: {string.Join(", ", invalidDetailIds.Select(i => i.DetailId))}");
+
+                // Validate BinLocations exist and belong to same warehouse
+                var binLocationIds = dto.Items.Select(i => i.BinLocationId).Distinct().ToList();
+                var binLocations = await _context.BinLocations
+                    .Where(b => binLocationIds.Contains(b.BinId))
+                    .ToListAsync();
+
+                if (binLocations.Count != binLocationIds.Count)
+                    throw new KeyNotFoundException("One or more bin locations not found");
+
+                if (binLocations.Any(b => b.WarehouseId != receipt.WarehouseId))
+                    throw new InvalidOperationException("Bin location must be in the same warehouse as receipt");
+
+                // Validate ActualQuantity constraints
+                foreach (var item in dto.Items)
+                {
+                    var detail = receipt.ReceiptDetails.First(rd => rd.DetailId == item.DetailId);
+
+                    if (item.ActualQuantity < 0)
+                        throw new ArgumentException($"Actual quantity cannot be negative for detail {item.DetailId}");
+
+                    if (item.ActualQuantity > detail.Quantity)
+                        throw new ArgumentException($"Actual quantity cannot exceed requested quantity for detail {item.DetailId}");
+                }
+
+                // STEP 2: process each item
+                var shortageList = new List<(int MaterialId, int? SupplierId, decimal ShortageQuantity, decimal? UnitPrice)>();
+
+                foreach (var item in dto.Items)
+                {
+                    var detail = receipt.ReceiptDetails.First(rd => rd.DetailId == item.DetailId);
+
+                    // Update ReceiptDetail
+                    detail.ActualQuantity = item.ActualQuantity;
+                    detail.BinLocationId = item.BinLocationId;
+
+                    // Handle Batch
+                    var batch = await GetOrCreateBatchAsync(detail.MaterialId, item.BatchCode, item.MfgDate, item.CertificateImage);
+                    detail.BatchId = batch.BatchId;
+
+                    // Update Inventory (skip if ActualQuantity = 0)
+                    if (item.ActualQuantity > 0)
+                    {
+                        var inventory = await _context.InventoryCurrents
+                            .FirstOrDefaultAsync(inv =>
+                                inv.WarehouseId == receipt.WarehouseId &&
+                                inv.BinId == item.BinLocationId &&
+                                inv.MaterialId == detail.MaterialId &&
+                                inv.BatchId == batch.BatchId);
+
+                        if (inventory != null)
+                        {
+                            // Update existing inventory
+                            inventory.QuantityOnHand = (inventory.QuantityOnHand ?? 0) + item.ActualQuantity;
+                            inventory.LastUpdated = DateTime.UtcNow;
+                        }
+                        else
+                        {
+                            // Create new inventory record
+                            inventory = new InventoryCurrent
+                            {
+                                WarehouseId = receipt.WarehouseId,
+                                BinId = item.BinLocationId,
+                                MaterialId = detail.MaterialId,
+                                BatchId = batch.BatchId,
+                                QuantityOnHand = item.ActualQuantity,
+                                QuantityAllocated = 0,
+                                LastUpdated = DateTime.UtcNow
+                            };
+                            _context.InventoryCurrents.Add(inventory);
+                        }
+                    }
+
+                    // Check for Shortage
+                    if (item.ActualQuantity < detail.Quantity)
+                    {
+                        shortageList.Add((
+                            MaterialId: detail.MaterialId,
+                            SupplierId: detail.SupplierId,
+                            ShortageQuantity: detail.Quantity - item.ActualQuantity,
+                            UnitPrice: detail.UnitPrice
+                        ));
+                    }
+                }
+
+                // STEP 3: handle backorder (if shortage exists)
+                if (shortageList.Any())
+                {
+                    // Generate new ReceiptCode
+                    var today = DateTime.Now.ToString("yyyyMMdd");
+                    var todaysReceipts = await _context.Receipts
+                        .Where(r => r.ReceiptCode.StartsWith($"RC{today}-"))
+                        .CountAsync();
+                    var newReceiptCode = $"RC{today}-{(todaysReceipts + 1):D4}";
+
+                    // Create Child Receipt
+                    var childReceipt = new Receipt
+                    {
+                        ReceiptCode = newReceiptCode,
+                        ParentRequestId = receiptId,
+                        Status = "Backorder",
+                        WarehouseId = receipt.WarehouseId,
+                        CreatedBy = receipt.CreatedBy,
+                        ReceiptDate = DateTime.UtcNow,
+                        Notes = $"Auto-generated backorder from receipt {receipt.ReceiptCode}",
+                        SupplierId = receipt.SupplierId
+                    };
+
+                    _context.Receipts.Add(childReceipt);
+                    await _context.SaveChangesAsync(); // Save to get ReceiptId
+
+                    // Create Child ReceiptDetails
+                    decimal totalAmount = 0;
+                    foreach (var shortage in shortageList)
+                    {
+                        var childDetail = new ReceiptDetail
+                        {
+                            ReceiptId = childReceipt.ReceiptId,
+                            MaterialId = shortage.MaterialId,
+                            SupplierId = shortage.SupplierId,
+                            Quantity = shortage.ShortageQuantity,
+                            UnitPrice = shortage.UnitPrice,
+                            LineTotal = shortage.ShortageQuantity * (shortage.UnitPrice ?? 0)
+                        };
+                        _context.ReceiptDetails.Add(childDetail);
+                        totalAmount += childDetail.LineTotal ?? 0;
+                    }
+
+                    childReceipt.TotalAmount = totalAmount;
+                }
+
+                // STEP 4: finalize original receipt
+                receipt.Status = "Completed";
+                if (!string.IsNullOrEmpty(dto.Notes))
+                {
+                    receipt.Notes = string.IsNullOrEmpty(receipt.Notes)
+                        ? dto.Notes
+                        : $"{receipt.Notes}\n{dto.Notes}";
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        private async Task<Batch> GetOrCreateBatchAsync(int materialId, string? batchCode, DateTime? mfgDate, string? certificateImage)
+        {
+            // Try to find existing batch if batchCode is provided
+            if (!string.IsNullOrEmpty(batchCode))
+            {
+                var existingBatch = await _context.Batches
+                    .FirstOrDefaultAsync(b => b.BatchCode == batchCode && b.MaterialId == materialId);
+
+                if (existingBatch != null)
+                    return existingBatch;
+            }
+
+            // Create new batch
+            var material = await _context.Materials.FindAsync(materialId);
+            if (material == null)
+                throw new KeyNotFoundException($"Material with ID {materialId} not found");
+
+            //var newBatchCode = batchCode ?? $"BATCH-{material.Code}-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 6).ToUpper()}";
+
+            var batch = new Batch
+            {
+                MaterialId = materialId,
+                BatchCode = batchCode,
+                MfgDate = mfgDate,
+                CertificateImage = certificateImage,
+                CreatedDate = DateTime.UtcNow
+            };
+
+            _context.Batches.Add(batch);
+            await _context.SaveChangesAsync(); // Save to get BatchId
+
+            return batch;
+        }
+
         #endregion
 
     }
