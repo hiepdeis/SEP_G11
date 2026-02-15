@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
 import { ConstructionIllustration } from "@/components/construction-illustration";
-import { authApi } from "@/services/auth-service"; 
+import { authApi } from "@/services/auth-service";
 import { setAccessToken } from "@/lib/axios-client";
 import { useRouter } from "next/navigation";
 import { FullPageSpinner } from "@/components/ui/custom/full-page-spinner";
@@ -40,9 +40,7 @@ export default function LoginPage() {
   }, [router]);
 
   if (isChecking) {
-    return (
-      <FullPageSpinner />
-    );
+    return <FullPageSpinner />;
   }
 
   return (
@@ -111,10 +109,12 @@ export default function LoginPage() {
             </p>
 
             {/* Google Sign In Button */}
-            <GoogleSignInButton
-              isLoading={isLoading}
-              onClick={handleGoogleSignIn}
-            />
+            <div className="cursor-pointer">
+              <GoogleSignInButton
+                isLoading={isLoading}
+                onClick={handleGoogleSignIn}
+              />
+            </div>
 
             {/* Divider */}
             {/* <div className="my-8 flex items-center gap-3">

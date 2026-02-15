@@ -27,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { receiptApi, ReceiptSummaryDto } from "@/services/receipt-service"; // Import service
+import { receiptApi, ReceiptSummaryDto } from "@/services/receipt-service";
 
 export default function ImportApprovalListPage() {
   const router = useRouter();
@@ -132,10 +132,7 @@ export default function ImportApprovalListPage() {
                   <p className="text-sm text-slate-500 font-medium">Drafts</p>
                   <h3 className="text-2xl font-bold text-slate-900">
                     {" "}
-                    {
-                      requests.filter((item) => item.status === "Draft")
-                        .length
-                    }
+                    {requests.filter((item) => item.status === "Draft").length}
                   </h3>
                 </div>
               </CardContent>
@@ -213,7 +210,6 @@ export default function ImportApprovalListPage() {
                   <TableRow className="bg-slate-50">
                     <TableHead className="pl-6">Receipt Code</TableHead>
                     <TableHead>Requester</TableHead>
-                    <TableHead>Warehouse</TableHead>
                     <TableHead>Items</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right pr-6">Action</TableHead>
@@ -267,12 +263,6 @@ export default function ImportApprovalListPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2 text-slate-600">
-                            <MapPin className="w-4 h-4 text-slate-400" />
-                            {item.warehouseName || "N/A"}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2 text-slate-600">
                             <Package className="w-4 h-4 text-slate-400" />
                             {item.itemCount} items
                           </div>
@@ -285,10 +275,11 @@ export default function ImportApprovalListPage() {
                                 ? "bg-yellow-50 text-yellow-700 border-yellow-200"
                                 : item.status === "Submitted"
                                   ? "bg-green-50 text-green-700 border-green-200"
-                                  : "bg-gray-50 text-gray-700 border-gray-200"
+                                  : item.status === "Rejected"
+                                    ? "bg-red-50 text-red-700 border-red-200"
+                                    : "bg-gray-50 text-gray-700 border-gray-200"
                             }
                           >
-                            <Clock className="w-3 h-3 mr-1" />
                             {item.status}
                           </Badge>
                         </TableCell>

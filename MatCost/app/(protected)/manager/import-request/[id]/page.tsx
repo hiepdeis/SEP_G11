@@ -142,7 +142,7 @@ export default function ManagerReviewPage() {
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title={`Review Receipt #${receipt.receiptId}`} />
+        <Header title={`Review Receipt #${receipt.receiptCode}`} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           {/* Top Navigation */}
@@ -200,9 +200,8 @@ export default function ManagerReviewPage() {
               {/* Items Table Card */}
               <Card className="border-slate-200 shadow-sm overflow-hidden pb-0 gap-0">
                 <CardHeader className="bg-white border-b border-slate-100 py-4 flex flex-row justify-between items-center">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
-                    <Receipt className="w-4 h-4 text-indigo-600" /> Item List &
-                    Pricing
+                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pb-5">
+                    <Receipt className="w-4 h-4 text-indigo-600" /> Item List & Pricing
                   </CardTitle>
                   <Badge variant="outline" className="font-normal">
                     {receipt.details.length} items
@@ -213,7 +212,7 @@ export default function ManagerReviewPage() {
                     <TableHeader>
                       <TableRow className="bg-slate-50/50">
                         <TableHead className="pl-6 w-[40%]">Material</TableHead>
-                        <TableHead className="text-center">Supplier</TableHead>
+                        <TableHead className="w-[30%]">Supplier</TableHead>
                         <TableHead className="text-center">Quantity</TableHead>
                         <TableHead className="text-right">Unit Price</TableHead>
                         <TableHead className="text-right pr-6">
@@ -232,7 +231,7 @@ export default function ManagerReviewPage() {
                               {item.materialCode}
                             </div>
                           </TableCell>
-                          <TableCell className="text-center">
+                          <TableCell>
                             <span className="text-sm text-slate-600">
                               {item.supplierName || "N/A"}
                             </span>

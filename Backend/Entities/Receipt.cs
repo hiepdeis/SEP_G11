@@ -41,10 +41,19 @@ public partial class Receipt
     public DateTime? ApprovedAt { get; set; }
     public string? Notes { get; set; }
 
+    [Column("ParentRequestID")]
+    public long? ParentRequestId { get; set; }
 
     [ForeignKey("CreatedBy")]
     [InverseProperty("Receipts")]
     public virtual User CreatedByNavigation { get; set; } = null!;
+
+    [ForeignKey("ParentRequestId")]
+    [InverseProperty("ChildRequests")]
+    public virtual Receipt? ParentRequest { get; set; }
+
+    [InverseProperty("ParentRequest")]
+    public virtual ICollection<Receipt> ChildRequests { get; set; } = new List<Receipt>();
 
     [InverseProperty("Receipt")]
     public virtual ICollection<ReceiptDetail> ReceiptDetails { get; set; } = new List<ReceiptDetail>();

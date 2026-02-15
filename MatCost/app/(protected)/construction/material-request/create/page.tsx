@@ -17,10 +17,6 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { importApi, ImportItemDto } from "@/services/import-service";
-import {
-  warehouseApi,
-  WarehouseListItemDto,
-} from "@/services/warehouse-service";
 import * as XLSX from "xlsx";
 import { Header } from "@/components/ui/custom/header";
 import { toast } from "sonner";
@@ -31,29 +27,9 @@ export default function CreateRequestPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [warehouses, setWarehouses] = useState<WarehouseListItemDto[]>([]);
-  const [warehouseId, setWarehouseId] = useState<number>(0);
-
   const [requestItems, setRequestItems] = useState<
     Array<ImportItemDto & { id: number }>
   >([{ id: 1, materialCode: "", quantity: 1 }]);
-
-  useEffect(() => {
-    const fetchWarehouses = async () => {
-      try {
-        const res = await warehouseApi.getAll();
-        setWarehouses(res.data);
-
-        // Tự động chọn kho đầu tiên nếu có dữ liệu
-        if (res.data.length > 0) {
-          setWarehouseId(res.data[0].warehouseId);
-        }
-      } catch (error) {
-        console.error("Failed to load warehouses", error);
-      }
-    };
-    fetchWarehouses();
-  }, []);
 
   const addItem = () => {
     setRequestItems([
@@ -138,11 +114,6 @@ export default function CreateRequestPage() {
   };
 
   const handleSubmit = async () => {
-    if (warehouseId === 0) {
-      toast.error("Please select a warehouse.");
-      return;
-    }
-
     if (
       requestItems.some(
         (i) => !i.materialCode || !i.quantity || i.quantity <= 0,
@@ -162,7 +133,6 @@ export default function CreateRequestPage() {
     setIsSubmitting(true);
     try {
       const payload = {
-        warehouseId: warehouseId,
         items: requestItems.map(({ materialCode, quantity }) => ({
           materialCode,
           quantity,
@@ -234,27 +204,6 @@ export default function CreateRequestPage() {
               </CardHeader>
 
               <CardContent className="p-6 space-y-6">
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-slate-700">
-                    Warehouse
-                  </h4>
-                  <select
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    value={warehouseId}
-                    onChange={(e) => setWarehouseId(Number(e.target.value))}
-                  >
-                    {warehouses.length === 0 && (
-                      <option value={0}>Loading warehouses...</option>
-                    )}
-
-                    {warehouses.map((wh) => (
-                      <option key={wh.warehouseId} value={wh.warehouseId}>
-                        {wh.name} {wh.address ? `(${wh.address})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
                 <div className="space-y-4">
                   <div className="flex justify-between items-center border-b pb-2">
                     <h4 className="font-semibold text-slate-700">
@@ -325,7 +274,9 @@ export default function CreateRequestPage() {
                 <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
                   <Button
                     variant="outline"
-                    onClick={() => router.push("/construction/material-request")}
+                    onClick={() =>
+                      router.push("/construction/material-request")
+                    }
                     disabled={isSubmitting}
                     className="hover:text-white"
                   >

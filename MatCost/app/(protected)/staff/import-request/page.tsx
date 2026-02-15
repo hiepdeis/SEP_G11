@@ -8,14 +8,13 @@ import {
   Clock,
   Search,
   ArrowRight,
-  FileCheck,
   Loader2,
   CalendarDays,
   MapPin,
-  Building2,
-  DollarSign,
-  FileText,
-  FileMinus,
+  Package, // Thay DollarSign bằng Package
+  Truck,
+  ClipboardList,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,30 +29,29 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  managerReceiptApi,
-  PendingReceiptDto,
-} from "@/services/receipt-service";
+  staffReceiptApi,
+  GetInboundRequestListDto,
+} from "@/services/receipt-service"; // Đảm bảo import đúng file service bạn vừa tạo
 
-export default function ManagerImportRequestPage() {
+export default function StaffInboundPage() {
   const router = useRouter();
 
-  const [requests, setRequests] = useState<PendingReceiptDto[]>([]);
+  const [requests, setRequests] = useState<GetInboundRequestListDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [filterStatus, setFilterStatus] = useState<
-    "All" | "Submitted" | "History"
-  >("Submitted");
+  // API Staff chỉ trả về "Approved", nên trang này đóng vai trò là "Pending Inbound"
+  // Ta có thể filter client-side nếu cần (ví dụ: theo kho)
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const res = await managerReceiptApi.getPendingApprovals();
+        const res = await staffReceiptApi.getAllInboundRequests();
         setRequests(res.data);
       } catch (error) {
-        console.error("Failed to fetch manager pending receipts", error);
+        console.error("Failed to fetch inbound requests", error);
       } finally {
         setIsLoading(false);
       }
@@ -63,25 +61,16 @@ export default function ManagerImportRequestPage() {
   }, []);
 
   const filteredData = requests.filter((item) => {
-    let matchesStatus = true;
-
-    if (filterStatus === "Submitted") {
-      matchesStatus = item.status === "Submitted";
-    } else if (filterStatus === "History") {
-      matchesStatus = item.status !== "Submitted";
-    }
-
     const term = searchTerm.toLowerCase();
     const matchesSearch =
-      item.receiptCode.toString().includes(term) ||
+      item.receiptCode.toLowerCase().includes(term) ||
       (item.warehouseName && item.warehouseName.toLowerCase().includes(term));
 
-    return matchesStatus && matchesSearch;
+    return matchesSearch;
   });
 
-  const handleReview = (id: number) => {
+  const handleProcess = (id: number) => {
     setLoadingId(id);
-    // Chuyển hướng sang trang chi tiết duyệt của Manager
     router.push(`import-request/${id}`);
   };
 
@@ -94,116 +83,75 @@ export default function ManagerImportRequestPage() {
     });
   };
 
-  const formatCurrency = (val: number | null) => {
-    if (val === null || val === undefined) return "0 ₫";
-    return val.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
-  };
-
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title="Manager Dashboard" />
+        <Header title="Warehouse Dashboard" />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div className="flex flex-col gap-1">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Approval Queue
+              Inbound Requests
             </h1>
             <p className="text-sm text-slate-500">
-              Review receipts processed by Accountants and make final approval.
+              Approved receipts waiting for physical inventory check and confirmation.
             </p>
           </div>
 
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg">
+                  <Truck className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500 font-medium">
+                    Pending Shipments
+                  </p>
+                  <h3 className="text-2xl font-bold text-slate-900">
+                    {requests.length}
+                  </h3>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 bg-amber-100 text-amber-600 rounded-lg">
-                  <Clock className="w-6 h-6" />
+                  <Package className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    Waiting for Approval
+                    Total Items Quantity
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {
-                      requests.filter((item) => item.status === "Submitted")
-                        .length
-                    }
+                    {/* Tính tổng số lượng thay vì tổng tiền */}
+                    {requests
+                      .reduce((sum, item) => sum + (item.totalQuantity || 0), 0)
+                      .toLocaleString("vi-VN")}
                   </h3>
                 </div>
               </CardContent>
             </Card>
+
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
-                  <DollarSign className="w-6 h-6" />
+                <div className="p-3 bg-emerald-100 text-emerald-600 rounded-lg">
+                  <ClipboardList className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    Total Pending Value
-                  </p>
-                  <h3 className="text-2xl font-bold text-slate-900">
-                    {formatCurrency(
-                      requests
-                        .filter((item) => item.status === "Submitted")
-                        .reduce(
-                          (sum, item) => sum + (item.totalAmount || 0),
-                          0,
-                        ),
-                    )}
-                  </h3>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-white border-slate-200 shadow-sm">
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-green-100 text-green-600 rounded-lg">
-                  <FileCheck className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 font-medium">
-                    Approved last 7 days
+                     Approved Today
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
                     {
                       requests.filter((item) => {
-                        if (!item.receiptDate) return false;
-
-                        const itemDate = new Date(item.receiptDate);
-                        const sevenDaysAgo = new Date();
-                        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                        return (
-                          item.status === "Approved" &&
-                          itemDate >= sevenDaysAgo
-                        );
-                      }).length
-                    }
-                  </h3>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-white border-slate-200 shadow-sm">
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-red-100 text-red-600 rounded-lg">
-                  <FileMinus className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 font-medium">
-                    Rejected last 7 days
-                  </p>
-                  <h3 className="text-2xl font-bold text-slate-900">
-                    {
-                      requests.filter((item) => {
-                        if (!item.receiptDate) return false;
-
-                        const itemDate = new Date(item.receiptDate);
-                        const sevenDaysAgo = new Date();
-                        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                        return (
-                          item.status === "Rejected" && itemDate >= sevenDaysAgo
-                        );
+                        if (!item.receiptApprovalDate) return false;
+                        const date = new Date(item.receiptApprovalDate);
+                        const today = new Date();
+                        return date.toDateString() === today.toDateString();
                       }).length
                     }
                   </h3>
@@ -217,41 +165,10 @@ export default function ManagerImportRequestPage() {
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant={
-                      filterStatus === "Submitted" ? "default" : "outline"
-                    }
-                    onClick={() => setFilterStatus("Submitted")}
-                    className={
-                      filterStatus === "Submitted"
-                        ? "bg-indigo-600 hover:bg-indigo-700"
-                        : "hover:text-white"
-                    }
-                  >
-                    Submitted
-                  </Button>
-                  <Button
-                    variant={filterStatus === "History" ? "default" : "outline"}
-                    onClick={() => setFilterStatus("History")}
-                    className={
-                      filterStatus === "History"
-                        ? "bg-indigo-600 hover:bg-indigo-700"
-                        : "hover:text-white"
-                    }
-                  >
-                    History
-                  </Button>
-                  <Button
-                    variant={filterStatus === "All" ? "default" : "outline"}
-                    onClick={() => setFilterStatus("All")}
-                    className={
-                      filterStatus === "All"
-                        ? "bg-indigo-600 hover:bg-indigo-700"
-                        : "hover:text-white"
-                    }
-                  >
-                    All
-                  </Button>
+                    {/* Staff view is usually simpler, simplified filters */}
+                  <Badge variant="secondary" className="px-3 py-1 h-9 text-sm font-medium bg-slate-100 text-slate-600">
+                    Status: Approved / Ready to Inbound
+                  </Badge>
                 </div>
 
                 <div className="relative w-full md:w-64">
@@ -272,7 +189,8 @@ export default function ManagerImportRequestPage() {
                   <TableRow className="bg-slate-50">
                     <TableHead className="pl-6">Receipt Code</TableHead>
                     <TableHead>Warehouse</TableHead>
-                    <TableHead className="text-right">Total Amount</TableHead>
+                    <TableHead className="text-center">Approval Date</TableHead>
+                    <TableHead className="text-center">Total Quantity</TableHead>
                     <TableHead className="text-center">Status</TableHead>
                     <TableHead className="text-right pr-6">Action</TableHead>
                   </TableRow>
@@ -283,7 +201,7 @@ export default function ManagerImportRequestPage() {
                       <TableCell colSpan={6} className="h-32 text-center">
                         <div className="flex justify-center items-center gap-2 text-indigo-600">
                           <Loader2 className="w-6 h-6 animate-spin" /> Loading
-                          requests...
+                          inbound requests...
                         </div>
                       </TableCell>
                     </TableRow>
@@ -294,8 +212,8 @@ export default function ManagerImportRequestPage() {
                         className="h-32 text-center text-slate-500 hover:slate-50"
                       >
                         <div className="flex flex-col items-center justify-center gap-2">
-                          <FileText className="w-8 h-8 text-slate-300" />
-                          <p>No pending approvals found.</p>
+                          <AlertCircle className="w-8 h-8 text-slate-300" />
+                          <p>No pending inbound requests found.</p>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -305,15 +223,11 @@ export default function ManagerImportRequestPage() {
                         key={item.receiptCode}
                         className="group hover:bg-slate-50/50 transition-colors"
                       >
-                        {/* ID & Date */}
+                        {/* Receipt Code */}
                         <TableCell className="pl-6">
                           <div className="flex flex-col">
                             <span className="font-semibold text-slate-700">
                               {item.receiptCode}
-                            </span>
-                            <span className="text-xs text-slate-400 flex items-center gap-1">
-                              <CalendarDays className="w-3 h-3" />{" "}
-                              {formatDate(item.receiptDate)}
                             </span>
                           </div>
                         </TableCell>
@@ -326,30 +240,31 @@ export default function ManagerImportRequestPage() {
                           </div>
                         </TableCell>
 
-                        {/* Total Amount */}
-                        <TableCell className="text-right">
-                          <span className="font-bold text-slate-800">
-                            {formatCurrency(item.totalAmount)}
-                          </span>
+                        {/* Approval Date */}
+                         <TableCell className="text-center">
+                            <span className="text-sm text-slate-600 flex items-center justify-center gap-1">
+                              <CalendarDays className="w-3 h-3 text-slate-400" />{" "}
+                              {formatDate(item.receiptApprovalDate)}
+                            </span>
                         </TableCell>
 
-                        {/* Status */}
+                        {/* Total Quantity (Thay vì Total Amount) */}
+                        <TableCell className="text-center">
+                          <div className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md">
+                             <Package className="w-3.5 h-3.5 text-slate-500"/>
+                             <span className="font-bold text-slate-800 text-sm">
+                                {item.totalQuantity.toLocaleString("vi-VN")}
+                             </span>
+                          </div>
+                        </TableCell>
+
+                        {/* Status (Luôn là Approved theo logic API) */}
                         <TableCell className="text-center">
                           <Badge
                             variant="outline"
-                            className={`
-                                        ${
-                                          item.status === "Submitted"
-                                            ? "bg-blue-50 text-blue-700 border-blue-200"
-                                            : item.status === "Approved"
-                                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                              : item.status === "Rejected"
-                                                ? "bg-red-50 text-red-700 border-red-200"
-                                                : "bg-gray-50 text-gray-700 border-gray-200"
-                                        }
-                                     `}
+                            className="bg-emerald-50 text-emerald-700 border-emerald-200"
                           >
-                            {item.status}
+                            Ready to Inbound
                           </Badge>
                         </TableCell>
 
@@ -357,7 +272,7 @@ export default function ManagerImportRequestPage() {
                         <TableCell className="text-right pr-6">
                           <Button
                             size="sm"
-                            onClick={() => handleReview(item.receiptId)}
+                            onClick={() => handleProcess(item.receiptId)}
                             disabled={loadingId === item.receiptId}
                             className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                           >
@@ -365,7 +280,7 @@ export default function ManagerImportRequestPage() {
                               <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
                               <>
-                                Review <ArrowRight className="w-4 h-4 ml-1.5" />
+                                Process <ArrowRight className="w-4 h-4 ml-1.5" />
                               </>
                             )}
                           </Button>

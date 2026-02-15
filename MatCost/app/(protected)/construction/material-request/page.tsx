@@ -61,7 +61,7 @@ export default function RequestListPage() {
 
             <Button
               className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-              onClick={() => router.push("material-request/create")} 
+              onClick={() => router.push("material-request/create")}
             >
               <Plus className="w-4 h-4 mr-2" /> New Request
             </Button>
@@ -82,7 +82,7 @@ export default function RequestListPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50 hover:bg-slate-50">
-                      <TableHead className="w-[200px] pl-6">Warehouse ID</TableHead>
+                      <TableHead className="w-[100px] pl-6">No.</TableHead>
                       <TableHead>Total Items</TableHead>
                       <TableHead className="text-right pr-6">Actions</TableHead>
                     </TableRow>
@@ -104,7 +104,7 @@ export default function RequestListPage() {
                           className="hover:bg-slate-50 transition-colors"
                         >
                           <TableCell className="font-medium text-slate-700 pl-6">
-                            Warehouse #{req.warehouseId}
+                            {index + 1}
                           </TableCell>
                           <TableCell>
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -125,10 +125,6 @@ export default function RequestListPage() {
                               <DialogContent className="max-w-md bg-white">
                                 <DialogHeader>
                                   <DialogTitle>Request Details</DialogTitle>
-                                  <DialogDescription>
-                                    Items requested for Warehouse #
-                                    {req.warehouseId}
-                                  </DialogDescription>
                                 </DialogHeader>
 
                                 <div className="mt-4 border rounded-md overflow-hidden">

@@ -32,11 +32,21 @@ public partial class ReceiptDetail
     [Column(TypeName = "decimal(18, 2)")]
     public decimal? LineTotal { get; set; }
 
+    [Column(TypeName = "decimal(18, 4)")]
+    public decimal? ActualQuantity { get; set; }
+
+    [Column("BinLocationID")]
+    public int? BinLocationId { get; set; }
+
 
 
     [ForeignKey("BatchId")]
     [InverseProperty("ReceiptDetails")]
     public virtual Batch? Batch { get; set; }
+
+    [ForeignKey("BinLocationId")]
+    [InverseProperty("ReceiptDetails")]
+    public virtual BinLocation? BinLocation { get; set; }
 
     [ForeignKey("MaterialId")]
     [InverseProperty("ReceiptDetails")]

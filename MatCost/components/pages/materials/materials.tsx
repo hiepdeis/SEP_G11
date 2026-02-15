@@ -363,13 +363,17 @@ export default function ManagerMaterialManagement() {
                             placeholder="0.00"
                             value={newMaterial.massPerUnit || ""}
                             onChange={(e) => {
-                              if (e.target.value.length <= 8) {
+                              if (
+                                e.target.value.length <= 8 &&
+                                Number(e.target.value) >= 0
+                              ) {
                                 setNewMaterial({
                                   ...newMaterial,
                                   massPerUnit: Number(e.target.value),
                                 });
                               }
                             }}
+                            min={0}
                             maxLength={8}
                           />
                         </div>
@@ -387,7 +391,10 @@ export default function ManagerMaterialManagement() {
                             placeholder="0"
                             value={newMaterial.minStockLevel || ""}
                             onChange={(e) => {
-                              if (e.target.value.length <= 8) {
+                              if (
+                                e.target.value.length <= 8 &&
+                                Number(e.target.value) >= 0
+                              ) {
                                 setNewMaterial({
                                   ...newMaterial,
                                   minStockLevel: Number(e.target.value),
@@ -490,7 +497,10 @@ export default function ManagerMaterialManagement() {
                               placeholder="0.00"
                               value={editingMaterial.massPerUnit || ""}
                               onChange={(e) => {
-                                if (e.target.value.length <= 8) {
+                                if (
+                                  e.target.value.length <= 8 &&
+                                  Number(e.target.value) >= 0
+                                ) {
                                   setEditingMaterial({
                                     ...editingMaterial,
                                     massPerUnit: Number(e.target.value),
@@ -509,7 +519,10 @@ export default function ManagerMaterialManagement() {
                               className="col-span-3"
                               value={editingMaterial.unitPrice || ""}
                               onChange={(e) => {
-                                if (e.target.value.length <= 9) {
+                                if (
+                                  e.target.value.length <= 8 &&
+                                  Number(e.target.value) >= 0
+                                ) {
                                   setEditingMaterial({
                                     ...editingMaterial,
                                     unitPrice: Number(e.target.value),
@@ -531,7 +544,10 @@ export default function ManagerMaterialManagement() {
                               className="col-span-3"
                               value={editingMaterial.minStockLevel || ""}
                               onChange={(e) => {
-                                if (e.target.value.length <= 8) {
+                                if (
+                                  e.target.value.length <= 8 &&
+                                  Number(e.target.value) >= 0
+                                ) {
                                   setEditingMaterial({
                                     ...editingMaterial,
                                     minStockLevel: Number(e.target.value),

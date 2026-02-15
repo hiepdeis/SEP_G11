@@ -28,6 +28,7 @@
         public long DetailId { get; set; }
         public string? MaterialCode { get; set; }
         public string? MaterialName { get; set; }
+        public int SupplierId { get; set; }
         public string? SupplierName { get; set; }
         public decimal? Quantity { get; set; }
         public string? Unit { get; set; }

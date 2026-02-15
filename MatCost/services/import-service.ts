@@ -2,17 +2,11 @@ import axiosClient from "@/lib/axios-client";
 
 export interface ImportItemDto {
   materialCode: string | null;
-  quantity: number | null;
+  quantity: number;
 }
 
 export interface CreateImportRequestDto {
-  warehouseId: number | null;
   items: ImportItemDto[];
-}
-
-export interface ImportExcelResponseDto {
-  message: string;
-  fileName: string;
 }
 
 export interface ImportRequestResultDto {
@@ -20,16 +14,17 @@ export interface ImportRequestResultDto {
   status: string;
   message: string;
 }
+  
+export interface ImportExcelResponseDto {
+  message: string;
+  fileName: string;
+}
 
 export const importApi = {
-  // POST /api/Import/requests
-  // Tạo yêu cầu nhập kho thủ công
   createRequest: (data: CreateImportRequestDto) => {
     return axiosClient.post<ImportRequestResultDto>("/Import/requests", data);
   },
 
-  // POST /api/Import/import-excel
-  // Import yêu cầu từ file Excel
   importExcel: (file: File, warehouseId: number) => {
     const formData = new FormData();
     formData.append("File", file);
@@ -42,8 +37,6 @@ export const importApi = {
     });
   },
 
-  // GET /api/Import/my-requests
-  // Lấy danh sách các yêu cầu của người dùng hiện tại
   getMyRequests: () => {
     return axiosClient.get<CreateImportRequestDto[]>("/Import/my-requests");
   },
