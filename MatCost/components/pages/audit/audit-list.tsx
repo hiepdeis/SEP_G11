@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { UserDropdown } from "@/components/user-dropdown";
@@ -28,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { auditService, AuditPlanListItem } from "@/services/audit-service";
 
 type UserRole = "admin" | "manager" | "accountant" | "staff";
 
@@ -35,42 +36,55 @@ interface AuditListProps {
   role: UserRole;
 }
 
-const AUDIT_SESSIONS = [
-  {
-    id: "AUD-2026-Q1",
-    title: "Q1 2026 Opening Stock",
-    warehouse: "Central Storage D1",
-    date: "2026-01-10",
-    status: "Planned",
-    progress: "0%",
-    isLocked: false,
-  },
-  {
-    id: "AUD-2025-Q4",
-    title: "Q4 2025 Full Count",
-    warehouse: "Central Storage D1",
-    date: "2025-10-25",
-    status: "In Progress",
-    progress: "85%",
-    isLocked: true,
-  },
-  {
-    id: "AUD-2025-Q3",
-    title: "Q3 2025 Spot Check",
-    warehouse: "Zone B - Cement",
-    date: "2025-07-15",
-    status: "Completed",
-    progress: "100%",
-    isLocked: false,
-  },
-];
-
 export default function SharedAuditList({ role }: AuditListProps) {
   const router = useRouter();
 
-  const navigateTo = (path: string) => {
-    if (path.startsWith("/")) router.push(path);
-    else router.push(`/${role}/audit/${path}`);
+  // 3. Thay thế AUDIT_SESSIONS bằng State
+  const [audits, setAudits] = useState<AuditPlanListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // 4. Fetch Data từ API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const data = await auditService.getAll();
+        setAudits(data);
+      } catch (error) {
+        console.error("Failed to load audits:", error);
+        // Không alert lỗi 404 để tránh phiền nếu chưa có API get list
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+const navigateTo = (action: string, auditId?: string) => {
+    // Nếu action là create (ko có ID)
+    if (action === "create") {
+       router.push(`/${role}/audit/create`);
+       return;
+    }
+
+    // Các action cần ID
+    if (!auditId) return;
+
+    if (action === "assign-team") {
+        router.push(`/${role}/audit/assign-team/${auditId}`);
+    } else if (action === "manual-count") {
+        router.push(`/${role}/audit/manual-count/${auditId}`);
+    } else if (action === "detail") {
+        router.push(`/${role}/audit/detail/${auditId}`); 
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+      const s = status?.toLowerCase() || "";
+      if (s === "locked" || s === "completed") {
+          return <Badge className="bg-red-100 text-red-700 hover:bg-red-200 gap-1 border-red-200"><Lock className="w-3 h-3" /> {status}</Badge>;
+      }
+      return <Badge variant="outline" className="text-slate-500 gap-1"><Unlock className="w-3 h-3" /> {status || "Open"}</Badge>;
   };
 
   return (
@@ -169,115 +183,67 @@ export default function SharedAuditList({ role }: AuditListProps) {
                 <TableHeader>
                   <TableRow className="bg-slate-50">
                     <TableHead>Audit Title</TableHead>
-                    <TableHead>Warehouse</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>System Status</TableHead>
-                    <TableHead>Progress</TableHead>
+                    <TableHead>Warehouse ID</TableHead> {/* Tạm thời hiện ID vì BE chưa trả về Name */}
+                    <TableHead>Start Date</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {AUDIT_SESSIONS.map((audit) => (
-                    <TableRow
-                      key={audit.id}
-                      className="group hover:bg-slate-50/50"
-                    >
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-700">
-                            {audit.title}
-                          </span>
-                          <span className="text-xs text-slate-400">
-                            {audit.id}
-                          </span>
+                  {/* Trường hợp đang tải dữ liệu */}
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center">
+                        <div className="flex items-center justify-center gap-2 text-slate-500">
+                          Loading data...
                         </div>
-                      </TableCell>
-                      <TableCell>{audit.warehouse}</TableCell>
-                      <TableCell className="text-slate-500 flex items-center gap-2">
-                        <Calendar className="w-3 h-3" /> {audit.date}
-                      </TableCell>
-                      <TableCell>
-                        {audit.isLocked ? (
-                          <Badge className="bg-red-100 text-red-700 hover:bg-red-200 gap-1 border-red-200">
-                            <Lock className="w-3 h-3" /> Locked
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="text-slate-500 gap-1"
-                          >
-                            <Unlock className="w-3 h-3" /> Open
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="w-20 bg-slate-100 rounded-full h-2">
-                            <div
-                              className="bg-indigo-600 h-2 rounded-full"
-                              style={{ width: audit.progress }}
-                            ></div>
-                          </div>
-                          <span className="text-xs font-medium">
-                            {audit.progress}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {/* Assign Team */}
-                        {audit.status === "Planned" ? (
-                          role === "manager" ? (
-                            <Button
-                              size="sm"
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                              onClick={() => navigateTo("assign-team")}
-                            >
-                              <Users className="w-3 h-3 mr-2" /> Assign Team
-                            </Button>
-                          ) : (
-                            // Nếu không phải Manager thì hiện text chờ
-                            <span className="text-slate-400 text-xs italic">
-                              Pending Manager
-                            </span>
-                          )
-                        ) : (
-                          <div className="flex flex-col gap-2 items-end">
-                            {audit.status === "In Progress" &&
-                              role === "staff" && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => navigateTo("manual-count")}
-                                >
-                                  Manual Count
-                                  <ArrowRight className="w-3 h-3 ml-1" />
-                                </Button>
-                              )}
-
-                            <Button
-                              size="sm"
-                              variant={
-                                audit.status === "Completed"
-                                  ? "outline"
-                                  : "default"
-                              }
-                              className={
-                                audit.status === "Completed"
-                                  ? ""
-                                  : "bg-indigo-600 hover:bg-indigo-700 text-white"
-                              }
-                              onClick={() => navigateTo("detail")}
-                            >
-                              {audit.status === "Completed"
-                                ? "View Report"
-                                : "Reconcile"}
-                              <ArrowRight className="w-3 h-3 ml-1" />
-                            </Button>
-                          </div>
-                        )}
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : audits.length === 0 ? (
+                    /* Trường hợp không có dữ liệu */
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center text-slate-500">
+                        No audit sessions found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    /* Trường hợp có dữ liệu -> Render danh sách */
+                    audits.map((audit) => (
+                      <TableRow key={audit.stockTakeId} className="group hover:bg-slate-50/50">
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-700">{audit.title}</span>
+                            <span className="text-xs text-slate-400">ID: {audit.stockTakeId}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>Warehouse #{audit.warehouseId}</TableCell>
+                        <TableCell className="text-slate-500">
+                          {new Date(audit.plannedStartDate).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          {getStatusBadge(audit.status)}
+                        </TableCell>
+                        
+                        <TableCell className="text-right">
+                          {/* Logic hiển thị nút bấm tùy Role */}
+                          {role === "manager" && (
+                              <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white" 
+                                  onClick={() => navigateTo("assign-team", audit.stockTakeId.toString())}>
+                                  <Users className="w-3 h-3 mr-2" /> Assign Team
+                              </Button>
+                          )}
+                          {role === "staff" && (
+                              <Button size="sm" variant="outline" 
+                                  onClick={() => navigateTo("manual-count", audit.stockTakeId.toString())}>
+                                  Manual Count <ArrowRight className="w-3 h-3 ml-1" />
+                              </Button>
+                          )}
+                          {role === "accountant" && (
+                              <span className="text-xs text-slate-400 italic">View Only</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )))}
                 </TableBody>
               </Table>
             </CardContent>
