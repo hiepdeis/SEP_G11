@@ -48,6 +48,8 @@ builder.Services.AddScoped<GoogleOAuthService>();
 //builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuditPlanService, AuditPlanService>();
 builder.Services.AddScoped<IAuditTeamService, AuditTeamService>();
+builder.Services.AddScoped<IStockTakeReviewService, StockTakeReviewService>();
+builder.Services.AddScoped<IStockTakeCountingService, StockTakeCountingService>();
 
 // Configure Swagger to support file uploads
 builder.Services.AddSwaggerGen(c =>
