@@ -1,22 +1,23 @@
+
+using Backend.Data;
+using Backend.Domains.Audit.Interfaces;
+using Backend.Domains.Audit.Services;
 using Backend.Domains.auth.Business;
 using Backend.Domains.auth.Interfaces;
 using Backend.Domains.auth.Services;
 using Backend.Domains.Import.Interfaces;
 using Backend.Domains.Import.Services;
 using Backend.Domains.user.Interface;
-using Backend.Data;
 using Backend.Domains.user.Service;
-using Backend.Filters;
 using Backend.Entities;
-using Microsoft.EntityFrameworkCore;
+using Backend.Filters;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-
-using System;
 using Microsoft.OpenApi.Models;
 using OfficeOpenXml;
-
+using System;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,12 +30,14 @@ builder.Configuration
                   optional: true, reloadOnChange: true);
 
 
+
 builder.Services.AddDbContext<MyDbContext>(options =>
               options.UseSqlServer(
-                  builder.Configuration.GetConnectionString("DefaultConnection")
+                  builder.Configuration.GetConnectionString("MyDbContext")
                  // ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
               ));
 // Add services to the container.
+
 
 
 builder.Services.AddControllers();
@@ -43,6 +46,8 @@ builder.Services.AddEndpointsApiExplorer();
 //builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<GoogleOAuthService>();
 //builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IAuditPlanService, AuditPlanService>();
+builder.Services.AddScoped<IAuditTeamService, AuditTeamService>();
 
 // Configure Swagger to support file uploads
 builder.Services.AddSwaggerGen(c =>
@@ -90,6 +95,7 @@ builder.Services.AddScoped<GoogleLoginHandler>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IReceiptService, ReceiptService>();
 builder.Services.AddScoped<IAuthorizationHandler, ActiveUserAuthorizationHandler>();
+
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

@@ -20,6 +20,7 @@ public partial class Warehouse
 
     [InverseProperty("Warehouse")]
     public virtual ICollection<BinLocation> BinLocations { get; set; } = new List<BinLocation>();
+    public virtual ICollection<InventoryAdjustmentEntry> InventoryAdjustmentEntries { get; set; } = new List<InventoryAdjustmentEntry>();
 
     [InverseProperty("Warehouse")]
     public virtual ICollection<InventoryCurrent> InventoryCurrents { get; set; } = new List<InventoryCurrent>();
@@ -38,4 +39,5 @@ public partial class Warehouse
 
     [InverseProperty("Warehouse")]
     public virtual ICollection<TransferOrder> TransferOrders { get; set; } = new List<TransferOrder>();
+
 }

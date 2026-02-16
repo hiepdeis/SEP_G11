@@ -27,6 +27,8 @@ public partial class Batch
 
     [Column(TypeName = "datetime")]
     public DateTime? CreatedDate { get; set; }
+    public virtual ICollection<InventoryAdjustmentEntry> InventoryAdjustmentEntries { get; set; } = new List<InventoryAdjustmentEntry>();
+
 
     [InverseProperty("Batch")]
     public virtual ICollection<InventoryCurrent> InventoryCurrents { get; set; } = new List<InventoryCurrent>();

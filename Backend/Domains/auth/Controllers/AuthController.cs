@@ -107,7 +107,7 @@ namespace Backend.Domains.auth.Controllers
         }
 
         [HttpGet("user-id")]
-        [Authorize]
+      //  [Authorize]
         public IActionResult GetUserId()
         {
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
