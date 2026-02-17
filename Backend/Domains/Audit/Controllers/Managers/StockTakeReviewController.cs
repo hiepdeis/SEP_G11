@@ -35,6 +35,45 @@ public class StockTakeReviewController : ControllerBase
         throw new UnauthorizedAccessException("Invalid user identity.");
     }
 
+    /// GET /api/manager/audits?skip=0&take=50&stockTakeId=1&status=InProgress&warehouseId=1&fromDate=2024-01-01&toDate=2024-12-31
+    /// Returns paginated list of all audits with quick metrics
+    [HttpGet]
+    public async Task<IActionResult> GetAllAudits(
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 50,
+        [FromQuery] int? stockTakeId = null,
+        [FromQuery] string? status = null,
+        [FromQuery] int? warehouseId = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var (audits, totalCount) = await _service.GetAllAuditsAsync(
+                skip, take, status, warehouseId, fromDate, toDate, ct);
+
+            // Filter by stockTakeId if provided
+            if (stockTakeId.HasValue && stockTakeId > 0)
+            {
+                audits = audits.Where(x => x.StockTakeId == stockTakeId).ToList();
+                totalCount = audits.Count;
+            }
+
+            return Ok(new
+            {
+                total = totalCount,
+                skip,
+                take,
+                items = audits
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Error retrieving audits", error = ex.Message });
+        }
+    }
+
     /// GET /api/manager/audits/{stockTakeId}/metrics
     /// Returns overview metrics: Total, Counted, Uncounted, Matched, Discrepancies
     [HttpGet("{stockTakeId:int}/metrics")]
@@ -77,6 +116,28 @@ public class StockTakeReviewController : ControllerBase
         }
     }
 
+    /// GET /api/manager/audits/{stockTakeId}/variances/{detailId}
+    /// Returns detailed info for a specific variance item
+    [HttpGet("{stockTakeId:int}/variances/{detailId:long}")]
+    public async Task<IActionResult> GetVarianceDetail(
+        int stockTakeId,
+        long detailId,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var variance = await _service.GetVarianceDetailAsync(stockTakeId, detailId, ct);
+            if (variance == null)
+                return NotFound(new { message = "Variance detail not found." });
+
+            return Ok(variance);
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
     /// PUT /api/manager/audits/{stockTakeId}/variances/{detailId}/resolve
     /// Manager resolves a variance with action and reason
     [HttpPut("{stockTakeId:int}/variances/{detailId:long}/resolve")]
@@ -93,6 +154,23 @@ public class StockTakeReviewController : ControllerBase
             return BadRequest(new { message });
 
         return Ok(new { message = "Variance resolved successfully." });
+    }
+
+    /// PUT /api/manager/audits/{stockTakeId}/variances/{detailId}/reason
+    /// Manager updates the reason for a variance (why it's missing/excess)
+    [HttpPut("{stockTakeId:int}/variances/{detailId:long}/reason")]
+    public async Task<IActionResult> UpdateVarianceReason(
+        int stockTakeId,
+        long detailId,
+        [FromBody] UpdateVarianceReasonRequest req,
+        CancellationToken ct = default)
+    {
+        var (success, message) = await _service.UpdateVarianceReasonAsync(stockTakeId, detailId, req, ct);
+
+        if (!success)
+            return BadRequest(new { message });
+
+        return Ok(new { message = "Variance reason updated successfully." });
     }
 
     /// GET /api/manager/audits/{stockTakeId}/review-detail
@@ -119,8 +197,13 @@ public class StockTakeReviewController : ControllerBase
         [FromBody] SignOffRequest req,
         CancellationToken ct = default)
     {
-        // TODO: Refactor to service layer
-        return StatusCode(StatusCodes.Status501NotImplemented);
+        var userId = GetUserId();
+        var (success, message, signature) = await _service.SignOffAsync(stockTakeId, userId, req, ct);
+
+        if (!success)
+            return BadRequest(new { message });
+
+        return Ok(new { message = "Audit signed off successfully.", signature });
     }
 
     /// POST /api/manager/audits/{stockTakeId}/complete
@@ -131,7 +214,12 @@ public class StockTakeReviewController : ControllerBase
         [FromBody] CompleteAuditRequest req,
         CancellationToken ct = default)
     {
-        // TODO: Refactor to service layer
-        return StatusCode(StatusCodes.Status501NotImplemented);
+        var userId = GetUserId();
+        var (success, message) = await _service.CompleteAuditAsync(stockTakeId, userId, req, ct);
+
+        if (!success)
+            return BadRequest(new { message });
+
+        return Ok(new { message = "Audit completed successfully." });
     }
 }

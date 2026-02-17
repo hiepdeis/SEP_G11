@@ -4,6 +4,14 @@ namespace Backend.Domains.Audit.Interfaces
 {
     public interface IStockTakeReviewService
     {
+        Task<(List<AuditListItemDto> items, int total)> GetAllAuditsAsync(
+            int skip,
+            int take,
+            string? status,
+            int? warehouseId,
+            DateTime? fromDate,
+            DateTime? toDate,
+            CancellationToken ct);
         Task<AuditMetricsDto> GetMetricsAsync(int stockTakeId, CancellationToken ct);
         Task<(List<VarianceItemDto> items, int total, int unresolved)> GetVariancesAsync(
             int stockTakeId, 
@@ -11,11 +19,20 @@ namespace Backend.Domains.Audit.Interfaces
             int take, 
             bool? resolved, 
             CancellationToken ct);
+        Task<VarianceItemDto?> GetVarianceDetailAsync(
+            int stockTakeId,
+            long detailId,
+            CancellationToken ct);
         Task<(bool success, string message)> ResolveVarianceAsync(
             int stockTakeId,
             long detailId, 
             ResolveVarianceRequest request, 
             int resolvedByUserId, 
+            CancellationToken ct);
+        Task<(bool success, string message)> UpdateVarianceReasonAsync(
+            int stockTakeId,
+            long detailId,
+            UpdateVarianceReasonRequest request,
             CancellationToken ct);
         Task<StockTakeReviewDetailDto> GetReviewDetailAsync(int stockTakeId, CancellationToken ct);
         Task<(bool success, string message, SignatureInfoDto? signature)> SignOffAsync(

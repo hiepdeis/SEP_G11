@@ -1,5 +1,27 @@
 namespace Backend.Domains.Audit.DTOs.Managers;
 
+public sealed class AuditListItemDto
+{
+    public int StockTakeId { get; set; }
+    public string? Title { get; set; }
+    public string? Status { get; set; }
+    public int WarehouseId { get; set; }
+    public string? WarehouseName { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public string? CreatedByName { get; set; }
+    public DateTime? PlannedStartDate { get; set; }
+    public DateTime? PlannedEndDate { get; set; }
+    public DateTime? CompletedAt { get; set; }
+
+    // Quick metrics
+    public int TotalItems { get; set; }
+    public int CountedItems { get; set; }
+    public decimal CountingProgress { get; set; } // %
+    public int DiscrepancyItems { get; set; }
+    public int UnresolvedVariances { get; set; }
+    public decimal MatchRate { get; set; } // %
+}
+
 public sealed class AuditMetricsDto
 {
     public int StockTakeId { get; set; }
@@ -59,21 +81,23 @@ public sealed class VarianceItemDto
 
 public sealed class ResolveVarianceRequest
 {
-    public long DetailId { get; set; }
     public string? ResolutionAction { get; set; } // e.g., "Accept", "AdjustSystem", "Investigate"
     public int? AdjustmentReasonId { get; set; }
     public string? Notes { get; set; }
 }
 
+public sealed class UpdateVarianceReasonRequest
+{
+    public string? Reason { get; set; } // Lý do thi?u/th?a do Manager cung c?p
+}
+
 public sealed class SignOffRequest
 {
-    public int StockTakeId { get; set; }
     public string? Notes { get; set; }
 }
 
 public sealed class CompleteAuditRequest
 {
-    public int StockTakeId { get; set; }
     public string? Notes { get; set; }
 }
 
@@ -143,4 +167,102 @@ public sealed class SignatureInfoDto
     public string? Role { get; set; } // Staff, Manager
     public DateTime? SignedAt { get; set; }
     public string? Notes { get; set; }
+}
+
+public sealed class AuditDetailedReportDto
+{
+    public int StockTakeId { get; set; }
+    public string? Title { get; set; }
+    public string? Status { get; set; }
+    public int WarehouseId { get; set; }
+    public string? WarehouseName { get; set; }
+
+    // Timeline
+    public DateTime CreatedAt { get; set; }
+    public DateTime? PlannedStartDate { get; set; }
+    public DateTime? PlannedEndDate { get; set; }
+    public DateTime? LockedAt { get; set; }
+    public DateTime? CompletedAt { get; set; }
+    public TimeSpan? TotalDuration { get; set; } // T? lúc b?t ??u ??n hoàn thành
+    public TimeSpan? CountingDuration { get; set; } // Th?i gian ??m th?c t?
+
+    // Key Metrics
+    public AuditMetricsDto? Metrics { get; set; }
+
+    // Staff Distribution & Performance
+    public List<StaffAuditPerformanceDto> StaffPerformance { get; set; } = new();
+
+    // Variance Summary
+    public VarianceSummaryDetailDto? VarianceSummary { get; set; }
+
+    // Recent Activities
+    public List<AuditActivityDto> RecentActivities { get; set; } = new();
+
+    // Sign-offs
+    public List<SignatureInfoDto> Signatures { get; set; } = new();
+
+    // Notes
+    public string? Notes { get; set; }
+}
+
+public sealed class StaffAuditPerformanceDto
+{
+    public int UserId { get; set; }
+    public string? FullName { get; set; }
+    public string? Role { get; set; }
+
+    // Counting metrics
+    public int ItemsAssigned { get; set; }
+    public int ItemsCounted { get; set; }
+    public decimal CountingProgress { get; set; } // % hoàn thành
+    public int ItemsMatched { get; set; }
+    public int ItemsDiscrepancy { get; set; }
+    public decimal AccuracyRate { get; set; } // Matched / Counted * 100
+
+    // Time spent
+    public DateTime? CountingStartedAt { get; set; }
+    public DateTime? CountingCompletedAt { get; set; }
+    public TimeSpan? TimeSpent { get; set; }
+
+    // Details
+    public string? Status { get; set; } // Active, Completed, NotStarted
+}
+
+public sealed class VarianceSummaryDetailDto
+{
+    public int TotalVariances { get; set; }
+    public int ResolvedVariances { get; set; }
+    public int PendingVariances { get; set; }
+    public int InvestigatingVariances { get; set; }
+
+    // Variance by resolution type
+    public int AcceptedVariances { get; set; }
+    public int AdjustedSystemVariances { get; set; }
+    public int InvestigatedVariances { get; set; }
+
+    // Variance statistics
+    public decimal TotalVarianceQty { get; set; }
+    public decimal AverageVariancePerItem { get; set; }
+    public decimal MaxVarianceQty { get; set; }
+    public decimal MinVarianceQty { get; set; }
+
+    // Most common reasons
+    public List<VarianceReasonDto> TopReasons { get; set; } = new();
+}
+
+public sealed class VarianceReasonDto
+{
+    public string? Reason { get; set; }
+    public int Count { get; set; }
+    public decimal Percentage { get; set; }
+}
+
+public sealed class AuditActivityDto
+{
+    public DateTime Timestamp { get; set; }
+    public string? ActivityType { get; set; } // Started, ItemCounted, VarianceDetected, VarianceResolved, Completed
+    public string? Description { get; set; }
+    public int? UserId { get; set; }
+    public string? UserName { get; set; }
+    public string? Details { get; set; }
 }

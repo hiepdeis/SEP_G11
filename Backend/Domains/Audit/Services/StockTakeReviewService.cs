@@ -14,6 +14,116 @@ namespace Backend.Domains.Audit.Services
             _db = db;
         }
 
+        public async Task<(List<AuditListItemDto> items, int total)> GetAllAuditsAsync(
+            int skip,
+            int take,
+            string? status,
+            int? warehouseId,
+            DateTime? fromDate,
+            DateTime? toDate,
+            CancellationToken ct)
+        {
+            if (take <= 0) take = 50;
+            if (take > 200) take = 200;
+            if (skip < 0) skip = 0;
+
+            var query = _db.StockTakes.AsNoTracking();
+
+            // Filter by status
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                query = query.Where(x => x.Status == status);
+            }
+
+            // Filter by warehouse
+            if (warehouseId.HasValue && warehouseId > 0)
+            {
+                query = query.Where(x => x.WarehouseId == warehouseId);
+            }
+
+            // Filter by date range (CreatedAt)
+            if (fromDate.HasValue)
+            {
+                query = query.Where(x => x.CreatedAt >= fromDate);
+            }
+
+            if (toDate.HasValue)
+            {
+                var endOfDay = toDate.Value.AddDays(1);
+                query = query.Where(x => x.CreatedAt < endOfDay);
+            }
+
+            var totalCount = await query.CountAsync(ct);
+
+            var audits = await query
+                .Include(x => x.CreatedByNavigation)
+                .Include(x => x.Warehouse)
+                .OrderByDescending(x => x.CreatedAt)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync(ct);
+
+            var items = new List<AuditListItemDto>();
+
+            foreach (var st in audits)
+            {
+                // Get item counts
+                var totalItems = await _db.InventoryCurrents
+                    .AsNoTracking()
+                    .CountAsync(x => x.WarehouseId == st.WarehouseId, ct);
+
+                var countedItems = await _db.StockTakeDetails
+                    .AsNoTracking()
+                    .CountAsync(x => x.StockTakeId == st.StockTakeId && x.CountQty != null, ct);
+
+                var discrepancyItems = await _db.StockTakeDetails
+                    .AsNoTracking()
+                    .CountAsync(x =>
+                        x.StockTakeId == st.StockTakeId &&
+                        x.DiscrepancyStatus == "Discrepancy", ct);
+
+                var unresolvedVariances = await _db.StockTakeDetails
+                    .AsNoTracking()
+                    .CountAsync(x =>
+                        x.StockTakeId == st.StockTakeId &&
+                        x.DiscrepancyStatus == "Discrepancy" &&
+                        x.ResolutionAction == null, ct);
+
+                var matchedItems = await _db.StockTakeDetails
+                    .AsNoTracking()
+                    .CountAsync(x =>
+                        x.StockTakeId == st.StockTakeId &&
+                        x.DiscrepancyStatus == "Matched", ct);
+
+                var countingProgress = totalItems > 0 ? (countedItems * 100m / totalItems) : 0m;
+                var matchRate = countedItems > 0 ? (matchedItems * 100m / countedItems) : 0m;
+
+                var item = new AuditListItemDto
+                {
+                    StockTakeId = st.StockTakeId,
+                    Title = st.Title,
+                    Status = st.Status,
+                    WarehouseId = st.WarehouseId,
+                    WarehouseName = st.Warehouse?.Name,
+                    CreatedAt = st.CreatedAt,
+                    CreatedByName = st.CreatedByNavigation?.FullName,
+                    PlannedStartDate = st.PlannedStartDate,
+                    PlannedEndDate = st.PlannedEndDate,
+                    CompletedAt = st.CompletedAt,
+                    TotalItems = totalItems,
+                    CountedItems = countedItems,
+                    CountingProgress = Math.Round(countingProgress, 2),
+                    DiscrepancyItems = discrepancyItems,
+                    UnresolvedVariances = unresolvedVariances,
+                    MatchRate = Math.Round(matchRate, 2)
+                };
+
+                items.Add(item);
+            }
+
+            return (items, totalCount);
+        }
+
         public async Task<AuditMetricsDto> GetMetricsAsync(int stockTakeId, CancellationToken ct)
         {
             var st = await _db.StockTakes
@@ -194,6 +304,58 @@ namespace Backend.Domains.Audit.Services
             return (variances, totalCount, unresolvedCount);
         }
 
+        public async Task<VarianceItemDto?> GetVarianceDetailAsync(
+            int stockTakeId,
+            long detailId,
+            CancellationToken ct)
+        {
+            var st = await _db.StockTakes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
+
+            if (st == null)
+                throw new ArgumentException("Audit not found.");
+
+            var detail = await _db.StockTakeDetails
+                .AsNoTracking()
+                .Where(x => x.Id == detailId && x.StockTakeId == stockTakeId)
+                .Include(x => x.Material)
+                .Include(x => x.Bin)
+                .Include(x => x.Batch)
+                .Include(x => x.CountedByNavigation)
+                .Include(x => x.ResolvedByNavigation)
+                .Include(x => x.AdjustmentReason)
+                .FirstOrDefaultAsync(ct);
+
+            if (detail == null)
+                return null;
+
+            return new VarianceItemDto
+            {
+                Id = detail.Id,
+                MaterialId = detail.MaterialId,
+                MaterialName = detail.Material.Name,
+                BinId = detail.BinId ?? 0,
+                BinCode = detail.Bin != null ? detail.Bin.Code : null,
+                BatchId = detail.BatchId,
+                BatchCode = detail.Batch != null ? detail.Batch.BatchCode : null,
+                SystemQty = detail.SystemQty,
+                CountQty = detail.CountQty,
+                Variance = detail.Variance,
+                DiscrepancyStatus = detail.DiscrepancyStatus,
+                CountedBy = detail.CountedBy,
+                CountedByName = detail.CountedByNavigation != null ? detail.CountedByNavigation.FullName : null,
+                CountedAt = detail.CountedAt,
+                Reason = detail.Reason,
+                ResolutionAction = detail.ResolutionAction,
+                AdjustmentReasonId = detail.AdjustmentReasonId,
+                AdjustmentReasonName = detail.AdjustmentReason != null ? detail.AdjustmentReason.Name : null,
+                ResolvedBy = detail.ResolvedBy,
+                ResolvedByName = detail.ResolvedByNavigation != null ? detail.ResolvedByNavigation.FullName : null,
+                ResolvedAt = detail.ResolvedAt
+            };
+        }
+
         public async Task<(bool success, string message)> ResolveVarianceAsync(
             int stockTakeId,
             long detailId,
@@ -233,6 +395,41 @@ namespace Backend.Domains.Audit.Services
             await _db.SaveChangesAsync(ct);
 
             return (true, "Variance resolved successfully.");
+        }
+
+        public async Task<(bool success, string message)> UpdateVarianceReasonAsync(
+            int stockTakeId,
+            long detailId,
+            UpdateVarianceReasonRequest request,
+            CancellationToken ct)
+        {
+            var detail = await _db.StockTakeDetails
+                .FirstOrDefaultAsync(x =>
+                    x.Id == detailId &&
+                    x.StockTakeId == stockTakeId, ct);
+
+            if (detail == null)
+                return (false, "Variance detail not found.");
+
+            // Verify audit is in a modifiable state
+            var st = await _db.StockTakes
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
+
+            if (st == null)
+                return (false, "Audit not found.");
+
+            if (st.CompletedAt != null || string.Equals(st.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+                return (false, "Audit is already completed.");
+
+            // Allow reason update only if it's a discrepancy
+            if (detail.DiscrepancyStatus != "Discrepancy")
+                return (false, "Can only update reason for items with discrepancies.");
+
+            // Update reason
+            detail.Reason = request.Reason?.Trim();
+            await _db.SaveChangesAsync(ct);
+
+            return (true, "Variance reason updated successfully.");
         }
 
         public async Task<StockTakeReviewDetailDto> GetReviewDetailAsync(int stockTakeId, CancellationToken ct)
