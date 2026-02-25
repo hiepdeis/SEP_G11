@@ -1,0 +1,2 @@
+﻿ALTER TABLE Receipts
+ALTER COLUMN WarehouseID INT NULL;

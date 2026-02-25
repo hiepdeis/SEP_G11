@@ -300,7 +300,18 @@ public partial class MyDbContext : DbContext
                 .HasColumnName("ApprovedAt")
                 .HasColumnType("datetime");
 
-            entity.Property(e => e.Notes).HasColumnName("Notes").HasMaxLength(500);
+            entity.Property(e => e.RejectedBy).HasColumnName("RejectedBy");
+            entity.Property(e => e.RejectedAt)
+                .HasColumnName("RejectedAt")
+                .HasColumnType("datetime");
+
+            entity.Property(e => e.ImportedCompleteNote).HasColumnName("ImportedCompleteNote").HasMaxLength(500);
+            entity.Property(e => e.RejectionReason).HasColumnName("RejectionReason").HasMaxLength(500);
+            entity.Property(e => e.AccountantNotes).HasColumnName("AccountantNotes").HasMaxLength(500);
+            entity.Property(e => e.BackorderReason).HasColumnName("BackorderReason").HasMaxLength(500);
+
+            entity.Property(e => e.ConfirmedBy).HasColumnName("ConfirmedBy");
+
 
             entity.Property(e => e.Status)
                 .HasMaxLength(20)

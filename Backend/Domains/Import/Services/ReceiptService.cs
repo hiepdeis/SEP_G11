@@ -38,7 +38,7 @@ namespace Backend.Domains.Import.Services
             // Step 3: Update receipt
             receipt.WarehouseId = dto.WarehouseId;
             receipt.Status = "Draft";
-            receipt.Notes = dto.Notes;
+            receipt.AccountantNotes = dto.Notes;
 
             // Step 4: Update receipt details (quantity & unit price)
             foreach (var item in dto.Items)
@@ -236,7 +236,7 @@ namespace Backend.Domains.Import.Services
                 throw new Exception($"Cannot update. Current status: {receipt.Status}");
 
             // Step 3: Update receipt
-            receipt.Notes = dto.Notes;
+            receipt.AccountantNotes = dto.Notes;
 
             // Step 4: Update receipt details
             foreach (var item in dto.Items)
@@ -372,7 +372,7 @@ namespace Backend.Domains.Import.Services
                 .Include(r => r.ReceiptDetails)
                     .ThenInclude(rd => rd.Supplier)
                 .Where(r => r.Status == "Submitted" || r.Status == "Approved" || r.Status == "Rejected") // reject, approval
-                .OrderByDescending(r => r.ReceiptDate)
+                .OrderByDescending(r => r.SubmittedAt)
                 .ToListAsync();
 
             return receipts.Select(r => new PendingReceiptDto
@@ -384,7 +384,7 @@ namespace Backend.Domains.Import.Services
                 TotalAmount = r.ReceiptDetails.Sum(rd => rd.Quantity * rd.UnitPrice),
                 Status = r.Status ?? "Unknown",
                 CreatedByName = r.CreatedByNavigation?.FullName,
-                CreatedDate = r.ReceiptDate,
+                CreatedDate = r.SubmittedAt,
                 Details = r.ReceiptDetails.Select(rd => new PendingReceiptDetailDto
                 {
                     DetailId = rd.DetailId,
@@ -480,10 +480,10 @@ namespace Backend.Domains.Import.Services
             receipt.ApprovedBy = managerId;
             receipt.ApprovedAt = DateTime.UtcNow;
 
-            if (!string.IsNullOrWhiteSpace(dto.ApprovalNotes))
-            {
-                receipt.Notes = dto.ApprovalNotes;
-            }
+            //if (!string.IsNullOrWhiteSpace(dto.ApprovalNotes))
+            //{
+            //    receipt.Notes = dto.ApprovalNotes;
+            //}
 
             await _context.SaveChangesAsync();
         }
@@ -514,9 +514,9 @@ namespace Backend.Domains.Import.Services
 
             // Update receipt status
             receipt.Status = "Rejected";
-            receipt.ApprovedBy = managerId;
-            receipt.ApprovedAt = DateTime.UtcNow;
-            receipt.Notes = dto.RejectionReason;
+            receipt.RejectedBy = managerId;
+            receipt.RejectedAt = DateTime.UtcNow;
+            receipt.RejectionReason = dto.RejectionReason;
 
             await _context.SaveChangesAsync();
         }
@@ -533,8 +533,8 @@ namespace Backend.Domains.Import.Services
                                         .ThenInclude(rd => rd.Material)
                                         .Include(r => r.ReceiptDetails)
                                         .ThenInclude(rd => rd.Supplier)
-                            .Where(r => r.Status == "Approved" || r.Status == "Backorder")
-                            .OrderByDescending(r => r.ReceiptDate)
+                            .Where(r => r.Status == "Approved")
+                            .OrderByDescending(r => r.ApprovedAt)
                             .Select(r => new GetInboundRequestListDto
                             {
                                 ReceiptId = r.ReceiptId,
@@ -597,7 +597,7 @@ namespace Backend.Domains.Import.Services
             };
         }
 
-        public async Task ConfirmGoodsReceiptAsync(long receiptId, ConfirmGoodsReceiptDto dto)
+        public async Task ConfirmGoodsReceiptAsync(long receiptId, ConfirmGoodsReceiptDto dto, int staffId)
         {
             // Start transaction for ACID compliance
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -728,9 +728,9 @@ namespace Backend.Domains.Import.Services
                         ParentRequestId = receiptId,
                         Status = "Backorder",
                         WarehouseId = receipt.WarehouseId,
-                        CreatedBy = receipt.CreatedBy,
+                        ConfirmedBy = staffId,
                         ReceiptDate = DateTime.UtcNow,
-                        Notes = $"Auto-generated backorder from receipt {receipt.ReceiptCode}",
+                        BackorderReason = $"Auto-generated backorder from receipt {receipt.ReceiptCode}",
                     };
 
                     _context.Receipts.Add(childReceipt);
@@ -760,9 +760,7 @@ namespace Backend.Domains.Import.Services
                 receipt.Status = "Completed";
                 if (!string.IsNullOrEmpty(dto.Notes))
                 {
-                    receipt.Notes = string.IsNullOrEmpty(receipt.Notes)
-                        ? dto.Notes
-                        : $"{receipt.Notes}\n{dto.Notes}";
+                    receipt.ImportedCompleteNote = dto.Notes.Trim();
                 }
 
                 await _context.SaveChangesAsync();
