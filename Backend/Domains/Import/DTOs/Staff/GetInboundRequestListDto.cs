@@ -4,7 +4,7 @@
     {
         public long ReceiptId { get; set; }
         public string ReceiptCode { get; set; }
-        public int WarehouseId { get; set; }
+        public int? WarehouseId { get; set; }
         public string WarehouseName { get; set; }
         public DateTime? ReceiptApprovalDate { get; set; }
         public decimal TotalQuantity { get; set; }

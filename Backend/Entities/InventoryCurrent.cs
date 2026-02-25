@@ -14,7 +14,7 @@ public partial class InventoryCurrent
     public long Id { get; set; }
 
     [Column("WarehouseID")]
-    public int WarehouseId { get; set; }
+    public int? WarehouseId { get; set; }
 
     [Column("BinID")]
     public int BinId { get; set; }
