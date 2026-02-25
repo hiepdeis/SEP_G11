@@ -731,7 +731,6 @@ namespace Backend.Domains.Import.Services
                         CreatedBy = receipt.CreatedBy,
                         ReceiptDate = DateTime.UtcNow,
                         Notes = $"Auto-generated backorder from receipt {receipt.ReceiptCode}",
-                        SupplierId = receipt.SupplierId
                     };
 
                     _context.Receipts.Add(childReceipt);

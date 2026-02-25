@@ -17,11 +17,8 @@ public partial class Receipt
     [Unicode(false)]
     public string ReceiptCode { get; set; } = null!;
 
-    [Column("SupplierID")]
-    public int SupplierId { get; set; }
-
     [Column("WarehouseID")]
-    public int WarehouseId { get; set; }
+    public int? WarehouseId { get; set; }
 
     public int CreatedBy { get; set; }
 

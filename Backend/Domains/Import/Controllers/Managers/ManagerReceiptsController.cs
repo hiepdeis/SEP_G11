@@ -65,8 +65,13 @@ namespace Backend.Domains.Import.Controllers.Managers
         {
             try
             {
-                var managerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-                var managerName = User.FindFirst(ClaimTypes.Name)?.Value;
+                // Comment đoạn code lấy từ JWT
+                // var managerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                // var managerName = User.FindFirst(ClaimTypes.Name)?.Value;
+
+                // Hardcode managerId = 2 (Manager theo SeedData)
+                var managerId = 2;
+                var managerName = "Project Manager";
 
                 await _receiptService.ApproveReceiptAsync(id, managerId, dto);
 
@@ -102,8 +107,13 @@ namespace Backend.Domains.Import.Controllers.Managers
         {
             try
             {
-                var managerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-                var managerName = User.FindFirst(ClaimTypes.Name)?.Value;
+                // Comment đoạn code lấy từ JWT
+                // var managerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                // var managerName = User.FindFirst(ClaimTypes.Name)?.Value;
+
+                // Hardcode managerId = 2 (Manager theo SeedData)
+                var managerId = 2;
+                var managerName = "Project Manager";
 
                 await _receiptService.RejectReceiptAsync(id, managerId, dto);
 
