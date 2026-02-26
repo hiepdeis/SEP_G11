@@ -52,7 +52,10 @@ namespace Backend.Domains.Import.Controllers.Staff
         {
             try
             {
-                await _receiptService.ConfirmGoodsReceiptAsync(receiptId, dto);
+                var staffId = 4;
+                var staffName = "Staff";
+
+                await _receiptService.ConfirmGoodsReceiptAsync(receiptId, dto, staffId);
                 return Ok(new { message = "Goods receipt confirmed successfully" });
             }
             catch (KeyNotFoundException ex)

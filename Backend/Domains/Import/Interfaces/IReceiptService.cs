@@ -57,7 +57,7 @@ namespace Backend.Domains.Import.Interfaces
 
         Task<List<GetInboundRequestListDto>> GetReceiptsForWarehouseAsync();
         Task<GetInboundRequestListDto> GetReceiptDetailForWarehouseAsync(long receiptId);
-        Task ConfirmGoodsReceiptAsync(long receiptId, ConfirmGoodsReceiptDto dto);
+        Task ConfirmGoodsReceiptAsync(long receiptId, ConfirmGoodsReceiptDto dto, int staffId);
 
     }
 }
