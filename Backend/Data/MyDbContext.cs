@@ -51,6 +51,8 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<StockTake> StockTakes { get; set; }
 
+    public virtual DbSet<StockTakeBinLocation> StockTakeBinLocations { get; set; }
+
     public virtual DbSet<StockTakeDetail> StockTakeDetails { get; set; }
 
     public virtual DbSet<StockTakeSignature> StockTakeSignatures { get; set; }
@@ -603,6 +605,30 @@ public partial class MyDbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_StockTakeTeamMembers_Users");
+        });
+
+
+        modelBuilder.Entity<StockTakeBinLocation>(entity =>
+        {
+            entity.HasKey(e => e.StockTakeBinLocationId).HasName("PK__StockTakeBinLocations__ID");
+
+            entity.HasIndex(e => e.StockTakeId, "IX_StockTakeBinLocations_StockTakeID");
+            entity.HasIndex(e => e.BinId, "IX_StockTakeBinLocations_BinID");
+            entity.HasIndex(e => new { e.StockTakeId, e.BinId }, "UX_StockTakeBinLocations_Unique").IsUnique();
+
+            entity.Property(e => e.StockTakeBinLocationId).HasColumnName("StockTakeBinLocationID");
+            entity.Property(e => e.StockTakeId).HasColumnName("StockTakeID");
+            entity.Property(e => e.BinId).HasColumnName("BinID");
+
+            entity.HasOne(d => d.StockTake).WithMany(p => p.StockTakeBinLocations)
+                .HasForeignKey(d => d.StockTakeId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_StockTakeBinLocations_StockTakes");
+
+            entity.HasOne(d => d.BinLocation).WithMany(p => p.StockTakeBinLocations)
+                .HasForeignKey(d => d.BinId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_StockTakeBinLocations_BinLocations");
         });
 
 

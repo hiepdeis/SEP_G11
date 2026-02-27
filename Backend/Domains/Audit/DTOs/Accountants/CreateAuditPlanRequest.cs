@@ -11,6 +11,13 @@ namespace Backend.Domains.Audit.DTOs.Accountants
         [Required]
         public int WarehouseId { get; set; }
 
+        /// <summary>
+        /// Danh sách BinLocationIds cần kiểm kê.
+        /// Nếu rỗng hoặc null, kiểm kê toàn bộ kho.
+        /// Nếu có giá trị, chỉ kiểm kê các bin trong danh sách.
+        /// </summary>
+        public List<int>? BinLocationIds { get; set; }
+
         [Required]
         public DateTime PlannedStartDate { get; set; }
 
