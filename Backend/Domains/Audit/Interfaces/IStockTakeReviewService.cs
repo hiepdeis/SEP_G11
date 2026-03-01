@@ -19,6 +19,10 @@ namespace Backend.Domains.Audit.Interfaces
             int take, 
             bool? resolved, 
             CancellationToken ct);
+        Task<(List<VarianceItemDto> items, int total, int unresolved)> GetVarianceDetailsAsync(
+            int stockTakeId,
+            bool? resolved,
+            CancellationToken ct);
         Task<VarianceItemDto?> GetVarianceDetailAsync(
             int stockTakeId,
             long detailId,

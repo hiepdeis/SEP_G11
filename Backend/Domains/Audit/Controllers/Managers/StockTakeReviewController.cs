@@ -116,6 +116,30 @@ public class StockTakeReviewController : ControllerBase
         }
     }
 
+    /// GET /api/manager/audits/{stockTakeId}/variances/details?resolved=false
+    /// Returns full list of variance details in one request (no pagination)
+    [HttpGet("{stockTakeId:int}/variances/details")]
+    public async Task<IActionResult> GetVarianceDetails(
+        int stockTakeId,
+        [FromQuery] bool? resolved = null,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var (variances, totalCount, unresolvedCount) = await _service.GetVarianceDetailsAsync(stockTakeId, resolved, ct);
+            return Ok(new
+            {
+                total = totalCount,
+                unresolved = unresolvedCount,
+                items = variances
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
     /// GET /api/manager/audits/{stockTakeId}/variances/{detailId}
     /// Returns detailed info for a specific variance item
     [HttpGet("{stockTakeId:int}/variances/{detailId:long}")]
@@ -194,11 +218,11 @@ public class StockTakeReviewController : ControllerBase
     [HttpPost("{stockTakeId:int}/sign-off")]
     public async Task<IActionResult> SignOff(
         int stockTakeId,
-        [FromBody] SignOffRequest req,
+        [FromBody] SignOffRequest? req,
         CancellationToken ct = default)
     {
         var userId = GetUserId();
-        var (success, message, signature) = await _service.SignOffAsync(stockTakeId, userId, req, ct);
+        var (success, message, signature) = await _service.SignOffAsync(stockTakeId, userId, req ?? new SignOffRequest(), ct);
 
         if (!success)
             return BadRequest(new { message });
@@ -211,15 +235,15 @@ public class StockTakeReviewController : ControllerBase
     [HttpPost("{stockTakeId:int}/complete")]
     public async Task<IActionResult> CompleteAudit(
         int stockTakeId,
-        [FromBody] CompleteAuditRequest req,
+        [FromBody] CompleteAuditRequest? req,
         CancellationToken ct = default)
     {
         var userId = GetUserId();
-        var (success, message) = await _service.CompleteAuditAsync(stockTakeId, userId, req, ct);
+        var (success, message) = await _service.CompleteAuditAsync(stockTakeId, userId, req ?? new CompleteAuditRequest(), ct);
 
         if (!success)
             return BadRequest(new { message });
 
-        return Ok(new { message = "Audit completed successfully." });
+        return Ok(new { message });
     }
 }

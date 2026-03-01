@@ -83,7 +83,6 @@ public sealed class ResolveVarianceRequest
 {
     public string? ResolutionAction { get; set; } // e.g., "Accept", "AdjustSystem", "Investigate"
     public int? AdjustmentReasonId { get; set; }
-    public string? Notes { get; set; }
 }
 
 public sealed class UpdateVarianceReasonRequest
@@ -201,8 +200,6 @@ public sealed class AuditDetailedReportDto
     // Sign-offs
     public List<SignatureInfoDto> Signatures { get; set; } = new();
 
-    // Notes
-    public string? Notes { get; set; }
 }
 
 public sealed class StaffAuditPerformanceDto

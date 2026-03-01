@@ -14,6 +14,26 @@ namespace Backend.Domains.Audit.Services
             _db = db;
         }
 
+        private static string? NormalizeResolutionAction(string? action)
+        {
+            if (string.IsNullOrWhiteSpace(action)) return null;
+
+            var value = action.Trim();
+            if (value.Equals("Accept", StringComparison.OrdinalIgnoreCase))
+                return "Accept";
+
+            if (value.Equals("AdjustSystem", StringComparison.OrdinalIgnoreCase) ||
+                value.Equals("Adjust", StringComparison.OrdinalIgnoreCase) ||
+                value.Equals("Adjust_System", StringComparison.OrdinalIgnoreCase) ||
+                value.Equals("Adjust-System", StringComparison.OrdinalIgnoreCase))
+                return "AdjustSystem";
+
+            if (value.Equals("Investigate", StringComparison.OrdinalIgnoreCase))
+                return "Investigate";
+
+            return null;
+        }
+
         public async Task<(List<AuditListItemDto> items, int total)> GetAllAuditsAsync(
             int skip,
             int take,
@@ -87,7 +107,7 @@ namespace Backend.Domains.Audit.Services
                     .CountAsync(x =>
                         x.StockTakeId == st.StockTakeId &&
                         x.DiscrepancyStatus == "Discrepancy" &&
-                        x.ResolutionAction == null, ct);
+                        (x.ResolutionAction == null || x.ResolutionAction == ""), ct);
 
                 var matchedItems = await _db.StockTakeDetails
                     .AsNoTracking()
@@ -245,11 +265,11 @@ namespace Backend.Domains.Audit.Services
             // Filter by resolution status if specified
             if (resolved == false)
             {
-                query = query.Where(x => x.ResolutionAction == null);
+                query = query.Where(x => x.ResolutionAction == null || x.ResolutionAction == "");
             }
             else if (resolved == true)
             {
-                query = query.Where(x => x.ResolutionAction != null);
+                query = query.Where(x => x.ResolutionAction != null && x.ResolutionAction != "");
             }
 
             var variances = await query
@@ -293,7 +313,84 @@ namespace Backend.Domains.Audit.Services
                 .CountAsync(x =>
                     x.StockTakeId == stockTakeId &&
                     x.DiscrepancyStatus == "Discrepancy" &&
-                    x.ResolutionAction == null, ct);
+                    (x.ResolutionAction == null || x.ResolutionAction == ""), ct);
+
+            var totalCount = await _db.StockTakeDetails
+                .AsNoTracking()
+                .CountAsync(x =>
+                    x.StockTakeId == stockTakeId &&
+                    x.DiscrepancyStatus == "Discrepancy", ct);
+
+            return (variances, totalCount, unresolvedCount);
+        }
+
+        public async Task<(List<VarianceItemDto> items, int total, int unresolved)> GetVarianceDetailsAsync(
+            int stockTakeId,
+            bool? resolved,
+            CancellationToken ct)
+        {
+            var st = await _db.StockTakes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
+
+            if (st == null)
+                throw new ArgumentException("Audit not found.");
+
+            var query = _db.StockTakeDetails
+                .AsNoTracking()
+                .Where(x =>
+                    x.StockTakeId == stockTakeId &&
+                    x.DiscrepancyStatus == "Discrepancy");
+
+            if (resolved == false)
+            {
+                query = query.Where(x => x.ResolutionAction == null || x.ResolutionAction == "");
+            }
+            else if (resolved == true)
+            {
+                query = query.Where(x => x.ResolutionAction != null && x.ResolutionAction != "");
+            }
+
+            var variances = await query
+                .Include(x => x.Material)
+                .Include(x => x.Bin)
+                .Include(x => x.Batch)
+                .Include(x => x.CountedByNavigation)
+                .Include(x => x.ResolvedByNavigation)
+                .Include(x => x.AdjustmentReason)
+                .OrderByDescending(x => x.Id)
+                .Select(d => new VarianceItemDto
+                {
+                    Id = d.Id,
+                    MaterialId = d.MaterialId,
+                    MaterialName = d.Material.Name,
+                    BinId = d.BinId ?? 0,
+                    BinCode = d.Bin != null ? d.Bin.Code : null,
+                    BatchId = d.BatchId,
+                    BatchCode = d.Batch != null ? d.Batch.BatchCode : null,
+                    SystemQty = d.SystemQty,
+                    CountQty = d.CountQty,
+                    Variance = d.Variance,
+                    DiscrepancyStatus = d.DiscrepancyStatus,
+                    CountedBy = d.CountedBy,
+                    CountedByName = d.CountedByNavigation != null ? d.CountedByNavigation.FullName : null,
+                    CountedAt = d.CountedAt,
+                    Reason = d.Reason,
+                    ResolutionAction = d.ResolutionAction,
+                    AdjustmentReasonId = d.AdjustmentReasonId,
+                    AdjustmentReasonName = d.AdjustmentReason != null ? d.AdjustmentReason.Name : null,
+                    ResolvedBy = d.ResolvedBy,
+                    ResolvedByName = d.ResolvedByNavigation != null ? d.ResolvedByNavigation.FullName : null,
+                    ResolvedAt = d.ResolvedAt
+                })
+                .ToListAsync(ct);
+
+            var unresolvedCount = await _db.StockTakeDetails
+                .AsNoTracking()
+                .CountAsync(x =>
+                    x.StockTakeId == stockTakeId &&
+                    x.DiscrepancyStatus == "Discrepancy" &&
+                    (x.ResolutionAction == null || x.ResolutionAction == ""), ct);
 
             var totalCount = await _db.StockTakeDetails
                 .AsNoTracking()
@@ -386,9 +483,18 @@ namespace Backend.Domains.Audit.Services
                 !string.Equals(st.Status, "ReadyForReview", StringComparison.OrdinalIgnoreCase))
                 return (false, $"Audit cannot be modified in status '{st.Status}'.");
 
+            var normalizedAction = NormalizeResolutionAction(request.ResolutionAction);
+            if (normalizedAction == null)
+                return (false, "ResolutionAction must be one of: Accept, AdjustSystem, Investigate.");
+
+            if (normalizedAction == "AdjustSystem" && !request.AdjustmentReasonId.HasValue)
+                return (false, "AdjustmentReasonId is required when ResolutionAction is AdjustSystem.");
+
             // Update resolution fields
-            detail.ResolutionAction = request.ResolutionAction?.Trim();
-            detail.AdjustmentReasonId = request.AdjustmentReasonId;
+            detail.ResolutionAction = normalizedAction;
+            detail.AdjustmentReasonId = normalizedAction == "AdjustSystem"
+                ? request.AdjustmentReasonId
+                : null;
             detail.ResolvedBy = resolvedByUserId;
             detail.ResolvedAt = DateTime.UtcNow;
 
@@ -574,7 +680,8 @@ namespace Backend.Domains.Audit.Services
                 .CountAsync(x =>
                     x.StockTakeId == stockTakeId &&
                     x.DiscrepancyStatus == "Discrepancy" &&
-                    x.ResolutionAction != null, ct);
+                    x.ResolutionAction != null &&
+                    x.ResolutionAction != "", ct);
 
             var unresolvedVariances = totalVariances - resolvedVariances;
             var resolutionRate = totalVariances > 0 ? (resolvedVariances * 100m / totalVariances) : 0m;
@@ -730,6 +837,9 @@ namespace Backend.Domains.Audit.Services
             if (st == null)
                 return (false, "Audit not found.");
 
+            if (st.CompletedAt != null || string.Equals(st.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+                return (false, "Audit is already completed.");
+
             // Only manager can complete
             // Verify manager has signed off
             var managerSignature = await _db.StockTakeSignatures
@@ -748,20 +858,122 @@ namespace Backend.Domains.Audit.Services
                 .CountAsync(x =>
                     x.StockTakeId == stockTakeId &&
                     x.DiscrepancyStatus == "Discrepancy" &&
-                    x.ResolutionAction == null, ct);
+                    (x.ResolutionAction == null || x.ResolutionAction == ""), ct);
 
             if (unresolvedVariances > 0)
                 return (false, $"{unresolvedVariances} variance(s) still need resolution.");
 
+            // Post inventory adjustments for resolved discrepancies marked as AdjustSystem
+            var resolvedDiscrepancies = await _db.StockTakeDetails
+                .Where(x =>
+                    x.StockTakeId == stockTakeId &&
+                    x.DiscrepancyStatus == "Discrepancy" &&
+                    x.ResolutionAction != null &&
+                    x.ResolutionAction != "")
+                .ToListAsync(ct);
+
+            var detailsToAdjust = resolvedDiscrepancies
+                .Where(x => NormalizeResolutionAction(x.ResolutionAction) == "AdjustSystem")
+                .ToList();
+
+            var postedAt = DateTime.UtcNow;
+            var postedCount = 0;
+            var skippedAlreadyPostedCount = 0;
+            var skippedZeroDeltaCount = 0;
+
+            foreach (var detail in detailsToAdjust)
+            {
+                if (!detail.BinId.HasValue || !detail.BatchId.HasValue)
+                    return (false, $"Invalid bin/batch data for variance detail {detail.Id}.");
+
+                // If already posted before, skip to avoid double-apply.
+                var alreadyPosted = await _db.InventoryAdjustmentEntries
+                    .AsNoTracking()
+                    .AnyAsync(x =>
+                        x.StockTakeId == stockTakeId &&
+                        x.StockTakeDetailId == detail.Id &&
+                        x.Status == "Posted", ct);
+
+                if (alreadyPosted)
+                {
+                    skippedAlreadyPostedCount++;
+                    continue;
+                }
+
+                var delta = detail.Variance ?? ((detail.CountQty ?? 0m) - (detail.SystemQty ?? 0m));
+                if (delta == 0m)
+                {
+                    skippedZeroDeltaCount++;
+                    continue;
+                }
+
+                var inventory = await _db.InventoryCurrents
+                    .FirstOrDefaultAsync(x =>
+                        x.WarehouseId == st.WarehouseId &&
+                        x.MaterialId == detail.MaterialId &&
+                        x.BinId == detail.BinId.Value &&
+                        x.BatchId == detail.BatchId.Value, ct);
+
+                if (inventory == null)
+                    return (false, $"Inventory row not found for variance detail {detail.Id}.");
+
+                inventory.QuantityOnHand = (inventory.QuantityOnHand ?? 0m) + delta;
+                inventory.LastUpdated = postedAt;
+
+                var latestEntry = await _db.InventoryAdjustmentEntries
+                    .Where(x =>
+                        x.StockTakeId == stockTakeId &&
+                        x.StockTakeDetailId == detail.Id)
+                    .OrderByDescending(x => x.EntryId)
+                    .FirstOrDefaultAsync(ct);
+
+                if (latestEntry == null)
+                {
+                    latestEntry = new Backend.Entities.InventoryAdjustmentEntry
+                    {
+                        StockTakeId = stockTakeId,
+                        StockTakeDetailId = detail.Id,
+                        WarehouseId = st.WarehouseId,
+                        BinId = detail.BinId,
+                        MaterialId = detail.MaterialId,
+                        BatchId = detail.BatchId,
+                        QtyDelta = delta,
+                        ReasonId = detail.AdjustmentReasonId,
+                        Status = "Posted",
+                        CreatedAt = postedAt,
+                        CreatedBy = detail.ResolvedBy ?? managerId,
+                        ApprovedAt = postedAt,
+                        ApprovedBy = managerId,
+                        PostedAt = postedAt
+                    };
+                    _db.InventoryAdjustmentEntries.Add(latestEntry);
+                }
+                else
+                {
+                    latestEntry.WarehouseId = st.WarehouseId;
+                    latestEntry.BinId = detail.BinId;
+                    latestEntry.MaterialId = detail.MaterialId;
+                    latestEntry.BatchId = detail.BatchId;
+                    latestEntry.QtyDelta = delta;
+                    latestEntry.ReasonId = detail.AdjustmentReasonId;
+                    latestEntry.Status = "Posted";
+                    latestEntry.ApprovedAt = postedAt;
+                    latestEntry.ApprovedBy = managerId;
+                    latestEntry.PostedAt = postedAt;
+                }
+
+                postedCount++;
+            }
+
             // Update audit completion
             st.Status = "Completed";
-            st.CompletedAt = DateTime.UtcNow;
+            st.CompletedAt = postedAt;
             st.CompletedBy = managerId;
             st.Notes = request.Notes?.Trim();
 
             await _db.SaveChangesAsync(ct);
 
-            return (true, "Audit completed successfully");
+            return (true, $"Audit completed successfully. AdjustSystem candidates: {detailsToAdjust.Count}, posted: {postedCount}, already posted: {skippedAlreadyPostedCount}, zero-delta: {skippedZeroDeltaCount}.");
         }
     }
 }
