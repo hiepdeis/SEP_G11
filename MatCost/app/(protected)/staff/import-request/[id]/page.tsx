@@ -69,6 +69,7 @@ export default function StaffInboundDetailPage() {
         "Material Code", // B
         "Material Name", // C
         "Unit", // D
+        "Warehouse Name", // E
         "Required Quantity", // E
         "Actual Quantity", // F (Nhập liệu)
         "Bin Code", // G (Nhập liệu)
@@ -82,6 +83,7 @@ export default function StaffInboundDetailPage() {
         item.materialCode, // Material Code
         item.materialName, // Material Name
         item.unit || "Unit", // Unit (fallback nếu null)
+        request.warehouseName || "N/A", // Unit (fallback nếu null)
         item.quantity, // Required Quantity
         "", // Actual Quantity (Empty)
         "", // Bin Code (Empty)
@@ -113,9 +115,10 @@ export default function StaffInboundDetailPage() {
         { wch: 15 }, // B: Mat Code
         { wch: 30 }, // C: Mat Name
         { wch: 10 }, // D: Unit
+        { wch: 30 },
         { wch: 15 }, // E: Req Qty
         { wch: 15 }, // F: Act Qty
-        { wch: 15 }, // G: Bin Code
+        { wch: 30 }, // G: Bin Code
         { wch: 20 }, // H: Batch Code
         { wch: 15 }, // I: MFG Date
       ];
@@ -126,7 +129,7 @@ export default function StaffInboundDetailPage() {
       XLSX.writeFile(workbook, `Inbound_${request.receiptCode}.xlsx`);
 
       toast.success("Template downloaded successfully!", {
-        description: "Please fill in Actual Qty, Bin Code, and Batch info.",
+        description: "Please fill in Actual Qantity, Bin Code, and Batch info.",
       });
     } catch (error) {
       console.error("Download error:", error);

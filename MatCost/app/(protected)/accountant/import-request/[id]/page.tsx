@@ -13,6 +13,7 @@ import {
   MapPin,
   Building2,
   AlertTriangle,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ import {
   receiptApi,
   ReceiptDetailDto,
   MaterialSuppliersDto,
+  ReceiptRejectionHistoryDto,
 } from "@/services/receipt-service";
 
 import {
@@ -73,6 +75,10 @@ export default function ReceiptReviewPage() {
     MaterialSuppliersDto[]
   >([]);
 
+  const [rejectionHistory, setRejectionHistory] = useState<
+    ReceiptRejectionHistoryDto[]
+  >([]);
+
   const [items, setItems] = useState<EditableItem[]>([]);
   const [notes, setNotes] = useState("");
 
@@ -80,21 +86,24 @@ export default function ReceiptReviewPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [hasMissingSupplier, setHasMissingSupplier] = useState(false);
+  const [hasAllSupplierMissing, setHasAllSupplierMissing] = useState(false);
 
   // 1. Fetch Data
   useEffect(() => {
     const initData = async () => {
       try {
         // Gọi thêm warehouseApi.getAll()
-        const [receiptRes, suppliersRes, warehouseRes] = await Promise.all([
-          receiptApi.getById(id),
-          receiptApi.getAvailableSuppliers(id),
-          warehouseApi.getAll(),
-        ]);
+        const [receiptRes, suppliersRes, warehouseRes, historyRes] =
+          await Promise.all([
+            receiptApi.getById(id),
+            receiptApi.getAvailableSuppliers(id),
+            warehouseApi.getAll(),
+            receiptApi.getRejectionHistory(id).catch(() => ({ data: [] })),
+          ]);
 
         const receiptData = receiptRes.data;
         setReceipt(receiptData);
-        setNotes(receiptData.notes || "");
+        setRejectionHistory(historyRes.data || []);
 
         // Set danh sách kho và kho hiện tại của phiếu
         setWarehouses(warehouseRes.data || []);
@@ -132,10 +141,17 @@ export default function ReceiptReviewPage() {
   }, [id]);
 
   useEffect(() => {
-    const isMissing = items.some(
+    if (items.length === 0) return; // Tránh lỗi khi danh sách rỗng
+
+    const isAnyMissing = items.some(
       (item) => !item.supplierId || item.supplierId === "",
     );
-    setHasMissingSupplier(isMissing);
+    setHasMissingSupplier(isAnyMissing);
+
+    const isAllMissing = items.every(
+      (item) => !item.supplierId || item.supplierId === "",
+    );
+    setHasAllSupplierMissing(isAllMissing);
   }, [items]);
 
   const handleRowSupplierChange = (index: number, supplierIdStr: string) => {
@@ -237,19 +253,21 @@ export default function ReceiptReviewPage() {
   };
 
   const handleSaveDraft = async () => {
-    if (!selectedWarehouseId) {
-      return toast.error("Please select a warehouse");
+    if (!selectedWarehouseId && hasAllSupplierMissing) {
+      return toast.error(
+        "Please select a warehouse or a supplier to save draft",
+      );
     }
     setIsSaving(true);
     try {
       const payload = constructPayload();
       if (receipt?.status === "Requested") {
         await receiptApi.createDraft(id, payload);
+        setReceipt((prev) => (prev ? { ...prev, status: "Draft" } : null));
       } else {
         await receiptApi.updateDraft(id, payload);
       }
       toast.success("Draft saved successfully!");
-      router.push("/accountant/import-request");
     } catch (error: any) {
       console.error(error);
       const msg = error.response?.data?.message || "Failed to save draft";
@@ -344,7 +362,7 @@ export default function ReceiptReviewPage() {
                 <Button
                   variant="outline"
                   onClick={handleSaveDraft}
-                  disabled={isSaving || hasMissingSupplier}
+                  disabled={isSaving}
                   className="bg-white"
                 >
                   <Save className="w-4 h-4 mr-2" /> Save Draft
@@ -352,7 +370,9 @@ export default function ReceiptReviewPage() {
                 <Button
                   className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                   onClick={handleSubmit}
-                  disabled={isSaving || hasMissingSupplier}
+                  disabled={
+                    isSaving || hasMissingSupplier || !selectedWarehouseId
+                  }
                 >
                   {isSaving ? (
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -426,7 +446,12 @@ export default function ReceiptReviewPage() {
                                   }
                                 >
                                   <SelectTrigger
-                                    className={`h-9 text-md ${errors[`supplier-${idx}`] ? "border-red-500 ring-red-500" : ""}`}
+                                    className={`h-9 text-md w-full ${
+                                      !item.supplierId ||
+                                      errors[`supplier-${idx}`]
+                                        ? "border-red-300 bg-red-50 focus:ring-red-400"
+                                        : "border-slate-300"
+                                    }`}
                                   >
                                     <SelectValue placeholder="Select supplier..." />
                                   </SelectTrigger>
@@ -523,7 +548,7 @@ export default function ReceiptReviewPage() {
               </Card>
 
               {/* Note Card */}
-              <Card className="border-slate-200 shadow-sm">
+              {/* <Card className="border-slate-200 shadow-sm">
                 <CardContent>
                   <div className="flex justify-between mb-2 mt-4">
                     <label className="text-md font-medium text-slate-700">
@@ -549,7 +574,7 @@ export default function ReceiptReviewPage() {
                     <p className="text-xs text-red-500 mt-1">{errors.notes}</p>
                   )}
                 </CardContent>
-              </Card>
+              </Card> */}
             </div>
 
             {/* Right Column: Info & Warehouse Selection */}
@@ -598,7 +623,8 @@ export default function ReceiptReviewPage() {
                       <Building2 className="w-4 h-4 text-indigo-600" /> Target
                       Warehouse
                     </span>
-                    {receipt.status === "Requested" ? (
+                    {receipt.status === "Requested" ||
+                    receipt.status === "Draft" ? (
                       <div className="space-y-2">
                         <Select
                           value={selectedWarehouseId}
@@ -666,6 +692,49 @@ export default function ReceiptReviewPage() {
                   </div>
                 </CardContent>
               </Card>
+              {rejectionHistory.length > 0 && (
+                <Card className="border-red-200 shadow-sm bg-red-50/40">
+                  <CardHeader className="pb-3 border-b border-red-100">
+                    <CardTitle className="text-sm font-bold text-red-800 uppercase tracking-wide flex items-center gap-2">
+                      <History className="w-4 h-4" /> Rejection Feedback
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-5">
+                    {/* Đường viền dọc tạo hiệu ứng Timeline */}
+                    <div className="relative border-l-2 border-red-200 ml-2 space-y-6">
+                      {rejectionHistory.map((history) => (
+                        <div key={history.id} className="relative pl-5">
+                          {/* Nút tròn trên timeline */}
+                          <div className="absolute w-3 h-3 bg-red-500 rounded-full -left-[7px] top-1.5 border-2 border-white shadow-sm" />
+
+                          <div className="flex flex-col">
+                            <span className="text-sm font-semibold text-slate-800">
+                              {history.rejectorName || "Manager"}
+                            </span>
+                            <span className="text-[11px] text-slate-500 mb-2">
+                              {new Date(history.rejectedAt).toLocaleString(
+                                "vi-VN",
+                                {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
+                            </span>
+
+                            {/* Khung chứa lý do reject */}
+                            <div className="p-3 bg-white border border-red-100 rounded-md text-sm text-slate-700 shadow-sm">
+                              {history.rejectionReason}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </div>

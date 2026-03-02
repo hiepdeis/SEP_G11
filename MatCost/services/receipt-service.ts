@@ -11,6 +11,7 @@ export interface ReceiptSummaryDto {
   warehouseName: string | null;
   receiptDate: string | null;
   status: string | null;
+  rejectionReason: string | null;
   itemCount: number;
   createdByName: string;
 }
@@ -106,6 +107,16 @@ export const receiptApi = {
   submitForApproval: (id: number) => {
     return axiosClient.post(`/accountant/Receipts/${id}/submit`);
   },
+
+  revertToDraft: (id: number) => {
+    return axiosClient.post(`/accountant/Receipts/${id}/revert-to-draft`);
+  },
+
+  getRejectionHistory: (id: number) => {
+    return axiosClient.get<ReceiptRejectionHistoryDto[]>(
+      `/accountant/Receipts/${id}/rejection-history`,
+    );
+  },
 };
 
 // ==========================================
@@ -129,6 +140,13 @@ export interface PendingReceiptDetailDto {
   unit: string | null;
   unitPrice: number | null;
   subTotal: number | null;
+}
+
+export interface ReceiptRejectionHistoryDto {
+  id: number;
+  rejectorName: string | null;
+  rejectedAt: string;
+  rejectionReason: string;
 }
 
 export interface PendingReceiptDto {
@@ -188,7 +206,6 @@ export const managerReceiptApi = {
   },
 };
 
-
 // ==========================================
 // STAFF DTOs
 // Namespace: Backend.Domains.Import.DTOs.Staff
@@ -231,6 +248,14 @@ export interface ConfirmGoodsReceiptDto {
   notes?: string | null;
 }
 
+export interface BinLocationDto {
+  binId: number;
+  warehouseId: number;
+  warehouseName: string;
+  code: string;
+  type: string;
+}
+
 // ==========================================
 // STAFF API SERVICE
 // Controller: StaffReceiptsController
@@ -238,14 +263,26 @@ export interface ConfirmGoodsReceiptDto {
 
 export const staffReceiptApi = {
   getAllInboundRequests: () => {
-    return axiosClient.get<GetInboundRequestListDto[]>("/StaffReceipts/inbound-requests");
+    return axiosClient.get<GetInboundRequestListDto[]>(
+      "/StaffReceipts/inbound-requests",
+    );
   },
 
   getInboundRequestDetail: (receiptId: number) => {
-    return axiosClient.get<GetInboundRequestListDto>(`/StaffReceipts/inbound-requests/${receiptId}`);
+    return axiosClient.get<GetInboundRequestListDto>(
+      `/StaffReceipts/inbound-requests/${receiptId}`,
+    );
   },
 
   confirmGoodsReceipt: (receiptId: number, data: ConfirmGoodsReceiptDto) => {
-    return axiosClient.post(`/StaffReceipts/inbound-requests/${receiptId}/confirm`, data);
+    return axiosClient.post(
+      `/StaffReceipts/inbound-requests/${receiptId}/confirm`,
+      data,
+    );
+  },
+  getAllBinLocation: () => {
+    return axiosClient.get<BinLocationDto[]>(
+      "/StaffReceipts/binLocation-requests",
+    );
   },
 };

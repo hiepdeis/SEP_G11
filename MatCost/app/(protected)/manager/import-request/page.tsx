@@ -16,6 +16,8 @@ import {
   DollarSign,
   FileText,
   FileMinus,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +48,9 @@ export default function ManagerImportRequestPage() {
     "All" | "Submitted" | "History"
   >("Submitted");
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
@@ -61,6 +66,10 @@ export default function ManagerImportRequestPage() {
 
     fetchData();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus]);
 
   const filteredData = requests.filter((item) => {
     let matchesStatus = true;
@@ -78,6 +87,11 @@ export default function ManagerImportRequestPage() {
 
     return matchesStatus && matchesSearch;
   });
+
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedData = filteredData.slice(startIndex, endIndex);
 
   const handleReview = (id: number) => {
     setLoadingId(id);
@@ -175,8 +189,7 @@ export default function ManagerImportRequestPage() {
                         const sevenDaysAgo = new Date();
                         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
                         return (
-                          item.status === "Approved" &&
-                          itemDate >= sevenDaysAgo
+                          item.status === "Approved" && itemDate >= sevenDaysAgo
                         );
                       }).length
                     }
@@ -213,7 +226,7 @@ export default function ManagerImportRequestPage() {
           </div>
 
           {/* Main List Table */}
-          <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] gap-0">
+          <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] gap-0 pb-0">
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
@@ -266,7 +279,7 @@ export default function ManagerImportRequestPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 flex flex-col justify-between flex-1">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50">
@@ -287,7 +300,7 @@ export default function ManagerImportRequestPage() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ) : filteredData.length === 0 ? (
+                  ) : paginatedData.length === 0 ? (
                     <TableRow>
                       <TableCell
                         colSpan={6}
@@ -300,7 +313,7 @@ export default function ManagerImportRequestPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredData.map((item) => (
+                    paginatedData.map((item) => (
                       <TableRow
                         key={item.receiptCode}
                         className="group hover:bg-slate-50/50 transition-colors"
@@ -375,6 +388,53 @@ export default function ManagerImportRequestPage() {
                   )}
                 </TableBody>
               </Table>
+              {!isLoading && filteredData.length > 0 && (
+                <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                  <div className="text-sm text-slate-500">
+                    Showing{" "}
+                    <span className="font-medium text-slate-900">
+                      {startIndex + 1}
+                    </span>{" "}
+                    to{" "}
+                    <span className="font-medium text-slate-900">
+                      {Math.min(endIndex, filteredData.length)}
+                    </span>{" "}
+                    of{" "}
+                    <span className="font-medium text-slate-900">
+                      {filteredData.length}
+                    </span>{" "}
+                    results
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(prev - 1, 1))
+                      }
+                      disabled={currentPage === 1}
+                      className="h-8"
+                    >
+                      <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                    </Button>
+                    <div className="text-sm font-medium text-slate-600 px-2">
+                      Page {currentPage} of {totalPages}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                      }
+                      disabled={currentPage === totalPages}
+                      className="h-8"
+                    >
+                      Next <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

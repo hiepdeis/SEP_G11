@@ -301,7 +301,7 @@ export default function ManagerReviewPage() {
                       Manager Decision
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  {/* <CardContent className="space-y-4">
                     <div>
                       <div className="flex justify-between mb-2">
                         <label className="text-sm font-medium text-slate-700">
@@ -321,7 +321,7 @@ export default function ManagerReviewPage() {
                         maxLength={500}
                       />
                     </div>
-                  </CardContent>
+                  </CardContent> */}
                   <CardFooter className="flex flex-col gap-3 pt-2">
                     <Button
                       className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm"

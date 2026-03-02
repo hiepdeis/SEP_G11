@@ -47,7 +47,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { staffReceiptApi } from "@/services/receipt-service";
+import {
+  BinLocationDto,
+  GetInboundRequestListDto,
+  staffReceiptApi,
+} from "@/services/receipt-service";
 import { toast } from "sonner";
 import { showConfirmToast } from "@/hooks/confirm-toast";
 import * as XLSX from "xlsx";
@@ -59,13 +63,6 @@ import {
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-
-const MOCK_BINS = [
-  { id: 1, code: "A-01-01" },
-  { id: 2, code: "A-01-02" },
-  { id: 3, code: "B-01-01" },
-  { id: 4, code: "C-COOL-01" },
-];
 
 interface InboundProcessItem {
   detailId: number;
@@ -88,34 +85,48 @@ export default function StaffInboundProcessPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [items, setItems] = useState<InboundProcessItem[]>([]);
+  const [receipt, setReceipt] = useState<GetInboundRequestListDto | null>(null);
   const [receiptCode, setReceiptCode] = useState("");
-  const [generalNotes, setGeneralNotes] = useState(""); // State for General Notes
+  const [generalNotes, setGeneralNotes] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [binLocations, setBinLocations] = useState<BinLocationDto[]>([]);
 
   useEffect(() => {
     const initData = async () => {
       try {
-        const res = await staffReceiptApi.getInboundRequestDetail(id);
-        setReceiptCode(res.data.receiptCode);
+        setIsLoading(true);
 
-        const processItems: InboundProcessItem[] = res.data.items.map((i) => ({
-          detailId: i.detailId,
-          materialCode: i.materialCode,
-          materialName: i.materialName,
-          unit: i.unit || "Unit",
-          expectedQty: i.quantity || 0,
-          actualQty: "",
-          binLocationId: "",
-          batchCode: "",
-          mfgDate: "",
-          certificateImage: "",
-          note: "",
-        }));
+        const [receiptRes, binRes] = await Promise.all([
+          staffReceiptApi.getInboundRequestDetail(id),
+          staffReceiptApi.getAllBinLocation(),
+        ]);
+
+        setReceipt(receiptRes.data);
+        setReceiptCode(receiptRes.data.receiptCode);
+
+        setBinLocations(binRes.data || []);
+
+        const processItems: InboundProcessItem[] = receiptRes.data.items.map(
+          (i) => ({
+            detailId: i.detailId,
+            materialCode: i.materialCode,
+            materialName: i.materialName,
+            unit: i.unit || "Unit",
+            expectedQty: i.quantity || 0,
+            actualQty: "",
+            binLocationId: "",
+            batchCode: "",
+            mfgDate: "",
+            certificateImage: "",
+            note: "",
+          }),
+        );
 
         setItems(processItems);
       } catch (error) {
+        console.error("Error loading init data:", error);
         toast.error("Failed to load data");
       } finally {
         setIsLoading(false);
@@ -145,9 +156,13 @@ export default function StaffInboundProcessPage() {
 
     let date: Date;
 
-    if (input instanceof Date) {
+    if (typeof input === "number") {
+      date = new Date(Math.round((input - 25569) * 86400 * 1000));
+    }
+    else if (input instanceof Date) {
       date = input;
-    } else if (
+    }
+    else if (
       typeof input === "string" &&
       /^\d{1,2}[/\\-]\d{1,2}[/\\-]\d{4}$/.test(input)
     ) {
@@ -157,7 +172,8 @@ export default function StaffInboundProcessPage() {
       const year = parts[2];
 
       return `${year}-${month}-${day}`;
-    } else {
+    }
+    else {
       const d = new Date(input);
       if (!isNaN(d.getTime())) {
         date = d;
@@ -199,22 +215,38 @@ export default function StaffInboundProcessPage() {
             (i) => i.materialCode === matCode,
           );
           if (itemIndex > -1) {
-            const actualQty = row["F"];
-            const binCode = row["G"];
-            const batch = row["H"];
-            const mfg = row["I"];
-            const note = row["J"];
+            const actualQty = row["G"];
+            const binCode = row["H"];
+            const batch = row["I"];
+            const mfg = row["J"];
+            const note = row["K"];
 
             if (actualQty !== undefined) {
               newItems[itemIndex].actualQty = Number(actualQty);
-              const foundBin = MOCK_BINS.find((b) => b.code === binCode);
+              const foundBin = binLocations.find((b) => b.code === binCode);
               if (foundBin)
-                newItems[itemIndex].binLocationId = foundBin.id.toString();
+                newItems[itemIndex].binLocationId = foundBin.binId.toString();
               if (batch) newItems[itemIndex].batchCode = batch.toString();
               if (mfg) {
-                console.log(excelDateToInputDate(mfg));
+                console.log(mfg);
 
-                newItems[itemIndex].mfgDate = excelDateToInputDate(mfg);
+                const formattedDate = excelDateToInputDate(mfg);
+
+                if (formattedDate) {
+                  const parsedDate = new Date(formattedDate);
+                  const today = new Date();
+
+                  today.setHours(0, 0, 0, 0);
+
+                  if (parsedDate > today) {
+                    toast.error(
+                      `Row ${itemIndex + 1}: MFG Date cannot be in the future.`,
+                    );
+                    newItems[itemIndex].mfgDate = "";
+                  } else {
+                    newItems[itemIndex].mfgDate = formattedDate;
+                  }
+                }
               }
               if (note) newItems[itemIndex].note = note.toString();
               updatedCount++;
@@ -255,6 +287,14 @@ export default function StaffInboundProcessPage() {
     const missingBatch = items.filter((i) => !i.batchCode);
     if (missingBatch.length > 0)
       return toast.error(`Select Batch Code for all items.`);
+
+    const missingMfgDate = items.filter((i) => !i.mfgDate);
+    if (missingMfgDate.length > 0)
+      return toast.error(`Select Manufacturing Date (MFG Date) for all items.`);
+
+    const missingImage = items.filter((i) => !i.certificateImage);
+    if (missingImage.length > 0)
+      return toast.error(`Select Certificate Image for all items.`);
 
     showConfirmToast({
       title: "Confirm Inbound Completion?",
@@ -320,7 +360,7 @@ export default function StaffInboundProcessPage() {
             <div className="flex items-center justify-between">
               <Button
                 variant="ghost"
-                onClick={() => router.push(`/staff/inbound`)}
+                onClick={() => router.push(`/staff/import-request/` + id)}
                 className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" /> Cancel & Back
@@ -394,6 +434,9 @@ export default function StaffInboundProcessPage() {
                     <TableHead className="w-[25%] pl-6">
                       Material Info
                     </TableHead>
+                    <TableHead className="w-[15%] text-center">
+                      Warehouse
+                    </TableHead>
                     <TableHead className="w-[10%] text-center">
                       Required
                     </TableHead>
@@ -459,6 +502,12 @@ export default function StaffInboundProcessPage() {
                           </div>
                         </TableCell>
 
+                        <TableCell className="text-center align-top pt-5">
+                          <span className="text-sm font-semibold text-slate-600 bg-slate-100 px-2 py-1 rounded">
+                            {receipt?.warehouseName}
+                          </span>
+                        </TableCell>
+
                         {/* 2. Expected */}
                         <TableCell className="text-center align-top pt-5">
                           <span className="text-sm font-semibold text-slate-600 bg-slate-100 px-2 py-1 rounded">
@@ -474,13 +523,15 @@ export default function StaffInboundProcessPage() {
                                 type="number"
                                 min={0}
                                 className={`text-center font-bold h-9 pl-6 ${
-                                  isShort
-                                    ? "border-amber-400 text-amber-700 bg-amber-50"
-                                    : isOver
-                                      ? "border-red-400 text-red-700 bg-red-50"
-                                      : isMatch
-                                        ? "border-emerald-400 text-emerald-700 bg-emerald-50"
-                                        : ""
+                                  item.actualQty === ""
+                                    ? "border-red-300 bg-red-50 focus-visible:ring-red-400 placeholder:text-red-300/70"
+                                    : isShort
+                                      ? "border-amber-400 text-amber-700 bg-amber-50"
+                                      : isOver
+                                        ? "border-red-400 text-red-700 bg-red-50"
+                                        : isMatch
+                                          ? "border-emerald-400 text-emerald-700 bg-emerald-50"
+                                          : ""
                                 }`}
                                 placeholder="0"
                                 value={item.actualQty}
@@ -517,14 +568,20 @@ export default function StaffInboundProcessPage() {
                               updateItem(index, "binLocationId", val)
                             }
                           >
-                            <SelectTrigger className="h-9 text-md w-full">
+                            <SelectTrigger
+                              className={`h-9 text-md w-full ${
+                                !item.binLocationId
+                                  ? "border-red-300 bg-red-50 focus:ring-red-400"
+                                  : "border-slate-300"
+                              }`}
+                            >
                               <SelectValue placeholder="Select Bin" />
                             </SelectTrigger>
                             <SelectContent>
-                              {MOCK_BINS.map((bin) => (
+                              {binLocations.map((bin) => (
                                 <SelectItem
-                                  key={bin.id}
-                                  value={bin.id.toString()}
+                                  key={bin.binId}
+                                  value={bin.binId.toString()}
                                 >
                                   {bin.code}
                                 </SelectItem>
@@ -537,9 +594,19 @@ export default function StaffInboundProcessPage() {
                         <TableCell className="align-top pt-3">
                           <div className="flex flex-col gap-2">
                             <div className="relative">
-                              <QrCode className="w-3 h-3 absolute left-2 top-3 text-slate-400 ml-2" />
+                              <QrCode
+                                className={`w-3 h-3 absolute left-2 top-3 ml-2 ${
+                                  !item.batchCode
+                                    ? "text-red-400"
+                                    : "text-slate-400"
+                                }`}
+                              />
                               <Input
-                                className="h-9 text-xs pl-10 w-full"
+                                className={`h-9 text-xs pl-10 w-full ${
+                                  !item.batchCode
+                                    ? "border-red-300 bg-red-50 focus-visible:ring-red-400 placeholder:text-red-300/70"
+                                    : "border-slate-300"
+                                }`}
                                 placeholder="Batch Code"
                                 value={item.batchCode}
                                 onChange={(e) =>
@@ -548,14 +615,15 @@ export default function StaffInboundProcessPage() {
                               />
                             </div>
                             <div className="relative">
-                              {/* Thay Input bằng Popover */}
                               <Popover>
                                 <PopoverTrigger asChild>
                                   <Button
                                     variant={"outline"}
                                     className={cn(
-                                      "h-9 w-full justify-start text-left text-xs pl-2 font-normal gap-1 bg-white border-slate-300",
-                                      !item.mfgDate && "text-muted-foreground",
+                                      "h-9 w-full justify-start text-left text-xs pl-2 font-normal gap-1 bg-transparent hover:bg-transparent hover:text-black",
+                                      !item.mfgDate
+                                        ? "text-muted-foreground border-red-200 hover:bg-red-50 hover:text-red-600"
+                                        : "border-slate-300",
                                     )}
                                   >
                                     <CalendarIcon className="mr-2 h-3 w-3 opacity-50" />
@@ -584,10 +652,9 @@ export default function StaffInboundProcessPage() {
                                         ? new Date(item.mfgDate)
                                         : undefined
                                     }
+                                    disabled={(date) => date > new Date()}
                                     onSelect={(date) => {
-                                      // Khi chọn ngày trên lịch -> Convert về chuỗi YYYY-MM-DD để lưu vào state
                                       if (date) {
-                                        // Lưu ý: Cộng thêm giờ để tránh lệch múi giờ khi convert
                                         const year = date.getFullYear();
                                         const month = String(
                                           date.getMonth() + 1,
@@ -603,7 +670,6 @@ export default function StaffInboundProcessPage() {
                                           dateString,
                                         );
                                       } else {
-                                        // Trường hợp bỏ chọn (nếu cần)
                                         updateItem(index, "mfgDate", "");
                                       }
                                     }}
@@ -642,6 +708,7 @@ export default function StaffInboundProcessPage() {
                                   type="file"
                                   accept="image/*"
                                   onChange={(e) => handleImageUpload(index, e)}
+                                  className="cursor-pointer"
                                 />
                                 {item.certificateImage && (
                                   <div className="border rounded-md p-2 bg-slate-50 flex flex-col gap-2">
@@ -673,9 +740,13 @@ export default function StaffInboundProcessPage() {
                             </DialogContent>
                           </Dialog>
                           <div className="pt-2 font-bold">
-                            {item.certificateImage
-                              ? "Image attached"
-                              : "No image attached"}
+                            {item.certificateImage ? (
+                              "Image attached"
+                            ) : (
+                              <span className="text-red-500">
+                                No image attached
+                              </span>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

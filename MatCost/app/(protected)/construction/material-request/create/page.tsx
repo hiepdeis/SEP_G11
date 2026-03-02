@@ -232,7 +232,7 @@ export default function CreateRequestPage() {
                       </div>
                       <div className="flex-grow space-y-1">
                         <label className="text-xs text-slate-500">
-                          Material Name *
+                          Material Code *
                         </label>
                         <Input
                           placeholder="e.g. MAT-001"

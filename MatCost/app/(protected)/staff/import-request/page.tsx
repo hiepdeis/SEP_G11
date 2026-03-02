@@ -15,6 +15,8 @@ import {
   Truck,
   ClipboardList,
   AlertCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,8 +43,8 @@ export default function StaffInboundPage() {
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // API Staff chỉ trả về "Approved", nên trang này đóng vai trò là "Pending Inbound"
-  // Ta có thể filter client-side nếu cần (ví dụ: theo kho)
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -68,6 +70,15 @@ export default function StaffInboundPage() {
 
     return matchesSearch;
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedData = filteredData.slice(startIndex, endIndex);
 
   const handleProcess = (id: number) => {
     setLoadingId(id);
@@ -95,7 +106,8 @@ export default function StaffInboundPage() {
               Inbound Requests
             </h1>
             <p className="text-sm text-slate-500">
-              Approved receipts waiting for physical inventory check and confirmation.
+              Approved receipts waiting for physical inventory check and
+              confirmation.
             </p>
           </div>
 
@@ -143,7 +155,7 @@ export default function StaffInboundPage() {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                     Approved Today
+                    Approved Today
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
                     {
@@ -161,12 +173,15 @@ export default function StaffInboundPage() {
           </div>
 
           {/* Main List Table */}
-          <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] gap-0">
+          <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] gap-0 pb-0">
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                    {/* Staff view is usually simpler, simplified filters */}
-                  <Badge variant="secondary" className="px-3 py-1 h-9 text-sm font-medium bg-slate-100 text-slate-600">
+                  {/* Staff view is usually simpler, simplified filters */}
+                  <Badge
+                    variant="secondary"
+                    className="px-3 py-1 h-9 text-sm font-medium bg-slate-100 text-slate-600"
+                  >
                     Status: Approved / Ready to Inbound
                   </Badge>
                 </div>
@@ -183,113 +198,167 @@ export default function StaffInboundPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50">
-                    <TableHead className="pl-6">Receipt Code</TableHead>
-                    <TableHead>Warehouse</TableHead>
-                    <TableHead className="text-center">Approval Date</TableHead>
-                    <TableHead className="text-center">Total Quantity</TableHead>
-                    <TableHead className="text-center">Status</TableHead>
-                    <TableHead className="text-right pr-6">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-32 text-center">
-                        <div className="flex justify-center items-center gap-2 text-indigo-600">
-                          <Loader2 className="w-6 h-6 animate-spin" /> Loading
-                          inbound requests...
-                        </div>
-                      </TableCell>
+            <CardContent className="p-0 flex flex-col justify-between flex-1">
+              <div className="min-h-[300px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50">
+                      <TableHead className="pl-6">Receipt Code</TableHead>
+                      <TableHead>Warehouse</TableHead>
+                      <TableHead className="text-center">
+                        Approval Date
+                      </TableHead>
+                      <TableHead className="text-center">
+                        Total Quantity
+                      </TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-right pr-6">Action</TableHead>
                     </TableRow>
-                  ) : filteredData.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={6}
-                        className="h-32 text-center text-slate-500 hover:slate-50"
-                      >
-                        <div className="flex flex-col items-center justify-center gap-2">
-                          <AlertCircle className="w-8 h-8 text-slate-300" />
-                          <p>No pending inbound requests found.</p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredData.map((item) => (
-                      <TableRow
-                        key={item.receiptCode}
-                        className="group hover:bg-slate-50/50 transition-colors"
-                      >
-                        {/* Receipt Code */}
-                        <TableCell className="pl-6">
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-slate-700">
-                              {item.receiptCode}
-                            </span>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-32 text-center">
+                          <div className="flex justify-center items-center gap-2 text-indigo-600">
+                            <Loader2 className="w-6 h-6 animate-spin" /> Loading
+                            inbound requests...
                           </div>
                         </TableCell>
-
-                        {/* Warehouse */}
-                        <TableCell>
-                          <div className="flex items-center gap-2 text-slate-600">
-                            <MapPin className="w-4 h-4 text-slate-400" />
-                            {item.warehouseName || "N/A"}
+                      </TableRow>
+                    ) : paginatedData.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={6}
+                          className="h-32 text-center text-slate-500 hover:slate-50"
+                        >
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <AlertCircle className="w-8 h-8 text-slate-300" />
+                            <p>No pending inbound requests found.</p>
                           </div>
                         </TableCell>
+                      </TableRow>
+                    ) : (
+                      paginatedData.map((item) => (
+                        <TableRow
+                          key={item.receiptCode}
+                          className="group hover:bg-slate-50/50 transition-colors"
+                        >
+                          {/* Receipt Code */}
+                          <TableCell className="pl-6">
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-slate-700">
+                                {item.receiptCode}
+                              </span>
+                            </div>
+                          </TableCell>
 
-                        {/* Approval Date */}
-                         <TableCell className="text-center">
+                          {/* Warehouse */}
+                          <TableCell>
+                            <div className="flex items-center gap-2 text-slate-600">
+                              <MapPin className="w-4 h-4 text-slate-400" />
+                              {item.warehouseName || "N/A"}
+                            </div>
+                          </TableCell>
+
+                          {/* Approval Date */}
+                          <TableCell className="text-center">
                             <span className="text-sm text-slate-600 flex items-center justify-center gap-1">
                               <CalendarDays className="w-3 h-3 text-slate-400" />{" "}
                               {formatDate(item.receiptApprovalDate)}
                             </span>
-                        </TableCell>
+                          </TableCell>
 
-                        {/* Total Quantity (Thay vì Total Amount) */}
-                        <TableCell className="text-center">
-                          <div className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md">
-                             <Package className="w-3.5 h-3.5 text-slate-500"/>
-                             <span className="font-bold text-slate-800 text-sm">
+                          {/* Total Quantity (Thay vì Total Amount) */}
+                          <TableCell className="text-center">
+                            <div className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md">
+                              <Package className="w-3.5 h-3.5 text-slate-500" />
+                              <span className="font-bold text-slate-800 text-sm">
                                 {item.totalQuantity.toLocaleString("vi-VN")}
-                             </span>
-                          </div>
-                        </TableCell>
+                              </span>
+                            </div>
+                          </TableCell>
 
-                        {/* Status (Luôn là Approved theo logic API) */}
-                        <TableCell className="text-center">
-                          <Badge
-                            variant="outline"
-                            className="bg-emerald-50 text-emerald-700 border-emerald-200"
-                          >
-                            Ready to Inbound
-                          </Badge>
-                        </TableCell>
+                          {/* Status (Luôn là Approved theo logic API) */}
+                          <TableCell className="text-center">
+                            <Badge
+                              variant="outline"
+                              className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                            >
+                              Ready to Inbound
+                            </Badge>
+                          </TableCell>
 
-                        {/* Action */}
-                        <TableCell className="text-right pr-6">
-                          <Button
-                            size="sm"
-                            onClick={() => handleProcess(item.receiptId)}
-                            disabled={loadingId === item.receiptId}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-                          >
-                            {loadingId === item.receiptId ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <>
-                                Process <ArrowRight className="w-4 h-4 ml-1.5" />
-                              </>
-                            )}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                          {/* Action */}
+                          <TableCell className="text-right pr-6">
+                            <Button
+                              size="sm"
+                              onClick={() => handleProcess(item.receiptId)}
+                              disabled={loadingId === item.receiptId}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                            >
+                              {loadingId === item.receiptId ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <>
+                                  Process{" "}
+                                  <ArrowRight className="w-4 h-4 ml-1.5" />
+                                </>
+                              )}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              {!isLoading && filteredData.length > 0 && (
+                <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                  <div className="text-sm text-slate-500">
+                    Showing{" "}
+                    <span className="font-medium text-slate-900">
+                      {startIndex + 1}
+                    </span>{" "}
+                    to{" "}
+                    <span className="font-medium text-slate-900">
+                      {Math.min(endIndex, filteredData.length)}
+                    </span>{" "}
+                    of{" "}
+                    <span className="font-medium text-slate-900">
+                      {filteredData.length}
+                    </span>{" "}
+                    results
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(prev - 1, 1))
+                      }
+                      disabled={currentPage === 1}
+                      className="h-8"
+                    >
+                      <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                    </Button>
+                    <div className="text-sm font-medium text-slate-600 px-2">
+                      Page {currentPage} of {totalPages}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                      }
+                      disabled={currentPage === totalPages}
+                      className="h-8"
+                    >
+                      Next <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
