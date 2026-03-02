@@ -10,6 +10,7 @@
         //public string? SupplierName { get; set; }
         public DateTime? ReceiptDate { get; set; }
         public string? Status { get; set; }
+        public string? RejectionReason { get; set; }
         public int ItemCount { get; set; }
         public string CreatedByName { get; set; } = string.Empty;
     }

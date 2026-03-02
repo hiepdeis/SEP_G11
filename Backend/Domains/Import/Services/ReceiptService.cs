@@ -142,6 +142,7 @@ namespace Backend.Domains.Import.Services
                     WarehouseId = r.WarehouseId,
                     WarehouseName = r.Warehouse != null ? r.Warehouse.Name : null,
                     ReceiptDate = r.ReceiptDate,
+                    RejectionReason = r.RejectionReason,
                     Status = r.Status,
                     ItemCount = r.ReceiptDetails.Count,
                     CreatedByName = r.CreatedByNavigation != null
@@ -583,7 +584,7 @@ namespace Backend.Domains.Import.Services
                                         .ThenInclude(rd => rd.Material)
                                         .Include(r => r.ReceiptDetails)
                                         .ThenInclude(rd => rd.Supplier)
-                            .Where(r => r.Status == "Approved")
+                            .Where(r => r.Status == "Approved" || r.Status == "Completed")
                             .OrderByDescending(r => r.ApprovedAt)
                             .Select(r => new GetInboundRequestListDto
                             {
@@ -778,7 +779,7 @@ namespace Backend.Domains.Import.Services
                         ParentRequestId = receiptId,
                         Status = "Backorder",
                         WarehouseId = receipt.WarehouseId,
-                        ConfirmedBy = staffId,
+                        ConfirmedBy = receipt.ConfirmedBy,
                         ReceiptDate = DateTime.UtcNow,
                         BackorderReason = $"Auto-generated backorder from receipt {receipt.ReceiptCode}",
                     };
