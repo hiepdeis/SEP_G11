@@ -237,6 +237,8 @@ namespace Backend.Domains.Import.Services
 
             // Step 3: Update receipt
             receipt.AccountantNotes = dto.Notes;
+            receipt.WarehouseId = dto.WarehouseId;
+
 
             // Step 4: Update receipt details
             foreach (var item in dto.Items)
@@ -255,6 +257,44 @@ namespace Backend.Domains.Import.Services
             // Step 6: Save changes
             _context.Receipts.Update(receipt);
             await _context.SaveChangesAsync();
+        }
+
+        public async Task RevertToDraftAsync(long receiptId, int accountantId)
+        {
+            var receipt = await _context.Receipts
+                .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
+
+            if (receipt == null)
+                throw new KeyNotFoundException("Receipt not found");
+
+            if (receipt.Status != "Rejected")
+                throw new InvalidOperationException(
+                    $"Only Rejected receipts can be reverted. Current status: {receipt.Status}");
+
+            receipt.Status = "Draft";
+
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<List<ReceiptRejectionHistoryDto>> GetRejectionHistoryAsync(long receiptId)
+        {
+            var receipt = await _context.Receipts
+                .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
+
+            if (receipt == null)
+                throw new KeyNotFoundException("Receipt not found");
+
+            return await _context.ReceiptRejectionHistories
+                .Where(h => h.ReceiptId == receiptId)
+                .OrderByDescending(h => h.RejectedAt)
+                .Select(h => new ReceiptRejectionHistoryDto
+                {
+                    Id = h.Id,
+                    RejectorName = h.Rejector.FullName,
+                    RejectedAt = h.RejectedAt,
+                    RejectionReason = h.RejectionReason
+                })
+                .ToListAsync();
         }
 
         #endregion
@@ -517,6 +557,16 @@ namespace Backend.Domains.Import.Services
             receipt.RejectedBy = managerId;
             receipt.RejectedAt = DateTime.UtcNow;
             receipt.RejectionReason = dto.RejectionReason;
+
+            // Insert history row to preserve full audit trail across multiple rejections
+            var history = new ReceiptRejectionHistory
+            {
+                ReceiptId = receiptId,
+                RejectedBy = managerId,
+                RejectedAt = DateTime.UtcNow,
+                RejectionReason = dto.RejectionReason
+            };
+            await _context.ReceiptRejectionHistories.AddAsync(history);
 
             await _context.SaveChangesAsync();
         }

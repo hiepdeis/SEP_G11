@@ -66,7 +66,10 @@ public partial class Receipt
     [InverseProperty("Receipt")]
     public virtual ICollection<ReceiptDetail> ReceiptDetails { get; set; } = new List<ReceiptDetail>();
 
- 
+    [InverseProperty("Receipt")]
+    public virtual ICollection<ReceiptRejectionHistory> RejectionHistories { get; set; } = new List<ReceiptRejectionHistory>();
+
+
     [ForeignKey("WarehouseId")]
     [InverseProperty("Receipts")]
     public virtual Warehouse Warehouse { get; set; } = null!;
