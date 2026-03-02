@@ -43,6 +43,8 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<ReceiptDetail> ReceiptDetails { get; set; }
 
+    public virtual DbSet<ReceiptRejectionHistory> ReceiptRejectionHistories { get; set; }
+
     public virtual DbSet<Role> Roles { get; set; }
 
     public virtual DbSet<StockTake> StockTakes { get; set; }
@@ -291,7 +293,6 @@ public partial class MyDbContext : DbContext
                .HasColumnName("SubmittedBy");
 
             entity.Property(e => e.SubmittedAt)
-                .HasDefaultValueSql("(getdate())")
                 .HasColumnName("SubmittedAt")
                 .HasColumnType("datetime");
 
@@ -564,6 +565,21 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
             entity.Property(e => e.Address).HasMaxLength(255);
             entity.Property(e => e.Name).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<ReceiptRejectionHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne(e => e.Receipt)
+                .WithMany(r => r.RejectionHistories)
+                .HasForeignKey(e => e.ReceiptId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Rejector)
+                .WithMany()
+                .HasForeignKey(e => e.RejectedBy)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         OnModelCreatingPartial(modelBuilder);

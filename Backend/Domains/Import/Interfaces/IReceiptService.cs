@@ -47,6 +47,17 @@ namespace Backend.Domains.Import.Interfaces
         /// </summary>
         Task SubmitForApprovalAsync(long receiptId, int accountantId);
 
+        /// <summary>
+        /// Revert Draft to previous state (Submitted -> Draft)
+        /// </summary>
+        Task RevertToDraftAsync(long receiptId, int accountantId);
+
+        /// <summary>
+        /// Get rejection history for a receipt
+        /// </summary>
+        Task<List<ReceiptRejectionHistoryDto>> GetRejectionHistoryAsync(long receiptId);
+
+
         // Manager Approval flow
         Task<List<PendingReceiptDto>> GetReceiptForManagerReviewAsync();
         Task ApproveReceiptAsync(long receiptId, int managerId, ApproveReceiptDto dto);

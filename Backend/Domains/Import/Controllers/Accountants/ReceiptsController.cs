@@ -1,4 +1,5 @@
 ﻿using Backend.Domains.Import.DTOs.Accountants;
+using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -156,6 +157,47 @@ namespace Backend.Domains.Import.Controllers.Accountants
             catch (Exception ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("{id}/revert-to-draft")]
+        public async Task<IActionResult> RevertToDraft(long id)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                await _receiptService.RevertToDraftAsync(id, currentUserId);
+                return Ok(new { message = "Receipt reverted to Draft. You can now edit and resubmit." });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
+
+        [HttpGet("{id}/rejection-history")]
+        public async Task<IActionResult> GetRejectionHistory(long id)
+        {
+            try
+            {
+                var history = await _receiptService.GetRejectionHistoryAsync(id);
+                return Ok(history);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
             }
         }
     }
