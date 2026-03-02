@@ -10,9 +10,11 @@ namespace Backend.Domains.Import.Controllers.Staff
     public class StaffReceiptsController : ControllerBase
     {
         private readonly IReceiptService _receiptService;
-        public StaffReceiptsController(IReceiptService receiptService)
+        private readonly IBinLocationService _binLocationService;
+        public StaffReceiptsController(IReceiptService receiptService, IBinLocationService binLocationService)
         {
             _receiptService = receiptService;
+            _binLocationService = binLocationService;
         }
 
         [HttpGet("inbound-requests")]
@@ -69,6 +71,20 @@ namespace Backend.Domains.Import.Controllers.Staff
             catch (ArgumentException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
+
+        [HttpGet("binLocation-requests")]
+        public async Task<IActionResult> GetAllBinLocation()
+        {
+            try
+            {
+                var binLocation = await _binLocationService.GetAllBinLocationAsyn();
+                return Ok(binLocation);
             }
             catch (Exception ex)
             {
