@@ -11,3 +11,20 @@ CREATE TABLE ReceiptRejectionHistory (
     -- FK
     FOREIGN KEY (ReceiptId) REFERENCES Receipts(ReceiptId)
 )
+
+------------------------------------------------
+ALTER TABLE InventoryCurrents ALTER COLUMN WarehouseID INT NULL; 
+
+
+------------------------------------------------
+ALTER TABLE Receipts DROP COLUMN Notes;
+
+ALTER TABLE Receipts
+ADD 
+    RejectedBy INT NULL,
+    RejectedAt DATETIME NULL,
+    ConfirmedBy INT NULL,
+    ImportedCompleteNote NVARCHAR(500) NULL,
+    RejectionReason NVARCHAR(500) NULL,
+    AccountantNotes NVARCHAR(500) NULL,
+    BackorderReason NVARCHAR(500) NULL;

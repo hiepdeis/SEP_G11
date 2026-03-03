@@ -16,7 +16,16 @@ namespace Backend.Domains.Import.Services
 
         public async Task<List<BinLocation>> GetAllBinLocationAsyn()
         {
-            return await _context.BinLocations.ToListAsync();
+            return await _context.BinLocations.Select(c => new BinLocation
+            {
+                BinId = c.BinId,
+                Code = c.Code,
+                Warehouse = c.Warehouse == null ? null : new Warehouse
+                {
+                    WarehouseId = c.Warehouse.WarehouseId,
+                    Name = c.Warehouse.Name
+                }
+            }).ToListAsync();
         }
     }
 }

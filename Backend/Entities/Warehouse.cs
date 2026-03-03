@@ -38,4 +38,7 @@ public partial class Warehouse
 
     [InverseProperty("Warehouse")]
     public virtual ICollection<TransferOrder> TransferOrders { get; set; } = new List<TransferOrder>();
+
+    [InverseProperty("Warehouse")]
+    public virtual ICollection<WarehouseCard> WarehouseCards { get; set; } = new List<WarehouseCard>();
 }

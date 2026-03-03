@@ -91,5 +91,42 @@ namespace Backend.Domains.Import.Controllers.Staff
                 return StatusCode(500, new { message = "Internal server error", error = ex.Message });
             }
         }
+
+        /// Warehouse cards list, support filter: warehouseId, materialId, binId, fromDate, toDate, transactionType.
+        [HttpGet("warehouse-cards")]
+        public async Task<IActionResult> GetWarehouseCards([FromQuery] WarehouseCardQueryDto query)
+        {
+            try
+            {
+                var cards = await _receiptService.GetWarehouseCardsAsync(query);
+                return Ok(cards);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// GET /api/staffreceipts/warehouse-cards/{materialId}
+        /// Get warehouse cards for a specific material, sorted by transaction date descending.
+        /// </summary>
+        [HttpGet("warehouse-cards/{materialId:int}")]
+        public async Task<IActionResult> GetWarehouseCardsByMaterial(int materialId)
+        {
+            try
+            {
+                var cards = await _receiptService.GetWarehouseCardsByMaterialAsync(materialId);
+                return Ok(cards);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
     }
 }
