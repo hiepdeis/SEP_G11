@@ -9,6 +9,7 @@
         public DateTime? ReceiptApprovalDate { get; set; }
         public decimal TotalQuantity { get; set; }
         public List<GetInboundRequestItemDto> Items { get; set; }
+        public string? Status { get; set; }
     }
 
     public class GetInboundRequestItemDto

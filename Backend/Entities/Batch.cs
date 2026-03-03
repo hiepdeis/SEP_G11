@@ -49,4 +49,7 @@ public partial class Batch
 
     [InverseProperty("Batch")]
     public virtual ICollection<TransferDetail> TransferDetails { get; set; } = new List<TransferDetail>();
+
+    [InverseProperty("Batch")]
+    public virtual ICollection<WarehouseCard> WarehouseCards { get; set; } = new List<WarehouseCard>();
 }

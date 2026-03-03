@@ -41,4 +41,7 @@ public partial class BinLocation
     [ForeignKey("WarehouseId")]
     [InverseProperty("BinLocations")]
     public virtual Warehouse Warehouse { get; set; } = null!;
+
+    [InverseProperty("Bin")]
+    public virtual ICollection<WarehouseCard> WarehouseCards { get; set; } = new List<WarehouseCard>();
 }

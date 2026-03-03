@@ -63,6 +63,9 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<Warehouse> Warehouses { get; set; }
 
+    public virtual DbSet<WarehouseCard> WarehouseCards { get; set; }
+
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Batch>(entity =>
@@ -580,6 +583,59 @@ public partial class MyDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.RejectedBy)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<WarehouseCard>(entity =>
+        {
+            entity.HasKey(e => e.CardId).HasName("PK_WarehouseCards");
+
+            entity.HasIndex(e => e.CardCode, "UQ_WarehouseCards_CardCode").IsUnique();
+
+            entity.Property(e => e.CardId).HasColumnName("CardID");
+            entity.Property(e => e.CardCode)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
+            entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
+            entity.Property(e => e.BinId).HasColumnName("BinID");
+            entity.Property(e => e.BatchId).HasColumnName("BatchID");
+            entity.Property(e => e.ReferenceId).HasColumnName("ReferenceID");
+            entity.Property(e => e.TransactionType)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.ReferenceType)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.TransactionDate).HasColumnType("datetime");
+            entity.Property(e => e.Quantity).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.QuantityBefore).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.QuantityAfter).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.Notes).HasMaxLength(500);
+
+            entity.HasOne(d => d.Warehouse)
+                .WithMany(p => p.WarehouseCards)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_WarehouseCards_Warehouses");
+
+            entity.HasOne(d => d.Material)
+                .WithMany(p => p.WarehouseCards)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_WarehouseCards_Materials");
+
+            entity.HasOne(d => d.Bin)
+                .WithMany(p => p.WarehouseCards)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_WarehouseCards_BinLocations");
+
+            entity.HasOne(d => d.Batch)
+                .WithMany(p => p.WarehouseCards)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_WarehouseCards_Batches");
+
+            entity.HasOne(d => d.CreatedByNavigation)
+                .WithMany(p => p.WarehouseCards)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_WarehouseCards_Users");
         });
 
         OnModelCreatingPartial(modelBuilder);
