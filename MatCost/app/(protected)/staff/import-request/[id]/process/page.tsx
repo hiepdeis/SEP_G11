@@ -583,7 +583,7 @@ export default function StaffInboundProcessPage() {
                                   key={bin.binId}
                                   value={bin.binId.toString()}
                                 >
-                                  {bin.code}
+                                  {bin.warehouse?.name} - {bin.code}
                                 </SelectItem>
                               ))}
                             </SelectContent>

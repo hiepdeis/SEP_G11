@@ -232,6 +232,7 @@ export interface GetInboundRequestListDto {
   receiptApprovalDate: string | null; // DateTime?
   totalQuantity: number; // decimal
   items: GetInboundRequestItemDto[];
+  status: string;
 }
 
 export interface ConfirmGoodsReceiptItemDto {
@@ -250,10 +251,46 @@ export interface ConfirmGoodsReceiptDto {
 
 export interface BinLocationDto {
   binId: number;
-  warehouseId: number;
-  warehouseName: string;
   code: string;
-  type: string;
+  type: string | null;
+  warehouse: {
+    warehouseId: number;
+    name: string;
+  } | null;
+}
+
+export interface WarehouseCardDto {
+  cardId: number;
+  cardCode: string;
+  warehouseId: number;
+  warehouseName: string | null;
+  materialId: number;
+  materialCode: string | null;
+  materialName: string | null;
+  materialUnit: string | null;
+  binId: number;
+  binCode: string | null;
+  batchId: number;
+  batchCode: string | null;
+  transactionType: string; // "import", "export", "stocktake", "loss", "transfer"
+  referenceId: number;
+  referenceType: string;
+  transactionDate: string; // DateTime (ISO string)
+  quantity: number;
+  quantityBefore: number;
+  quantityAfter: number;
+  createdBy: number;
+  createdByName: string | null;
+  notes: string | null;
+}
+
+export interface WarehouseCardQueryDto {
+  warehouseId?: number;
+  materialId?: number;
+  binId?: number;
+  fromDate?: string; // YYYY-MM-DD
+  toDate?: string; // YYYY-MM-DD
+  transactionType?: string;
 }
 
 // ==========================================
@@ -283,6 +320,19 @@ export const staffReceiptApi = {
   getAllBinLocation: () => {
     return axiosClient.get<BinLocationDto[]>(
       "/StaffReceipts/binLocation-requests",
+    );
+  },
+
+  getWarehouseCards: (params: WarehouseCardQueryDto) => {
+    return axiosClient.get<WarehouseCardDto[]>(
+      "/StaffReceipts/warehouse-cards",
+      { params },
+    );
+  },
+
+  getWarehouseCardsByMaterial: (materialId: number) => {
+    return axiosClient.get<WarehouseCardDto[]>(
+      `/StaffReceipts/warehouse-cards/${materialId}`,
     );
   },
 };

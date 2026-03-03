@@ -14,7 +14,8 @@ import {
   File,
   BadgeX,
   ChevronLeft, 
-  ChevronRight, 
+  ChevronRight,
+  RotateCcw, 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -372,16 +373,21 @@ export default function ImportApprovalListPage() {
                                 handleReview(item.receiptId, item.status!)
                               }
                               disabled={loadingId === item.receiptId}
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                              variant={item.status === "Rejected" ? "outline" : "default"}
+                              className={item.status === "Rejected" 
+                                ? "text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-primary" 
+                                : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                              }
                             >
                               {loadingId === item.receiptId ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : item.status === "Rejected" ? (
+                                <>
+                                  Revert to Draft <RotateCcw className="w-4 h-4 ml-1.5" />
+                                </>
                               ) : (
                                 <>
-                                  {item.status == "Rejected"
-                                    ? "Revert to Draft"
-                                    : "Review"}{" "}
-                                  <ArrowRight className="w-4 h-4 ml-1.5" />
+                                  Process <ArrowRight className="w-4 h-4 ml-1.5" />
                                 </>
                               )}
                             </Button>

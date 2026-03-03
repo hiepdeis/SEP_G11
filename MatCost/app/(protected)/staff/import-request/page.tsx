@@ -11,12 +11,13 @@ import {
   Loader2,
   CalendarDays,
   MapPin,
-  Package, // Thay DollarSign bằng Package
+  Package,
   Truck,
   ClipboardList,
   AlertCircle,
   ChevronLeft,
   ChevronRight,
+  Eye, // <-- Thêm icon Eye nếu cần cho trạng thái Completed
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +34,7 @@ import {
 import {
   staffReceiptApi,
   GetInboundRequestListDto,
-} from "@/services/receipt-service"; // Đảm bảo import đúng file service bạn vừa tạo
+} from "@/services/receipt-service";
 
 export default function StaffInboundPage() {
   const router = useRouter();
@@ -42,6 +43,9 @@ export default function StaffInboundPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // 1. THÊM STATE CHO FILTER
+  const [filterStatus, setFilterStatus] = useState<"All" | "Approved" | "Completed">("Approved");
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -62,20 +66,29 @@ export default function StaffInboundPage() {
     fetchData();
   }, []);
 
+  // 2. CẬP NHẬT LOGIC LỌC DỮ LIỆU
   const filteredData = requests.filter((item) => {
+    // Lọc theo trạng thái
+    let matchesStatus = true;
+    if (filterStatus !== "All") {
+      matchesStatus = item.status === filterStatus;
+    }
+
+    // Lọc theo text search
     const term = searchTerm.toLowerCase();
     const matchesSearch =
       item.receiptCode.toLowerCase().includes(term) ||
       (item.warehouseName && item.warehouseName.toLowerCase().includes(term));
 
-    return matchesSearch;
+    return matchesStatus && matchesSearch;
   });
 
+  // 3. RESET TRANG KHI ĐỔI TAB HOẶC SEARCH
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, filterStatus]);
 
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedData = filteredData.slice(startIndex, endIndex);
@@ -111,7 +124,7 @@ export default function StaffInboundPage() {
             </p>
           </div>
 
-          {/* KPI Cards */}
+          {/* KPI Cards (Giữ nguyên) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
@@ -123,7 +136,7 @@ export default function StaffInboundPage() {
                     Pending Shipments
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {requests.length}
+                    {requests.filter(r => r.status === "Approved").length} {/* Cập nhật đếm số lượng pending */}
                   </h3>
                 </div>
               </CardContent>
@@ -139,7 +152,6 @@ export default function StaffInboundPage() {
                     Total Items Quantity
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {/* Tính tổng số lượng thay vì tổng tiền */}
                     {requests
                       .reduce((sum, item) => sum + (item.totalQuantity || 0), 0)
                       .toLocaleString("vi-VN")}
@@ -173,17 +185,45 @@ export default function StaffInboundPage() {
           </div>
 
           {/* Main List Table */}
-          <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] gap-0 pb-0">
-            <CardHeader className="border-b border-slate-100 pb-4">
+          <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] gap-0 pb-0 flex flex-col">
+            <CardHeader className="border-b border-slate-100 pb-4 shrink-0">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  {/* Staff view is usually simpler, simplified filters */}
-                  <Badge
-                    variant="secondary"
-                    className="px-3 py-1 h-9 text-sm font-medium bg-slate-100 text-slate-600"
+                
+                {/* 4. TẠO CÁC NÚT TAB FILTER Ở ĐÂY */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant={filterStatus === "Approved" ? "default" : "outline"}
+                    onClick={() => setFilterStatus("Approved")}
+                    className={
+                      filterStatus === "Approved"
+                        ? "bg-indigo-600 hover:bg-indigo-700"
+                        : "hover:text-white"
+                    }
                   >
-                    Status: Approved / Ready to Inbound
-                  </Badge>
+                    Approved (To Do)
+                  </Button>
+                  <Button
+                    variant={filterStatus === "Completed" ? "default" : "outline"}
+                    onClick={() => setFilterStatus("Completed")}
+                    className={
+                      filterStatus === "Completed"
+                        ? "bg-indigo-600 hover:bg-indigo-700"
+                        : "hover:text-white"
+                    }
+                  >
+                    Completed
+                  </Button>
+                  <Button
+                    variant={filterStatus === "All" ? "default" : "outline"}
+                    onClick={() => setFilterStatus("All")}
+                    className={
+                      filterStatus === "All"
+                        ? "bg-indigo-600 hover:bg-indigo-700"
+                        : "hover:text-white"
+                    }
+                  >
+                    All
+                  </Button>
                 </div>
 
                 <div className="relative w-full md:w-64">
@@ -205,12 +245,8 @@ export default function StaffInboundPage() {
                     <TableRow className="bg-slate-50">
                       <TableHead className="pl-6">Receipt Code</TableHead>
                       <TableHead>Warehouse</TableHead>
-                      <TableHead className="text-center">
-                        Approval Date
-                      </TableHead>
-                      <TableHead className="text-center">
-                        Total Quantity
-                      </TableHead>
+                      <TableHead className="text-center">Approval Date</TableHead>
+                      <TableHead className="text-center">Total Quantity</TableHead>
                       <TableHead className="text-center">Status</TableHead>
                       <TableHead className="text-right pr-6">Action</TableHead>
                     </TableRow>
@@ -220,20 +256,16 @@ export default function StaffInboundPage() {
                       <TableRow>
                         <TableCell colSpan={6} className="h-32 text-center">
                           <div className="flex justify-center items-center gap-2 text-indigo-600">
-                            <Loader2 className="w-6 h-6 animate-spin" /> Loading
-                            inbound requests...
+                            <Loader2 className="w-6 h-6 animate-spin" /> Loading inbound requests...
                           </div>
                         </TableCell>
                       </TableRow>
                     ) : paginatedData.length === 0 ? (
                       <TableRow>
-                        <TableCell
-                          colSpan={6}
-                          className="h-32 text-center text-slate-500 hover:slate-50"
-                        >
+                        <TableCell colSpan={6} className="h-32 text-center text-slate-500 hover:slate-50">
                           <div className="flex flex-col items-center justify-center gap-2">
                             <AlertCircle className="w-8 h-8 text-slate-300" />
-                            <p>No pending inbound requests found.</p>
+                            <p>No requests found for this filter.</p>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -243,16 +275,12 @@ export default function StaffInboundPage() {
                           key={item.receiptCode}
                           className="group hover:bg-slate-50/50 transition-colors"
                         >
-                          {/* Receipt Code */}
                           <TableCell className="pl-6">
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-slate-700">
-                                {item.receiptCode}
-                              </span>
-                            </div>
+                            <span className="font-semibold text-slate-700">
+                              {item.receiptCode}
+                            </span>
                           </TableCell>
 
-                          {/* Warehouse */}
                           <TableCell>
                             <div className="flex items-center gap-2 text-slate-600">
                               <MapPin className="w-4 h-4 text-slate-400" />
@@ -260,7 +288,6 @@ export default function StaffInboundPage() {
                             </div>
                           </TableCell>
 
-                          {/* Approval Date */}
                           <TableCell className="text-center">
                             <span className="text-sm text-slate-600 flex items-center justify-center gap-1">
                               <CalendarDays className="w-3 h-3 text-slate-400" />{" "}
@@ -268,7 +295,6 @@ export default function StaffInboundPage() {
                             </span>
                           </TableCell>
 
-                          {/* Total Quantity (Thay vì Total Amount) */}
                           <TableCell className="text-center">
                             <div className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md">
                               <Package className="w-3.5 h-3.5 text-slate-500" />
@@ -278,30 +304,43 @@ export default function StaffInboundPage() {
                             </div>
                           </TableCell>
 
-                          {/* Status (Luôn là Approved theo logic API) */}
+                          {/* 5. CẬP NHẬT MÀU STATUS ĐỘNG THEO API */}
                           <TableCell className="text-center">
                             <Badge
                               variant="outline"
-                              className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                              className={
+                                item.status === "Completed"
+                                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                                  : item.status === "Approved"
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                  : "bg-slate-50 text-slate-700 border-slate-200"
+                              }
                             >
-                              Ready to Inbound
+                              {item.status}
                             </Badge>
                           </TableCell>
 
-                          {/* Action */}
+                          {/* 6. ACTION BUTTON ĐỔI TÊN THEO STATUS */}
                           <TableCell className="text-right pr-6">
                             <Button
                               size="sm"
                               onClick={() => handleProcess(item.receiptId)}
                               disabled={loadingId === item.receiptId}
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                              variant={item.status === "Completed" ? "outline" : "default"}
+                              className={item.status === "Completed" 
+                                ? "text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-primary" 
+                                : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                              }
                             >
                               {loadingId === item.receiptId ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : item.status === "Completed" ? (
+                                <>
+                                  View <Eye className="w-4 h-4 ml-1.5" />
+                                </>
                               ) : (
                                 <>
-                                  Process{" "}
-                                  <ArrowRight className="w-4 h-4 ml-1.5" />
+                                  Process <ArrowRight className="w-4 h-4 ml-1.5" />
                                 </>
                               )}
                             </Button>
@@ -312,31 +351,23 @@ export default function StaffInboundPage() {
                   </TableBody>
                 </Table>
               </div>
+
+              {/* Phân trang */}
               {!isLoading && filteredData.length > 0 && (
-                <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 mt-auto">
                   <div className="text-sm text-slate-500">
-                    Showing{" "}
-                    <span className="font-medium text-slate-900">
-                      {startIndex + 1}
-                    </span>{" "}
-                    to{" "}
+                    Showing <span className="font-medium text-slate-900">{startIndex + 1}</span> to{" "}
                     <span className="font-medium text-slate-900">
                       {Math.min(endIndex, filteredData.length)}
                     </span>{" "}
-                    of{" "}
-                    <span className="font-medium text-slate-900">
-                      {filteredData.length}
-                    </span>{" "}
-                    results
+                    of <span className="font-medium text-slate-900">{filteredData.length}</span> results
                   </div>
 
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.max(prev - 1, 1))
-                      }
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                       disabled={currentPage === 1}
                       className="h-8"
                     >
@@ -348,9 +379,7 @@ export default function StaffInboundPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                      }
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                       disabled={currentPage === totalPages}
                       className="h-8"
                     >
