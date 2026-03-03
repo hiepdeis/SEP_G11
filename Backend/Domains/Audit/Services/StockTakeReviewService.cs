@@ -34,6 +34,73 @@ namespace Backend.Domains.Audit.Services
             return null;
         }
 
+        private IQueryable<Backend.Entities.InventoryCurrent> BuildScopedInventoryQuery(int stockTakeId, int warehouseId)
+        {
+            var scopedBinIds = _db.StockTakeBinLocations
+                .AsNoTracking()
+                .Where(x => x.StockTakeId == stockTakeId)
+                .Select(x => x.BinId);
+
+            return _db.InventoryCurrents
+                .AsNoTracking()
+                .Where(x => x.WarehouseId == warehouseId &&
+                           (!scopedBinIds.Any() || scopedBinIds.Contains(x.BinId)));
+        }
+
+        private async Task<List<int>> GetScopeBinIdsAsync(int stockTakeId, CancellationToken ct)
+        {
+            return await _db.StockTakeBinLocations
+                .AsNoTracking()
+                .Where(x => x.StockTakeId == stockTakeId)
+                .Select(x => x.BinId)
+                .ToListAsync(ct);
+        }
+
+        private async Task<bool> HasConflictingLockForScopeAsync(
+            int warehouseId,
+            int currentStockTakeId,
+            bool isWarehouseScope,
+            List<int> currentScopeBinIds,
+            CancellationToken ct)
+        {
+            var otherActiveAuditIds = await _db.StockTakes
+                .AsNoTracking()
+                .Where(x =>
+                    x.StockTakeId != currentStockTakeId &&
+                    x.WarehouseId == warehouseId &&
+                    x.CompletedAt == null &&
+                    (
+                        x.LockedBy != null ||
+                        (x.Status != null && x.Status.ToLower() == "inprogress")
+                    ))
+                .Select(x => x.StockTakeId)
+                .ToListAsync(ct);
+
+            if (otherActiveAuditIds.Count == 0)
+                return false;
+
+            if (isWarehouseScope)
+                return true;
+
+            var otherAssignedBins = await _db.StockTakeBinLocations
+                .AsNoTracking()
+                .Where(x => otherActiveAuditIds.Contains(x.StockTakeId))
+                .Select(x => new { x.StockTakeId, x.BinId })
+                .ToListAsync(ct);
+
+            var scopedAuditIds = otherAssignedBins
+                .Select(x => x.StockTakeId)
+                .Distinct()
+                .ToHashSet();
+
+            var hasWarehouseScopeLock = otherActiveAuditIds.Any(id => !scopedAuditIds.Contains(id));
+            if (hasWarehouseScopeLock)
+                return true;
+
+            var currentScopeSet = currentScopeBinIds.ToHashSet();
+            return otherAssignedBins.Any(x => currentScopeSet.Contains(x.BinId));
+        }
+
         public async Task<(List<AuditListItemDto> items, int total)> GetAllAuditsAsync(
             int skip,
             int take,
@@ -87,10 +154,9 @@ namespace Backend.Domains.Audit.Services
 
             foreach (var st in audits)
             {
-                // Get item counts
-                var totalItems = await _db.InventoryCurrents
-                    .AsNoTracking()
-                    .CountAsync(x => x.WarehouseId == st.WarehouseId, ct);
+                // Get item counts in audit scope (bin-level or whole warehouse).
+                var totalItems = await BuildScopedInventoryQuery(st.StockTakeId, st.WarehouseId)
+                    .CountAsync(ct);
 
                 var countedItems = await _db.StockTakeDetails
                     .AsNoTracking()
@@ -154,9 +220,9 @@ namespace Backend.Domains.Audit.Services
                 throw new ArgumentException("Audit not found.");
 
             // === Loại vật liệu (distinct MaterialId) ===
-            var totalMaterials = await _db.InventoryCurrents
-                .AsNoTracking()
-                .Where(x => x.WarehouseId == st.WarehouseId)
+            var scopedInventoryQuery = BuildScopedInventoryQuery(stockTakeId, st.WarehouseId);
+
+            var totalMaterials = await scopedInventoryQuery
                 .Select(x => x.MaterialId)
                 .Distinct()
                 .CountAsync(ct);
@@ -171,9 +237,7 @@ namespace Backend.Domains.Audit.Services
             var uncountedMaterials = totalMaterials - countedMaterials;
 
             // === Số lượng items ===
-            var totalItems = await _db.InventoryCurrents
-                .AsNoTracking()
-                .CountAsync(x => x.WarehouseId == st.WarehouseId, ct);
+            var totalItems = await scopedInventoryQuery.CountAsync(ct);
 
             var countedItems = await _db.StockTakeDetails
                 .AsNoTracking()
@@ -586,9 +650,8 @@ namespace Backend.Domains.Audit.Services
                 .ToListAsync(ct);
 
             // Get metrics
-            var totalItems = await _db.InventoryCurrents
-                .AsNoTracking()
-                .CountAsync(x => x.WarehouseId == st.WarehouseId, ct);
+            var scopedInventoryQuery = BuildScopedInventoryQuery(stockTakeId, st.WarehouseId);
+            var totalItems = await scopedInventoryQuery.CountAsync(ct);
 
             var countedItems = await _db.StockTakeDetails
                 .AsNoTracking()
@@ -609,9 +672,7 @@ namespace Backend.Domains.Audit.Services
                     x.DiscrepancyStatus == "Discrepancy", ct);
 
             // Get materials
-            var totalMaterials = await _db.InventoryCurrents
-                .AsNoTracking()
-                .Where(x => x.WarehouseId == st.WarehouseId)
+            var totalMaterials = await scopedInventoryQuery
                 .Select(x => x.MaterialId)
                 .Distinct()
                 .CountAsync(ct);
@@ -809,6 +870,8 @@ namespace Backend.Domains.Audit.Services
             if (hasStaffSignature && hasManagerSignature)
             {
                 st.Status = "ReadyForReview";
+                // Counting phase is done, release active lock marker.
+                st.LockedBy = null;
             }
 
             await _db.SaveChangesAsync(ct);
@@ -823,6 +886,80 @@ namespace Backend.Domains.Audit.Services
             };
 
             return (true, "Signed off successfully", signatureDto);
+        }
+
+        public async Task<(bool success, string message)> LockAuditScopeAsync(
+            int stockTakeId,
+            int userId,
+            CancellationToken ct)
+        {
+            var st = await _db.StockTakes
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
+
+            if (st == null)
+                return (false, "Audit not found.");
+
+            if (st.CompletedAt != null || string.Equals(st.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+                return (false, "Audit is already completed.");
+
+            var scopeBinIds = await GetScopeBinIdsAsync(stockTakeId, ct);
+            var isWarehouseScope = scopeBinIds.Count == 0;
+
+            var hasConflict = await HasConflictingLockForScopeAsync(
+                st.WarehouseId,
+                stockTakeId,
+                isWarehouseScope,
+                scopeBinIds,
+                ct);
+
+            if (hasConflict)
+            {
+                return (false, isWarehouseScope
+                    ? "Warehouse is currently locked by another active audit."
+                    : "Some assigned BinLocation(s) are currently locked by another active audit.");
+            }
+
+            if (string.Equals(st.Status, "Planned", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(st.Status, "Assigned", StringComparison.OrdinalIgnoreCase))
+            {
+                st.Status = "InProgress";
+                st.CheckDate ??= DateTime.UtcNow;
+            }
+
+            st.LockedAt ??= DateTime.UtcNow;
+            st.LockedBy = userId;
+
+            await _db.SaveChangesAsync(ct);
+
+            return (true, isWarehouseScope
+                ? "Warehouse scope locked for audit."
+                : $"Locked {scopeBinIds.Count} BinLocation(s) for audit.");
+        }
+
+        public async Task<(bool success, string message)> UnlockAuditScopeAsync(
+            int stockTakeId,
+            int userId,
+            CancellationToken ct)
+        {
+            var st = await _db.StockTakes
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
+
+            if (st == null)
+                return (false, "Audit not found.");
+
+            if (st.CompletedAt != null || string.Equals(st.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+                return (false, "Audit is already completed.");
+
+            if (string.Equals(st.Status, "InProgress", StringComparison.OrdinalIgnoreCase))
+                return (false, "Cannot unlock while audit is InProgress.");
+
+            if (!st.LockedBy.HasValue)
+                return (true, "Audit scope is already unlocked.");
+
+            st.LockedBy = null;
+            await _db.SaveChangesAsync(ct);
+
+            return (true, "Audit scope unlocked.");
         }
 
         public async Task<(bool success, string message)> CompleteAuditAsync(
@@ -969,6 +1106,7 @@ namespace Backend.Domains.Audit.Services
             st.Status = "Completed";
             st.CompletedAt = postedAt;
             st.CompletedBy = managerId;
+            st.LockedBy = null;
             st.Notes = request.Notes?.Trim();
 
             await _db.SaveChangesAsync(ct);

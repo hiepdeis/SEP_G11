@@ -230,6 +230,38 @@ public class StockTakeReviewController : ControllerBase
         return Ok(new { message = "Audit signed off successfully.", signature });
     }
 
+    /// POST /api/manager/audits/{stockTakeId}/lock
+    /// Lock audit scope (assigned bins or whole warehouse)
+    [HttpPost("{stockTakeId:int}/lock")]
+    public async Task<IActionResult> LockAuditScope(
+        int stockTakeId,
+        CancellationToken ct = default)
+    {
+        var userId = GetUserId();
+        var (success, message) = await _service.LockAuditScopeAsync(stockTakeId, userId, ct);
+
+        if (!success)
+            return BadRequest(new { message });
+
+        return Ok(new { message });
+    }
+
+    /// POST /api/manager/audits/{stockTakeId}/unlock
+    /// Unlock audit scope
+    [HttpPost("{stockTakeId:int}/unlock")]
+    public async Task<IActionResult> UnlockAuditScope(
+        int stockTakeId,
+        CancellationToken ct = default)
+    {
+        var userId = GetUserId();
+        var (success, message) = await _service.UnlockAuditScopeAsync(stockTakeId, userId, ct);
+
+        if (!success)
+            return BadRequest(new { message });
+
+        return Ok(new { message });
+    }
+
     /// POST /api/manager/audits/{stockTakeId}/complete
     /// Manager completes the audit - final action
     [HttpPost("{stockTakeId:int}/complete")]

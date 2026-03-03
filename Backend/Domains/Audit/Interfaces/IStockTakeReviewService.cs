@@ -49,5 +49,13 @@ namespace Backend.Domains.Audit.Interfaces
             int managerId,
             CompleteAuditRequest request,
             CancellationToken ct);
+        Task<(bool success, string message)> LockAuditScopeAsync(
+            int stockTakeId,
+            int userId,
+            CancellationToken ct);
+        Task<(bool success, string message)> UnlockAuditScopeAsync(
+            int stockTakeId,
+            int userId,
+            CancellationToken ct);
     }
 }
