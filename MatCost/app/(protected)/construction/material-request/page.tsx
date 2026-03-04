@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Sidebar } from "@/components/sidebar";
-import { 
-  Plus, 
-  Loader2, 
-  Eye, 
+import {
+  Plus,
+  Loader2,
+  Eye,
   FileText,
-  ChevronLeft, // <-- Thêm import icon
-  ChevronRight // <-- Thêm import icon
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
@@ -31,15 +31,25 @@ import {
 import { importApi, CreateImportRequestDto } from "@/services/import-service";
 import { Header } from "@/components/ui/custom/header";
 import { useRouter } from "next/navigation";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function RequestListPage() {
   const router = useRouter();
   const [requests, setRequests] = useState<CreateImportRequestDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // STATE PHÂN TRANG
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5; // Số lượng hiển thị trên 1 trang
+  const [itemsPerPage, setItemsPerPage] = useState<number>(5);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [itemsPerPage]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -55,11 +65,11 @@ export default function RequestListPage() {
     fetchData();
   }, []);
 
-  // TÍNH TOÁN DỮ LIỆU PHÂN TRANG
-  const totalPages = Math.ceil(requests.length / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  // Cắt mảng để lấy dữ liệu trang hiện tại
+  const isAll = itemsPerPage === -1;
+  const totalPages = isAll ? 1 : Math.ceil(requests.length / itemsPerPage) || 1;
+  const startIndex =
+    (currentPage - 1) * (isAll ? requests.length : itemsPerPage);
+  const endIndex = isAll ? requests.length : startIndex + itemsPerPage;
   const paginatedData = requests.slice(startIndex, endIndex);
 
   return (
@@ -97,127 +107,175 @@ export default function RequestListPage() {
                 </div>
               ) : (
                 <>
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-slate-50 hover:bg-slate-50">
-                        <TableHead className="w-[100px] pl-6">No.</TableHead>
-                        <TableHead>Total Items</TableHead>
-                        <TableHead className="text-right pr-6">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedData.length === 0 ? (
-                        <TableRow>
-                          <TableCell
-                            colSpan={3}
-                            className="text-center py-12 text-slate-500 italic"
-                          >
-                            No requests found. Start by creating a new one.
-                          </TableCell>
+                  <div className="max-h-[350px] min-h-[350px] overflow-y-auto relative scrollbar-thin no-scrollbar">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50 hover:bg-slate-50">
+                          <TableHead className="w-[100px] pl-6">No.</TableHead>
+                          <TableHead>Total Items</TableHead>
+                          <TableHead className="text-right pr-6">
+                            Actions
+                          </TableHead>
                         </TableRow>
-                      ) : (
-                        paginatedData.map((req, index) => (
-                          <TableRow
-                            key={index}
-                            className="hover:bg-slate-50 transition-colors"
-                          >
-                            {/* Chú ý: Cần cộng thêm startIndex để số thứ tự không bị reset về 1 ở trang 2 */}
-                            <TableCell className="font-medium text-slate-700 pl-6">
-                              {startIndex + index + 1}
-                            </TableCell>
-                            <TableCell>
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                {req.items.length} materials
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-right pr-6">
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 gap-2 text-slate-600 hover:text-indigo-600 hover:border-indigo-200"
-                                  >
-                                    <Eye className="w-3.5 h-3.5" /> View Details
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-md bg-white">
-                                  <DialogHeader>
-                                    <DialogTitle>Request Details</DialogTitle>
-                                  </DialogHeader>
-
-                                  <div className="mt-4 border rounded-md overflow-hidden">
-                                    <Table>
-                                      <TableHeader>
-                                        <TableRow className="bg-slate-50">
-                                          <TableHead>Material Code</TableHead>
-                                          <TableHead className="text-right">
-                                            Quantity
-                                          </TableHead>
-                                        </TableRow>
-                                      </TableHeader>
-                                      <TableBody>
-                                        {req.items.map((item, idx) => (
-                                          <TableRow key={idx}>
-                                            <TableCell className="font-medium">
-                                              {item.materialCode}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                              {item.quantity}
-                                            </TableCell>
-                                          </TableRow>
-                                        ))}
-                                      </TableBody>
-                                    </Table>
-                                  </div>
-
-                                  <div className="flex justify-end mt-4">
-                                    <DialogTrigger asChild>
-                                      <Button variant="secondary">Close</Button>
-                                    </DialogTrigger>
-                                  </div>
-                                </DialogContent>
-                              </Dialog>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedData.length === 0 ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={3}
+                              className="text-center py-12 text-slate-500 italic"
+                            >
+                              No requests found. Start by creating a new one.
                             </TableCell>
                           </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
+                        ) : (
+                          paginatedData.map((req, index) => (
+                            <TableRow
+                              key={index}
+                              className="hover:bg-slate-50 transition-colors"
+                            >
+                              {/* Chú ý: Cần cộng thêm startIndex để số thứ tự không bị reset về 1 ở trang 2 */}
+                              <TableCell className="font-medium text-slate-700 pl-6">
+                                {startIndex + index + 1}
+                              </TableCell>
+                              <TableCell>
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  {req.items.length} materials
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right pr-6">
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-8 gap-2 text-slate-600 hover:text-indigo-600 hover:border-indigo-200"
+                                    >
+                                      <Eye className="w-3.5 h-3.5" /> View
+                                      Details
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-md bg-white">
+                                    <DialogHeader>
+                                      <DialogTitle>Request Details</DialogTitle>
+                                    </DialogHeader>
 
+                                    <div className="mt-4 border rounded-md overflow-hidden">
+                                      <Table>
+                                        <TableHeader>
+                                          <TableRow className="bg-slate-50">
+                                            <TableHead>Material Code</TableHead>
+                                            <TableHead className="text-right">
+                                              Quantity
+                                            </TableHead>
+                                          </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                          {req.items.map((item, idx) => (
+                                            <TableRow key={idx}>
+                                              <TableCell className="font-medium">
+                                                {item.materialCode}
+                                              </TableCell>
+                                              <TableCell className="text-right">
+                                                {item.quantity}
+                                              </TableCell>
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    </div>
+
+                                    <div className="flex justify-end mt-4">
+                                      <DialogTrigger asChild>
+                                        <Button variant="secondary">
+                                          Close
+                                        </Button>
+                                      </DialogTrigger>
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
                   {/* THANH PHÂN TRANG (PAGINATION CONTROLS) */}
                   {!isLoading && requests.length > 0 && (
-                    <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 mt-auto">
+                    <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 mt-auto gap-4">
                       <div className="text-sm text-slate-500">
-                        Showing <span className="font-medium text-slate-900">{startIndex + 1}</span> to{" "}
+                        Showing{" "}
+                        <span className="font-medium text-slate-900">
+                          {startIndex + 1}
+                        </span>{" "}
+                        to{" "}
                         <span className="font-medium text-slate-900">
                           {Math.min(endIndex, requests.length)}
                         </span>{" "}
-                        of <span className="font-medium text-slate-900">{requests.length}</span> requests
+                        of{" "}
+                        <span className="font-medium text-slate-900">
+                          {requests.length}
+                        </span>{" "}
+                        requests
                       </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                          disabled={currentPage === 1}
-                          className="h-8"
-                        >
-                          <ChevronLeft className="w-4 h-4 mr-1" /> Prev
-                        </Button>
-                        <div className="text-sm font-medium text-slate-600 px-2">
-                          Page {currentPage} of {totalPages}
+
+                      <div className="flex items-center gap-6">
+                        {/* Chọn số lượng item */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-slate-500 whitespace-nowrap">
+                            Rows per page:
+                          </span>
+                          <Select
+                            value={itemsPerPage.toString()}
+                            onValueChange={(val) =>
+                              setItemsPerPage(Number(val))
+                            }
+                          >
+                            <SelectTrigger className="h-8 w-[75px] bg-white border-slate-200">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="5">5</SelectItem>
+                              <SelectItem value="10">10</SelectItem>
+                              <SelectItem value="20">20</SelectItem>
+                              <SelectItem value="50">50</SelectItem>
+                              <SelectItem value="100">100</SelectItem>
+                              <SelectItem value="-1">All</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                          disabled={currentPage === totalPages}
-                          className="h-8"
-                        >
-                          Next <ChevronRight className="w-4 h-4 ml-1" />
-                        </Button>
+
+                        {/* Các nút chuyển trang */}
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setCurrentPage((prev) => Math.max(prev - 1, 1))
+                            }
+                            disabled={currentPage === 1}
+                            className="h-8"
+                          >
+                            <ChevronLeft className="w-4 h-4 mr-1" /> Prev
+                          </Button>
+                          <div className="text-sm font-medium text-slate-600 px-2 min-w-[80px] text-center">
+                            Page {currentPage} of {totalPages}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setCurrentPage((prev) =>
+                                Math.min(prev + 1, totalPages),
+                              )
+                            }
+                            disabled={currentPage === totalPages}
+                            className="h-8"
+                          >
+                            Next <ChevronRight className="w-4 h-4 ml-1" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )}

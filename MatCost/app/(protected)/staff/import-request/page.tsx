@@ -38,6 +38,13 @@ import {
   staffReceiptApi,
   GetInboundRequestListDto,
 } from "@/services/receipt-service";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function StaffInboundPage() {
   const router = useRouter();
@@ -47,13 +54,12 @@ export default function StaffInboundPage() {
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // 1. THÊM STATE CHO FILTER
   const [filterStatus, setFilterStatus] = useState<
     "All" | "Approved" | "Completed"
   >("Approved");
 
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const [itemsPerPage, setItemsPerPage] = useState<number>(5);
 
   const [sortConfig, setSortConfig] = useState<{
     key: "date" | "total";
@@ -88,9 +94,7 @@ export default function StaffInboundPage() {
     fetchData();
   }, []);
 
-  // 2. CẬP NHẬT LOGIC LỌC DỮ LIỆU
   const filteredData = requests.filter((item) => {
-    // Lọc theo trạng thái
     let matchesStatus = true;
     if (filterStatus !== "All") {
       matchesStatus = item.status === filterStatus;
@@ -127,14 +131,17 @@ export default function StaffInboundPage() {
     return 0;
   });
 
-  // 3. RESET TRANG KHI ĐỔI TAB HOẶC SEARCH
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterStatus]);
+  }, [searchTerm, filterStatus, sortConfig, itemsPerPage]);
 
-  const totalPages = Math.ceil(sortedData.length / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
+  const isAll = itemsPerPage === -1;
+  const totalPages = isAll
+    ? 1
+    : Math.ceil(sortedData.length / itemsPerPage) || 1;
+  const startIndex =
+    (currentPage - 1) * (isAll ? sortedData.length : itemsPerPage);
+  const endIndex = isAll ? sortedData.length : startIndex + itemsPerPage;
   const paginatedData = sortedData.slice(startIndex, endIndex);
 
   const handleProcess = (id: number) => {
@@ -234,44 +241,25 @@ export default function StaffInboundPage() {
             <CardHeader className="border-b border-slate-100 pb-4 shrink-0">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 {/* 4. TẠO CÁC NÚT TAB FILTER Ở ĐÂY */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    variant={
-                      filterStatus === "Approved" ? "default" : "outline"
-                    }
-                    onClick={() => setFilterStatus("Approved")}
-                    className={
-                      filterStatus === "Approved"
-                        ? "bg-indigo-600 hover:bg-indigo-700"
-                        : "hover:text-white"
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-slate-500 hidden md:block">
+                    Filter:
+                  </span>
+                  <Select
+                    value={filterStatus}
+                    onValueChange={(value: "Approved" | "Completed" | "All") =>
+                      setFilterStatus(value)
                     }
                   >
-                    Approved (To Do)
-                  </Button>
-                  <Button
-                    variant={
-                      filterStatus === "Completed" ? "default" : "outline"
-                    }
-                    onClick={() => setFilterStatus("Completed")}
-                    className={
-                      filterStatus === "Completed"
-                        ? "bg-indigo-600 hover:bg-indigo-700"
-                        : "hover:text-white"
-                    }
-                  >
-                    Completed
-                  </Button>
-                  <Button
-                    variant={filterStatus === "All" ? "default" : "outline"}
-                    onClick={() => setFilterStatus("All")}
-                    className={
-                      filterStatus === "All"
-                        ? "bg-indigo-600 hover:bg-indigo-700"
-                        : "hover:text-white"
-                    }
-                  >
-                    All
-                  </Button>
+                    <SelectTrigger className="w-full md:w-[180px] bg-white border-slate-200 shadow-sm">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Approved">Approved (To Do)</SelectItem>
+                      <SelectItem value="Completed">Completed</SelectItem>
+                      <SelectItem value="All">All</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="relative w-full md:w-64">
@@ -287,7 +275,7 @@ export default function StaffInboundPage() {
               </div>
             </CardHeader>
             <CardContent className="p-0 flex flex-col justify-between flex-1">
-              <div className="min-h-[300px]">
+              <div className="max-h-[350px] min-h-[350px] overflow-y-auto relative scrollbar-thin no-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50">
@@ -449,7 +437,7 @@ export default function StaffInboundPage() {
 
               {/* Phân trang */}
               {!isLoading && filteredData.length > 0 && (
-                <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 mt-auto">
+                <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 gap-4">
                   <div className="text-sm text-slate-500">
                     Showing{" "}
                     <span className="font-medium text-slate-900">
@@ -466,32 +454,59 @@ export default function StaffInboundPage() {
                     results
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.max(prev - 1, 1))
-                      }
-                      disabled={currentPage === 1}
-                      className="h-8"
-                    >
-                      <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-                    </Button>
-                    <div className="text-sm font-medium text-slate-600 px-2">
-                      Page {currentPage} of {totalPages}
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-slate-500 whitespace-nowrap">
+                        Rows per page:
+                      </span>
+                      <Select
+                        value={itemsPerPage.toString()}
+                        onValueChange={(val) => setItemsPerPage(Number(val))}
+                      >
+                        <SelectTrigger className="h-8 w-[75px] bg-white border-slate-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="20">20</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                          <SelectItem value="-1">All</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                      }
-                      disabled={currentPage === totalPages}
-                      className="h-8"
-                    >
-                      Next <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
+
+                    {/* Các nút chuyển trang */}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setCurrentPage((prev) => Math.max(prev - 1, 1))
+                        }
+                        disabled={currentPage === 1}
+                        className="h-8"
+                      >
+                        <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                      </Button>
+                      <div className="text-sm font-medium text-slate-600 px-2 min-w-[80px] text-center">
+                        Page {currentPage} of {totalPages}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setCurrentPage((prev) =>
+                            Math.min(prev + 1, totalPages),
+                          )
+                        }
+                        disabled={currentPage === totalPages}
+                        className="h-8"
+                      >
+                        Next <ChevronRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}

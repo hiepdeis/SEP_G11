@@ -12,7 +12,6 @@ import {
   Loader2,
   CalendarDays,
   MapPin,
-  Building2,
   DollarSign,
   FileText,
   FileMinus,
@@ -38,6 +37,13 @@ import {
   managerReceiptApi,
   PendingReceiptDto,
 } from "@/services/receipt-service";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function ManagerImportRequestPage() {
   const router = useRouter();
@@ -52,7 +58,7 @@ export default function ManagerImportRequestPage() {
   >("Submitted");
 
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const [itemsPerPage, setItemsPerPage] = useState<number>(5);
 
   const [sortConfig, setSortConfig] = useState<{
     key: "date" | "total";
@@ -89,7 +95,7 @@ export default function ManagerImportRequestPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterStatus]);
+  }, [searchTerm, filterStatus, sortConfig, itemsPerPage]);
 
   const filteredData = requests.filter((item) => {
     let matchesStatus = true;
@@ -126,9 +132,13 @@ export default function ManagerImportRequestPage() {
     return 0;
   });
 
-  const totalPages = Math.ceil(sortedData.length / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
+  const isAll = itemsPerPage === -1;
+  const totalPages = isAll
+    ? 1
+    : Math.ceil(sortedData.length / itemsPerPage) || 1;
+  const startIndex =
+    (currentPage - 1) * (isAll ? sortedData.length : itemsPerPage);
+  const endIndex = isAll ? sortedData.length : startIndex + itemsPerPage;
   const paginatedData = sortedData.slice(startIndex, endIndex);
 
   const handleReview = (id: number) => {
@@ -267,49 +277,34 @@ export default function ManagerImportRequestPage() {
           <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] gap-0 pb-0">
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                {/* Khối Dropdown Filter */}
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant={
-                      filterStatus === "Submitted" ? "default" : "outline"
-                    }
-                    onClick={() => setFilterStatus("Submitted")}
-                    className={
-                      filterStatus === "Submitted"
-                        ? "bg-indigo-600 hover:bg-indigo-700"
-                        : "hover:text-white"
+                  <span className="text-sm font-medium text-slate-500 hidden md:block">
+                    Filter:
+                  </span>
+                  <Select
+                    value={filterStatus}
+                    onValueChange={(value: "Submitted" | "History" | "All") =>
+                      setFilterStatus(value)
                     }
                   >
-                    Submitted
-                  </Button>
-                  <Button
-                    variant={filterStatus === "History" ? "default" : "outline"}
-                    onClick={() => setFilterStatus("History")}
-                    className={
-                      filterStatus === "History"
-                        ? "bg-indigo-600 hover:bg-indigo-700"
-                        : "hover:text-white"
-                    }
-                  >
-                    History
-                  </Button>
-                  <Button
-                    variant={filterStatus === "All" ? "default" : "outline"}
-                    onClick={() => setFilterStatus("All")}
-                    className={
-                      filterStatus === "All"
-                        ? "bg-indigo-600 hover:bg-indigo-700"
-                        : "hover:text-white"
-                    }
-                  >
-                    All
-                  </Button>
+                    <SelectTrigger className="w-full md:w-[180px] bg-white border-slate-200 shadow-sm">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Submitted">Submitted</SelectItem>
+                      <SelectItem value="History">History</SelectItem>
+                      <SelectItem value="All">All</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
+                {/* Khối Search Bar */}
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                   <Input
                     placeholder="Search Receipt Code..."
-                    className="pl-9"
+                    className="pl-9 bg-white shadow-sm"
                     maxLength={50}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -318,114 +313,115 @@ export default function ManagerImportRequestPage() {
               </div>
             </CardHeader>
             <CardContent className="p-0 flex flex-col justify-between flex-1">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50">
-                    {/* Cột Receipt Code & Date: Click để sort theo date */}
-                    <TableHead
-                      className="pl-6 cursor-pointer transition-colors"
-                      onClick={() => handleSort("date")}
-                    >
-                      <div className="flex items-center gap-1.5 select-none">
-                        Receipt Code
-                        {sortConfig?.key === "date" ? (
-                          sortConfig.direction === "asc" ? (
-                            <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
-                          ) : (
-                            <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
-                          )
-                        ) : (
-                          <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50" />
-                        )}
-                      </div>
-                    </TableHead>
-
-                    <TableHead>Warehouse</TableHead>
-
-                    {/* Cột Total Amount: Click để sort theo total */}
-                    <TableHead
-                      className="text-right cursor-pointer transition-colors"
-                      onClick={() => handleSort("total")}
-                    >
-                      <div className="flex items-center justify-end gap-1.5 select-none">
-                        Total Amount
-                        {sortConfig?.key === "total" ? (
-                          sortConfig.direction === "asc" ? (
-                            <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
-                          ) : (
-                            <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
-                          )
-                        ) : (
-                          <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50" />
-                        )}
-                      </div>
-                    </TableHead>
-
-                    <TableHead className="text-center">Status</TableHead>
-                    <TableHead className="text-right pr-6">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-32 text-center">
-                        <div className="flex justify-center items-center gap-2 text-indigo-600">
-                          <Loader2 className="w-6 h-6 animate-spin" /> Loading
-                          requests...
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : paginatedData.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={6}
-                        className="h-32 text-center text-slate-500 hover:slate-50"
+              <div className="max-h-[350px] min-h-[350px] overflow-y-auto relative scrollbar-thin no-scrollbar">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50">
+                      {/* Cột Receipt Code & Date: Click để sort theo date */}
+                      <TableHead
+                        className="pl-6 cursor-pointer transition-colors"
+                        onClick={() => handleSort("date")}
                       >
-                        <div className="flex flex-col items-center justify-center gap-2">
-                          <FileText className="w-8 h-8 text-slate-300" />
-                          <p>No pending approvals found.</p>
+                        <div className="flex items-center gap-1.5 select-none">
+                          Receipt Code
+                          {sortConfig?.key === "date" ? (
+                            sortConfig.direction === "asc" ? (
+                              <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
+                            ) : (
+                              <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50 hover:text-indigo-600" />
+                          )}
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    paginatedData.map((item) => (
-                      <TableRow
-                        key={item.receiptCode}
-                        className="group hover:bg-slate-50/50 transition-colors"
+                      </TableHead>
+
+                      <TableHead>Warehouse</TableHead>
+
+                      {/* Cột Total Amount: Click để sort theo total */}
+                      <TableHead
+                        className="text-right cursor-pointer transition-colors"
+                        onClick={() => handleSort("total")}
                       >
-                        {/* ID & Date */}
-                        <TableCell className="pl-6">
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-slate-700">
-                              {item.receiptCode}
-                            </span>
-                            <span className="text-xs text-slate-400 flex items-center gap-1">
-                              <CalendarDays className="w-3 h-3" />{" "}
-                              {formatDate(item.receiptDate)}
-                            </span>
+                        <div className="flex items-center justify-end gap-1.5 select-none">
+                          Total Amount
+                          {sortConfig?.key === "total" ? (
+                            sortConfig.direction === "asc" ? (
+                              <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
+                            ) : (
+                              <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50 hover:text-indigo-600" />
+                          )}
+                        </div>
+                      </TableHead>
+
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-right pr-6">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-32 text-center">
+                          <div className="flex justify-center items-center gap-2 text-indigo-600">
+                            <Loader2 className="w-6 h-6 animate-spin" /> Loading
+                            requests...
                           </div>
                         </TableCell>
-
-                        {/* Warehouse */}
-                        <TableCell>
-                          <div className="flex items-center gap-2 text-slate-600">
-                            <MapPin className="w-4 h-4 text-slate-400" />
-                            {item.warehouseName || "N/A"}
+                      </TableRow>
+                    ) : paginatedData.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={6}
+                          className="h-32 text-center text-slate-500 hover:slate-50"
+                        >
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <FileText className="w-8 h-8 text-slate-300" />
+                            <p>No pending approvals found.</p>
                           </div>
                         </TableCell>
+                      </TableRow>
+                    ) : (
+                      paginatedData.map((item) => (
+                        <TableRow
+                          key={item.receiptCode}
+                          className="group hover:bg-slate-50/50 transition-colors"
+                        >
+                          {/* ID & Date */}
+                          <TableCell className="pl-6">
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-slate-700">
+                                {item.receiptCode}
+                              </span>
+                              <span className="text-xs text-slate-400 flex items-center gap-1">
+                                <CalendarDays className="w-3 h-3" />{" "}
+                                {formatDate(item.receiptDate)}
+                              </span>
+                            </div>
+                          </TableCell>
 
-                        {/* Total Amount */}
-                        <TableCell className="text-right">
-                          <span className="font-bold text-slate-800">
-                            {formatCurrency(item.totalAmount)}
-                          </span>
-                        </TableCell>
+                          {/* Warehouse */}
+                          <TableCell>
+                            <div className="flex items-center gap-2 text-slate-600">
+                              <MapPin className="w-4 h-4 text-slate-400" />
+                              {item.warehouseName || "N/A"}
+                            </div>
+                          </TableCell>
 
-                        {/* Status */}
-                        <TableCell className="text-center">
-                          <Badge
-                            variant="outline"
-                            className={`
+                          {/* Total Amount */}
+                          <TableCell className="text-right">
+                            <span className="font-bold text-slate-800">
+                              {formatCurrency(item.totalAmount)}
+                            </span>
+                          </TableCell>
+
+                          {/* Status */}
+                          <TableCell className="text-center">
+                            <Badge
+                              variant="outline"
+                              className={`
                                         ${
                                           item.status === "Submitted"
                                             ? "bg-blue-50 text-blue-700 border-blue-200"
@@ -436,35 +432,37 @@ export default function ManagerImportRequestPage() {
                                                 : "bg-gray-50 text-gray-700 border-gray-200"
                                         }
                                      `}
-                          >
-                            {item.status}
-                          </Badge>
-                        </TableCell>
+                            >
+                              {item.status}
+                            </Badge>
+                          </TableCell>
 
-                        {/* Action */}
-                        <TableCell className="text-right pr-6">
-                          <Button
-                            size="sm"
-                            onClick={() => handleReview(item.receiptId)}
-                            disabled={loadingId === item.receiptId}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-                          >
-                            {loadingId === item.receiptId ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <>
-                                Review <ArrowRight className="w-4 h-4 ml-1.5" />
-                              </>
-                            )}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                          {/* Action */}
+                          <TableCell className="text-right pr-6">
+                            <Button
+                              size="sm"
+                              onClick={() => handleReview(item.receiptId)}
+                              disabled={loadingId === item.receiptId}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                            >
+                              {loadingId === item.receiptId ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <>
+                                  Review{" "}
+                                  <ArrowRight className="w-4 h-4 ml-1.5" />
+                                </>
+                              )}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
               {!isLoading && filteredData.length > 0 && (
-                <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 gap-4">
                   <div className="text-sm text-slate-500">
                     Showing{" "}
                     <span className="font-medium text-slate-900">
@@ -481,32 +479,59 @@ export default function ManagerImportRequestPage() {
                     results
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.max(prev - 1, 1))
-                      }
-                      disabled={currentPage === 1}
-                      className="h-8"
-                    >
-                      <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-                    </Button>
-                    <div className="text-sm font-medium text-slate-600 px-2">
-                      Page {currentPage} of {totalPages}
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-slate-500 whitespace-nowrap">
+                        Rows per page:
+                      </span>
+                      <Select
+                        value={itemsPerPage.toString()}
+                        onValueChange={(val) => setItemsPerPage(Number(val))}
+                      >
+                        <SelectTrigger className="h-8 w-[75px] bg-white border-slate-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="20">20</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                          <SelectItem value="-1">All</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                      }
-                      disabled={currentPage === totalPages}
-                      className="h-8"
-                    >
-                      Next <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
+
+                    {/* Các nút chuyển trang */}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setCurrentPage((prev) => Math.max(prev - 1, 1))
+                        }
+                        disabled={currentPage === 1}
+                        className="h-8"
+                      >
+                        <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                      </Button>
+                      <div className="text-sm font-medium text-slate-600 px-2 min-w-[80px] text-center">
+                        Page {currentPage} of {totalPages}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setCurrentPage((prev) =>
+                            Math.min(prev + 1, totalPages),
+                          )
+                        }
+                        disabled={currentPage === totalPages}
+                        className="h-8"
+                      >
+                        Next <ChevronRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}

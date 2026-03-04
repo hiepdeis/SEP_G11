@@ -14,6 +14,7 @@ import {
   Building2,
   Loader2,
   CheckCircle2,
+  LoaderPinwheel,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
@@ -106,7 +107,6 @@ export default function StaffInboundDetailPage() {
         }
 
         worksheet[cellRef].z = "dd/mm/yyyy";
-
       }
 
       // 4. Cấu hình độ rộng cột
@@ -203,12 +203,14 @@ export default function StaffInboundDetailPage() {
                 Download Template
               </Button>
 
-              {request.status == "Approved" && <Button
-                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
-                onClick={handleProcess}
-              >
-                Start Processing <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>}
+              {request.status == "Approved" && (
+                <Button
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
+                  onClick={handleProcess}
+                >
+                  Start Processing <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              )}
             </div>
           </div>
 
@@ -243,19 +245,33 @@ export default function StaffInboundDetailPage() {
 
                   <div className="space-y-1">
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-                      Approval Info
+                      Receipt Status
                     </span>
-                    <div className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-1" />
-                      <div>
-                        <p className="font-medium text-slate-800">
-                          Approved for Inbound
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Date: {formatDate(request.receiptApprovalDate)}
-                        </p>
+                    {request.status === "Completed" ? (
+                      <div className="flex items-start gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-1" />
+                        <div>
+                          <p className="font-medium text-slate-800">
+                            Completed
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            By Them
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex items-start gap-2">
+                        <LoaderPinwheel className="w-4 h-4 text-emerald-500 mt-1" />
+                        <div>
+                          <p className="font-medium text-slate-800">
+                            Approved for Inbound
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Date: {formatDate(request.receiptApprovalDate)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

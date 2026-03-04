@@ -32,6 +32,13 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { staffReceiptApi, WarehouseCardDto } from "@/services/receipt-service";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function WarehouseCardPage() {
   const router = useRouter();
@@ -43,7 +50,7 @@ export default function WarehouseCardPage() {
   // STATE CHO TAB VÀ PHÂN TRANG
   const [activeTab, setActiveTab] = useState<"Import" | "Export">("Import");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const [itemsPerPage, setItemsPerPage] = useState<number>(5);
 
   useEffect(() => {
     const fetchCards = async () => {
@@ -63,7 +70,7 @@ export default function WarehouseCardPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, activeTab]);
+  }, [searchTerm, activeTab, itemsPerPage]);
 
   const filteredData = cards.filter((item) => {
     const matchesTab =
@@ -79,9 +86,13 @@ export default function WarehouseCardPage() {
   });
 
   // PHÂN TRANG
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
+  const isAll = itemsPerPage === -1;
+  const totalPages = isAll
+    ? 1
+    : Math.ceil(filteredData.length / itemsPerPage) || 1;
+  const startIndex =
+    (currentPage - 1) * (isAll ? filteredData.length : itemsPerPage);
+  const endIndex = isAll ? filteredData.length : startIndex + itemsPerPage;
   const paginatedData = filteredData.slice(startIndex, endIndex);
 
   // TÍNH TOÁN KPI
@@ -118,22 +129,28 @@ export default function WarehouseCardPage() {
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
         <Header title="Import/Export Reports" />
 
-        <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
-          <Button
-            variant="ghost"
-            onClick={() => router.push("/report")}
-            className="pl-0 hover:bg-transparent hover:text-indigo-600"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Reports
-          </Button>
-          <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Warehouse Cards
-            </h1>
-            <p className="text-sm text-slate-500">
-              Track historical inventory movements, including imports and
-              exports.
-            </p>
+        <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6 ">
+          <div className="flex items-start gap-3">
+            {/* Nút Back thu gọn thành Icon tròn, ngang hàng tiêu đề */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.push("/report")}
+              className="h-8 w-8 mt-0.5 shrink-0 rounded-full hover:bg-slate-200 text-slate-500 hover:text-indigo-600 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+
+            {/* Cụm Tiêu đề */}
+            <div className="flex flex-col gap-1">
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                Warehouse Cards
+              </h1>
+              <p className="text-sm text-slate-500">
+                Track historical inventory movements, including imports and
+                exports.
+              </p>
+            </div>
           </div>
 
           {/* KPI Cards */}
@@ -239,7 +256,7 @@ export default function WarehouseCardPage() {
               </Tabs>
             </CardHeader>
             <CardContent className="p-0 flex flex-col justify-between flex-1">
-              <div className="min-h-[300px] overflow-x-auto">
+              <div className="max-h-[350px] min-h-[350px] overflow-y-auto relative scrollbar-thin no-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50">
@@ -379,7 +396,7 @@ export default function WarehouseCardPage() {
 
               {/* Phân trang */}
               {!isLoading && filteredData.length > 0 && (
-                <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 mt-auto">
+                <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 mt-auto gap-4">
                   <div className="text-sm text-slate-500">
                     Showing{" "}
                     <span className="font-medium text-slate-900">
@@ -396,32 +413,60 @@ export default function WarehouseCardPage() {
                     records
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.max(prev - 1, 1))
-                      }
-                      disabled={currentPage === 1}
-                      className="h-8"
-                    >
-                      <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-                    </Button>
-                    <div className="text-sm font-medium text-slate-600 px-2">
-                      Page {currentPage} of {totalPages}
+                  <div className="flex items-center gap-6">
+                    {/* Chọn số lượng item */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-slate-500 whitespace-nowrap">
+                        Rows per page:
+                      </span>
+                      <Select
+                        value={itemsPerPage.toString()}
+                        onValueChange={(val) => setItemsPerPage(Number(val))}
+                      >
+                        <SelectTrigger className="h-8 w-[75px] bg-white border-slate-200 shadow-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="20">20</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                          <SelectItem value="-1">All</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                      }
-                      disabled={currentPage === totalPages}
-                      className="h-8"
-                    >
-                      Next <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
+
+                    {/* Các nút chuyển trang */}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setCurrentPage((prev) => Math.max(prev - 1, 1))
+                        }
+                        disabled={currentPage === 1}
+                        className="h-8"
+                      >
+                        <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                      </Button>
+                      <div className="text-sm font-medium text-slate-600 px-2 min-w-[80px] text-center">
+                        Page {currentPage} of {totalPages}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setCurrentPage((prev) =>
+                            Math.min(prev + 1, totalPages),
+                          )
+                        }
+                        disabled={currentPage === totalPages}
+                        className="h-8"
+                      >
+                        Next <ChevronRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}

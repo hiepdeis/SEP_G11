@@ -34,6 +34,13 @@ import {
 } from "@/components/ui/table";
 import { receiptApi, ReceiptSummaryDto } from "@/services/receipt-service";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function ImportApprovalListPage() {
   const router = useRouter();
@@ -48,7 +55,7 @@ export default function ImportApprovalListPage() {
   >("Requested");
 
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const [itemsPerPage, setItemsPerPage] = useState<number>(5);
 
   const [sortConfig, setSortConfig] = useState<{
     key: "date" | "items";
@@ -86,7 +93,7 @@ export default function ImportApprovalListPage() {
   // Khi người dùng gõ search hoặc đổi tab filter, tự động quay về trang 1
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterStatus, sortConfig]);
+  }, [searchTerm, filterStatus, sortConfig, itemsPerPage]);
 
   // 1. Lọc dữ liệu ban đầu
   const filteredData = requests.filter((item) => {
@@ -130,11 +137,14 @@ export default function ImportApprovalListPage() {
     return 0;
   });
 
-  // 2. TÍNH TOÁN DỮ LIỆU ĐỂ HIỂN THỊ (CẮT MẢNG)
-  const totalPages = Math.ceil(sortedData.length / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedData = sortedData.slice(startIndex, endIndex); // <-- Dùng sortedData ở đây
+  const isAll = itemsPerPage === -1;
+  const totalPages = isAll
+    ? 1
+    : Math.ceil(sortedData.length / itemsPerPage) || 1;
+  const startIndex =
+    (currentPage - 1) * (isAll ? sortedData.length : itemsPerPage);
+  const endIndex = isAll ? sortedData.length : startIndex + itemsPerPage;
+  const paginatedData = sortedData.slice(startIndex, endIndex);
 
   const handleReview = async (id: number, status: string) => {
     setLoadingId(id);
@@ -239,66 +249,32 @@ export default function ImportApprovalListPage() {
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 {/* Các nút Lọc (Giữ nguyên) */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    variant={
-                      filterStatus === "Requested" ? "default" : "outline"
-                    }
-                    onClick={() => setFilterStatus("Requested")}
-                    className={
-                      filterStatus === "Requested"
-                        ? "bg-indigo-600 hover:bg-indigo-700"
-                        : "hover:text-white"
-                    }
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-slate-500 hidden md:block">
+                    Filter:
+                  </span>
+                  <Select
+                    value={filterStatus}
+                    onValueChange={(
+                      value:
+                        | "All"
+                        | "Requested"
+                        | "Rejected"
+                        | "History"
+                        | "Draft",
+                    ) => setFilterStatus(value)}
                   >
-                    Requested
-                  </Button>
-                  <Button
-                    variant={filterStatus === "Draft" ? "default" : "outline"}
-                    onClick={() => setFilterStatus("Draft")}
-                    className={
-                      filterStatus === "Draft"
-                        ? "bg-indigo-600 hover:bg-indigo-700"
-                        : "hover:text-white"
-                    }
-                  >
-                    Draft
-                  </Button>
-                  <Button
-                    variant={
-                      filterStatus === "Rejected" ? "default" : "outline"
-                    }
-                    onClick={() => setFilterStatus("Rejected")}
-                    className={
-                      filterStatus === "Rejected"
-                        ? "bg-indigo-600 hover:bg-indigo-700"
-                        : "hover:text-white"
-                    }
-                  >
-                    Rejected
-                  </Button>
-                  <Button
-                    variant={filterStatus === "History" ? "default" : "outline"}
-                    onClick={() => setFilterStatus("History")}
-                    className={
-                      filterStatus === "History"
-                        ? "bg-indigo-600 hover:bg-indigo-700"
-                        : "hover:text-white"
-                    }
-                  >
-                    History
-                  </Button>
-                  <Button
-                    variant={filterStatus === "All" ? "default" : "outline"}
-                    onClick={() => setFilterStatus("All")}
-                    className={
-                      filterStatus === "All"
-                        ? "bg-indigo-600 hover:bg-indigo-700"
-                        : "hover:text-white"
-                    }
-                  >
-                    All
-                  </Button>
+                    <SelectTrigger className="w-[180px] bg-white border-slate-200 shadow-sm">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Requested">Requested</SelectItem>
+                      <SelectItem value="Draft">Draft</SelectItem>
+                      <SelectItem value="Rejected">Rejected</SelectItem>
+                      <SelectItem value="History">History</SelectItem>
+                      <SelectItem value="All">All</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="relative w-full md:w-64">
@@ -314,11 +290,10 @@ export default function ImportApprovalListPage() {
               </div>
             </CardHeader>
             <CardContent className="p-0 flex flex-col justify-between flex-1">
-              <div className="min-h-[300px]">
+              <div className="max-h-[350px] min-h-[350px] overflow-y-auto relative scrollbar-thin no-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50">
-                      {/* Cột Code & Date: Cho phép click để sort theo Date */}
                       <TableHead
                         className="pl-6 cursor-pointer transition-colors"
                         onClick={() => handleSort("date")}
@@ -332,7 +307,7 @@ export default function ImportApprovalListPage() {
                               <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
                             )
                           ) : (
-                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50" />
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50 hover:text-indigo-600" />
                           )}
                         </div>
                       </TableHead>
@@ -353,7 +328,7 @@ export default function ImportApprovalListPage() {
                               <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
                             )
                           ) : (
-                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50" />
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50 hover:text-indigo-600" />
                           )}
                         </div>
                       </TableHead>
@@ -483,7 +458,7 @@ export default function ImportApprovalListPage() {
 
               {/* THÊM KHỐI CONTROLS PHÂN TRANG (PAGINATION) Ở ĐÂY */}
               {!isLoading && filteredData.length > 0 && (
-                <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 gap-4">
                   <div className="text-sm text-slate-500">
                     Showing{" "}
                     <span className="font-medium text-slate-900">
@@ -500,32 +475,59 @@ export default function ImportApprovalListPage() {
                     results
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.max(prev - 1, 1))
-                      }
-                      disabled={currentPage === 1}
-                      className="h-8"
-                    >
-                      <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-                    </Button>
-                    <div className="text-sm font-medium text-slate-600 px-2">
-                      Page {currentPage} of {totalPages}
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-slate-500 whitespace-nowrap">
+                        Rows per page:
+                      </span>
+                      <Select
+                        value={itemsPerPage.toString()}
+                        onValueChange={(val) => setItemsPerPage(Number(val))}
+                      >
+                        <SelectTrigger className="h-8 w-[75px] bg-white border-slate-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="20">20</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                          <SelectItem value="-1">All</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                      }
-                      disabled={currentPage === totalPages}
-                      className="h-8"
-                    >
-                      Next <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
+
+                    {/* Các nút chuyển trang */}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setCurrentPage((prev) => Math.max(prev - 1, 1))
+                        }
+                        disabled={currentPage === 1}
+                        className="h-8"
+                      >
+                        <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                      </Button>
+                      <div className="text-sm font-medium text-slate-600 px-2 min-w-[80px] text-center">
+                        Page {currentPage} of {totalPages}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setCurrentPage((prev) =>
+                            Math.min(prev + 1, totalPages),
+                          )
+                        }
+                        disabled={currentPage === totalPages}
+                        className="h-8"
+                      >
+                        Next <ChevronRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}
