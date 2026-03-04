@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
@@ -13,6 +13,9 @@ import {
   AlertTriangle,
   Loader2,
   Receipt,
+  Eraser,
+  Gavel,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,9 +48,12 @@ import {
 import {
   managerReceiptApi,
   PendingReceiptDto,
+  receiptApi,
+  ReceiptRejectionHistoryDto,
 } from "@/services/receipt-service";
 import { toast } from "sonner";
 import { showConfirmToast } from "@/hooks/confirm-toast";
+import ReactSignatureCanvas, { SignatureCanvas } from "react-signature-canvas";
 
 export default function ManagerReviewPage() {
   const params = useParams();
@@ -55,6 +61,9 @@ export default function ManagerReviewPage() {
   const id = Number(params.id);
 
   const [receipt, setReceipt] = useState<PendingReceiptDto | null>(null);
+  const [rejectionHistory, setRejectionHistory] = useState<
+    ReceiptRejectionHistoryDto[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -62,11 +71,18 @@ export default function ManagerReviewPage() {
   const [rejectReason, setRejectReason] = useState("");
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
 
+  const sigCanvas = useRef<ReactSignatureCanvas>(null);
+  const [isSigned, setIsSigned] = useState(false);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await managerReceiptApi.getById(id);
+        const resHis = await receiptApi
+          .getRejectionHistory(id)
+          .catch(() => ({ data: [] }));
         setReceipt(res.data);
+        setRejectionHistory(resHis.data || []);
       } catch (error) {
         console.error("Failed to load receipt details", error);
       } finally {
@@ -124,6 +140,19 @@ export default function ManagerReviewPage() {
     }
   };
 
+  const handleSignatureEnd = () => {
+    if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
+      setIsSigned(true);
+    }
+  };
+
+  const clearSignature = () => {
+    if (sigCanvas.current) {
+      sigCanvas.current.clear();
+      setIsSigned(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
@@ -177,7 +206,7 @@ export default function ManagerReviewPage() {
                 </CardHeader>
                 <CardContent className="p-6 grid grid-cols-2">
                   <div>
-                    <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
+                    <label className="text-sm font-semibold text-slate-800 uppercase tracking-wider">
                       Destination Warehouse
                     </label>
                     <div className="mt-1 flex items-center gap-2">
@@ -201,7 +230,8 @@ export default function ManagerReviewPage() {
               <Card className="border-slate-200 shadow-sm overflow-hidden pb-0 gap-0">
                 <CardHeader className="bg-white border-b border-slate-100 py-4 flex flex-row justify-between items-center">
                   <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pb-5">
-                    <Receipt className="w-4 h-4 text-indigo-600" /> Item List & Pricing
+                    <Receipt className="w-4 h-4 text-indigo-600" /> Item List &
+                    Pricing
                   </CardTitle>
                   <Badge variant="outline" className="font-normal">
                     {receipt.details.length} items
@@ -283,51 +313,115 @@ export default function ManagerReviewPage() {
                       {receipt.status}
                     </span>
                   </div>
-                  <p className="text-xs text-indigo-600/70 mt-2">
-                    This receipt has been processed by{" "}
-                    <span className="font-medium">
-                      {receipt.createdByName || "Accountant"}
-                    </span>{" "}
-                    and is waiting for your final approval.
-                  </p>
+                  {receipt.status == "Submitted" ? (
+                    <p className="text-xs text-indigo-600/70 mt-2">
+                      This receipt has been processed and is waiting for your final approval.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-indigo-600/70 mt-2">
+                      This receipt has been approved
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 
-              {/* Action Card */}
-              {receipt.status == "Submitted" && (
-                <Card className="border-slate-200 shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-base font-semibold">
-                      Manager Decision
+              {rejectionHistory.length > 0 && (
+                <Card className="border-red-200 shadow-sm bg-red-50/40">
+                  <CardHeader className="pb-3 border-b border-red-100">
+                    <CardTitle className="text-sm font-bold text-red-800 uppercase tracking-wide flex items-center gap-2">
+                      <History className="w-4 h-4" /> Rejection Feedback
                     </CardTitle>
                   </CardHeader>
-                  {/* <CardContent className="space-y-4">
-                    <div>
-                      <div className="flex justify-between mb-2">
-                        <label className="text-sm font-medium text-slate-700">
-                          Notes / Remarks
-                        </label>
-                        <span
-                          className={`text-xs ${notes.length > 500 ? "text-red-500" : "text-slate-400"}`}
-                        >
-                          {notes.length}/500
-                        </span>
-                      </div>
-                      <Textarea
-                        placeholder="E.g. Approved. Proceed with delivery."
-                        className="resize-none h-24"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        maxLength={500}
-                      />
+                  <CardContent className="pt-5">
+                    {/* Đường viền dọc tạo hiệu ứng Timeline */}
+                    <div className="relative border-l-2 border-red-200 ml-2 space-y-6">
+                      {rejectionHistory.map((history) => (
+                        <div key={history.id} className="relative pl-5">
+                          {/* Nút tròn trên timeline */}
+                          <div className="absolute w-3 h-3 bg-red-500 rounded-full -left-[7px] top-1.5 border-2 border-white shadow-sm" />
+
+                          <div className="flex flex-col">
+                            <span className="text-sm font-semibold text-slate-800">
+                              {history.rejectorName || "Manager"}
+                            </span>
+                            <span className="text-[11px] text-slate-500 mb-2">
+                              {new Date(history.rejectedAt).toLocaleString(
+                                "vi-VN",
+                                {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
+                            </span>
+
+                            {/* Khung chứa lý do reject */}
+                            <div className="p-3 bg-white border border-red-100 rounded-md text-sm text-slate-700 shadow-sm">
+                              {history.rejectionReason}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </CardContent> */}
-                  <CardFooter className="flex flex-col gap-3 pt-2">
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Action Card */}
+              {receipt.status == "Submitted" && (
+                <Card className="border-slate-200 shadow-sm gap-0">
+                  <CardHeader className="border-b border-slate-100 pt-3">
+                    <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                      <Gavel className="w-5 h-5 text-indigo-600" /> Manager
+                      Decision
+                    </CardTitle>
+                  </CardHeader>
+
+                  <CardContent className="pt-6 space-y-6">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-end">
+                        <label className="text-sm font-medium text-slate-700">
+                          Manager Signature{" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        {isSigned && (
+                          <button
+                            onClick={clearSignature}
+                            className="text-xs text-slate-500 hover:text-red-600 flex items-center gap-1 transition-colors"
+                          >
+                            <Eraser className="w-3 h-3" /> Clear
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="border-2 border-dashed border-slate-300 rounded-lg bg-slate-50 overflow-hidden relative group">
+                        <SignatureCanvas
+                          ref={sigCanvas}
+                          onEnd={handleSignatureEnd}
+                          penColor="black"
+                          canvasProps={{
+                            className: "w-full h-32 cursor-crosshair bg-white",
+                          }}
+                        />
+                        {!isSigned && (
+                          <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-40">
+                            <span className="text-slate-400 select-none italic">
+                              Sign here to enable decision buttons...
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+
+                  <CardFooter className="flex flex-col gap-3 pt-6 pb-6 px-6">
                     <Button
                       className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm"
                       size="lg"
                       onClick={handleApprove}
-                      disabled={isProcessing}
+                      disabled={isProcessing || !isSigned}
                     >
                       {isProcessing ? (
                         <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -345,7 +439,8 @@ export default function ManagerReviewPage() {
                         <Button
                           variant="outline"
                           className="w-full text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700"
-                          disabled={isProcessing}
+                          // Nút sẽ bị disable nếu đang gửi API HOẶC chưa ký
+                          disabled={isProcessing || !isSigned}
                         >
                           <XCircle className="w-4 h-4 mr-2" />
                           Reject Receipt

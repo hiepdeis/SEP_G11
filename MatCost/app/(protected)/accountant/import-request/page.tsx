@@ -13,9 +13,12 @@ import {
   Package,
   File,
   BadgeX,
-  ChevronLeft, 
+  ChevronLeft,
   ChevronRight,
-  RotateCcw, 
+  RotateCcw,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +50,23 @@ export default function ImportApprovalListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
+  const [sortConfig, setSortConfig] = useState<{
+    key: "date" | "items";
+    direction: "asc" | "desc";
+  } | null>(null);
+
+  const handleSort = (key: "date" | "items") => {
+    let direction: "asc" | "desc" = "asc";
+    if (
+      sortConfig &&
+      sortConfig.key === key &&
+      sortConfig.direction === "asc"
+    ) {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
@@ -66,7 +86,7 @@ export default function ImportApprovalListPage() {
   // Khi người dùng gõ search hoặc đổi tab filter, tự động quay về trang 1
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterStatus]);
+  }, [searchTerm, filterStatus, sortConfig]);
 
   // 1. Lọc dữ liệu ban đầu
   const filteredData = requests.filter((item) => {
@@ -92,11 +112,29 @@ export default function ImportApprovalListPage() {
     return matchesStatus && matchesSearch;
   });
 
+  const sortedData = [...filteredData].sort((a, b) => {
+    if (!sortConfig) return 0;
+
+    if (sortConfig.key === "date") {
+      const dateA = a.receiptDate ? new Date(a.receiptDate).getTime() : 0;
+      const dateB = b.receiptDate ? new Date(b.receiptDate).getTime() : 0;
+      return sortConfig.direction === "asc" ? dateA - dateB : dateB - dateA;
+    }
+
+    if (sortConfig.key === "items") {
+      const itemsA = a.itemCount || 0;
+      const itemsB = b.itemCount || 0;
+      return sortConfig.direction === "asc" ? itemsA - itemsB : itemsB - itemsA;
+    }
+
+    return 0;
+  });
+
   // 2. TÍNH TOÁN DỮ LIỆU ĐỂ HIỂN THỊ (CẮT MẢNG)
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedData.length / itemsPerPage) || 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedData = filteredData.slice(startIndex, endIndex);
+  const paginatedData = sortedData.slice(startIndex, endIndex); // <-- Dùng sortedData ở đây
 
   const handleReview = async (id: number, status: string) => {
     setLoadingId(id);
@@ -280,9 +318,46 @@ export default function ImportApprovalListPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50">
-                      <TableHead className="pl-6">Receipt Code</TableHead>
+                      {/* Cột Code & Date: Cho phép click để sort theo Date */}
+                      <TableHead
+                        className="pl-6 cursor-pointer transition-colors"
+                        onClick={() => handleSort("date")}
+                      >
+                        <div className="flex items-center gap-1.5 select-none">
+                          Receipt & Date
+                          {sortConfig?.key === "date" ? (
+                            sortConfig.direction === "asc" ? (
+                              <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
+                            ) : (
+                              <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50" />
+                          )}
+                        </div>
+                      </TableHead>
+
                       <TableHead>Requester</TableHead>
-                      <TableHead>Items</TableHead>
+
+                      {/* Cột Items: Cho phép click để sort theo số lượng */}
+                      <TableHead
+                        className="cursor-pointer transition-colors"
+                        onClick={() => handleSort("items")}
+                      >
+                        <div className="flex items-center gap-1.5 select-none">
+                          Items
+                          {sortConfig?.key === "items" ? (
+                            sortConfig.direction === "asc" ? (
+                              <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
+                            ) : (
+                              <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50" />
+                          )}
+                        </div>
+                      </TableHead>
+
                       <TableHead>Status</TableHead>
                       {filterStatus == "Rejected" && (
                         <TableHead>Reject Reasons</TableHead>
@@ -310,7 +385,7 @@ export default function ImportApprovalListPage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      paginatedData.map((item) => ( 
+                      paginatedData.map((item) => (
                         <TableRow
                           key={item.receiptId}
                           className="group hover:bg-slate-50/50 transition-colors"
@@ -362,7 +437,7 @@ export default function ImportApprovalListPage() {
                             <TableCell>
                               <div className="flex items-center gap-2 text-slate-600 max-w-xs truncate">
                                 {/* Thêm truncate nếu lý do quá dài */}
-                                {item.rejectionReason || "No reason provided"} 
+                                {item.rejectionReason || "No reason provided"}
                               </div>
                             </TableCell>
                           )}
@@ -373,21 +448,28 @@ export default function ImportApprovalListPage() {
                                 handleReview(item.receiptId, item.status!)
                               }
                               disabled={loadingId === item.receiptId}
-                              variant={item.status === "Rejected" ? "outline" : "default"}
-                              className={item.status === "Rejected" 
-                                ? "text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-primary" 
-                                : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                              variant={
+                                item.status === "Rejected"
+                                  ? "outline"
+                                  : "default"
+                              }
+                              className={
+                                item.status === "Rejected"
+                                  ? "text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-primary"
+                                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                               }
                             >
                               {loadingId === item.receiptId ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                               ) : item.status === "Rejected" ? (
                                 <>
-                                  Revert to Draft <RotateCcw className="w-4 h-4 ml-1.5" />
+                                  Revert to Draft{" "}
+                                  <RotateCcw className="w-4 h-4 ml-1.5" />
                                 </>
                               ) : (
                                 <>
-                                  Process <ArrowRight className="w-4 h-4 ml-1.5" />
+                                  Process{" "}
+                                  <ArrowRight className="w-4 h-4 ml-1.5" />
                                 </>
                               )}
                             </Button>
@@ -403,18 +485,28 @@ export default function ImportApprovalListPage() {
               {!isLoading && filteredData.length > 0 && (
                 <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
                   <div className="text-sm text-slate-500">
-                    Showing <span className="font-medium text-slate-900">{startIndex + 1}</span> to{" "}
+                    Showing{" "}
+                    <span className="font-medium text-slate-900">
+                      {startIndex + 1}
+                    </span>{" "}
+                    to{" "}
                     <span className="font-medium text-slate-900">
                       {Math.min(endIndex, filteredData.length)}
                     </span>{" "}
-                    of <span className="font-medium text-slate-900">{filteredData.length}</span> results
+                    of{" "}
+                    <span className="font-medium text-slate-900">
+                      {filteredData.length}
+                    </span>{" "}
+                    results
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(prev - 1, 1))
+                      }
                       disabled={currentPage === 1}
                       className="h-8"
                     >
@@ -426,7 +518,9 @@ export default function ImportApprovalListPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                      }
                       disabled={currentPage === totalPages}
                       className="h-8"
                     >

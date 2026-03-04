@@ -17,7 +17,10 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
-  Eye, // <-- Thêm icon Eye nếu cần cho trạng thái Completed
+  Eye,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown, // <-- Thêm icon Eye nếu cần cho trạng thái Completed
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,10 +48,29 @@ export default function StaffInboundPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
   // 1. THÊM STATE CHO FILTER
-  const [filterStatus, setFilterStatus] = useState<"All" | "Approved" | "Completed">("Approved");
+  const [filterStatus, setFilterStatus] = useState<
+    "All" | "Approved" | "Completed"
+  >("Approved");
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+
+  const [sortConfig, setSortConfig] = useState<{
+    key: "date" | "total";
+    direction: "asc" | "desc";
+  } | null>(null);
+
+  const handleSort = (key: "date" | "total") => {
+    let direction: "asc" | "desc" = "asc";
+    if (
+      sortConfig &&
+      sortConfig.key === key &&
+      sortConfig.direction === "asc"
+    ) {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -83,15 +105,37 @@ export default function StaffInboundPage() {
     return matchesStatus && matchesSearch;
   });
 
+  const sortedData = [...filteredData].sort((a, b) => {
+    if (!sortConfig) return 0;
+
+    if (sortConfig.key === "date") {
+      const dateA = a.receiptApprovalDate
+        ? new Date(a.receiptApprovalDate).getTime()
+        : 0;
+      const dateB = b.receiptApprovalDate
+        ? new Date(b.receiptApprovalDate).getTime()
+        : 0;
+      return sortConfig.direction === "asc" ? dateA - dateB : dateB - dateA;
+    }
+
+    if (sortConfig.key === "total") {
+      const itemsA = a.totalQuantity || 0;
+      const itemsB = b.totalQuantity || 0;
+      return sortConfig.direction === "asc" ? itemsA - itemsB : itemsB - itemsA;
+    }
+
+    return 0;
+  });
+
   // 3. RESET TRANG KHI ĐỔI TAB HOẶC SEARCH
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filterStatus]);
 
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
+  const totalPages = Math.ceil(sortedData.length / itemsPerPage) || 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedData = filteredData.slice(startIndex, endIndex);
+  const paginatedData = sortedData.slice(startIndex, endIndex);
 
   const handleProcess = (id: number) => {
     setLoadingId(id);
@@ -136,7 +180,8 @@ export default function StaffInboundPage() {
                     Pending Shipments
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {requests.filter(r => r.status === "Approved").length} {/* Cập nhật đếm số lượng pending */}
+                    {requests.filter((r) => r.status === "Approved").length}{" "}
+                    {/* Cập nhật đếm số lượng pending */}
                   </h3>
                 </div>
               </CardContent>
@@ -188,11 +233,12 @@ export default function StaffInboundPage() {
           <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] gap-0 pb-0 flex flex-col">
             <CardHeader className="border-b border-slate-100 pb-4 shrink-0">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                
                 {/* 4. TẠO CÁC NÚT TAB FILTER Ở ĐÂY */}
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
-                    variant={filterStatus === "Approved" ? "default" : "outline"}
+                    variant={
+                      filterStatus === "Approved" ? "default" : "outline"
+                    }
                     onClick={() => setFilterStatus("Approved")}
                     className={
                       filterStatus === "Approved"
@@ -203,7 +249,9 @@ export default function StaffInboundPage() {
                     Approved (To Do)
                   </Button>
                   <Button
-                    variant={filterStatus === "Completed" ? "default" : "outline"}
+                    variant={
+                      filterStatus === "Completed" ? "default" : "outline"
+                    }
                     onClick={() => setFilterStatus("Completed")}
                     className={
                       filterStatus === "Completed"
@@ -245,8 +293,45 @@ export default function StaffInboundPage() {
                     <TableRow className="bg-slate-50">
                       <TableHead className="pl-6">Receipt Code</TableHead>
                       <TableHead>Warehouse</TableHead>
-                      <TableHead className="text-center">Approval Date</TableHead>
-                      <TableHead className="text-center">Total Quantity</TableHead>
+
+                      {/* Cột Approval Date: Click để sort theo date */}
+                      <TableHead
+                        className="text-center cursor-pointer transition-colors"
+                        onClick={() => handleSort("date")}
+                      >
+                        <div className="flex items-center justify-center gap-1.5 select-none">
+                          Approval Date
+                          {sortConfig?.key === "date" ? (
+                            sortConfig.direction === "asc" ? (
+                              <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
+                            ) : (
+                              <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50" />
+                          )}
+                        </div>
+                      </TableHead>
+
+                      {/* Cột Total Quantity: Click để sort theo total */}
+                      <TableHead
+                        className="text-center cursor-pointer transition-colors"
+                        onClick={() => handleSort("total")}
+                      >
+                        <div className="flex items-center justify-center gap-1.5 select-none">
+                          Total Quantity
+                          {sortConfig?.key === "total" ? (
+                            sortConfig.direction === "asc" ? (
+                              <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
+                            ) : (
+                              <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50" />
+                          )}
+                        </div>
+                      </TableHead>
+
                       <TableHead className="text-center">Status</TableHead>
                       <TableHead className="text-right pr-6">Action</TableHead>
                     </TableRow>
@@ -256,13 +341,17 @@ export default function StaffInboundPage() {
                       <TableRow>
                         <TableCell colSpan={6} className="h-32 text-center">
                           <div className="flex justify-center items-center gap-2 text-indigo-600">
-                            <Loader2 className="w-6 h-6 animate-spin" /> Loading inbound requests...
+                            <Loader2 className="w-6 h-6 animate-spin" /> Loading
+                            inbound requests...
                           </div>
                         </TableCell>
                       </TableRow>
                     ) : paginatedData.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-32 text-center text-slate-500 hover:slate-50">
+                        <TableCell
+                          colSpan={6}
+                          className="h-32 text-center text-slate-500 hover:slate-50"
+                        >
                           <div className="flex flex-col items-center justify-center gap-2">
                             <AlertCircle className="w-8 h-8 text-slate-300" />
                             <p>No requests found for this filter.</p>
@@ -312,8 +401,8 @@ export default function StaffInboundPage() {
                                 item.status === "Completed"
                                   ? "bg-blue-50 text-blue-700 border-blue-200"
                                   : item.status === "Approved"
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                  : "bg-slate-50 text-slate-700 border-slate-200"
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : "bg-slate-50 text-slate-700 border-slate-200"
                               }
                             >
                               {item.status}
@@ -326,10 +415,15 @@ export default function StaffInboundPage() {
                               size="sm"
                               onClick={() => handleProcess(item.receiptId)}
                               disabled={loadingId === item.receiptId}
-                              variant={item.status === "Completed" ? "outline" : "default"}
-                              className={item.status === "Completed" 
-                                ? "text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-primary" 
-                                : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                              variant={
+                                item.status === "Completed"
+                                  ? "outline"
+                                  : "default"
+                              }
+                              className={
+                                item.status === "Completed"
+                                  ? "text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-primary"
+                                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                               }
                             >
                               {loadingId === item.receiptId ? (
@@ -340,7 +434,8 @@ export default function StaffInboundPage() {
                                 </>
                               ) : (
                                 <>
-                                  Process <ArrowRight className="w-4 h-4 ml-1.5" />
+                                  Process{" "}
+                                  <ArrowRight className="w-4 h-4 ml-1.5" />
                                 </>
                               )}
                             </Button>
@@ -356,18 +451,28 @@ export default function StaffInboundPage() {
               {!isLoading && filteredData.length > 0 && (
                 <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 mt-auto">
                   <div className="text-sm text-slate-500">
-                    Showing <span className="font-medium text-slate-900">{startIndex + 1}</span> to{" "}
+                    Showing{" "}
+                    <span className="font-medium text-slate-900">
+                      {startIndex + 1}
+                    </span>{" "}
+                    to{" "}
                     <span className="font-medium text-slate-900">
                       {Math.min(endIndex, filteredData.length)}
                     </span>{" "}
-                    of <span className="font-medium text-slate-900">{filteredData.length}</span> results
+                    of{" "}
+                    <span className="font-medium text-slate-900">
+                      {filteredData.length}
+                    </span>{" "}
+                    results
                   </div>
 
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(prev - 1, 1))
+                      }
                       disabled={currentPage === 1}
                       className="h-8"
                     >
@@ -379,7 +484,9 @@ export default function StaffInboundPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                      }
                       disabled={currentPage === totalPages}
                       className="h-8"
                     >

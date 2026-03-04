@@ -18,6 +18,9 @@ import {
   FileMinus,
   ChevronLeft,
   ChevronRight,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +53,23 @@ export default function ManagerImportRequestPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+
+  const [sortConfig, setSortConfig] = useState<{
+    key: "date" | "total";
+    direction: "asc" | "desc";
+  } | null>(null);
+
+  const handleSort = (key: "date" | "total") => {
+    let direction: "asc" | "desc" = "asc";
+    if (
+      sortConfig &&
+      sortConfig.key === key &&
+      sortConfig.direction === "asc"
+    ) {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -88,10 +108,28 @@ export default function ManagerImportRequestPage() {
     return matchesStatus && matchesSearch;
   });
 
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const sortedData = [...filteredData].sort((a, b) => {
+    if (!sortConfig) return 0;
+
+    if (sortConfig.key === "date") {
+      const dateA = a.receiptDate ? new Date(a.receiptDate).getTime() : 0;
+      const dateB = b.receiptDate ? new Date(b.receiptDate).getTime() : 0;
+      return sortConfig.direction === "asc" ? dateA - dateB : dateB - dateA;
+    }
+
+    if (sortConfig.key === "total") {
+      const itemsA = a.totalAmount || 0;
+      const itemsB = b.totalAmount || 0;
+      return sortConfig.direction === "asc" ? itemsA - itemsB : itemsB - itemsA;
+    }
+
+    return 0;
+  });
+
+  const totalPages = Math.ceil(sortedData.length / itemsPerPage) || 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedData = filteredData.slice(startIndex, endIndex);
+  const paginatedData = sortedData.slice(startIndex, endIndex);
 
   const handleReview = (id: number) => {
     setLoadingId(id);
@@ -283,9 +321,46 @@ export default function ManagerImportRequestPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50">
-                    <TableHead className="pl-6">Receipt Code</TableHead>
+                    {/* Cột Receipt Code & Date: Click để sort theo date */}
+                    <TableHead
+                      className="pl-6 cursor-pointer transition-colors"
+                      onClick={() => handleSort("date")}
+                    >
+                      <div className="flex items-center gap-1.5 select-none">
+                        Receipt Code
+                        {sortConfig?.key === "date" ? (
+                          sortConfig.direction === "asc" ? (
+                            <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
+                          ) : (
+                            <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50" />
+                        )}
+                      </div>
+                    </TableHead>
+
                     <TableHead>Warehouse</TableHead>
-                    <TableHead className="text-right">Total Amount</TableHead>
+
+                    {/* Cột Total Amount: Click để sort theo total */}
+                    <TableHead
+                      className="text-right cursor-pointer transition-colors"
+                      onClick={() => handleSort("total")}
+                    >
+                      <div className="flex items-center justify-end gap-1.5 select-none">
+                        Total Amount
+                        {sortConfig?.key === "total" ? (
+                          sortConfig.direction === "asc" ? (
+                            <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
+                          ) : (
+                            <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50" />
+                        )}
+                      </div>
+                    </TableHead>
+
                     <TableHead className="text-center">Status</TableHead>
                     <TableHead className="text-right pr-6">Action</TableHead>
                   </TableRow>

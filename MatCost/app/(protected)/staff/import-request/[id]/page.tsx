@@ -203,12 +203,12 @@ export default function StaffInboundDetailPage() {
                 Download Template
               </Button>
 
-              <Button
+              {request.status == "Approved" && <Button
                 className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
                 onClick={handleProcess}
               >
                 Start Processing <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
+              </Button>}
             </div>
           </div>
 

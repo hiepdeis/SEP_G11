@@ -177,6 +177,12 @@ export default function ReceiptReviewPage() {
       delete newErrors[`supplier-${index}`];
       setErrors(newErrors);
     }
+    autoSaveDraft(newItems);
+  };
+
+  const handleWarehouseChange = (val: string) => {
+    setSelectedWarehouseId(val); 
+    autoSaveDraft(items, val);   
   };
 
   const validateInput = (
@@ -328,6 +334,35 @@ export default function ReceiptReviewPage() {
       confirmLabel: "Yes, Submit",
       onConfirm: () => executeSubmit(),
     });
+  };
+
+  const autoSaveDraft = async (updatedItems: EditableItem[], newWarehouseId?: string) => {
+    const targetWarehouseId = newWarehouseId || selectedWarehouseId;
+    
+    setIsSaving(true);
+    try {
+      const payload = {
+        warehouseId: Number(targetWarehouseId),
+        items: updatedItems.map((i) => ({
+          supplierId: Number(i.supplierId),
+          materialId: i.materialId,
+          quantity: Number(i.approvedQty),
+          unitPrice: Number(i.unitPrice),
+        })),
+        notes: notes,
+      };
+
+      if (receipt?.status === "Requested") {
+        await receiptApi.createDraft(id, payload);
+        setReceipt((prev) => (prev ? { ...prev, status: "Draft" } : null));
+      } else {
+        await receiptApi.updateDraft(id, payload);
+      }
+    } catch (error: any) {
+      console.error("Auto-save failed", error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (isLoading)
@@ -628,7 +663,7 @@ export default function ReceiptReviewPage() {
                       <div className="space-y-2">
                         <Select
                           value={selectedWarehouseId}
-                          onValueChange={setSelectedWarehouseId}
+                          onValueChange={handleWarehouseChange}
                         >
                           <SelectTrigger
                             className={`w-full py-7 ${!selectedWarehouseId ? "border-red-300 bg-red-50" : "bg-slate-50 border-slate-200"}`}

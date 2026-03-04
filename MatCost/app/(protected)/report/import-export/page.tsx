@@ -250,7 +250,7 @@ export default function WarehouseCardPage() {
                       <TableHead>Location</TableHead>
                       <TableHead>Warehouse</TableHead>
                       <TableHead className="text-right">
-                        Qantity Before
+                        Quantity Before
                       </TableHead>
                       <TableHead className="text-center w-[120px]">
                         Change
