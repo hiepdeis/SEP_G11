@@ -117,6 +117,36 @@ BEGIN
 END
 
 --------------------------------------------------------------------------------
+-- 1.5) CREATE dbo.StockTakeBinLocations (Junction Table)
+--------------------------------------------------------------------------------
+PRINT 'Creating dbo.StockTakeBinLocations...';
+
+IF OBJECT_ID('dbo.StockTakeBinLocations', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.StockTakeBinLocations
+    (
+        StockTakeBinLocationID INT PRIMARY KEY IDENTITY(1,1),
+        StockTakeID INT NOT NULL,
+        BinID INT NOT NULL,
+        CONSTRAINT FK_StockTakeBinLocations_StockTakes
+            FOREIGN KEY (StockTakeID) REFERENCES dbo.StockTakes(StockTakeID) ON DELETE CASCADE,
+        CONSTRAINT FK_StockTakeBinLocations_BinLocations
+            FOREIGN KEY (BinID) REFERENCES dbo.BinLocations(BinID) ON DELETE CASCADE,
+        CONSTRAINT UQ_StockTakeBinLocations_Unique
+            UNIQUE (StockTakeID, BinID)
+    );
+    
+    CREATE INDEX IX_StockTakeBinLocations_StockTakeID ON dbo.StockTakeBinLocations(StockTakeID);
+    CREATE INDEX IX_StockTakeBinLocations_BinID ON dbo.StockTakeBinLocations(BinID);
+    
+    PRINT 'dbo.StockTakeBinLocations created successfully';
+END
+ELSE
+BEGIN
+    PRINT 'dbo.StockTakeBinLocations already exists';
+END
+
+--------------------------------------------------------------------------------
 -- 2) UPDATE dbo.StockTakeDetails (Audit line)
 --------------------------------------------------------------------------------
 PRINT 'Updating dbo.StockTakeDetails...';
