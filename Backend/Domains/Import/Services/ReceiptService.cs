@@ -36,7 +36,8 @@ namespace Backend.Domains.Import.Services
                 throw new Exception($"Cannot create draft. Current status: {receipt.Status}");
 
             // Step 3: Update receipt
-            receipt.WarehouseId = dto.WarehouseId;
+            if (dto.WarehouseId.HasValue && dto.WarehouseId.Value > 0) receipt.WarehouseId = dto.WarehouseId; 
+            
             receipt.Status = "Draft";
             receipt.AccountantNotes = dto.Notes;
 
@@ -49,8 +50,10 @@ namespace Backend.Domains.Import.Services
                 if (detail != null)
                 {
                     detail.Quantity = item.Quantity;
-                    detail.UnitPrice = item.UnitPrice;
-                    detail.SupplierId = item.SupplierId;
+
+                    if (item.UnitPrice.HasValue && item.UnitPrice.Value > 0) detail.UnitPrice = item.UnitPrice;
+
+                    if (item.SupplierId.HasValue && item.SupplierId.Value > 0) detail.SupplierId = item.SupplierId;
                 }
             }
 
@@ -237,9 +240,8 @@ namespace Backend.Domains.Import.Services
                 throw new Exception($"Cannot update. Current status: {receipt.Status}");
 
             // Step 3: Update receipt
+            if (dto.WarehouseId.HasValue && dto.WarehouseId.Value > 0) receipt.WarehouseId = dto.WarehouseId;
             receipt.AccountantNotes = dto.Notes;
-            receipt.WarehouseId = dto.WarehouseId;
-
 
             // Step 4: Update receipt details
             foreach (var item in dto.Items)
@@ -250,8 +252,10 @@ namespace Backend.Domains.Import.Services
                 if (detail != null)
                 {
                     detail.Quantity = item.Quantity;
-                    detail.UnitPrice = item.UnitPrice;
-                    detail.SupplierId = item.SupplierId;
+
+                    if (item.UnitPrice.HasValue && item.UnitPrice.Value > 0) detail.UnitPrice = item.UnitPrice;
+
+                    if (item.SupplierId.HasValue && item.SupplierId.Value > 0) detail.SupplierId = item.SupplierId;
                 }
             }
 
@@ -633,6 +637,7 @@ namespace Backend.Domains.Import.Services
                 WarehouseName = receipt.Warehouse != null ? receipt.Warehouse.Name : null,
                 ReceiptApprovalDate = receipt.ApprovedAt,
                 TotalQuantity = receipt.ReceiptDetails.Sum(rd => rd.Quantity),
+                Status = receipt.Status,
                 Items = receipt.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
                 {
                     DetailId = rd.DetailId,
