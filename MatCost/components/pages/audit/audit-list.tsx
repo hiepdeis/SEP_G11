@@ -5,30 +5,15 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { UserDropdown } from "@/components/user-dropdown";
 import {
-  Plus,
-  Search,
-  Calendar,
-  Lock,
-  Unlock,
-  ArrowRight,
-  Bell,
-  User,
-  ClipboardList,
-  Users,
+  Plus, Search, Calendar, Lock, Unlock, ArrowRight,
+  Bell, User, ClipboardList, Users, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { auditService, AuditPlanListItem } from "@/services/audit-service";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { auditService, AuditListItemDto } from "@/services/audit-service";
 
 type UserRole = "admin" | "manager" | "accountant" | "staff";
 
@@ -38,21 +23,18 @@ interface AuditListProps {
 
 export default function SharedAuditList({ role }: AuditListProps) {
   const router = useRouter();
-
-  // 3. Thay thế AUDIT_SESSIONS bằng State
-  const [audits, setAudits] = useState<AuditPlanListItem[]>([]);
+  
+  const [audits, setAudits] = useState<AuditListItemDto[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 4. Fetch Data từ API
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const data = await auditService.getAll();
+        const data = await auditService.getAll(); 
         setAudits(data);
       } catch (error) {
         console.error("Failed to load audits:", error);
-        // Không alert lỗi 404 để tránh phiền nếu chưa có API get list
       } finally {
         setLoading(false);
       }
@@ -60,14 +42,11 @@ export default function SharedAuditList({ role }: AuditListProps) {
     fetchData();
   }, []);
 
-const navigateTo = (action: string, auditId?: string) => {
-    // Nếu action là create (ko có ID)
+  const navigateTo = (action: string, auditId?: string) => {
     if (action === "create") {
        router.push(`/${role}/audit/create`);
        return;
     }
-
-    // Các action cần ID
     if (!auditId) return;
 
     if (action === "assign-team") {
@@ -100,18 +79,7 @@ const navigateTo = (action: string, auditId?: string) => {
               <button className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-600 relative">
                 <Bell className="w-5 h-5" />
               </button>
-              <UserDropdown
-                align="end"
-                trigger={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-9 h-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-                  >
-                    <User className="h-5 w-5" />
-                  </Button>
-                }
-              />
+              <UserDropdown align="end" trigger={<Button variant="ghost" size="icon" className="w-9 h-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"><User className="h-5 w-5" /></Button>} />
             </div>
           </div>
         </header>
@@ -119,56 +87,28 @@ const navigateTo = (action: string, auditId?: string) => {
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">
-                Audit Sessions
-              </h1>
-              <p className="text-sm text-slate-500">
-                Manage stocktaking plans and reconciliation.
-              </p>
+              <h1 className="text-2xl font-bold text-slate-900">Audit Sessions</h1>
+              <p className="text-sm text-slate-500">Manage stocktaking plans and reconciliation.</p>
             </div>
-            {/* Create Button */}
             {role === "accountant" && (
-              <Button
-                onClick={() => navigateTo("create")}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
-              >
+              <Button onClick={() => navigateTo("create")} className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md">
                 <Plus className="w-4 h-4 mr-2" /> New Audit Plan
               </Button>
             )}
           </div>
 
-          {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="border-slate-200">
               <CardContent className="p-6 flex items-center gap-4">
-                <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
-                  <ClipboardList className="w-6 h-6" />
-                </div>
+                <div className="p-3 bg-blue-100 text-blue-600 rounded-lg"><ClipboardList className="w-6 h-6" /></div>
                 <div>
-                  <p className="text-sm font-medium text-slate-500">
-                    Total Audits
-                  </p>
-                  <h3 className="text-2xl font-bold text-slate-900">12</h3>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-l-4 border-l-red-500 shadow-sm">
-              <CardContent className="p-6 flex items-center gap-4">
-                <div className="p-3 bg-red-100 text-red-600 rounded-lg">
-                  <Lock className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-500">
-                    System Locked
-                  </p>
-                  <h3 className="text-2xl font-bold text-red-600">1 Active</h3>
-                  <p className="text-xs text-red-400">Transactions frozen</p>
+                  <p className="text-sm font-medium text-slate-500">Total Audits</p>
+                  <h3 className="text-2xl font-bold text-slate-900">{audits.length}</h3>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Main List */}
           <Card className="border-slate-200 shadow-sm">
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex items-center justify-between">
@@ -183,67 +123,63 @@ const navigateTo = (action: string, auditId?: string) => {
                 <TableHeader>
                   <TableRow className="bg-slate-50">
                     <TableHead>Audit Title</TableHead>
-                    <TableHead>Warehouse ID</TableHead> {/* Tạm thời hiện ID vì BE chưa trả về Name */}
+                    <TableHead>Warehouse</TableHead>
                     <TableHead>Start Date</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Progress</TableHead>
                     <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {/* Trường hợp đang tải dữ liệu */}
                   {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center">
-                        <div className="flex items-center justify-center gap-2 text-slate-500">
-                          Loading data...
+                      <TableRow><TableCell colSpan={6} className="text-center py-8 text-slate-500"><Loader2 className="w-5 h-5 animate-spin mx-auto"/>Loading...</TableCell></TableRow>
+                  ) : audits.length === 0 ? (
+                      <TableRow><TableCell colSpan={6} className="text-center py-8 text-slate-500">No audit sessions found.</TableCell></TableRow>
+                  ) : (
+                    audits.map((audit) => (
+                    <TableRow key={audit.stockTakeId} className="group hover:bg-slate-50/50">
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-700">{audit.title}</span>
+                          <span className="text-xs text-slate-400">ID: {audit.stockTakeId}</span>
                         </div>
                       </TableCell>
-                    </TableRow>
-                  ) : audits.length === 0 ? (
-                    /* Trường hợp không có dữ liệu */
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center text-slate-500">
-                        No audit sessions found.
+                      <TableCell>{audit.warehouseName || `Warehouse #${audit.warehouseId}`}</TableCell>
+                      <TableCell className="text-slate-500">
+                        {audit.plannedStartDate ? new Date(audit.plannedStartDate).toLocaleDateString() : 'N/A'}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(audit.status)}</TableCell>
+                      <TableCell className="font-medium">{audit.countingProgress}%</TableCell>
+                      
+                      <TableCell className="text-right">
+                        {role === "manager" && (
+                            <div className="flex justify-end gap-2">
+                                {(audit.status === "Planned" || audit.status === "Assigned") && (
+                                    <Button size="sm" variant="outline" className="border-indigo-200 text-indigo-600 hover:bg-indigo-50" 
+                                        onClick={() => navigateTo("assign-team", audit.stockTakeId.toString())}>
+                                        <Users className="w-3 h-3 mr-2" /> Assign Team
+                                    </Button>
+                                )}
+                                <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                                    onClick={() => navigateTo("detail", audit.stockTakeId.toString())}>
+                                    Detail
+                                </Button>
+                            </div>
+                        )}
+                        {role === "staff" && (
+                             <Button size="sm" variant="outline" 
+                                onClick={() => navigateTo("manual-count", audit.stockTakeId.toString())}>
+                                Manual Count <ArrowRight className="w-3 h-3 ml-1" />
+                            </Button>
+                        )}
+                        {role === "accountant" && (
+                             <Button size="sm" variant="ghost" onClick={() => navigateTo("detail", audit.stockTakeId.toString())}>
+                                View Report
+                             </Button>
+                        )}
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    /* Trường hợp có dữ liệu -> Render danh sách */
-                    audits.map((audit) => (
-                      <TableRow key={audit.stockTakeId} className="group hover:bg-slate-50/50">
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-bold text-slate-700">{audit.title}</span>
-                            <span className="text-xs text-slate-400">ID: {audit.stockTakeId}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>Warehouse #{audit.warehouseId}</TableCell>
-                        <TableCell className="text-slate-500">
-                          {new Date(audit.plannedStartDate).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(audit.status)}
-                        </TableCell>
-                        
-                        <TableCell className="text-right">
-                          {/* Logic hiển thị nút bấm tùy Role */}
-                          {role === "manager" && (
-                              <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white" 
-                                  onClick={() => navigateTo("assign-team", audit.stockTakeId.toString())}>
-                                  <Users className="w-3 h-3 mr-2" /> Assign Team
-                              </Button>
-                          )}
-                          {role === "staff" && (
-                              <Button size="sm" variant="outline" 
-                                  onClick={() => navigateTo("manual-count", audit.stockTakeId.toString())}>
-                                  Manual Count <ArrowRight className="w-3 h-3 ml-1" />
-                              </Button>
-                          )}
-                          {role === "accountant" && (
-                              <span className="text-xs text-slate-400 italic">View Only</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    )))}
+                  )))}
                 </TableBody>
               </Table>
             </CardContent>
