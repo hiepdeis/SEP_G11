@@ -23,14 +23,36 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useRouter, usePathname } from "next/navigation";
 import { useSidebar } from "./sidebar-context";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { UserDropdown } from "@/components/user-dropdown";
+import { useAuth } from "@/components/providers/auth-provider";
+import { userApi } from "@/services/user-service";
 
 export function Sidebar() {
   const { isExpanded, setIsExpanded } = useSidebar();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  const { user: userDecode } = useAuth();
+  const [userProfile, setUserProfile] = useState<{
+    fullName: string;
+    email: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (userDecode?.id) {
+        try {
+          const res = await userApi.getById(userDecode.id);
+          setUserProfile(res.data);
+        } catch (error) {
+          console.error("Failed to fetch user profile", error);
+        }
+      }
+    };
+
+    fetchUserProfile();
+  }, [userDecode?.id]);
 
   const navItems = [
     { label: "Dashboard", icon: LayoutGrid, href: "/dashboard" },
@@ -43,7 +65,10 @@ export function Sidebar() {
 
   const outboundTabs = [
     { label: "Issue Slips", href: "/outbound/common/IssueSlipList" },
-    { label: "Construction", href: "/outbound/contruction/MaterialRequestForm" },
+    {
+      label: "Construction",
+      href: "/outbound/contruction/MaterialRequestForm",
+    },
     { label: "Account", href: "/outbound/account" },
     { label: "Manager", href: "/outbound/manager" },
     { label: "Staff", href: "/outbound/staff/InventoryIssueList" },
@@ -176,9 +201,11 @@ export function Sidebar() {
               <button
                 className={`
                   relative flex gap-3 px-3 py-3 rounded-xl transition-all duration-300 group overflow-hidden w-full
-                  ${pathname.startsWith("/outbound")
-                    ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm"}
+                  ${
+                    pathname.startsWith("/outbound")
+                      ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm"
+                  }
                   ${isExpanded ? "justify-start" : "justify-center"}
                 `}
               >
@@ -210,7 +237,9 @@ export function Sidebar() {
                 <DropdownMenuItem
                   key={tab.href}
                   onClick={() => router.push(tab.href)}
-                  className={pathname === tab.href ? "bg-blue-100 font-semibold" : ""}
+                  className={
+                    pathname === tab.href ? "bg-blue-100 font-semibold" : ""
+                  }
                 >
                   {tab.label}
                 </DropdownMenuItem>
@@ -222,9 +251,12 @@ export function Sidebar() {
               <button
                 className={`
                   relative flex gap-3 px-3 py-3 rounded-xl transition-all duration-300 group overflow-hidden w-full
-                  ${pathname.match("/material-request") || pathname.match("/import-request") 
-                    ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm"}
+                  ${
+                    pathname.match("/material-request") ||
+                    pathname.match("/import-request")
+                      ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm"
+                  }
                   ${isExpanded ? "justify-start" : "justify-center"}
                 `}
               >
@@ -232,7 +264,8 @@ export function Sidebar() {
                   className={`
                     h-5 w-5 flex-shrink-0 transition-all duration-300
                     ${
-                      pathname.match("/material-request") || pathname.match("/import-request") 
+                      pathname.match("/material-request") ||
+                      pathname.match("/import-request")
                         ? "text-blue-600 scale-110"
                         : "text-slate-400 group-hover:text-slate-600 group-hover:scale-110"
                     }
@@ -246,9 +279,10 @@ export function Sidebar() {
                     <ChevronDown className="w-4 h-4 ml-auto" />
                   </>
                 )}
-                {pathname.match("/material-request") || pathname.match("/import-request") && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
-                )}
+                {pathname.match("/material-request") ||
+                  (pathname.match("/import-request") && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
+                  ))}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="right" align="start" className="ml-4">
@@ -256,7 +290,9 @@ export function Sidebar() {
                 <DropdownMenuItem
                   key={tab.href}
                   onClick={() => router.push(tab.href)}
-                  className={pathname === tab.href ? "bg-blue-100 font-semibold" : ""}
+                  className={
+                    pathname === tab.href ? "bg-blue-100 font-semibold" : ""
+                  }
                 >
                   {tab.label}
                 </DropdownMenuItem>
@@ -280,16 +316,15 @@ export function Sidebar() {
                   <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold text-white shadow-md shadow-indigo-200 ring-2 ring-white">
                     <User className="h-5 w-5" />
                   </div>
-                  {/* <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></span> */}
                 </div>
 
                 {isExpanded && (
                   <div className="flex-1 text-left min-w-0 animate-in fade-in slide-in-from-left-2 duration-300">
                     <p className="text-sm font-semibold text-slate-900 truncate">
-                      User Account
+                      {userProfile?.fullName || "Loading..."}
                     </p>
                     <p className="text-xs text-slate-500 truncate">
-                      user@matcost.com
+                      {userProfile?.email || "..."}
                     </p>
                   </div>
                 )}
@@ -377,9 +412,11 @@ export function Sidebar() {
                   onClick={() => setShowOutboundMobile((v) => !v)}
                   className={`
                     flex items-center gap-4 px-4 py-3.5 rounded-xl w-full transition-all duration-200 group relative
-                    ${pathname.startsWith("/outbound")
-                      ? "bg-blue-50 text-blue-700 font-semibold shadow-sm"
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}
+                    ${
+                      pathname.startsWith("/outbound")
+                        ? "bg-blue-50 text-blue-700 font-semibold shadow-sm"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    }
                   `}
                 >
                   <Upload
@@ -414,20 +451,22 @@ export function Sidebar() {
             </nav>
 
             <div className="border-t border-slate-100 p-4 bg-slate-50/50">
-              <UserDropdown 
+              <UserDropdown
                 side="top"
                 align="center"
                 trigger={
                   <button className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-white border border-slate-200 shadow-sm">
-                    <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold flex-shrink-0 text-white ring-2 ring-indigo-50">
-                      U
+                    <div className="relative flex-shrink-0">
+                      <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold text-white shadow-md shadow-indigo-200 ring-2 ring-white">
+                        <User className="h-5 w-5" />
+                      </div>
                     </div>
                     <div className="flex-1 text-left min-w-0">
                       <p className="text-sm font-bold text-slate-900 truncate">
-                        User Account
+                        {userProfile?.fullName || "Loading..."}
                       </p>
                       <p className="text-xs text-slate-500 truncate">
-                        user@matcost.com
+                        {userProfile?.email || "..."}
                       </p>
                     </div>
                     <Settings className="w-5 h-5 text-slate-400" />
