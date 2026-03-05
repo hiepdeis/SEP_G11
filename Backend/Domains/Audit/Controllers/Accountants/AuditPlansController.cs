@@ -49,5 +49,33 @@ namespace Backend.Domains.Audit.Controllers.Accountants
             // Bạn có thể implement sau. Tạm thời để CreatedAtAction không lỗi route.
             return Ok(new { id });
         }
+
+        [HttpDelete("plans/{stockTakeId:int}/bin-locations/{binId:int}")]
+        public async Task<IActionResult> DeleteBinLocation([FromRoute] int stockTakeId, [FromRoute] int binId, CancellationToken ct)
+        {
+            try
+            {
+                await _service.DeleteBinLocationAsync(stockTakeId, binId, ct);
+                return Ok(new { message = "BinLocation deleted successfully." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPut("plans/{stockTakeId:int}/bin-locations")]
+        public async Task<IActionResult> UpdateBinLocations([FromRoute] int stockTakeId, [FromBody] UpdateBinLocationsRequest request, CancellationToken ct)
+        {
+            try
+            {
+                var result = await _service.UpdateBinLocationsAsync(stockTakeId, request, ct);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
 }

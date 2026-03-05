@@ -53,6 +53,8 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<StockTake> StockTakes { get; set; }
 
+    public virtual DbSet<StockTakeBinLocation> StockTakeBinLocations { get; set; }
+
     public virtual DbSet<StockTakeDetail> StockTakeDetails { get; set; }
 
     public virtual DbSet<StockTakeSignature> StockTakeSignatures { get; set; }
@@ -609,20 +611,26 @@ public partial class MyDbContext : DbContext
             entity.HasKey(e => e.Id).HasName("PK__StockTak__3214EC27DBDFEB96");
 
             entity.HasIndex(e => e.StockTakeId, "IX_StockTakeTeamMembers_StockTakeID");
-
             entity.HasIndex(e => e.UserId, "IX_StockTakeTeamMembers_UserID");
 
             entity.HasIndex(e => new { e.StockTakeId, e.UserId }, "UX_StockTakeTeamMembers_StockTake_User").IsUnique();
 
             entity.Property(e => e.Id).HasColumnName("ID");
+
             entity.Property(e => e.AssignedAt)
                 .HasPrecision(0)
                 .HasDefaultValueSql("(sysdatetime())");
+
             entity.Property(e => e.IsActive).HasDefaultValue(true);
+
             entity.Property(e => e.RemovedAt).HasPrecision(0);
-            entity.Property(e => e.RoleInTeam)
-                .HasMaxLength(30)
-                .IsUnicode(false);
+
+            // NEW: staff hoàn thành phần mình
+            entity.Property(e => e.MemberCompletedAt)
+                .HasPrecision(0);                 // nếu DB bạn để datetime2 (7) thì có thể bỏ HasPrecision
+
+          
+
             entity.Property(e => e.StockTakeId).HasColumnName("StockTakeID");
             entity.Property(e => e.UserId).HasColumnName("UserID");
 
@@ -636,6 +644,31 @@ public partial class MyDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_StockTakeTeamMembers_Users");
         });
+
+
+        modelBuilder.Entity<StockTakeBinLocation>(entity =>
+        {
+            entity.HasKey(e => e.StockTakeBinLocationId).HasName("PK__StockTakeBinLocations__ID");
+
+            entity.HasIndex(e => e.StockTakeId, "IX_StockTakeBinLocations_StockTakeID");
+            entity.HasIndex(e => e.BinId, "IX_StockTakeBinLocations_BinID");
+            entity.HasIndex(e => new { e.StockTakeId, e.BinId }, "UX_StockTakeBinLocations_Unique").IsUnique();
+
+            entity.Property(e => e.StockTakeBinLocationId).HasColumnName("StockTakeBinLocationID");
+            entity.Property(e => e.StockTakeId).HasColumnName("StockTakeID");
+            entity.Property(e => e.BinId).HasColumnName("BinID");
+
+            entity.HasOne(d => d.StockTake).WithMany(p => p.StockTakeBinLocations)
+                .HasForeignKey(d => d.StockTakeId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_StockTakeBinLocations_StockTakes");
+
+            entity.HasOne(d => d.BinLocation).WithMany(p => p.StockTakeBinLocations)
+                .HasForeignKey(d => d.BinId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_StockTakeBinLocations_BinLocations");
+        });
+
 
         modelBuilder.Entity<Supplier>(entity =>
         {

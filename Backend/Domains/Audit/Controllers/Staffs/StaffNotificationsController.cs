@@ -7,7 +7,7 @@ using System.Security.Claims;
 namespace Backend.Domains.Notifications.Controllers.Staffs;
 
 [ApiController]
-[Route("api/staff")]
+[Route("api/staff/notifications")]
 //[Authorize(Roles = "Warehouse Staff")]
 public class StaffNotificationsController : ControllerBase
 {
@@ -22,7 +22,7 @@ public class StaffNotificationsController : ControllerBase
 
     private int GetUserId()
     {
-        return 13;// FIX CỨNG để test
+        return 4;// FIX CỨNG để test
         //var idStr =
         //    User.FindFirstValue(ClaimTypes.NameIdentifier) ??
         //    User.FindFirstValue("userId") ??

@@ -8,5 +8,6 @@ namespace Backend.Domains.Audit.Interfaces
         Task<List<EligibleStaffDto>> GetEligibleStaffAsync(int stockTakeId, CancellationToken ct);
         Task SaveTeamAsync(int stockTakeId, SaveTeamRequest request, int managerUserId, CancellationToken ct);
         Task RemoveMemberAsync(int stockTakeId, int userId, int managerUserId, CancellationToken ct);
+        Task MarkMyWorkDoneAsync(int stockTakeId, int staffUserId, CancellationToken ct);
     }
 }

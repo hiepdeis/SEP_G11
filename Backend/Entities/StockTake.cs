@@ -47,7 +47,7 @@ public partial class StockTake
     public virtual User? CompletedByNavigation { get; set; }
    
 
-    
+    public virtual ICollection<StockTakeBinLocation> StockTakeBinLocations { get; set; } = new List<StockTakeBinLocation>();
 
     public virtual ICollection<InventoryAdjustmentEntry> InventoryAdjustmentEntries { get; set; } = new List<InventoryAdjustmentEntry>();
 
