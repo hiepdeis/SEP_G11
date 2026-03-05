@@ -9,5 +9,7 @@ namespace Backend.Domains.auth.Interfaces
         Task<User?> GetUserByRefreshTokenAsync(string refreshToken);
         Task<RefreshTokenResult> GenerateAndSaveRefreshToken(User user);
         Task<string> CreateAccessToken(User user);
+
+        Task RevokeRefreshTokenAsync(string refreshToken);
     }
 }

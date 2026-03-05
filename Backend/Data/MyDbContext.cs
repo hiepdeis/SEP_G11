@@ -15,11 +15,15 @@ public partial class MyDbContext : DbContext
     {
     }
 
+    public virtual DbSet<AdjustmentReason> AdjustmentReasons { get; set; }
+
     public virtual DbSet<Batch> Batches { get; set; }
 
     public virtual DbSet<MaterialCategory> MaterialCategories { get; set; }
 
     public virtual DbSet<BinLocation> BinLocations { get; set; }
+
+    public virtual DbSet<InventoryAdjustmentEntry> InventoryAdjustmentEntries { get; set; }
 
     public virtual DbSet<InventoryCurrent> InventoryCurrents { get; set; }
 
@@ -49,7 +53,13 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<StockTake> StockTakes { get; set; }
 
+    public virtual DbSet<StockTakeBinLocation> StockTakeBinLocations { get; set; }
+
     public virtual DbSet<StockTakeDetail> StockTakeDetails { get; set; }
+
+    public virtual DbSet<StockTakeSignature> StockTakeSignatures { get; set; }
+
+    public virtual DbSet<StockTakeTeamMember> StockTakeTeamMembers { get; set; }
 
     public virtual DbSet<Supplier> Suppliers { get; set; }
 
@@ -63,11 +73,31 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<Warehouse> Warehouses { get; set; }
 
+
+    public virtual DbSet<InventoryIssue> InventoryIssues { get; set; }
+    public virtual DbSet<InventoryIssueDetail> InventoryIssueDetails { get; set; }
+
     public virtual DbSet<WarehouseCard> WarehouseCards { get; set; }
+
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<AdjustmentReason>(entity =>
+        {
+            entity.HasKey(e => e.ReasonId).HasName("PK__Adjustme__A4F8C0C7325BD484");
+
+            entity.HasIndex(e => e.Code, "UX_AdjustmentReasons_Code").IsUnique();
+
+            entity.Property(e => e.ReasonId).HasColumnName("ReasonID");
+            entity.Property(e => e.Code)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.Name).HasMaxLength(200);
+        });
+
         modelBuilder.Entity<Batch>(entity =>
         {
             entity.HasKey(e => e.BatchId).HasName("PK__Batches__5D55CE38E53D7EE6");
@@ -90,6 +120,72 @@ public partial class MyDbContext : DbContext
             entity.HasOne(d => d.Warehouse).WithMany(p => p.BinLocations)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_BinLocations_Warehouses");
+        });
+
+        modelBuilder.Entity<InventoryAdjustmentEntry>(entity =>
+        {
+            entity.HasKey(e => e.EntryId).HasName("PK__Inventor__F57BD2D77B4E6B52");
+
+            entity.HasIndex(e => e.StockTakeDetailId, "IX_InvAdjEntries_StockTakeDetailID");
+
+            entity.HasIndex(e => e.StockTakeId, "IX_InvAdjEntries_StockTakeID");
+
+            entity.Property(e => e.EntryId).HasColumnName("EntryID");
+            entity.Property(e => e.ApprovedAt).HasPrecision(0);
+            entity.Property(e => e.BatchId).HasColumnName("BatchID");
+            entity.Property(e => e.BinId).HasColumnName("BinID");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(0)
+                .HasDefaultValueSql("(sysdatetime())");
+            entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
+            entity.Property(e => e.PostedAt).HasPrecision(0);
+            entity.Property(e => e.QtyDelta).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.ReasonId).HasColumnName("ReasonID");
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasDefaultValue("Draft");
+            entity.Property(e => e.StockTakeDetailId).HasColumnName("StockTakeDetailID");
+            entity.Property(e => e.StockTakeId).HasColumnName("StockTakeID");
+            entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
+
+            entity.HasOne(d => d.ApprovedByNavigation).WithMany(p => p.InventoryAdjustmentEntryApprovedByNavigations)
+                .HasForeignKey(d => d.ApprovedBy)
+                .HasConstraintName("FK_InvAdjEntries_ApprovedBy_Users");
+
+            entity.HasOne(d => d.Batch).WithMany(p => p.InventoryAdjustmentEntries)
+                .HasForeignKey(d => d.BatchId)
+                .HasConstraintName("FK_InvAdjEntries_Batches");
+
+            entity.HasOne(d => d.Bin).WithMany(p => p.InventoryAdjustmentEntries)
+                .HasForeignKey(d => d.BinId)
+                .HasConstraintName("FK_InvAdjEntries_BinLocations");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.InventoryAdjustmentEntryCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_InvAdjEntries_CreatedBy_Users");
+
+            entity.HasOne(d => d.Material).WithMany(p => p.InventoryAdjustmentEntries)
+                .HasForeignKey(d => d.MaterialId)
+                .HasConstraintName("FK_InvAdjEntries_Materials");
+
+            entity.HasOne(d => d.Reason).WithMany(p => p.InventoryAdjustmentEntries)
+                .HasForeignKey(d => d.ReasonId)
+                .HasConstraintName("FK_InvAdjEntries_AdjustmentReasons");
+
+            entity.HasOne(d => d.StockTakeDetail).WithMany(p => p.InventoryAdjustmentEntries)
+                .HasForeignKey(d => d.StockTakeDetailId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_InvAdjEntries_StockTakeDetails");
+
+            entity.HasOne(d => d.StockTake).WithMany(p => p.InventoryAdjustmentEntries)
+                .HasForeignKey(d => d.StockTakeId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_InvAdjEntries_StockTakes");
+
+            entity.HasOne(d => d.Warehouse).WithMany(p => p.InventoryAdjustmentEntries)
+                .HasForeignKey(d => d.WarehouseId)
+                .HasConstraintName("FK_InvAdjEntries_Warehouses");
         });
 
         modelBuilder.Entity<InventoryCurrent>(entity =>
@@ -382,48 +478,197 @@ public partial class MyDbContext : DbContext
 
         modelBuilder.Entity<StockTake>(entity =>
         {
-            entity.HasKey(e => e.StockTakeId).HasName("PK__StockTak__6D3F3A76B7995198");
-            entity.Property(e => e.StockTakeId).HasColumnName("StockTakeID");
+            entity.HasKey(e => e.StockTakeId).HasName("PK__StockTak__6D3F3A76F3069398");
 
-            entity.Property(e => e.CheckDate).HasDefaultValueSql("(getdate())");
+            entity.HasIndex(e => e.CreatedBy, "IX_StockTakes_CreatedBy");
+
+            entity.HasIndex(e => e.WarehouseId, "IX_StockTakes_WarehouseID");
+
+            entity.Property(e => e.StockTakeId).HasColumnName("StockTakeID");
+            entity.Property(e => e.CheckDate).HasColumnType("datetime");
+            entity.Property(e => e.CompletedAt).HasPrecision(0);
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(0)
+                .HasDefaultValueSql("(sysdatetime())");
+            entity.Property(e => e.LockedAt).HasPrecision(0);
+            entity.Property(e => e.Notes).HasMaxLength(500);
+            entity.Property(e => e.PlannedEndDate).HasPrecision(0);
+            entity.Property(e => e.PlannedStartDate).HasPrecision(0);
             entity.Property(e => e.Status)
-             .HasMaxLength(20)
-             .IsUnicode(false);
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.Title).HasMaxLength(200);
             entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
 
+            entity.HasOne(d => d.CompletedByNavigation).WithMany(p => p.StockTakeCompletedByNavigations)
+                .HasForeignKey(d => d.CompletedBy)
+                .HasConstraintName("FK_StockTakes_CompletedBy_Users");
 
-            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.StockTakes)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_StockTakes_Users");
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.StockTakeCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK__StockTake__Creat__14270015");
+
+            entity.HasOne(d => d.LockedByNavigation).WithMany(p => p.StockTakeLockedByNavigations)
+                .HasForeignKey(d => d.LockedBy)
+                .HasConstraintName("FK_StockTakes_LockedBy_Users");
 
             entity.HasOne(d => d.Warehouse).WithMany(p => p.StockTakes)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_StockTakes_Warehouses");
+                .HasForeignKey(d => d.WarehouseId)
+                .HasConstraintName("FK__StockTake__Wareh__1332DBDC");
         });
 
         modelBuilder.Entity<StockTakeDetail>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__StockTak__3214EC2798C2AD55");
+            entity.HasKey(e => e.Id).HasName("PK__StockTak__3214EC27058EA390");
+
+            entity.HasIndex(e => e.BatchId, "IX_StockTakeDetails_BatchID");
+
+            entity.HasIndex(e => e.MaterialId, "IX_StockTakeDetails_MaterialID");
+
+            entity.HasIndex(e => e.StockTakeId, "IX_StockTakeDetails_StockTakeID");
+
             entity.Property(e => e.Id).HasColumnName("ID");
+            entity.Property(e => e.AdjustmentReasonId).HasColumnName("AdjustmentReasonID");
             entity.Property(e => e.BatchId).HasColumnName("BatchID");
+            entity.Property(e => e.BinId).HasColumnName("BinID");
             entity.Property(e => e.CountQty).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.CountedAt).HasPrecision(0);
+            entity.Property(e => e.DiscrepancyStatus)
+                .HasMaxLength(20)
+                .IsUnicode(false);
             entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
             entity.Property(e => e.Reason).HasMaxLength(255);
+            entity.Property(e => e.ResolutionAction)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.ResolvedAt).HasPrecision(0);
             entity.Property(e => e.StockTakeId).HasColumnName("StockTakeID");
             entity.Property(e => e.SystemQty).HasColumnType("decimal(18, 4)");
             entity.Property(e => e.Variance).HasColumnType("decimal(18, 4)");
 
+            entity.HasOne(d => d.AdjustmentReason).WithMany(p => p.StockTakeDetails)
+                .HasForeignKey(d => d.AdjustmentReasonId)
+                .HasConstraintName("FK_StockTakeDetails_AdjustmentReasons");
 
-            entity.HasOne(d => d.Batch).WithMany(p => p.StockTakeDetails).HasConstraintName("FK_StockTakeDetails_Batches");
+            entity.HasOne(d => d.Batch).WithMany(p => p.StockTakeDetails)
+                .HasForeignKey(d => d.BatchId)
+                .HasConstraintName("FK__StockTake__Batch__18EBB532");
+
+            entity.HasOne(d => d.Bin).WithMany(p => p.StockTakeDetails)
+                .HasForeignKey(d => d.BinId)
+                .HasConstraintName("FK_StockTakeDetails_BinLocations");
+
+            entity.HasOne(d => d.CountedByNavigation).WithMany(p => p.StockTakeDetailCountedByNavigations)
+                .HasForeignKey(d => d.CountedBy)
+                .HasConstraintName("FK_StockTakeDetails_CountedBy_Users");
 
             entity.HasOne(d => d.Material).WithMany(p => p.StockTakeDetails)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_StockTakeDetails_Materials");
+                .HasForeignKey(d => d.MaterialId)
+                .HasConstraintName("FK__StockTake__Mater__17F790F9");
+
+            entity.HasOne(d => d.ResolvedByNavigation).WithMany(p => p.StockTakeDetailResolvedByNavigations)
+                .HasForeignKey(d => d.ResolvedBy)
+                .HasConstraintName("FK_StockTakeDetails_ResolvedBy_Users");
 
             entity.HasOne(d => d.StockTake).WithMany(p => p.StockTakeDetails)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_StockTakeDetails_StockTakes");
+                .HasForeignKey(d => d.StockTakeId)
+                .HasConstraintName("FK__StockTake__Stock__17036CC0");
         });
+
+        modelBuilder.Entity<StockTakeSignature>(entity =>
+        {
+            entity.HasKey(e => e.SignatureId).HasName("PK__StockTak__3DCA5789A2E77209");
+
+            entity.HasIndex(e => e.StockTakeId, "IX_StockTakeSignatures_StockTakeID");
+
+            entity.HasIndex(e => e.UserId, "IX_StockTakeSignatures_UserID");
+
+            entity.HasIndex(e => new { e.StockTakeId, e.Role }, "UX_StockTakeSignatures_StockTake_Role").IsUnique();
+
+            entity.Property(e => e.SignatureId).HasColumnName("SignatureID");
+            entity.Property(e => e.Role)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.SignedAt)
+                .HasPrecision(0)
+                .HasDefaultValueSql("(sysdatetime())");
+            entity.Property(e => e.StockTakeId).HasColumnName("StockTakeID");
+            entity.Property(e => e.UserId).HasColumnName("UserID");
+
+            entity.HasOne(d => d.StockTake).WithMany(p => p.StockTakeSignatures)
+                .HasForeignKey(d => d.StockTakeId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_StockTakeSignatures_StockTakes");
+
+            entity.HasOne(d => d.User).WithMany(p => p.StockTakeSignatures)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_StockTakeSignatures_Users");
+        });
+
+        modelBuilder.Entity<StockTakeTeamMember>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__StockTak__3214EC27DBDFEB96");
+
+            entity.HasIndex(e => e.StockTakeId, "IX_StockTakeTeamMembers_StockTakeID");
+            entity.HasIndex(e => e.UserId, "IX_StockTakeTeamMembers_UserID");
+
+            entity.HasIndex(e => new { e.StockTakeId, e.UserId }, "UX_StockTakeTeamMembers_StockTake_User").IsUnique();
+
+            entity.Property(e => e.Id).HasColumnName("ID");
+
+            entity.Property(e => e.AssignedAt)
+                .HasPrecision(0)
+                .HasDefaultValueSql("(sysdatetime())");
+
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+
+            entity.Property(e => e.RemovedAt).HasPrecision(0);
+
+            // NEW: staff hoàn thành phần mình
+            entity.Property(e => e.MemberCompletedAt)
+                .HasPrecision(0);                 // nếu DB bạn để datetime2 (7) thì có thể bỏ HasPrecision
+
+          
+
+            entity.Property(e => e.StockTakeId).HasColumnName("StockTakeID");
+            entity.Property(e => e.UserId).HasColumnName("UserID");
+
+            entity.HasOne(d => d.StockTake).WithMany(p => p.StockTakeTeamMembers)
+                .HasForeignKey(d => d.StockTakeId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_StockTakeTeamMembers_StockTakes");
+
+            entity.HasOne(d => d.User).WithMany(p => p.StockTakeTeamMembers)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_StockTakeTeamMembers_Users");
+        });
+
+
+        modelBuilder.Entity<StockTakeBinLocation>(entity =>
+        {
+            entity.HasKey(e => e.StockTakeBinLocationId).HasName("PK__StockTakeBinLocations__ID");
+
+            entity.HasIndex(e => e.StockTakeId, "IX_StockTakeBinLocations_StockTakeID");
+            entity.HasIndex(e => e.BinId, "IX_StockTakeBinLocations_BinID");
+            entity.HasIndex(e => new { e.StockTakeId, e.BinId }, "UX_StockTakeBinLocations_Unique").IsUnique();
+
+            entity.Property(e => e.StockTakeBinLocationId).HasColumnName("StockTakeBinLocationID");
+            entity.Property(e => e.StockTakeId).HasColumnName("StockTakeID");
+            entity.Property(e => e.BinId).HasColumnName("BinID");
+
+            entity.HasOne(d => d.StockTake).WithMany(p => p.StockTakeBinLocations)
+                .HasForeignKey(d => d.StockTakeId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_StockTakeBinLocations_StockTakes");
+
+            entity.HasOne(d => d.BinLocation).WithMany(p => p.StockTakeBinLocations)
+                .HasForeignKey(d => d.BinId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_StockTakeBinLocations_BinLocations");
+        });
+
 
         modelBuilder.Entity<Supplier>(entity =>
         {
@@ -570,6 +815,17 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(100);
         });
 
+
+        modelBuilder.Entity<InventoryIssue>(entity =>
+        {
+
+            entity.ToTable("InventoryIssues");
+
+            entity.HasMany(e => e.Details)
+                .WithOne(d => d.InventoryIssue)
+                .HasForeignKey(d => d.InventoryIssueId);
+        });
+
         modelBuilder.Entity<ReceiptRejectionHistory>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -637,6 +893,7 @@ public partial class MyDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_WarehouseCards_Users");
         });
+
 
         OnModelCreatingPartial(modelBuilder);
     }

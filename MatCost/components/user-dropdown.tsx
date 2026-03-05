@@ -11,7 +11,7 @@ import {
 import { useRouter } from "next/navigation";
 import { setAccessToken } from "@/lib/axios-client";
 import Link from "next/link";
-
+import { authApi } from "@/services/auth-service";
 interface UserDropdownProps {
   trigger: React.ReactNode;
   align?: "center" | "start" | "end";
@@ -27,8 +27,9 @@ export function UserDropdown({
 }: UserDropdownProps) {
   const router = useRouter();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     try {
+      await authApi.logout();
       localStorage.removeItem("auth_token");
       if (typeof setAccessToken === "function") {
         setAccessToken(null);

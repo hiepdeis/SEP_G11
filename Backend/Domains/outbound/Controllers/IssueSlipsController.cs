@@ -1,11 +1,12 @@
 ﻿using Backend.Data;
 using Backend.Domains.outbound.Dtos;
+using Backend.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Backend.Entities;
 
 
 namespace Backend.Domains.outbound.Controllers
@@ -70,21 +71,27 @@ namespace Backend.Domains.outbound.Controllers
         }
 
 
-        [HttpPut("{id}/approve")]
-        //[Authorize(Roles = "Manager")]
-        public async Task<IActionResult> ApproveIssueSlip(long id)
+        [HttpPut("{id}/review")]
+       // [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> ReviewIssue(long id, ReviewIssueRequest request)
         {
-            var issue = await _context.IssueSlips.FirstOrDefaultAsync(x => x.IssueId == id);
+            var issue = await _context.IssueSlips
+                .FirstOrDefaultAsync(x => x.IssueId == id);
 
             if (issue == null)
                 return NotFound("IssueSlip not found");
 
-            // 2. Check trạng thái
             if (issue.Status != "Pending")
-                return BadRequest("Only Pending IssueSlip can be approved");
+                return BadRequest("Only Pending IssueSlip can be reviewed");
 
-            // 3. Approve
-            issue.Status = "Approved";
+            if (request.Action != "Approved" && request.Action != "Rejected")
+                return BadRequest("Invalid action");
+
+            issue.Status = request.Action;
+            issue.Description = request.Action == "Rejected"
+                ? request.Reason
+                : null;
+            issue.ApprovedDate = issue.Status == "Approved" ? DateTime.UtcNow : (DateTime?)null;
 
             await _context.SaveChangesAsync();
 
@@ -95,6 +102,7 @@ namespace Backend.Domains.outbound.Controllers
                 issue.Status
             });
         }
+
 
         [HttpPost("{issueId}/details")]
         public async Task<IActionResult> AddIssueDetails(long issueId, List<CreateIssueDetailDto> details)
@@ -129,5 +137,59 @@ namespace Backend.Domains.outbound.Controllers
             });
 
         }
+
+
+
+        [HttpGet("list")]
+        public async Task<IActionResult> GetIssueSlips([FromQuery] string? status)
+        {
+            var query = _context.IssueSlips
+                .Include(x => x.Project)
+                .Include(x => x.Warehouse)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(status))
+                query = query.Where(x => x.Status == status);
+
+            var result = await query
+                .Select(x => new IssueSlipListDto
+                {
+                    IssueId = x.IssueId,
+                    IssueCode = x.IssueCode,
+                    ProjectName = x.Project.Name,
+                    WarehouseName = x.Warehouse.Name,
+                    IssueDate = x.IssueDate.HasValue ? x.IssueDate.Value.ToString("yyyy-MM-dd") : null,
+                    Status = x.Status
+                })
+                .ToListAsync();
+
+            return Ok(result);
+        }
+
+        
+        [HttpGet("approved-list")]
+        public async Task<IActionResult> GetApprovedIssueSlips()
+        {
+            var issues = await _context.IssueSlips
+                .Include(x => x.Project)
+                .Include(x => x.CreatedByNavigation) 
+                .Where(x => x.Status == "Approved")
+                .Select(x => new
+                {
+                    x.IssueId,
+                    x.IssueCode,                           
+                    ProjectName = x.Project.Name,
+                    RequestedBy = x.CreatedByNavigation.FullName,
+                    x.ApprovedDate
+                })
+                .ToListAsync();
+
+            return Ok(issues);
+        }
+
+
+
+
+
     }
 }

@@ -1,6 +1,5 @@
 "use client";
-
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { UserDropdown } from "@/components/user-dropdown";
 import { useRouter } from "next/navigation";

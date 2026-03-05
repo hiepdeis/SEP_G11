@@ -1,4 +1,4 @@
-﻿using System;
+﻿
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -23,11 +23,17 @@ public partial class BinLocation
     [Unicode(false)]
     public string? Type { get; set; }
 
+    public virtual ICollection<InventoryAdjustmentEntry> InventoryAdjustmentEntries { get; set; } = new List<InventoryAdjustmentEntry>();
+
     [InverseProperty("Bin")]
     public virtual ICollection<InventoryCurrent> InventoryCurrents { get; set; } = new List<InventoryCurrent>();
 
     [InverseProperty("Bin")]
     public virtual ICollection<LossDetail> LossDetails { get; set; } = new List<LossDetail>();
+    
+    public virtual ICollection<StockTakeBinLocation> StockTakeBinLocations { get; set; } = new List<StockTakeBinLocation>();
+    
+    public virtual ICollection<StockTakeDetail> StockTakeDetails { get; set; } = new List<StockTakeDetail>();
 
     [InverseProperty("BinLocation")]
     public virtual ICollection<ReceiptDetail> ReceiptDetails { get; set; } = new List<ReceiptDetail>();

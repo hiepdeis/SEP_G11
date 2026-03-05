@@ -30,11 +30,14 @@ public partial class Material
     public int? CategoryId { get; set; }
     public decimal? UnitPrice { get; set; }
 
+    public string? TechnicalStandard { get; set; } // Tiêu chuẩn kỹ thuật (VD: TCVN, ASTM)
+    public string? Specification { get; set; }    // Quy cách (VD: L=6000mm, D=20mm)
     public virtual MaterialCategory? Category { get; set; } // Navigation
 
     [InverseProperty("Material")]
     public virtual ICollection<Batch> Batches { get; set; } = new List<Batch>();
 
+    public virtual ICollection<InventoryAdjustmentEntry> InventoryAdjustmentEntries { get; set; } = new List<InventoryAdjustmentEntry>();
     [InverseProperty("Material")]
     public virtual ICollection<InventoryCurrent> InventoryCurrents { get; set; } = new List<InventoryCurrent>();
 
@@ -61,4 +64,5 @@ public partial class Material
 
     [InverseProperty("Material")]
     public virtual ICollection<WarehouseCard> WarehouseCards { get; set; } = new List<WarehouseCard>();
+
 }

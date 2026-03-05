@@ -120,26 +120,6 @@ namespace Backend.Domains.auth.Services
 
             int expiresInMinutes = _configuration.GetValue<int>("Jwt:ExpiresInMinutes", 30);
 
-            //            var tokenDistributer = new JwtSecurityToken(
-            //                issuer: _configuration["Jwt:Issuer"],
-            //                audience: _configuration["Jwt:Audience"],
-            //                claims: claims,
-            //                expires: DateTime.UtcNow.AddMinutes(expiresInMinutes),
-            //                signingCredentials: creds
-            //            );
-            //            return new JwtSecurityTokenHandler().WriteToken(tokenDistributer);
-            //        }
-
-            //        public async Task<RefreshTokenResult> GenerateAndSaveRefreshToken(User user)
-            //        {
-            //            var refreshToken = $"{user.Id}.{Guid.NewGuid()}";
-
-            //            user.RefreshToken = refreshToken;
-            //            // user.RefreshToken = BCrypt.Net.BCrypt.HashPassword(refreshToken);
-            //            user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(
-            //                _configuration.GetValue<int>("Jwt:RefreshTokenDays")
-            //            );
-
             var tokenDistributer = new JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
@@ -164,22 +144,25 @@ namespace Backend.Domains.auth.Services
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
 
-
-            //            return new RefreshTokenResult { 
-            //                refreshToken = refreshToken,
-            //                Expiry = user.RefreshTokenExpiry
-            //            }; 
-            //        }
-
-            //    }
-            //}
-
             return new RefreshTokenResult
             {
                 refreshToken = refreshToken,
                 Expiry = user.RefreshTokenExpiry ?? DateTime.MinValue
             };
         }
+
+        public async Task RevokeRefreshTokenAsync(string refreshToken)
+        {
+            var userDB = await _context.Users
+                .FirstOrDefaultAsync(x => x.RefreshToken == refreshToken);
+
+            if (userDB != null)
+            {
+                userDB.RefreshToken = null;
+                await _context.SaveChangesAsync();
+            }
+        }
+
     }
 }
 

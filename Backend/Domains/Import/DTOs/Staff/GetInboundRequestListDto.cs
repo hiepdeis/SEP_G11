@@ -9,6 +9,7 @@
         public DateTime? ReceiptApprovalDate { get; set; }
         public decimal TotalQuantity { get; set; }
         public List<GetInboundRequestItemDto> Items { get; set; }
+        public int? ConfirmedBy { get; set; }
         public string? Status { get; set; }
     }
 
@@ -19,6 +20,10 @@
         public string MaterialCode { get; set; } = string.Empty;
         public string MaterialName { get; set; } = string.Empty;
         public decimal? Quantity { get; set; }
+        public decimal? ActualQuantity { get; set; }
+        public int? BinLocationId { get; set; }
+        public int? BatchId { get; set; }
+
         public int? SupplierId { get; set; }
         public string SupplierName { get; set; } = string.Empty;
         public decimal? UnitPrice { get; set; }

@@ -46,4 +46,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Domains\outbound\Services\" />
+    <Folder Include="SQL\data\" />
+  </ItemGroup>
 </Project>

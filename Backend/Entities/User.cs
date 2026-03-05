@@ -1,4 +1,4 @@
-﻿using System;
+﻿
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -35,6 +35,10 @@ public partial class User
     public DateTime? RefreshTokenExpiry { get; set; }
     public string? PhoneNumber { get; set; }
     public bool Status { get; set; }
+    public virtual ICollection<InventoryAdjustmentEntry> InventoryAdjustmentEntryApprovedByNavigations { get; set; } = new List<InventoryAdjustmentEntry>();
+
+    public virtual ICollection<InventoryAdjustmentEntry> InventoryAdjustmentEntryCreatedByNavigations { get; set; } = new List<InventoryAdjustmentEntry>();
+
 
     [InverseProperty("CreatedByNavigation")]
     public virtual ICollection<IssueSlip> IssueSlips { get; set; } = new List<IssueSlip>();
@@ -58,8 +62,25 @@ public partial class User
     [InverseProperty("Users")]
     public virtual Role Role { get; set; } = null!;
 
-    [InverseProperty("CreatedByNavigation")]
-    public virtual ICollection<StockTake> StockTakes { get; set; } = new List<StockTake>();
+    [InverseProperty(nameof(StockTake.CreatedByNavigation))]
+    public virtual ICollection<StockTake> StockTakeCreatedByNavigations { get; set; } = new List<StockTake>();
+
+    [InverseProperty(nameof(StockTake.LockedByNavigation))]
+    public virtual ICollection<StockTake> StockTakeLockedByNavigations { get; set; } = new List<StockTake>();
+
+    [InverseProperty(nameof(StockTake.CompletedByNavigation))]
+    public virtual ICollection<StockTake> StockTakeCompletedByNavigations { get; set; } = new List<StockTake>();
+
+
+    public virtual ICollection<StockTakeDetail> StockTakeDetailCountedByNavigations { get; set; } = new List<StockTakeDetail>();
+
+    public virtual ICollection<StockTakeDetail> StockTakeDetailResolvedByNavigations { get; set; } = new List<StockTakeDetail>();
+
+   
+
+    public virtual ICollection<StockTakeSignature> StockTakeSignatures { get; set; } = new List<StockTakeSignature>();
+
+    public virtual ICollection<StockTakeTeamMember> StockTakeTeamMembers { get; set; } = new List<StockTakeTeamMember>();
 
     [InverseProperty("AssignedToNavigation")]
     public virtual ICollection<TransferOrder> TransferOrderAssignedToNavigations { get; set; } = new List<TransferOrder>();
@@ -69,4 +90,5 @@ public partial class User
 
     [InverseProperty("CreatedByNavigation")]
     public virtual ICollection<WarehouseCard> WarehouseCards { get; set; } = new List<WarehouseCard>();
+
 }

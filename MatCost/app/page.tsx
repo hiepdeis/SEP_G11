@@ -15,7 +15,8 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = () => {
     setIsLoading(true);
-    authApi.loginGoogle();
+    const res = authApi.loginGoogle();
+    console.log(res);
   };
 
   useEffect(() => {
@@ -24,10 +25,10 @@ export default function LoginPage() {
         // 1. Thử gọi API /Auth/me
         // Nhờ cookie HttpOnly, nếu user chưa đăng xuất, request này sẽ thành công (200)
         const res = await authApi.getMe();
-
+        console.log("Already logged in:", res.data);
         // 2. Nếu thành công -> User đã login rồi -> Set token lại
         setAccessToken(res.data.accessToken);
-
+        sessionStorage.setItem("role", res.data.roleName);
         // 3. Đá thẳng vào Dashboard
         router.push("/dashboard");
       } catch (error) {
