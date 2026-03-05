@@ -4,5 +4,7 @@
     {
         public string AccessToken { get; set; } = string.Empty;
         public bool Status { get; set; }
+        
+        public string RoleName { get; set; } = string.Empty;
     }
 }

@@ -1,4 +1,5 @@
 import axiosClient from "@/lib/axios-client";
+import { useRouter } from "next/navigation";
 
 export const authApi = {
   loginGoogle: () => {
@@ -20,7 +21,10 @@ export const authApi = {
     return axiosClient.get("/Auth/me");
   },
 
-  logout: () => {
-    return Promise.resolve();
+  logout: async () => {
+    await axiosClient.post("/Auth/logout", {}, { withCredentials: true });
+    sessionStorage.removeItem("accessToken");
+    sessionStorage.removeItem("role");
+    //return Promise.resolve();
   }
 };

@@ -69,6 +69,10 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<Warehouse> Warehouses { get; set; }
 
+    public virtual DbSet<InventoryIssue> InventoryIssues { get; set; }
+    public virtual DbSet<InventoryIssueDetail> InventoryIssueDetails { get; set; }
+
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AdjustmentReason>(entity =>
@@ -743,6 +747,17 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.Address).HasMaxLength(255);
             entity.Property(e => e.Name).HasMaxLength(100);
         });
+
+        modelBuilder.Entity<InventoryIssue>(entity =>
+        {
+
+            entity.ToTable("InventoryIssues");
+
+            entity.HasMany(e => e.Details)
+                .WithOne(d => d.InventoryIssue)
+                .HasForeignKey(d => d.InventoryIssueId);
+        });
+
 
         OnModelCreatingPartial(modelBuilder);
     }

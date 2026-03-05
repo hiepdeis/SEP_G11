@@ -57,4 +57,7 @@ public partial class IssueSlip
 
     [InverseProperty("ParentIssue")]
     public virtual ICollection<IssueSlip> ChildIssues { get; set; } = new List<IssueSlip>();
+
+    [Column(TypeName = "datetime")]
+    public DateTime? ApprovedDate { get; set; }
 }

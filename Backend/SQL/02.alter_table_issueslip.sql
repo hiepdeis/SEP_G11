@@ -1,0 +1,2 @@
+ALTER TABLE IssueSlips
+ADD ApprovedDate DATETIME NULL;

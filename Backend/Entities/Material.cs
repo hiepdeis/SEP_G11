@@ -30,7 +30,8 @@ public partial class Material
     public int? CategoryId { get; set; }
     public decimal? UnitPrice { get; set; }
 
-
+    public string? TechnicalStandard { get; set; } // Tiêu chuẩn kỹ thuật (VD: TCVN, ASTM)
+    public string? Specification { get; set; }    // Quy cách (VD: L=6000mm, D=20mm)
     public virtual MaterialCategory? Category { get; set; } // Navigation
 
     [InverseProperty("Material")]
