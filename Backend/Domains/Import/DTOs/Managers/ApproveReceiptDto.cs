@@ -23,11 +23,20 @@
         public List<PendingReceiptDetailDto> Details { get; set; } = new();
     }
 
+    public class ReceiptRejectionHistoryDto
+    {
+        public long Id { get; set; }
+        public string? RejectorName { get; set; }
+        public DateTime RejectedAt { get; set; }
+        public string RejectionReason { get; set; } = string.Empty;
+    }
+
     public class PendingReceiptDetailDto
     {
         public long DetailId { get; set; }
         public string? MaterialCode { get; set; }
         public string? MaterialName { get; set; }
+        public int SupplierId { get; set; }
         public string? SupplierName { get; set; }
         public decimal? Quantity { get; set; }
         public string? Unit { get; set; }

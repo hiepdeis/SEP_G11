@@ -17,11 +17,8 @@ public partial class Receipt
     [Unicode(false)]
     public string ReceiptCode { get; set; } = null!;
 
-    [Column("SupplierID")]
-    public int SupplierId { get; set; }
-
     [Column("WarehouseID")]
-    public int WarehouseId { get; set; }
+    public int? WarehouseId { get; set; }
 
     public int CreatedBy { get; set; }
 
@@ -39,17 +36,40 @@ public partial class Receipt
     public DateTime? SubmittedAt { get; set; }
     public int? ApprovedBy { get; set; }
     public DateTime? ApprovedAt { get; set; }
-    public string? Notes { get; set; }
+    public int? RejectedBy { get; set; }
+    public DateTime? RejectedAt { get; set; }
 
+    public int? ConfirmedBy { get; set; }
+
+    public string? ImportedCompleteNote { get; set; }
+
+    public string? RejectionReason { get; set; }
+
+    public string? AccountantNotes { get; set; }
+
+    public string? BackorderReason { get; set; }
+
+    [Column("ParentRequestID")]
+    public long? ParentRequestId { get; set; }
 
     [ForeignKey("CreatedBy")]
     [InverseProperty("Receipts")]
     public virtual User CreatedByNavigation { get; set; } = null!;
 
+    [ForeignKey("ParentRequestId")]
+    [InverseProperty("ChildRequests")]
+    public virtual Receipt? ParentRequest { get; set; }
+
+    [InverseProperty("ParentRequest")]
+    public virtual ICollection<Receipt> ChildRequests { get; set; } = new List<Receipt>();
+
     [InverseProperty("Receipt")]
     public virtual ICollection<ReceiptDetail> ReceiptDetails { get; set; } = new List<ReceiptDetail>();
 
- 
+    [InverseProperty("Receipt")]
+    public virtual ICollection<ReceiptRejectionHistory> RejectionHistories { get; set; } = new List<ReceiptRejectionHistory>();
+
+
     [ForeignKey("WarehouseId")]
     [InverseProperty("Receipts")]
     public virtual Warehouse Warehouse { get; set; } = null!;

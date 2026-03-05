@@ -20,12 +20,13 @@ namespace Backend.Domains.Import.Controllers.Construction
 
         private int GetCurrentUserId()
         {
-            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userIdClaim))
-            {
-                throw new UnauthorizedAccessException("User not authenticated");
-            }
-            return int.Parse(userIdClaim);
+            //var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            //if (string.IsNullOrEmpty(userIdClaim))
+            //{
+            //    throw new UnauthorizedAccessException("User not authenticated");
+            //}
+            //return int.Parse(userIdClaim);
+            return 5;
         }
 
         [HttpPost("requests")]

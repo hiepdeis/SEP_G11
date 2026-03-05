@@ -47,6 +47,8 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<ReceiptDetail> ReceiptDetails { get; set; }
 
+    public virtual DbSet<ReceiptRejectionHistory> ReceiptRejectionHistories { get; set; }
+
     public virtual DbSet<Role> Roles { get; set; }
 
     public virtual DbSet<StockTake> StockTakes { get; set; }
@@ -69,8 +71,12 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<Warehouse> Warehouses { get; set; }
 
+
     public virtual DbSet<InventoryIssue> InventoryIssues { get; set; }
     public virtual DbSet<InventoryIssueDetail> InventoryIssueDetails { get; set; }
+
+    public virtual DbSet<WarehouseCard> WarehouseCards { get; set; }
+
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -93,6 +99,10 @@ public partial class MyDbContext : DbContext
         modelBuilder.Entity<Batch>(entity =>
         {
             entity.HasKey(e => e.BatchId).HasName("PK__Batches__5D55CE38E53D7EE6");
+
+            entity.Property(e => e.BatchId)
+                .ValueGeneratedOnAdd()
+                .UseIdentityColumn(1, 1);
 
             entity.Property(e => e.CreatedDate).HasDefaultValueSql("(getdate())");
 
@@ -380,7 +390,6 @@ public partial class MyDbContext : DbContext
                .HasColumnName("SubmittedBy");
 
             entity.Property(e => e.SubmittedAt)
-                .HasDefaultValueSql("(getdate())")
                 .HasColumnName("SubmittedAt")
                 .HasColumnType("datetime");
 
@@ -389,7 +398,18 @@ public partial class MyDbContext : DbContext
                 .HasColumnName("ApprovedAt")
                 .HasColumnType("datetime");
 
-            entity.Property(e => e.Notes).HasColumnName("Notes").HasMaxLength(500);
+            entity.Property(e => e.RejectedBy).HasColumnName("RejectedBy");
+            entity.Property(e => e.RejectedAt)
+                .HasColumnName("RejectedAt")
+                .HasColumnType("datetime");
+
+            entity.Property(e => e.ImportedCompleteNote).HasColumnName("ImportedCompleteNote").HasMaxLength(500);
+            entity.Property(e => e.RejectionReason).HasColumnName("RejectionReason").HasMaxLength(500);
+            entity.Property(e => e.AccountantNotes).HasColumnName("AccountantNotes").HasMaxLength(500);
+            entity.Property(e => e.BackorderReason).HasColumnName("BackorderReason").HasMaxLength(500);
+
+            entity.Property(e => e.ConfirmedBy).HasColumnName("ConfirmedBy");
+
 
             entity.Property(e => e.Status)
                 .HasMaxLength(20)
@@ -404,6 +424,13 @@ public partial class MyDbContext : DbContext
             entity.HasOne(d => d.Warehouse).WithMany(p => p.Receipts)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Receipts_Warehouses");
+
+            // Self-referencing relationship for backorders
+            entity.HasOne(d => d.ParentRequest)
+                .WithMany(p => p.ChildRequests)
+                .HasForeignKey(d => d.ParentRequestId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_Receipts_ParentRequest");
         });
 
         modelBuilder.Entity<ReceiptDetail>(entity =>
@@ -418,10 +445,17 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.Quantity).HasColumnType("decimal(18, 4)");
             entity.Property(e => e.ReceiptId).HasColumnName("ReceiptID");
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.ActualQuantity).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.BinLocationId).HasColumnName("BinLocationID");
 
 
 
             entity.HasOne(d => d.Batch).WithMany(p => p.ReceiptDetails).HasConstraintName("FK_ReceiptDetails_Batches");
+
+            entity.HasOne(d => d.BinLocation).WithMany(p => p.ReceiptDetails)
+                .HasForeignKey(d => d.BinLocationId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_ReceiptDetails_BinLocations");
 
             entity.HasOne(d => d.Material).WithMany(p => p.ReceiptDetails)
                 .OnDelete(DeleteBehavior.ClientSetNull)
@@ -748,6 +782,7 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(100);
         });
 
+
         modelBuilder.Entity<InventoryIssue>(entity =>
         {
 
@@ -756,6 +791,74 @@ public partial class MyDbContext : DbContext
             entity.HasMany(e => e.Details)
                 .WithOne(d => d.InventoryIssue)
                 .HasForeignKey(d => d.InventoryIssueId);
+        });
+
+        modelBuilder.Entity<ReceiptRejectionHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne(e => e.Receipt)
+                .WithMany(r => r.RejectionHistories)
+                .HasForeignKey(e => e.ReceiptId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Rejector)
+                .WithMany()
+                .HasForeignKey(e => e.RejectedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<WarehouseCard>(entity =>
+        {
+            entity.HasKey(e => e.CardId).HasName("PK_WarehouseCards");
+
+            entity.HasIndex(e => e.CardCode, "UQ_WarehouseCards_CardCode").IsUnique();
+
+            entity.Property(e => e.CardId).HasColumnName("CardID");
+            entity.Property(e => e.CardCode)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
+            entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
+            entity.Property(e => e.BinId).HasColumnName("BinID");
+            entity.Property(e => e.BatchId).HasColumnName("BatchID");
+            entity.Property(e => e.ReferenceId).HasColumnName("ReferenceID");
+            entity.Property(e => e.TransactionType)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.ReferenceType)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.TransactionDate).HasColumnType("datetime");
+            entity.Property(e => e.Quantity).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.QuantityBefore).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.QuantityAfter).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.Notes).HasMaxLength(500);
+
+            entity.HasOne(d => d.Warehouse)
+                .WithMany(p => p.WarehouseCards)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_WarehouseCards_Warehouses");
+
+            entity.HasOne(d => d.Material)
+                .WithMany(p => p.WarehouseCards)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_WarehouseCards_Materials");
+
+            entity.HasOne(d => d.Bin)
+                .WithMany(p => p.WarehouseCards)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_WarehouseCards_BinLocations");
+
+            entity.HasOne(d => d.Batch)
+                .WithMany(p => p.WarehouseCards)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_WarehouseCards_Batches");
+
+            entity.HasOne(d => d.CreatedByNavigation)
+                .WithMany(p => p.WarehouseCards)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_WarehouseCards_Users");
         });
 
 

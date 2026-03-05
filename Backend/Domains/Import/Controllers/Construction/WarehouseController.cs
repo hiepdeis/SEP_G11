@@ -7,7 +7,7 @@ namespace Backend.Domains.Import.Controllers.Construction
 {
     [Route("api/[controller]")]
     [ApiController]
-  //  [Authorize]
+    //  [Authorize]
     public class WarehouseController : ControllerBase
     {
         private readonly IWarehouseService _warehouseService;

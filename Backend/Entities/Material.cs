@@ -61,6 +61,7 @@ public partial class Material
 
     [InverseProperty("Material")]
     public virtual ICollection<TransferDetail> TransferDetails { get; set; } = new List<TransferDetail>();
-    
 
+    // [InverseProperty("Material")]
+    // public virtual ICollection<WarehouseCard> WarehouseCards { get; set; } = new List<WarehouseCard>();
 }

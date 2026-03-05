@@ -32,6 +32,9 @@ public partial class BinLocation
     public virtual ICollection<LossDetail> LossDetails { get; set; } = new List<LossDetail>();
     public virtual ICollection<StockTakeDetail> StockTakeDetails { get; set; } = new List<StockTakeDetail>();
 
+    [InverseProperty("BinLocation")]
+    public virtual ICollection<ReceiptDetail> ReceiptDetails { get; set; } = new List<ReceiptDetail>();
+
     [InverseProperty("FromBin")]
     public virtual ICollection<TransferDetail> TransferDetailFromBins { get; set; } = new List<TransferDetail>();
 
@@ -41,4 +44,7 @@ public partial class BinLocation
     [ForeignKey("WarehouseId")]
     [InverseProperty("BinLocations")]
     public virtual Warehouse Warehouse { get; set; } = null!;
+
+    [InverseProperty("Bin")]
+    public virtual ICollection<WarehouseCard> WarehouseCards { get; set; } = new List<WarehouseCard>();
 }

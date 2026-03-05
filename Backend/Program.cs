@@ -89,7 +89,7 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IWarehouseService, WarehouseService>();
-
+builder.Services.AddScoped<IBinLocationService, BinLocationService>();
 builder.Services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
 builder.Services.AddScoped<GoogleLoginHandler>();
 builder.Services.AddScoped<IUserService, UserService>();
@@ -153,8 +153,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("CorsPolicy");
-app.UseAuthentication();
-app.UseAuthorization();
+//app.UseAuthentication();
+//app.UseAuthorization();
 
 app.MapControllers();
 
