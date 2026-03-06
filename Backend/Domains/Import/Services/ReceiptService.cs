@@ -598,6 +598,7 @@ namespace Backend.Domains.Import.Services
                                 WarehouseName = r.Warehouse != null ? r.Warehouse.Name : null,
                                 ReceiptApprovalDate = r.ApprovedAt,
                                 TotalQuantity = r.ReceiptDetails.Sum(rd => rd.Quantity),
+                                ConfirmedBy = r.ConfirmedBy,
                                 Status = r.Status,
                                 Items = r.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
                                 {
@@ -623,33 +624,48 @@ namespace Backend.Domains.Import.Services
                                         .ThenInclude(rd => rd.Material)
                                         .Include(r => r.ReceiptDetails)
                                         .ThenInclude(rd => rd.Supplier)
+                                        .Include(r => r.ReceiptDetails)
+                                        .ThenInclude(rd => rd.BinLocation)
+                                        .Include(r => r.ReceiptDetails)
+                                        .ThenInclude(rd => rd.Batch)
                                         .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
             if (receipt == null)
             {
                 throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
             }
 
+            var totalQuantity = receipt.Status == "Completed"
+                ? receipt.ReceiptDetails.Sum(rd => rd.ActualQuantity ?? rd.Quantity)
+                : receipt.ReceiptDetails.Sum(rd => rd.Quantity);
+
             return new GetInboundRequestListDto
             {
                 ReceiptId = receipt.ReceiptId,
                 ReceiptCode = receipt.ReceiptCode,
                 WarehouseId = receipt.WarehouseId,
-                WarehouseName = receipt.Warehouse != null ? receipt.Warehouse.Name : null,
+                WarehouseName = receipt.Warehouse?.Name,
                 ReceiptApprovalDate = receipt.ApprovedAt,
-                TotalQuantity = receipt.ReceiptDetails.Sum(rd => rd.Quantity),
+                TotalQuantity = totalQuantity,
+                ConfirmedBy = receipt.ConfirmedBy,
                 Status = receipt.Status,
                 Items = receipt.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
                 {
                     DetailId = rd.DetailId,
                     MaterialId = rd.MaterialId,
-                    MaterialCode = rd.Material != null ? rd.Material.Code : "",
-                    MaterialName = rd.Material != null ? rd.Material.Name : "",
-                    Quantity = rd.Quantity,
-                    UnitPrice = rd.UnitPrice,
+                    MaterialCode = rd.Material?.Code ?? "",
+                    MaterialName = rd.Material?.Name ?? "",
                     Unit = rd.Material?.Unit,
-                    SupplierName = rd.Supplier?.Name,
+                    Quantity = rd.Quantity,
+                    ActualQuantity = rd.ActualQuantity,
+                    UnitPrice = rd.UnitPrice,
+                    SupplierName = rd.Supplier?.Name ?? "",
                     SupplierId = rd.SupplierId,
-                    LineTotal = rd.Quantity * (rd.UnitPrice ?? 0)
+                    LineTotal = rd.Quantity * (rd.UnitPrice ?? 0),
+                    BinLocationId = rd.BinLocation != null ? rd.BinLocation.BinId : null,
+                    BinCode = rd.BinLocation?.Code,
+                    BatchId = rd.Batch != null ? rd.Batch.BatchId : null,
+                    BatchCode = rd.Batch?.BatchCode,
+                    MfgDate = rd.Batch?.MfgDate
                 }).ToList()
             };
         }
