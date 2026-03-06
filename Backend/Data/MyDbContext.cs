@@ -295,6 +295,9 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(255);
             entity.Property(e => e.Unit).HasMaxLength(20);
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.TechnicalStandard).HasMaxLength(500);
+            entity.Property(e => e.Specification).HasMaxLength(500);
+
 
             entity.Property(e => e.CategoryId).HasColumnName("CategoryID");
 
