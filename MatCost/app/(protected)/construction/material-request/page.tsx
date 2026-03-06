@@ -45,7 +45,9 @@ export default function RequestListPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number>(5);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+
+  const [modalPage, setModalPage] = useState(1);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -107,13 +109,17 @@ export default function RequestListPage() {
                 </div>
               ) : (
                 <>
-                  <div className="max-h-[350px] min-h-[350px] overflow-y-auto relative scrollbar-thin no-scrollbar">
+                  <div className="[&>div]:max-h-[500px] [&>div]:min-h-[500px] [&>div]:overflow-y-auto">
                     <Table>
-                      <TableHeader>
-                        <TableRow className="bg-slate-50 hover:bg-slate-50">
-                          <TableHead className="w-[100px] pl-6">No.</TableHead>
-                          <TableHead>Total Items</TableHead>
-                          <TableHead className="text-right pr-6">
+                      <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead className="w-[100px] pl-6 text-slate-700">
+                            No.
+                          </TableHead>
+                          <TableHead className="text-slate-700">
+                            Total Items
+                          </TableHead>
+                          <TableHead className="text-right pr-6 text-slate-700">
                             Actions
                           </TableHead>
                         </TableRow>
@@ -144,12 +150,17 @@ export default function RequestListPage() {
                                 </span>
                               </TableCell>
                               <TableCell className="text-right pr-6">
-                                <Dialog>
+                                <Dialog
+                                  onOpenChange={(open) => {
+                                    // Reset trang về 1 mỗi khi đóng Modal
+                                    if (!open) setModalPage(1);
+                                  }}
+                                >
                                   <DialogTrigger asChild>
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      className="h-8 gap-2 text-slate-600 hover:text-indigo-600 hover:border-indigo-200"
+                                      className="h-8 gap-2 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 hover:bg-slate-200"
                                     >
                                       <Eye className="w-3.5 h-3.5" /> View
                                       Details
@@ -171,19 +182,81 @@ export default function RequestListPage() {
                                           </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                          {req.items.map((item, idx) => (
-                                            <TableRow key={idx}>
-                                              <TableCell className="font-medium">
-                                                {item.materialCode}
-                                              </TableCell>
-                                              <TableCell className="text-right">
-                                                {item.quantity}
-                                              </TableCell>
-                                            </TableRow>
-                                          ))}
+                                          {/* CẮT MẢNG TRỰC TIẾP TẠI ĐÂY (Mặc định 10 items/trang) */}
+                                          {req.items
+                                            .slice(
+                                              (modalPage - 1) * 10,
+                                              modalPage * 10,
+                                            )
+                                            .map((item, idx) => (
+                                              <TableRow key={idx}>
+                                                <TableCell className="font-medium">
+                                                  {item.materialCode}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                  {item.quantity}
+                                                </TableCell>
+                                              </TableRow>
+                                            ))}
                                         </TableBody>
                                       </Table>
                                     </div>
+
+                                    {/* KHỐI ĐIỀU HƯỚNG PHÂN TRANG (Chỉ hiện khi có > 10 items) */}
+                                    {req.items.length > 10 && (
+                                      <div className="flex items-center justify-between mt-2">
+                                        <span className="text-xs text-slate-500">
+                                          Showing {(modalPage - 1) * 10 + 1}-
+                                          {Math.min(
+                                            modalPage * 10,
+                                            req.items.length,
+                                          )}{" "}
+                                          of {req.items.length}
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-7 text-xs px-2"
+                                            onClick={() =>
+                                              setModalPage((p) =>
+                                                Math.max(1, p - 1),
+                                              )
+                                            }
+                                            disabled={modalPage === 1}
+                                          >
+                                            <ChevronLeft className="w-3 h-3 mr-1" />{" "}
+                                            Prev
+                                          </Button>
+                                          <span className="text-xs font-medium text-slate-600 w-8 text-center">
+                                            {modalPage} /{" "}
+                                            {Math.ceil(req.items.length / 10)}
+                                          </span>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-7 text-xs px-2"
+                                            onClick={() =>
+                                              setModalPage((p) =>
+                                                Math.min(
+                                                  Math.ceil(
+                                                    req.items.length / 10,
+                                                  ),
+                                                  p + 1,
+                                                ),
+                                              )
+                                            }
+                                            disabled={
+                                              modalPage ===
+                                              Math.ceil(req.items.length / 10)
+                                            }
+                                          >
+                                            Next{" "}
+                                            <ChevronRight className="w-3 h-3 ml-1" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    )}
 
                                     <div className="flex justify-end mt-4">
                                       <DialogTrigger asChild>
@@ -236,7 +309,6 @@ export default function RequestListPage() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="5">5</SelectItem>
                               <SelectItem value="10">10</SelectItem>
                               <SelectItem value="20">20</SelectItem>
                               <SelectItem value="50">50</SelectItem>

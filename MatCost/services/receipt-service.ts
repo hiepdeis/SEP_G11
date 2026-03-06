@@ -213,15 +213,21 @@ export const managerReceiptApi = {
 
 export interface GetInboundRequestItemDto {
   detailId: number;
-  materialId: number | null;
+  materialId?: number | null;
   materialCode: string;
   materialName: string;
-  quantity: number | null; // decimal?
-  supplierId: number | null;
+  quantity?: number | null;
+  actualQuantity?: number | null;
+  binLocationId?: number | null;
+  binCode?: string | null;
+  batchId?: number | null;
+  batchCode?: string | null;
+  mfgDate?: string | null; 
+  supplierId?: number | null;
   supplierName: string;
-  unitPrice: number | null; // decimal?
-  unit: string;
-  lineTotal: number | null; // decimal?
+  unitPrice?: number | null;
+  unit?: string | null;
+  lineTotal?: number | null;
 }
 
 export interface GetInboundRequestListDto {
@@ -232,6 +238,7 @@ export interface GetInboundRequestListDto {
   receiptApprovalDate: string | null; // DateTime?
   totalQuantity: number; // decimal
   items: GetInboundRequestItemDto[];
+  confirmedBy: number;
   status: string;
 }
 

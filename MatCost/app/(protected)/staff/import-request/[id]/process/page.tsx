@@ -19,6 +19,9 @@ import {
   Upload,
   X,
   Trash2,
+  Truck,
+  ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +77,7 @@ interface InboundProcessItem {
   binLocationId: string;
   batchCode: string;
   mfgDate: string;
+  supplierName: string;
   certificateImage: string;
   note: string;
 }
@@ -92,6 +96,8 @@ export default function StaffInboundProcessPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [binLocations, setBinLocations] = useState<BinLocationDto[]>([]);
+  const [tablePage, setTablePage] = useState(1);
+  const tableItemsPerPage = 5;
 
   useEffect(() => {
     const initData = async () => {
@@ -113,6 +119,7 @@ export default function StaffInboundProcessPage() {
             detailId: i.detailId,
             materialCode: i.materialCode,
             materialName: i.materialName,
+            supplierName: i.supplierName,
             unit: i.unit || "Unit",
             expectedQty: i.quantity || 0,
             actualQty: "",
@@ -136,6 +143,10 @@ export default function StaffInboundProcessPage() {
     if (id) initData();
   }, [id]);
 
+  useEffect(() => {
+    setTablePage(1);
+  }, [searchTerm]);
+
   const handleImageUpload = (
     index: number,
     e: React.ChangeEvent<HTMLInputElement>,
@@ -158,11 +169,9 @@ export default function StaffInboundProcessPage() {
 
     if (typeof input === "number") {
       date = new Date(Math.round((input - 25569) * 86400 * 1000));
-    }
-    else if (input instanceof Date) {
+    } else if (input instanceof Date) {
       date = input;
-    }
-    else if (
+    } else if (
       typeof input === "string" &&
       /^\d{1,2}[/\\-]\d{1,2}[/\\-]\d{4}$/.test(input)
     ) {
@@ -172,8 +181,7 @@ export default function StaffInboundProcessPage() {
       const year = parts[2];
 
       return `${year}-${month}-${day}`;
-    }
-    else {
+    } else {
       const d = new Date(input);
       if (!isNaN(d.getTime())) {
         date = d;
@@ -341,6 +349,14 @@ export default function StaffInboundProcessPage() {
       i.materialName.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
+  const totalTablePages =
+    Math.ceil(filteredItems.length / tableItemsPerPage) || 1;
+  const startTableIndex = (tablePage - 1) * tableItemsPerPage;
+  const paginatedItems = filteredItems.slice(
+    startTableIndex,
+    startTableIndex + tableItemsPerPage,
+  );
+
   if (isLoading)
     return (
       <div className="h-screen flex items-center justify-center">
@@ -357,14 +373,34 @@ export default function StaffInboundProcessPage() {
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           {/* Top Control Bar */}
           <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <Button
-                variant="ghost"
-                onClick={() => router.push(`/staff/import-request/` + id)}
-                className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" /> Cancel & Back
-              </Button>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex flex-col gap-1">
+                <Button
+                  variant="ghost"
+                  onClick={() => router.push(`/staff/import-request/` + id)}
+                  className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit -ml-2 mb-1 h-8"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" /> Back to detail
+                </Button>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                    Process Inbound
+                  </h1>
+                  {receipt?.warehouseName && (
+                    <Badge
+                      variant="secondary"
+                      className="bg-indigo-50 text-indigo-700 border-indigo-200 px-2.5 py-1 text-xs font-semibold flex items-center gap-1"
+                    >
+                      <MapPin className="w-3 h-3" />
+                      {receipt.warehouseName}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-slate-500">
+                  Update actual quantities, bin locations, and certificate
+                  images for Receipt #{receiptCode}.
+                </p>
+              </div>
 
               <div className="flex gap-3">
                 <input
@@ -415,7 +451,7 @@ export default function StaffInboundProcessPage() {
                 <div className="w-full md:w-1/3 relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
                   <Input
-                    placeholder="Find material..."
+                    placeholder="Find material name..."
                     className="pl-9"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -426,345 +462,407 @@ export default function StaffInboundProcessPage() {
           </div>
 
           {/* Main Input Table */}
-          <Card className="border-slate-200 shadow-sm overflow-hidden min-h-[400px] pt-0">
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader className="bg-slate-50/75">
-                  <TableRow>
-                    <TableHead className="w-[25%] pl-6">
-                      Material Info
-                    </TableHead>
-                    <TableHead className="w-[15%] text-center">
-                      Warehouse
-                    </TableHead>
-                    <TableHead className="w-[10%] text-center">
-                      Required
-                    </TableHead>
-                    <TableHead className="w-[10%] text-center">
-                      Actual
-                    </TableHead>
-                    <TableHead className="w-[15%] text-center">
-                      Bin Location
-                    </TableHead>
-                    <TableHead className="w-[25%] text-center">
-                      Batch Info (Code/Date)
-                    </TableHead>
-                    <TableHead className="text-center">Image</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredItems.map((item, index) => {
-                    const actual = Number(item.actualQty);
-                    const isFilled = item.actualQty !== "";
-                    const isMatch = isFilled && actual === item.expectedQty;
-                    const isShort = isFilled && actual < item.expectedQty;
-                    const isOver = isFilled && actual > item.expectedQty;
+          <Card className="border-slate-200 shadow-sm overflow-hidden pt-0 pb-0 gap-0 flex flex-col">
+            <CardContent className="p-0 flex flex-col flex-1">
+              {/* Vùng cuộn bảng */}
+              <div className="[&>div]:max-h-[450px] [&>div]:min-h-[450px] [&>div]:overflow-y-auto">
+                <Table>
+                  <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
+                    <TableRow>
+                      <TableHead className="w-[25%] pl-6">
+                        Material Info
+                      </TableHead>
+                      <TableHead className="w-[15%]">
+                        Supplier
+                      </TableHead>
+                      <TableHead className="w-[10%] text-center">
+                        Required
+                      </TableHead>
+                      <TableHead className="w-[10%] text-center">
+                        Actual
+                      </TableHead>
+                      <TableHead className="w-[15%] text-center">
+                        Bin Location
+                      </TableHead>
+                      <TableHead className="w-[25%] text-center">
+                        Batch Info (Code/Date)
+                      </TableHead>
+                      <TableHead className="text-center">Image</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {/* DÙNG paginatedItems THAY VÌ filteredItems */}
+                    {paginatedItems.map((item, relativeIndex) => {
+                      // CỰC KỲ QUAN TRỌNG: TÌM INDEX GỐC TRONG MẢNG `items` ĐỂ UPDATEITEM() HOẠT ĐỘNG ĐÚNG
+                      const absoluteIdx = items.findIndex(
+                        (i) => i.detailId === item.detailId,
+                      );
 
-                    return (
-                      <TableRow
-                        key={item.detailId}
-                        className={
-                          isMatch
-                            ? "bg-emerald-50/40 hover:bg-emerald-50/60"
-                            : "hover:bg-slate-50"
-                        }
-                      >
-                        {/* 1. Material Info */}
-                        <TableCell className="pl-6 py-4 align-top">
-                          <div className="flex items-start gap-3">
-                            <div
-                              className={`mt-1 p-1.5 rounded-full shrink-0 ${
-                                isMatch
-                                  ? "bg-emerald-100 text-emerald-600"
-                                  : isShort || isOver
-                                    ? "bg-amber-100 text-amber-600"
-                                    : "bg-slate-100 text-slate-400"
-                              }`}
-                            >
-                              <Box className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-slate-800">
-                                {item.materialName}
-                              </p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] px-1.5 py-0 border-slate-200 bg-white font-mono text-slate-500"
-                                >
-                                  {item.materialCode}
-                                </Badge>
-                                <span className="text-xs text-slate-400">
-                                  {item.unit}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </TableCell>
+                      const actual = Number(item.actualQty);
+                      const isFilled = item.actualQty !== "";
+                      const isMatch = isFilled && actual === item.expectedQty;
+                      const isShort = isFilled && actual < item.expectedQty;
+                      const isOver = isFilled && actual > item.expectedQty;
 
-                        <TableCell className="text-center align-top pt-5">
-                          <span className="text-sm font-semibold text-slate-600 bg-slate-100 px-2 py-1 rounded">
-                            {receipt?.warehouseName}
-                          </span>
-                        </TableCell>
-
-                        {/* 2. Expected */}
-                        <TableCell className="text-center align-top pt-5">
-                          <span className="text-sm font-semibold text-slate-600 bg-slate-100 px-2 py-1 rounded">
-                            {item.expectedQty}
-                          </span>
-                        </TableCell>
-
-                        {/* 3. Actual Qty */}
-                        <TableCell className="align-top pt-3">
-                          <div className="flex flex-col gap-1">
-                            <div className="relative">
-                              <Input
-                                type="number"
-                                min={0}
-                                className={`text-center font-bold h-9 pl-6 ${
-                                  item.actualQty === ""
-                                    ? "border-red-300 bg-red-50 focus-visible:ring-red-400 placeholder:text-red-300/70"
-                                    : isShort
-                                      ? "border-amber-400 text-amber-700 bg-amber-50"
-                                      : isOver
-                                        ? "border-red-400 text-red-700 bg-red-50"
-                                        : isMatch
-                                          ? "border-emerald-400 text-emerald-700 bg-emerald-50"
-                                          : ""
-                                }`}
-                                placeholder="0"
-                                value={item.actualQty}
-                                onChange={(e) => {
-                                  if (
-                                    e.target.value.length <= 5 &&
-                                    Number(e.target.value) >= 0
-                                  ) {
-                                    updateItem(
-                                      index,
-                                      "actualQty",
-                                      e.target.value,
-                                    );
-                                  }
-                                }}
-                              />
-                              {isShort && (
-                                <AlertTriangle className="w-3 h-3 text-amber-500 absolute left-2 top-3" />
-                              )}
-                            </div>
-                            {(isShort || isOver) && (
-                              <p className="text-[10px] text-center font-medium text-slate-500">
-                                Diff: {actual - item.expectedQty}
-                              </p>
-                            )}
-                          </div>
-                        </TableCell>
-
-                        {/* 4. Bin Location */}
-                        <TableCell className="align-top pt-3">
-                          <Select
-                            value={item.binLocationId}
-                            onValueChange={(val) =>
-                              updateItem(index, "binLocationId", val)
-                            }
-                          >
-                            <SelectTrigger
-                              className={`h-9 text-md w-full ${
-                                !item.binLocationId
-                                  ? "border-red-300 bg-red-50 focus:ring-red-400"
-                                  : "border-slate-300"
-                              }`}
-                            >
-                              <SelectValue placeholder="Select Bin" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {binLocations.map((bin) => (
-                                <SelectItem
-                                  key={bin.binId}
-                                  value={bin.binId.toString()}
-                                >
-                                  {bin.warehouse?.name} - {bin.code}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-
-                        {/* 5. Batch & Date */}
-                        <TableCell className="align-top pt-3">
-                          <div className="flex flex-col gap-2">
-                            <div className="relative">
-                              <QrCode
-                                className={`w-3 h-3 absolute left-2 top-3 ml-2 ${
-                                  !item.batchCode
-                                    ? "text-red-400"
-                                    : "text-slate-400"
-                                }`}
-                              />
-                              <Input
-                                className={`h-9 text-xs pl-10 w-full ${
-                                  !item.batchCode
-                                    ? "border-red-300 bg-red-50 focus-visible:ring-red-400 placeholder:text-red-300/70"
-                                    : "border-slate-300"
-                                }`}
-                                placeholder="Batch Code"
-                                value={item.batchCode}
-                                onChange={(e) =>
-                                  updateItem(index, "batchCode", e.target.value)
-                                }
-                              />
-                            </div>
-                            <div className="relative">
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                      "h-9 w-full justify-start text-left text-xs pl-2 font-normal gap-1 bg-transparent hover:bg-transparent hover:text-black",
-                                      !item.mfgDate
-                                        ? "text-muted-foreground border-red-200 hover:bg-red-50 hover:text-red-600"
-                                        : "border-slate-300",
-                                    )}
-                                  >
-                                    <CalendarIcon className="mr-2 h-3 w-3 opacity-50" />
-                                    <span className="text-sm">
-                                      {item.mfgDate ? (
-                                        format(
-                                          new Date(item.mfgDate),
-                                          "dd/MM/yyyy",
-                                        )
-                                      ) : (
-                                        <span className="text-sm">
-                                          Pick date
-                                        </span>
-                                      )}
-                                    </span>
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent
-                                  className="w-auto p-0"
-                                  align="start"
-                                >
-                                  <Calendar
-                                    mode="single"
-                                    selected={
-                                      item.mfgDate
-                                        ? new Date(item.mfgDate)
-                                        : undefined
-                                    }
-                                    disabled={(date) => date > new Date()}
-                                    onSelect={(date) => {
-                                      if (date) {
-                                        const year = date.getFullYear();
-                                        const month = String(
-                                          date.getMonth() + 1,
-                                        ).padStart(2, "0");
-                                        const day = String(
-                                          date.getDate(),
-                                        ).padStart(2, "0");
-                                        const dateString = `${year}-${month}-${day}`;
-
-                                        updateItem(
-                                          index,
-                                          "mfgDate",
-                                          dateString,
-                                        );
-                                      } else {
-                                        updateItem(index, "mfgDate", "");
-                                      }
-                                    }}
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                            </div>
-                          </div>
-                        </TableCell>
-
-                        {/* 6. Certificate Image */}
-                        <TableCell className="align-top pt-3 text-center">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className={`h-9 w-9 rounded-full transition-all ${
-                                  item.certificateImage
-                                    ? "text-indigo-600 bg-indigo-50 border border-indigo-100 shadow-sm"
-                                    : "text-slate-400 hover:bg-primary"
+                      return (
+                        <TableRow
+                          key={item.detailId}
+                          className={
+                            isMatch
+                              ? "bg-emerald-50/40 hover:bg-emerald-50/60"
+                              : "hover:bg-slate-50"
+                          }
+                        >
+                          {/* 1. Material Info */}
+                          <TableCell className="pl-6 py-4 align-top">
+                            <div className="flex items-start gap-3">
+                              <div
+                                className={`mt-1 p-1.5 rounded-full shrink-0 ${
+                                  isMatch
+                                    ? "bg-emerald-100 text-emerald-600"
+                                    : isShort || isOver
+                                      ? "bg-amber-100 text-amber-600"
+                                      : "bg-slate-100 text-slate-400"
                                 }`}
                               >
-                                <ImageIcon className="w-4 h-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>
-                                  Certificate for {item.materialName}
-                                </DialogTitle>
-                              </DialogHeader>
-                              <div className="space-y-4">
-                                <Input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) => handleImageUpload(index, e)}
-                                  className="cursor-pointer"
-                                />
-                                {item.certificateImage && (
-                                  <div className="border rounded-md p-2 bg-slate-50 flex flex-col gap-2">
-                                    <div className="flex justify-center bg-white rounded border border-slate-100 py-2">
-                                      <img
-                                        src={item.certificateImage}
-                                        alt="Cert"
-                                        className="max-h-[400px] object-contain shadow-sm"
-                                      />
-                                    </div>
+                                <Box className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-slate-800">
+                                  {item.materialName}
+                                </p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] px-1.5 py-0 border-slate-200 bg-white font-mono text-slate-500"
+                                  >
+                                    {item.materialCode}
+                                  </Badge>
+                                  <span className="text-xs text-slate-400">
+                                    {item.unit}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </TableCell>
 
-                                    <Button
-                                      variant="destructive"
-                                      className="w-full flex items-center justify-center gap-2"
-                                      onClick={() =>
-                                        updateItem(
-                                          index,
-                                          "certificateImage",
-                                          "",
-                                        )
-                                      }
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                      Remove Image
-                                    </Button>
-                                  </div>
+                          <TableCell className="flex items-center gap-2 pt-5">
+                            <Truck className="w-3 h-3 text-slate-400" />
+                            <span className="text-sm font-semibold text-slate-600 bg-slate-100 px-2 py-1 rounded text-center">
+                              {item.supplierName}
+                            </span>
+                          </TableCell>
+
+                          {/* 2. Expected */}
+                          <TableCell className="text-center align-top pt-5">
+                            <span className="text-sm font-semibold text-slate-600 bg-slate-100 px-2 py-1 rounded">
+                              {item.expectedQty}
+                            </span>
+                          </TableCell>
+
+                          {/* 3. Actual Qty */}
+                          <TableCell className="align-top pt-3">
+                            <div className="flex flex-col gap-1">
+                              <div className="relative">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  className={`text-center font-bold h-9 pl-6 ${
+                                    item.actualQty === ""
+                                      ? "border-red-300 bg-red-50 focus-visible:ring-red-400 placeholder:text-red-300/70"
+                                      : isShort
+                                        ? "border-amber-400 text-amber-700 bg-amber-50"
+                                        : isOver
+                                          ? "border-red-400 text-red-700 bg-red-50"
+                                          : isMatch
+                                            ? "border-emerald-400 text-emerald-700 bg-emerald-50"
+                                            : ""
+                                  }`}
+                                  placeholder="0"
+                                  value={item.actualQty}
+                                  onChange={(e) => {
+                                    if (
+                                      e.target.value.length <= 5 &&
+                                      Number(e.target.value) >= 0
+                                    ) {
+                                      // Sử dụng absoluteIdx
+                                      updateItem(
+                                        absoluteIdx,
+                                        "actualQty",
+                                        e.target.value,
+                                      );
+                                    }
+                                  }}
+                                />
+                                {isShort && (
+                                  <AlertTriangle className="w-3 h-3 text-amber-500 absolute left-2 top-3" />
                                 )}
                               </div>
-                            </DialogContent>
-                          </Dialog>
-                          <div className="pt-2 font-bold">
-                            {item.certificateImage ? (
-                              "Image attached"
-                            ) : (
-                              <span className="text-red-500">
-                                No image attached
-                              </span>
-                            )}
+                              {(isShort || isOver) && (
+                                <p className="text-[10px] text-center font-medium text-slate-500">
+                                  Diff: {actual - item.expectedQty}
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          {/* 4. Bin Location */}
+                          <TableCell className="align-top pt-3">
+                            <Select
+                              value={item.binLocationId}
+                              onValueChange={(val) =>
+                                // Sử dụng absoluteIdx
+                                updateItem(absoluteIdx, "binLocationId", val)
+                              }
+                            >
+                              <SelectTrigger
+                                className={`h-9 text-md w-full ${
+                                  !item.binLocationId
+                                    ? "border-red-300 bg-red-50 focus:ring-red-400"
+                                    : "border-slate-300"
+                                }`}
+                              >
+                                <SelectValue placeholder="Select Bin" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {binLocations.map((bin) => (
+                                  <SelectItem
+                                    key={bin.binId}
+                                    value={bin.binId.toString()}
+                                  >
+                                    {bin.warehouse?.name} - {bin.code}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+
+                          {/* 5. Batch & Date */}
+                          <TableCell className="align-top pt-3">
+                            <div className="flex flex-col gap-2">
+                              <div className="relative">
+                                <QrCode
+                                  className={`w-3 h-3 absolute left-2 top-3 ml-2 ${
+                                    !item.batchCode
+                                      ? "text-red-400"
+                                      : "text-slate-400"
+                                  }`}
+                                />
+                                <Input
+                                  className={`h-9 text-xs pl-10 w-full ${
+                                    !item.batchCode
+                                      ? "border-red-300 bg-red-50 focus-visible:ring-red-400 placeholder:text-red-300/70"
+                                      : "border-slate-300"
+                                  }`}
+                                  placeholder="Batch Code"
+                                  value={item.batchCode}
+                                  onChange={(e) =>
+                                    // Sử dụng absoluteIdx
+                                    updateItem(
+                                      absoluteIdx,
+                                      "batchCode",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                              </div>
+                              <div className="relative">
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant={"outline"}
+                                      className={cn(
+                                        "h-9 w-full justify-start text-left text-xs pl-2 font-normal gap-1 bg-transparent hover:bg-transparent hover:text-black",
+                                        !item.mfgDate
+                                          ? "text-muted-foreground border-red-200 hover:bg-red-50 hover:text-red-600"
+                                          : "border-slate-300",
+                                      )}
+                                    >
+                                      <CalendarIcon className="mr-2 h-3 w-3 opacity-50" />
+                                      <span className="text-sm">
+                                        {item.mfgDate ? (
+                                          format(
+                                            new Date(item.mfgDate),
+                                            "dd/MM/yyyy",
+                                          )
+                                        ) : (
+                                          <span className="text-sm">
+                                            MFG date
+                                          </span>
+                                        )}
+                                      </span>
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent
+                                    className="w-auto p-0"
+                                    align="start"
+                                  >
+                                    <Calendar
+                                      mode="single"
+                                      selected={
+                                        item.mfgDate
+                                          ? new Date(item.mfgDate)
+                                          : undefined
+                                      }
+                                      disabled={(date) => date > new Date()}
+                                      onSelect={(date) => {
+                                        if (date) {
+                                          const year = date.getFullYear();
+                                          const month = String(
+                                            date.getMonth() + 1,
+                                          ).padStart(2, "0");
+                                          const day = String(
+                                            date.getDate(),
+                                          ).padStart(2, "0");
+                                          const dateString = `${year}-${month}-${day}`;
+
+                                          // Sử dụng absoluteIdx
+                                          updateItem(
+                                            absoluteIdx,
+                                            "mfgDate",
+                                            dateString,
+                                          );
+                                        } else {
+                                          updateItem(
+                                            absoluteIdx,
+                                            "mfgDate",
+                                            "",
+                                          );
+                                        }
+                                      }}
+                                      initialFocus
+                                    />
+                                  </PopoverContent>
+                                </Popover>
+                              </div>
+                            </div>
+                          </TableCell>
+
+                          {/* 6. Certificate Image */}
+                          <TableCell className="align-top pt-3 text-center">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className={`h-9 w-9 rounded-full transition-all ${
+                                    item.certificateImage
+                                      ? "text-indigo-600 bg-indigo-50 border border-indigo-100 shadow-sm"
+                                      : "text-slate-400 hover:bg-primary"
+                                  }`}
+                                >
+                                  <ImageIcon className="w-4 h-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>
+                                    Certificate for {item.materialName}
+                                  </DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-4">
+                                  <Input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) =>
+                                      // Sử dụng absoluteIdx
+                                      handleImageUpload(absoluteIdx, e)
+                                    }
+                                    className="cursor-pointer"
+                                  />
+                                  {item.certificateImage && (
+                                    <div className="border rounded-md p-2 bg-slate-50 flex flex-col gap-2">
+                                      <div className="flex justify-center bg-white rounded border border-slate-100 py-2">
+                                        <img
+                                          src={item.certificateImage}
+                                          alt="Cert"
+                                          className="max-h-[400px] object-contain shadow-sm"
+                                        />
+                                      </div>
+
+                                      <Button
+                                        variant="destructive"
+                                        className="w-full flex items-center justify-center gap-2"
+                                        onClick={() =>
+                                          updateItem(
+                                            absoluteIdx,
+                                            "certificateImage",
+                                            "",
+                                          )
+                                        }
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                        Remove Image
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                            <div className="pt-2 font-bold">
+                              {item.certificateImage ? (
+                                "Image attached"
+                              ) : (
+                                <span className="text-red-500">No image</span>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+
+                    {paginatedItems.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="h-24 text-center">
+                          <div className="flex flex-col items-center justify-center text-slate-500">
+                            <Search className="w-6 h-6 mb-1 text-slate-300" />
+                            <p>No items found matching "{searchTerm}"</p>
                           </div>
                         </TableCell>
                       </TableRow>
-                    );
-                  })}
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
 
-                  {filteredItems.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center">
-                        <div className="flex flex-col items-center justify-center text-slate-500">
-                          <Search className="w-6 h-6 mb-1 text-slate-300" />
-                          <p>No items found matching "{searchTerm}"</p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+              {/* THANH PHÂN TRANG */}
+              {totalTablePages > 1 && (
+                <div className="px-6 py-3 flex items-center justify-between border-t border-slate-100 bg-slate-50/50 shrink-0 mt-auto">
+                  <span className="text-xs text-slate-500">
+                    Showing {startTableIndex + 1}-
+                    {Math.min(
+                      startTableIndex + tableItemsPerPage,
+                      filteredItems.length,
+                    )}{" "}
+                    of {filteredItems.length}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs px-2"
+                      onClick={() => setTablePage((p) => Math.max(1, p - 1))}
+                      disabled={tablePage === 1}
+                    >
+                      <ChevronLeft className="w-3 h-3 mr-1" /> Prev
+                    </Button>
+                    <span className="text-xs font-medium text-slate-600 w-10 text-center">
+                      {tablePage} / {totalTablePages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs px-2"
+                      onClick={() =>
+                        setTablePage((p) => Math.min(totalTablePages, p + 1))
+                      }
+                      disabled={tablePage === totalTablePages}
+                    >
+                      Next <ChevronRight className="w-3 h-3 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

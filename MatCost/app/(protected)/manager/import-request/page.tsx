@@ -20,6 +20,7 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -313,9 +314,9 @@ export default function ManagerImportRequestPage() {
               </div>
             </CardHeader>
             <CardContent className="p-0 flex flex-col justify-between flex-1">
-              <div className="max-h-[350px] min-h-[350px] overflow-y-auto relative scrollbar-thin no-scrollbar">
+              <div className="[&>div]:max-h-[350px] [&>div]:min-h-[350px] [&>div]:overflow-y-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                     <TableRow className="bg-slate-50">
                       {/* Cột Receipt Code & Date: Click để sort theo date */}
                       <TableHead
@@ -443,13 +444,29 @@ export default function ManagerImportRequestPage() {
                               size="sm"
                               onClick={() => handleReview(item.receiptId)}
                               disabled={loadingId === item.receiptId}
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                              variant={
+                                item.status === "Approved" ||
+                                item.status === "Rejected"
+                                  ? "outline"
+                                  : "default"
+                              }
+                              className={`w-[100px] ${
+                                item.status === "Approved" ||
+                                item.status === "Rejected"
+                                  ? "text-indigo-600 border border-indigo-200 hover:bg-indigo-50 hover:text-primary"
+                                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                              }`}
                             >
                               {loadingId === item.receiptId ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : item.status === "Approved" ||
+                                item.status === "Rejected" ? (
+                                <>
+                                  View <Eye className="w-4 h-4 ml-1.5" />
+                                </>
                               ) : (
                                 <>
-                                  Review{" "}
+                                  Process{" "}
                                   <ArrowRight className="w-4 h-4 ml-1.5" />
                                 </>
                               )}

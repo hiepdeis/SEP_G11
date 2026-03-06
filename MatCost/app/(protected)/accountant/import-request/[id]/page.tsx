@@ -14,6 +14,8 @@ import {
   Building2,
   AlertTriangle,
   History,
+  ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,6 +89,9 @@ export default function ReceiptReviewPage() {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [hasMissingSupplier, setHasMissingSupplier] = useState(false);
   const [hasAllSupplierMissing, setHasAllSupplierMissing] = useState(false);
+
+  const [tablePage, setTablePage] = useState(1);
+  const tableItemsPerPage = 10;
 
   // 1. Fetch Data
   useEffect(() => {
@@ -181,8 +186,8 @@ export default function ReceiptReviewPage() {
   };
 
   const handleWarehouseChange = (val: string) => {
-    setSelectedWarehouseId(val); 
-    autoSaveDraft(items, val);   
+    setSelectedWarehouseId(val);
+    autoSaveDraft(items, val);
   };
 
   const validateInput = (
@@ -336,9 +341,12 @@ export default function ReceiptReviewPage() {
     });
   };
 
-  const autoSaveDraft = async (updatedItems: EditableItem[], newWarehouseId?: string) => {
+  const autoSaveDraft = async (
+    updatedItems: EditableItem[],
+    newWarehouseId?: string,
+  ) => {
     const targetWarehouseId = newWarehouseId || selectedWarehouseId;
-    
+
     setIsSaving(true);
     try {
       const payload = {
@@ -364,6 +372,13 @@ export default function ReceiptReviewPage() {
       setIsSaving(false);
     }
   };
+
+  const totalTablePages = Math.ceil(items.length / tableItemsPerPage) || 1;
+  const startTableIndex = (tablePage - 1) * tableItemsPerPage;
+  const paginatedTableItems = items.slice(
+    startTableIndex,
+    startTableIndex + tableItemsPerPage,
+  );
 
   if (isLoading)
     return (
@@ -422,8 +437,8 @@ export default function ReceiptReviewPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              <Card className="border-slate-200 shadow-sm overflow-hidden pb-0 gap-0">
-                <CardHeader className="bg-white border-b border-slate-100 py-4">
+              <Card className="border-slate-200 shadow-sm overflow-hidden pb-0 gap-0 flex flex-col">
+                <CardHeader className="bg-white border-b border-slate-100 py-4 shrink-0">
                   <div className="flex justify-between items-center">
                     <CardTitle className="text-base font-semibold text-slate-800">
                       Material & Supplier Selection
@@ -431,147 +446,219 @@ export default function ReceiptReviewPage() {
                     <Badge variant="secondary">{items.length} items</Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-slate-50/50">
-                        <TableHead className="w-[30%] pl-6">Material</TableHead>
-                        <TableHead className="w-[25%]">Supplier</TableHead>
-                        <TableHead className="w-[10%] text-center">
-                          Req. Qty
-                        </TableHead>
-                        <TableHead className="w-[12%] text-center">
-                          Appr. Qty
-                        </TableHead>
-                        <TableHead className="w-[13%] text-right">
-                          Unit Price
-                        </TableHead>
-                        <TableHead className="w-[10%] text-right pr-6">
-                          Total
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {items.map((item, idx) => {
-                        const matInfo = availableMaterials.find(
-                          (m) => m.materialId === item.materialId,
-                        );
-                        const suppliersForThisItem = matInfo?.suppliers || [];
-                        return (
-                          <TableRow
-                            key={item.detailId}
-                            className="hover:bg-slate-50 align-top transition-colors"
-                          >
-                            <TableCell className="pl-6 py-4">
-                              <div className="flex flex-col gap-1">
-                                <span className="font-medium text-slate-700 text-sm">
-                                  {item.materialName}
-                                </span>
-                                <span className="text-[11px] text-slate-500 font-mono bg-slate-100 w-fit px-1.5 rounded">
-                                  {item.materialCode}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="py-3">
-                              <div className="flex flex-col gap-1">
-                                <Select
-                                  value={item.supplierId}
-                                  onValueChange={(val) =>
-                                    handleRowSupplierChange(idx, val)
-                                  }
-                                >
-                                  <SelectTrigger
-                                    className={`h-9 text-md w-full ${
-                                      !item.supplierId ||
-                                      errors[`supplier-${idx}`]
-                                        ? "border-red-300 bg-red-50 focus:ring-red-400"
-                                        : "border-slate-300"
-                                    }`}
+
+                <CardContent className="p-0 flex flex-col flex-1">
+                  {/* Bạn có thể bỏ max-h/min-h nếu muốn bảng tự co giãn theo 5 items, hoặc giữ nguyên */}
+                  <div className="[&>div]:max-h-[350px] [&>div]:min-h-[350px] [&>div]:overflow-y-auto [&>div]:no-scrollbar">
+                    <Table>
+                      <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
+                        <TableRow className="bg-slate-50/50">
+                          <TableHead className="w-[30%] pl-6">
+                            Material
+                          </TableHead>
+                          <TableHead className="w-[25%]">Supplier</TableHead>
+                          <TableHead className="w-[10%] text-center">
+                            Req. Qty
+                          </TableHead>
+                          <TableHead className="w-[12%] text-center">
+                            Appr. Qty
+                          </TableHead>
+                          <TableHead className="w-[13%] text-right">
+                            Unit Price
+                          </TableHead>
+                          <TableHead className="w-[10%] text-right pr-6">
+                            Total
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {/* DÙNG paginatedTableItems THAY VÌ items */}
+                        {paginatedTableItems.map((item, pageIdx) => {
+                          // TÍNH LẠI INDEX GỐC ĐỂ HÀM UPDATE VÀ BẮT LỖI HOẠT ĐỘNG ĐÚNG
+                          const absoluteIdx = startTableIndex + pageIdx;
+
+                          const matInfo = availableMaterials.find(
+                            (m) => m.materialId === item.materialId,
+                          );
+                          const suppliersForThisItem = matInfo?.suppliers || [];
+
+                          return (
+                            <TableRow
+                              key={item.detailId}
+                              className="hover:bg-slate-50 align-top transition-colors"
+                            >
+                              <TableCell className="pl-6 py-4">
+                                <div className="flex flex-col gap-1">
+                                  <span className="font-medium text-slate-700 text-sm">
+                                    {item.materialName}
+                                  </span>
+                                  <span className="text-[11px] text-slate-500 font-mono bg-slate-100 w-fit px-1.5 rounded">
+                                    {item.materialCode}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="py-3">
+                                <div className="flex flex-col gap-1">
+                                  <Select
+                                    value={item.supplierId}
+                                    onValueChange={
+                                      (val) =>
+                                        handleRowSupplierChange(
+                                          absoluteIdx,
+                                          val,
+                                        ) // Dùng absoluteIdx
+                                    }
                                   >
-                                    <SelectValue placeholder="Select supplier..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {suppliersForThisItem.length > 0 ? (
-                                      suppliersForThisItem.map((s) => (
-                                        <SelectItem
-                                          key={s.supplierId}
-                                          value={s.supplierId.toString()}
-                                        >
-                                          <span className="flex items-center justify-between w-full gap-2">
-                                            <span>{s.supplierName}</span>
-                                          </span>
-                                        </SelectItem>
-                                      ))
-                                    ) : (
-                                      <div className="p-2 text-xs text-slate-500 text-center">
-                                        No suppliers available
-                                      </div>
-                                    )}
-                                  </SelectContent>
-                                </Select>
-                                {errors[`supplier-${idx}`] && (
-                                  <span className="text-[10px] text-red-500">
-                                    Required
-                                  </span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center text-slate-500 pt-4 text-sm">
-                              {item.requestedQty}
-                            </TableCell>
-                            <TableCell className="pt-3">
-                              <div className="flex flex-col gap-1 items-center">
-                                <Input
-                                  type="text"
-                                  inputMode="numeric"
-                                  className={`h-8 w-20 text-center text-sm ${errors[`approvedQty-${idx}`] ? "border-red-500" : ""}`}
-                                  value={item.approvedQty}
-                                  onChange={(e) =>
-                                    updateItem(
-                                      idx,
-                                      "approvedQty",
-                                      e.target.value,
-                                    )
-                                  }
-                                />
-                                {errors[`approvedQty-${idx}`] && (
-                                  <span className="text-[10px] text-red-500">
-                                    {errors[`approvedQty-${idx}`]}
-                                  </span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="pt-3">
-                              <div className="flex flex-col gap-1 items-end relative">
-                                <Input
-                                  type="text"
-                                  inputMode="decimal"
-                                  disabled={!item.supplierId}
-                                  className={`h-8 w-24 text-right pr-2 text-sm ${errors[`unitPrice-${idx}`] ? "border-red-500" : ""}`}
-                                  value={item.unitPrice}
-                                  onChange={(e) =>
-                                    updateItem(idx, "unitPrice", e.target.value)
-                                  }
-                                />
-                                {errors[`unitPrice-${idx}`] && (
-                                  <span className="text-[10px] text-red-500">
-                                    {errors[`unitPrice-${idx}`]}
-                                  </span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right pr-6 font-semibold text-slate-700 pt-4 text-sm">
-                              {(
-                                Number(item.approvedQty) *
-                                Number(item.unitPrice)
-                              ).toLocaleString("vi-VN")}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                  <div className="bg-slate-50 p-6 flex justify-end items-center gap-4 border-t border-slate-100">
+                                    <SelectTrigger
+                                      className={`h-9 text-md w-full ${
+                                        !item.supplierId ||
+                                        errors[`supplier-${absoluteIdx}`] // Dùng absoluteIdx
+                                          ? "border-red-300 bg-red-50 focus:ring-red-400"
+                                          : "border-slate-300"
+                                      }`}
+                                    >
+                                      <SelectValue placeholder="Select supplier..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {suppliersForThisItem.length > 0 ? (
+                                        suppliersForThisItem.map((s) => (
+                                          <SelectItem
+                                            key={s.supplierId}
+                                            value={s.supplierId.toString()}
+                                          >
+                                            <span className="flex items-center justify-between w-full gap-2">
+                                              <span>{s.supplierName}</span>
+                                            </span>
+                                          </SelectItem>
+                                        ))
+                                      ) : (
+                                        <div className="p-2 text-xs text-slate-500 text-center">
+                                          No suppliers available
+                                        </div>
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                  {errors[`supplier-${absoluteIdx}`] && ( // Dùng absoluteIdx
+                                    <span className="text-[10px] text-red-500">
+                                      Required
+                                    </span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center text-slate-500 pt-4 text-sm">
+                                {item.requestedQty}
+                              </TableCell>
+                              <TableCell className="pt-3">
+                                <div className="flex flex-col gap-1 items-center">
+                                  <Input
+                                    type="text"
+                                    inputMode="numeric"
+                                    className={`h-8 w-20 text-center text-sm ${
+                                      errors[`approvedQty-${absoluteIdx}`]
+                                        ? "border-red-500"
+                                        : ""
+                                    }`}
+                                    value={item.approvedQty}
+                                    onChange={(e) =>
+                                      updateItem(
+                                        absoluteIdx, // Dùng absoluteIdx
+                                        "approvedQty",
+                                        e.target.value,
+                                      )
+                                    }
+                                  />
+                                  {errors[`approvedQty-${absoluteIdx}`] && ( // Dùng absoluteIdx
+                                    <span className="text-[10px] text-red-500">
+                                      {errors[`approvedQty-${absoluteIdx}`]}
+                                    </span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="pt-3">
+                                <div className="flex flex-col gap-1 items-end relative">
+                                  <Input
+                                    type="text"
+                                    inputMode="decimal"
+                                    disabled={!item.supplierId}
+                                    className={`h-8 w-24 text-right pr-2 text-sm ${
+                                      errors[`unitPrice-${absoluteIdx}`]
+                                        ? "border-red-500"
+                                        : ""
+                                    }`}
+                                    value={item.unitPrice}
+                                    onChange={(e) =>
+                                      updateItem(
+                                        absoluteIdx, // Dùng absoluteIdx
+                                        "unitPrice",
+                                        e.target.value,
+                                      )
+                                    }
+                                  />
+                                  {errors[`unitPrice-${absoluteIdx}`] && ( // Dùng absoluteIdx
+                                    <span className="text-[10px] text-red-500">
+                                      {errors[`unitPrice-${absoluteIdx}`]}
+                                    </span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right pr-6 font-semibold text-slate-700 pt-4 text-sm">
+                                {(
+                                  Number(item.approvedQty) *
+                                  Number(item.unitPrice)
+                                ).toLocaleString("vi-VN")}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* THANH PHÂN TRANG */}
+                  {totalTablePages > 1 && (
+                    <div className="px-6 py-3 flex items-center justify-between border-t border-slate-100 bg-white shrink-0">
+                      <span className="text-xs text-slate-500">
+                        Showing {startTableIndex + 1}-
+                        {Math.min(
+                          startTableIndex + tableItemsPerPage,
+                          items.length,
+                        )}{" "}
+                        of {items.length}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs px-2"
+                          onClick={() =>
+                            setTablePage((p) => Math.max(1, p - 1))
+                          }
+                          disabled={tablePage === 1}
+                        >
+                          <ChevronLeft className="w-3 h-3 mr-1" /> Prev
+                        </Button>
+                        <span className="text-xs font-medium text-slate-600 w-10 text-center">
+                          {tablePage} / {totalTablePages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs px-2"
+                          onClick={() =>
+                            setTablePage((p) =>
+                              Math.min(totalTablePages, p + 1),
+                            )
+                          }
+                          disabled={tablePage === totalTablePages}
+                        >
+                          Next <ChevronRight className="w-3 h-3 ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* GRAND TOTAL */}
+                  <div className="bg-slate-50 p-6 flex justify-end items-center gap-4 border-t border-slate-100 shrink-0">
                     <span className="text-slate-500 font-medium text-sm">
                       Grand Total (VND)
                     </span>
@@ -678,7 +765,7 @@ export default function ReceiptReviewPage() {
                               >
                                 <div className="flex flex-col items-start py-1">
                                   <span className="font-medium">{w.name}</span>
-                                  <span className="text-xs text-slate-500">
+                                  <span className="text-xs">
                                     {w.address}
                                   </span>
                                 </div>

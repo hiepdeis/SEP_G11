@@ -19,6 +19,7 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -290,9 +291,9 @@ export default function ImportApprovalListPage() {
               </div>
             </CardHeader>
             <CardContent className="p-0 flex flex-col justify-between flex-1">
-              <div className="max-h-[350px] min-h-[350px] overflow-y-auto relative scrollbar-thin no-scrollbar">
+              <div className="[&>div]:max-h-[350px] [&>div]:min-h-[350px] [&>div]:overflow-y-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                     <TableRow className="bg-slate-50">
                       <TableHead
                         className="pl-6 cursor-pointer transition-colors"
@@ -424,14 +425,17 @@ export default function ImportApprovalListPage() {
                               }
                               disabled={loadingId === item.receiptId}
                               variant={
-                                item.status === "Rejected"
+                                item.status === "Rejected" ||
+                                item.status === "Submitted"
                                   ? "outline"
                                   : "default"
                               }
                               className={
                                 item.status === "Rejected"
-                                  ? "text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-primary"
-                                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                                  ? "text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-primary w-[150px]"
+                                  : item.status === "Submitted"
+                                    ? "text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-primary w-[100px]"
+                                    : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[120px]"
                               }
                             >
                               {loadingId === item.receiptId ? (
@@ -440,6 +444,10 @@ export default function ImportApprovalListPage() {
                                 <>
                                   Revert to Draft{" "}
                                   <RotateCcw className="w-4 h-4 ml-1.5" />
+                                </>
+                              ) : item.status === "Submitted" ? (
+                                <>
+                                  View <Eye className="w-4 h-4 ml-1.5" />
                                 </>
                               ) : (
                                 <>
