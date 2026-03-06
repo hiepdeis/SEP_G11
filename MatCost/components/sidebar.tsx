@@ -279,10 +279,10 @@ export function Sidebar() {
                     <ChevronDown className="w-4 h-4 ml-auto" />
                   </>
                 )}
-                {pathname.match("/material-request") ||
-                  (pathname.match("/import-request") && (
+                {(pathname.match("/material-request") ||
+                  pathname.match("/import-request")) && (
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
-                  ))}
+                  )}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="right" align="start" className="ml-4">
