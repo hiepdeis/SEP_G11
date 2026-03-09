@@ -27,9 +27,7 @@ public partial class StockTake
 
     public DateTime CreatedAt { get; set; }
 
-    public DateTime? LockedAt { get; set; }
-
-    public int? LockedBy { get; set; }
+  
 
     public DateTime? CompletedAt { get; set; }
 
@@ -59,4 +57,6 @@ public partial class StockTake
     public virtual ICollection<StockTakeTeamMember> StockTakeTeamMembers { get; set; } = new List<StockTakeTeamMember>();
 
     public virtual Warehouse Warehouse { get; set; } = null!;
+    [InverseProperty(nameof(StockTakeLock.StockTake))]
+    public virtual ICollection<StockTakeLock> StockTakeLocks { get; set; } = new List<StockTakeLock>();
 }

@@ -50,6 +50,7 @@ public partial class MyDbContext : DbContext
     public virtual DbSet<ReceiptRejectionHistory> ReceiptRejectionHistories { get; set; }
 
     public virtual DbSet<Role> Roles { get; set; }
+    public virtual DbSet<StockTakeLock> StockTakeLocks { get; set; }
 
     public virtual DbSet<StockTake> StockTakes { get; set; }
 
@@ -475,7 +476,60 @@ public partial class MyDbContext : DbContext
         {
             entity.HasKey(e => e.RoleId).HasName("PK__Roles__8AFACE3A1FD94F1F");
         });
+        modelBuilder.Entity<StockTakeLock>(entity =>
+        {
+            entity.HasKey(e => e.LockId).HasName("PK__StockTakeLocks__LockId");
 
+            entity.Property(e => e.LockId).HasColumnName("LockId");
+            entity.Property(e => e.StockTakeId).HasColumnName("StockTakeId");
+            entity.Property(e => e.ScopeType)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.WarehouseId).HasColumnName("WarehouseId");
+            entity.Property(e => e.BinId).HasColumnName("BinId");
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true);
+            entity.Property(e => e.LockedAt)
+                .HasColumnType("datetime2(0)")
+                .HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.UnlockedAt)
+                .HasColumnType("datetime2(0)");
+
+            entity.HasOne(d => d.StockTake).WithMany(p => p.StockTakeLocks)
+                .HasForeignKey(d => d.StockTakeId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_StockTakeLocks_StockTakes");
+
+            entity.HasOne(d => d.Warehouse).WithMany(p => p.StockTakeLocks)
+                .HasForeignKey(d => d.WarehouseId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_StockTakeLocks_Warehouses");
+
+            entity.HasOne(d => d.Bin).WithMany(p => p.StockTakeLocks)
+                .HasForeignKey(d => d.BinId)
+                .HasConstraintName("FK_StockTakeLocks_BinLocations");
+
+            entity.HasOne(d => d.LockedByNavigation).WithMany(p => p.StockTakeLockLockedByNavigations)
+                .HasForeignKey(d => d.LockedBy)
+                .HasConstraintName("FK_StockTakeLocks_LockedBy_Users");
+
+            entity.HasOne(d => d.UnlockedByNavigation).WithMany(p => p.StockTakeLockUnlockedByNavigations)
+                .HasForeignKey(d => d.UnlockedBy)
+                .HasConstraintName("FK_StockTakeLocks_UnlockedBy_Users");
+
+            entity.HasIndex(e => e.StockTakeId, "IX_StockTakeLocks_StockTakeId");
+            entity.HasIndex(e => new { e.WarehouseId, e.IsActive }, "IX_StockTakeLocks_WarehouseId_IsActive");
+            entity.HasIndex(e => new { e.BinId, e.IsActive }, "IX_StockTakeLocks_BinId_IsActive")
+                .HasFilter("[BinId] IS NOT NULL");
+            entity.HasIndex(e => e.IsActive, "IX_StockTakeLocks_IsActive");
+
+            entity.ToTable("StockTakeLocks");
+
+            entity.HasCheckConstraint("CK_StockTakeLocks_ScopeType", "[ScopeType] IN ('Warehouse', 'Bin')");
+            entity.HasCheckConstraint(
+                "CK_StockTakeLocks_BinRequired",
+                "([ScopeType]='Warehouse' AND [BinId] IS NULL) OR ([ScopeType]='Bin' AND [BinId] IS NOT NULL)");
+        });
         modelBuilder.Entity<StockTake>(entity =>
         {
             entity.HasKey(e => e.StockTakeId).HasName("PK__StockTak__6D3F3A76F3069398");
@@ -490,7 +544,6 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(0)
                 .HasDefaultValueSql("(sysdatetime())");
-            entity.Property(e => e.LockedAt).HasPrecision(0);
             entity.Property(e => e.Notes).HasMaxLength(500);
             entity.Property(e => e.PlannedEndDate).HasPrecision(0);
             entity.Property(e => e.PlannedStartDate).HasPrecision(0);
@@ -507,10 +560,6 @@ public partial class MyDbContext : DbContext
             entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.StockTakeCreatedByNavigations)
                 .HasForeignKey(d => d.CreatedBy)
                 .HasConstraintName("FK__StockTake__Creat__14270015");
-
-            entity.HasOne(d => d.LockedByNavigation).WithMany(p => p.StockTakeLockedByNavigations)
-                .HasForeignKey(d => d.LockedBy)
-                .HasConstraintName("FK_StockTakes_LockedBy_Users");
 
             entity.HasOne(d => d.Warehouse).WithMany(p => p.StockTakes)
                 .HasForeignKey(d => d.WarehouseId)
