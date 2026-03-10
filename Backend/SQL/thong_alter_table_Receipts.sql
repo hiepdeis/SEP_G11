@@ -153,3 +153,4 @@ CREATE NONCLUSTERED INDEX [IX_WarehouseCards_TransactionDate]
 -- Index: tra cứu theo chứng từ gốc (Receipt, IssueSlip,...)
 CREATE NONCLUSTERED INDEX [IX_WarehouseCards_ReferenceID_ReferenceType]
     ON [dbo].[WarehouseCards] ([ReferenceID], [ReferenceType]);
+GO
