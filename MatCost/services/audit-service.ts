@@ -172,7 +172,14 @@ export const auditService = {
     return response.data;
   },
 
-  // 13. Khóa sổ toàn bộ Audit
+// 13. Manager: Sign Off (Ký xác nhận trước khi chốt)
+  signOff: async (stockTakeId: number, notes: string = "") => {
+    const payload = { notes };
+    const response = await axiosClient.post(`/manager/audits/${stockTakeId}/sign-off`, payload);
+    return response.data;
+  },
+
+  // 14. Khóa sổ toàn bộ Audit
   finalizeAudit: async (stockTakeId: number, notes: string = "") => {
     const payload = { notes };
     const response = await axiosClient.post(`/manager/audits/${stockTakeId}/complete`, payload);

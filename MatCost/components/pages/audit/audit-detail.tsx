@@ -83,10 +83,23 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
     }
   };
 
-  const handleFinalizeAction = async () => {
+const handleFinalizeAction = async () => {
     try {
       setIsSubmitting(true);
+
+      // 1. Gọi API Sign Off trước (vì Backend bắt buộc Manager phải ký)
+      try {
+        await auditService.signOff(stockTakeId, "Manager đã duyệt các xử lý chênh lệch");
+      } catch (signError: any) {
+        // Nếu Backend báo "Bạn đã ký rồi" thì bỏ qua lỗi này và đi tiếp đến bước Complete
+        if (signError.response?.data?.message !== "You have already signed off on this audit.") {
+          throw signError;
+        }
+      }
+
+      // 2. Sau khi ký xong, gọi API Complete
       await auditService.finalizeAudit(stockTakeId, "Đã kiểm tra và khớp sổ");
+      
       toast.success("Đã chốt sổ kiểm kê thành công!");
       router.push(`/${role}/audit`);
     } catch (error: any) {

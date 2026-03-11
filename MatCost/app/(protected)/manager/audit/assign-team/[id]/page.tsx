@@ -172,7 +172,7 @@ export default function AssignTeamPage() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-none font-normal">{member.roleInTeam || "Counter"}</Badge>
+                                    {/* <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-none font-normal">{member.roleInTeam || "Counter"}</Badge> */}
                                     <Button 
                                         variant="ghost" 
                                         size="icon" 
