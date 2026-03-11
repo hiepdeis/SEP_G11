@@ -37,5 +37,14 @@ namespace Backend.Domains.Import.Interfaces
         // Warehouse Card flow
         Task<List<WarehouseCardDto>> GetWarehouseCardsAsync(WarehouseCardQueryDto query);
         Task<List<WarehouseCardDto>> GetWarehouseCardsByMaterialAsync(int materialId);
+
+        // QC Check flow
+        Task<QCCheckDto> SubmitQCCheckAsync(long receiptId, SubmitQCCheckDto dto, int staffId);
+        Task<QCCheckDto> GetQCCheckByReceiptAsync(long receiptId);
+
+        // Incident Report flow
+        Task<IncidentReportDto> CreateIncidentReportAsync(long receiptId, CreateIncidentReportDto dto, int staffId);
+        Task<IncidentReportDto> GetIncidentReportByReceiptAsync(long receiptId);
+        Task<List<IncidentReportSummaryDto>> GetAllIncidentReportsAsync();
     }
 }
