@@ -128,5 +128,141 @@ namespace Backend.Domains.Import.Controllers.Staff
                 return StatusCode(500, new { message = "Internal server error", error = ex.Message });
             }
         }
+
+        /// <summary>
+        /// POST /api/staffreceipts/inbound-requests/{receiptId}/qc-check
+        /// Nộp kết quả kiểm tra QC cho một phiếu nhập kho.
+        /// OverallResult: "Pass" | "Fail"
+        /// Status transition: Approved or GoodsArrived → GoodsArrived
+        /// </summary>
+        [HttpPost("inbound-requests/{receiptId}/qc-check")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> SubmitQCCheck(long receiptId, [FromBody] SubmitQCCheckDto dto)
+        {
+            try
+            {
+                var staffId = 4; // TODO: lấy từ JWT claims
+                var result = await _receiptService.SubmitQCCheckAsync(receiptId, dto, staffId);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// GET /api/staffreceipts/inbound-requests/{receiptId}/qc-check
+        /// Lấy kết quả QC check của một phiếu nhập kho.
+        /// </summary>
+        [HttpGet("inbound-requests/{receiptId}/qc-check")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetQCCheck(long receiptId)
+        {
+            try
+            {
+                var result = await _receiptService.GetQCCheckByReceiptAsync(receiptId);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// POST /api/staffreceipts/inbound-requests/{receiptId}/incident-report
+        /// Lập biên bản bất thường khi nhận hàng có sự cố.
+        /// Status receipt: Approved or GoodsArrived
+        /// </summary>
+        [HttpPost("inbound-requests/{receiptId}/incident-report")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> CreateIncidentReport(long receiptId, [FromBody] CreateIncidentReportDto dto)
+        {
+            try
+            {
+                var staffId = 4; // TODO: lấy từ JWT claims
+                var result = await _receiptService.CreateIncidentReportAsync(receiptId, dto, staffId);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Lấy biên bản bất thường của một phiếu nhập kho.
+        /// </summary>
+        [HttpGet("inbound-requests/{receiptId}/incident-report")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetIncidentReport(long receiptId)
+        {
+            try
+            {
+                var result = await _receiptService.GetIncidentReportByReceiptAsync(receiptId);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Danh sách tất cả biên bản bất thường (for manager review).
+        /// </summary>
+        [HttpGet("incident-reports")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetAllIncidentReports()
+        {
+            try
+            {
+                var result = await _receiptService.GetAllIncidentReportsAsync();
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
     }
 }
