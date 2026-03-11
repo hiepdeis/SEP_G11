@@ -7,7 +7,6 @@ import {
   Download,
   Upload,
   FileText,
-  LogOut,
   User,
   Settings,
   ChevronLeft,
@@ -18,8 +17,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import { useRouter, usePathname } from "next/navigation";
 import { useSidebar } from "./sidebar-context";
@@ -38,6 +40,10 @@ export function Sidebar() {
     fullName: string;
     email: string;
   } | null>(null);
+
+  const [showOutboundMobile, setShowOutboundMobile] = useState(false);
+  const [showReportsMobile, setShowReportsMobile] = useState(false);
+  const [openMobileReportRole, setOpenMobileReportRole] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -59,8 +65,6 @@ export function Sidebar() {
     { label: "Inventory", icon: Package, href: "/dashboard/inventory" },
     { label: "Import Materials", icon: Download, href: "/dashboard/import" },
     { label: "Export Materials", icon: Upload, href: "/dashboard/export" },
-    { label: "Reports", icon: FileText, href: "/report" },
-    { label: "outbound", icon: Upload, href: "/outbound/common/IssueSlipList" },
   ];
 
   const outboundTabs = [
@@ -81,11 +85,31 @@ export function Sidebar() {
     { label: "Warehouse Staff", href: "/staff/import-request" },
   ];
 
-  const [showOutboundMobile, setShowOutboundMobile] = useState(false);
+  const reportRoles = [
+    {
+      id: "staff",
+      label: "Warehouse Staff",
+      href: "/staff/reports",
+      categories: [
+        { label: "Import/Export", href: "/staff/reports/import-export" },
+        // Thêm các báo cáo khác của Staff vào đây sau
+      ],
+    },
+    {
+      id: "manager",
+      label: "Warehouse Manager",
+      href: "/manager/reports",
+      categories: [
+        { label: "Import/Export", href: "/manager/reports/import-export" },
+        // Thêm các báo cáo khác của Manager vào đây sau
+      ],
+    },
+  ];
+
+  const isReportActive = pathname.match("/reports") || pathname.match(/\/reports\//);
 
   return (
     <>
-      {/* Mobile Close Button */}
       {isMobileOpen && (
         <div className="fixed top-4 left-4 z-50 lg:hidden">
           <Button
@@ -99,7 +123,6 @@ export function Sidebar() {
         </div>
       )}
 
-      {/* Sidebar - Collapsible with smooth width animation */}
       <aside
         className={`relative hidden lg:flex h-screen bg-white border-r border-slate-200 flex-col flex-shrink-0 transition-all duration-300 ease-in-out shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] z-20 ${
           isExpanded ? "w-64" : "w-20"
@@ -145,107 +168,54 @@ export function Sidebar() {
           </Button>
         </div>
 
-        {/* Navigation Items */}
-        <nav className="flex-1 px-3 py-6 space-y-2">
-          {navItems
-            .filter((item) => item.label !== "outbound")
-            .map((item, i) => {
-              const Icon = item.icon;
-              const isActive = pathname.match(item.href);
-              return (
-                <a
-                  key={i}
-                  href={item.href}
-                  className={`
-                    relative flex gap-3 px-3 py-3 rounded-xl transition-all duration-300 group overflow-hidden
-                    ${
-                      isActive
-                        ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100"
-                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm"
-                    }
-                    ${isExpanded ? "justify-start" : "justify-center"}
-                  `}
-                >
-                  {isActive && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
-                  )}
-                  <Icon
-                    className={`
-                      h-5 w-5 flex-shrink-0 transition-all duration-300
-                      ${
-                        isActive
-                          ? "text-blue-600 scale-110"
-                          : "text-slate-400 group-hover:text-slate-600 group-hover:scale-110"
-                      }
-                    `}
-                  />
-                  {isExpanded && (
-                    <span
-                      className={`text-sm font-medium whitespace-nowrap transition-transform duration-300 ${
-                        !isActive && "group-hover:translate-x-1"
-                      }`}
-                    >
-                      {item.label}
-                    </span>
-                  )}
-                  {isActive && isExpanded && (
-                    <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                  )}
-                </a>
-              );
-            })}
-
-          {/* Outbound Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
+        <nav className="flex-1 px-3 py-6 space-y-2 overflow-y-auto no-scrollbar">
+          {navItems.map((item, i) => {
+            const Icon = item.icon;
+            const isActive = pathname.match(item.href);
+            return (
+              <a
+                key={i}
+                href={item.href}
                 className={`
-                  relative flex gap-3 px-3 py-3 rounded-xl transition-all duration-300 group overflow-hidden w-full
+                  relative flex gap-3 px-3 py-3 rounded-xl transition-all duration-300 group overflow-hidden
                   ${
-                    pathname.startsWith("/outbound")
+                    isActive
                       ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100"
                       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm"
                   }
                   ${isExpanded ? "justify-start" : "justify-center"}
                 `}
               >
-                <Upload
+                {isActive && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
+                )}
+                <Icon
                   className={`
                     h-5 w-5 flex-shrink-0 transition-all duration-300
                     ${
-                      pathname.startsWith("/outbound")
+                      isActive
                         ? "text-blue-600 scale-110"
                         : "text-slate-400 group-hover:text-slate-600 group-hover:scale-110"
                     }
                   `}
                 />
                 {isExpanded && (
-                  <>
-                    <span className="text-sm font-medium whitespace-nowrap">
-                      outbound
-                    </span>
-                    <ChevronDown className="w-4 h-4 ml-auto" />
-                  </>
+                  <span
+                    className={`text-sm font-medium whitespace-nowrap transition-transform duration-300 ${
+                      !isActive && "group-hover:translate-x-1"
+                    }`}
+                  >
+                    {item.label}
+                  </span>
                 )}
-                {pathname.startsWith("/outbound") && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
+                {isActive && isExpanded && (
+                  <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                 )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="right" align="start" className="ml-4">
-              {outboundTabs.map((tab) => (
-                <DropdownMenuItem
-                  key={tab.href}
-                  onClick={() => router.push(tab.href)}
-                  className={
-                    pathname === tab.href ? "bg-blue-100 font-semibold" : ""
-                  }
-                >
-                  {tab.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </a>
+            );
+          })}
+
+          {/* Inbound (Import) Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -274,15 +244,15 @@ export function Sidebar() {
                 {isExpanded && (
                   <>
                     <span className="text-sm font-medium whitespace-nowrap">
-                      inbound
+                      Inbound
                     </span>
                     <ChevronDown className="w-4 h-4 ml-auto" />
                   </>
                 )}
                 {(pathname.match("/material-request") ||
                   pathname.match("/import-request")) && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
-                  )}
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
+                )}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="right" align="start" className="ml-4">
@@ -299,6 +269,124 @@ export function Sidebar() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Outbound Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={`
+                  relative flex gap-3 px-3 py-3 rounded-xl transition-all duration-300 group overflow-hidden w-full
+                  ${
+                    pathname.startsWith("/outbound")
+                      ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm"
+                  }
+                  ${isExpanded ? "justify-start" : "justify-center"}
+                `}
+              >
+                <Upload
+                  className={`
+                    h-5 w-5 flex-shrink-0 transition-all duration-300
+                    ${
+                      pathname.startsWith("/outbound")
+                        ? "text-blue-600 scale-110"
+                        : "text-slate-400 group-hover:text-slate-600 group-hover:scale-110"
+                    }
+                  `}
+                />
+                {isExpanded && (
+                  <>
+                    <span className="text-sm font-medium whitespace-nowrap">
+                      Outbound
+                    </span>
+                    <ChevronDown className="w-4 h-4 ml-auto" />
+                  </>
+                )}
+                {pathname.startsWith("/outbound") && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="start" className="ml-4">
+              {outboundTabs.map((tab) => (
+                <DropdownMenuItem
+                  key={tab.href}
+                  onClick={() => router.push(tab.href)}
+                  className={
+                    pathname === tab.href ? "bg-blue-100 font-semibold" : ""
+                  }
+                >
+                  {tab.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={`
+                  relative flex gap-3 px-3 py-3 rounded-xl transition-all duration-300 group overflow-hidden w-full
+                  ${
+                    isReportActive
+                      ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm"
+                  }
+                  ${isExpanded ? "justify-start" : "justify-center"}
+                `}
+              >
+                <FileText
+                  className={`
+                    h-5 w-5 flex-shrink-0 transition-all duration-300
+                    ${
+                      isReportActive
+                        ? "text-blue-600 scale-110"
+                        : "text-slate-400 group-hover:text-slate-600 group-hover:scale-110"
+                    }
+                  `}
+                />
+                {isExpanded && (
+                  <>
+                    <span className="text-sm font-medium whitespace-nowrap">
+                      Reports
+                    </span>
+                    <ChevronDown className="w-4 h-4 ml-auto" />
+                  </>
+                )}
+                {isReportActive && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            
+            <DropdownMenuContent side="right" align="start" className="ml-4 w-56">
+              {reportRoles.map((role) => (
+                <DropdownMenuSub key={role.id}>
+                  {/* Click to navigate, Hover to open submenu */}
+                  <DropdownMenuSubTrigger 
+                    className="cursor-pointer"
+                    onClick={() => router.push(role.href)}
+                  >
+                    <span>{role.label}</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent className="w-44">
+                      {role.categories.map((cat) => (
+                        <DropdownMenuItem
+                          key={cat.href}
+                          onClick={() => router.push(cat.href)}
+                          className={pathname === cat.href ? "bg-blue-100 font-semibold" : ""}
+                        >
+                          {cat.label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
         </nav>
 
         {/* User Section - Synced with Dashboard Style */}
@@ -336,7 +424,6 @@ export function Sidebar() {
         </div>
       </aside>
 
-      {/* Mobile Overlay Sidebar - Updated visuals */}
       {isMobileOpen && (
         <>
           <div
@@ -375,38 +462,36 @@ export function Sidebar() {
             </div>
 
             <nav className="flex-1 px-4 py-6 space-y-2">
-              {navItems
-                .filter((item) => item.label !== "outbound")
-                .map((item, i) => {
-                  const Icon = item.icon;
-                  const isActive = pathname === item.href;
-                  return (
-                    <a
-                      key={i}
-                      href={item.href}
-                      onClick={() => setIsMobileOpen(false)}
-                      className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 group relative ${
+              {navItems.map((item, i) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
+                return (
+                  <a
+                    key={i}
+                    href={item.href}
+                    onClick={() => setIsMobileOpen(false)}
+                    className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 group relative ${
+                      isActive
+                        ? "bg-blue-50 text-blue-700 font-semibold shadow-sm"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    }`}
+                  >
+                    {isActive && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-blue-600 rounded-r-full"></div>
+                    )}
+                    <Icon
+                      className={`h-5 w-5 flex-shrink-0 transition-colors ${
                         isActive
-                          ? "bg-blue-50 text-blue-700 font-semibold shadow-sm"
-                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                          ? "text-blue-600"
+                          : "text-slate-400 group-hover:text-slate-600"
                       }`}
-                    >
-                      {isActive && (
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-blue-600 rounded-r-full"></div>
-                      )}
-                      <Icon
-                        className={`h-5 w-5 flex-shrink-0 transition-colors ${
-                          isActive
-                            ? "text-blue-600"
-                            : "text-slate-400 group-hover:text-slate-600"
-                        }`}
-                      />
-                      <span className="text-base">{item.label}</span>
-                    </a>
-                  );
-                })}
+                    />
+                    <span className="text-base">{item.label}</span>
+                  </a>
+                );
+              })}
 
-              {/* Outbound Dropdown Mobile */}
+              {/* Outbound Accordion Mobile */}
               <div className="space-y-1">
                 <button
                   onClick={() => setShowOutboundMobile((v) => !v)}
@@ -426,20 +511,21 @@ export function Sidebar() {
                         : "text-slate-400 group-hover:text-slate-600"
                     }`}
                   />
-                  <span className="text-base flex-1 text-left">outbound</span>
-                  <ChevronDown className="w-4 h-4" />
+                  <span className="text-base flex-1 text-left">Outbound</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showOutboundMobile ? 'rotate-180' : ''}`} />
                 </button>
+                
                 {showOutboundMobile && (
-                  <div className="ml-10 flex flex-col gap-1">
+                  <div className="ml-10 flex flex-col gap-1 border-l-2 border-slate-100 pl-2">
                     {outboundTabs.map((tab) => (
                       <a
                         key={tab.href}
                         href={tab.href}
                         onClick={() => setIsMobileOpen(false)}
-                        className={`px-2 py-2 rounded text-sm ${
+                        className={`px-3 py-2 rounded-lg text-sm transition-colors ${
                           pathname === tab.href
                             ? "bg-blue-100 text-blue-700 font-semibold"
-                            : "text-slate-600 hover:bg-slate-100"
+                            : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
                         }`}
                       >
                         {tab.label}
@@ -448,6 +534,78 @@ export function Sidebar() {
                   </div>
                 )}
               </div>
+
+              {/* Reports Accordion Mobile */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setShowReportsMobile((v) => !v)}
+                  className={`
+                    flex items-center gap-4 px-4 py-3.5 rounded-xl w-full transition-all duration-200 group relative
+                    ${
+                      isReportActive
+                        ? "bg-blue-50 text-blue-700 font-semibold shadow-sm"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    }
+                  `}
+                >
+                  <FileText
+                    className={`h-5 w-5 flex-shrink-0 transition-colors ${
+                      isReportActive
+                        ? "text-blue-600"
+                        : "text-slate-400 group-hover:text-slate-600"
+                    }`}
+                  />
+                  <span className="text-base flex-1 text-left">Reports</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showReportsMobile ? 'rotate-180' : ''}`} />
+                </button>
+
+                {showReportsMobile && (
+                  <div className="ml-10 flex flex-col gap-2 mt-2 border-l-2 border-slate-100 pl-2">
+                    {reportRoles.map((role) => (
+                      <div key={role.id} className="flex flex-col">
+                        <div className="flex items-center justify-between hover:bg-slate-50 rounded-lg pr-2">
+                          <a 
+                            href={role.href}
+                            onClick={() => setIsMobileOpen(false)}
+                            className="flex-1 px-3 py-2 text-sm text-slate-700 font-medium"
+                          >
+                            {role.label}
+                          </a>
+                          <button 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setOpenMobileReportRole(openMobileReportRole === role.id ? null : role.id);
+                            }}
+                            className="p-2 text-slate-400 hover:text-slate-700"
+                          >
+                            <ChevronDown className={`w-4 h-4 transition-transform ${openMobileReportRole === role.id ? 'rotate-180' : ''}`} />
+                          </button>
+                        </div>
+                        
+                        {openMobileReportRole === role.id && (
+                          <div className="ml-4 flex flex-col gap-1 mt-1">
+                            {role.categories.map(cat => (
+                              <a
+                                key={cat.href}
+                                href={cat.href}
+                                onClick={() => setIsMobileOpen(false)}
+                                className={`px-3 py-1.5 rounded-md text-xs transition-colors ${
+                                  pathname === cat.href
+                                    ? "bg-blue-50 text-blue-700 font-semibold"
+                                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                                }`}
+                              >
+                                {cat.label}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
             </nav>
 
             <div className="border-t border-slate-100 p-4 bg-slate-50/50">
