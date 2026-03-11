@@ -3,6 +3,7 @@ using Backend.Domains.Import.DTOs.Construction;
 using Backend.Domains.Import.DTOs.Constructions;
 using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.DTOs.Staff;
+using Backend.Entities;
 
 namespace Backend.Domains.Import.Interfaces
 {
@@ -12,6 +13,7 @@ namespace Backend.Domains.Import.Interfaces
         Task<long> CreateRequest(CreateImportRequestDto dto, int currentUserId);
         Task ImportFromExcelAsync(Stream fileStream, int warehouseId, int currentUserId);
         Task<List<CreateImportRequestDto>> GetMyRequestsAsync(int userId);
+        Task<Material> GetMaterialUnitByMaterialCodeAsync(string materialCode);
 
         // Accountant flow
         Task<List<ReceiptSummaryDto>> GetReceiptsForAccountantReviewAsync();
