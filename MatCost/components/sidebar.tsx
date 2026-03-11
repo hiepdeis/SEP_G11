@@ -11,7 +11,7 @@ import {
   User,
   Settings,
   ChevronLeft,
-  ChevronDown,
+  ChevronDown, ClipboardCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,7 +56,15 @@ export function Sidebar() {
     { label: "Warehouse Staff", href: "/staff/import-request" },
   ];
 
+  const auditTabs = [
+    { label: "Admin", href: "/admin/audit" },
+    { label: "Accountant", href: "/accountant/audit" },
+    { label: "Manager", href: "/manager/audit" },
+    { label: "Staff", href: "/staff/audit" },
+  ];
+
   const [showOutboundMobile, setShowOutboundMobile] = useState(false);
+  const [showAuditMobile, setShowAuditMobile] = useState(false);
 
   return (
     <>
@@ -263,6 +271,52 @@ export function Sidebar() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Audit Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={`
+                  relative flex gap-3 px-3 py-3 rounded-xl transition-all duration-300 group overflow-hidden w-full
+                  ${pathname.includes("/audit")
+                    ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm"}
+                  ${isExpanded ? "justify-start" : "justify-center"}
+                `}
+              >
+                <ClipboardCheck
+                  className={`
+                    h-5 w-5 flex-shrink-0 transition-all duration-300
+                    ${
+                      pathname.includes("/audit")
+                        ? "text-blue-600 scale-110"
+                        : "text-slate-400 group-hover:text-slate-600 group-hover:scale-110"
+                    }
+                  `}
+                />
+                {isExpanded && (
+                  <>
+                    <span className="text-sm font-medium whitespace-nowrap">Audit</span>
+                    <ChevronDown className="w-4 h-4 ml-auto" />
+                  </>
+                )}
+                {pathname.includes("/audit") && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="start" className="ml-4">
+              {auditTabs.map((tab) => (
+                <DropdownMenuItem
+                  key={tab.href}
+                  onClick={() => router.push(tab.href)}
+                  className={pathname.startsWith(tab.href) ? "bg-blue-100 font-semibold text-blue-700" : ""}
+                >
+                  {tab.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
 
         {/* User Section - Synced with Dashboard Style */}
@@ -403,6 +457,39 @@ export function Sidebar() {
                           pathname === tab.href
                             ? "bg-blue-100 text-blue-700 font-semibold"
                             : "text-slate-600 hover:bg-slate-100"
+                        }`}
+                      >
+                        {tab.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Audit Dropdown Mobile */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setShowAuditMobile((v) => !v)}
+                  className={`
+                    flex items-center gap-4 px-4 py-3.5 rounded-xl w-full transition-all duration-200 group relative
+                    ${pathname.includes("/audit")
+                      ? "bg-blue-50 text-blue-700 font-semibold shadow-sm"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}
+                  `}
+                >
+                  <ClipboardCheck className={`h-5 w-5 flex-shrink-0 transition-colors ${pathname.includes("/audit") ? "text-blue-600" : "text-slate-400"}`} />
+                  <span className="text-base flex-1 text-left">Audit</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showAuditMobile ? "rotate-180" : ""}`} />
+                </button>
+                {showAuditMobile && (
+                  <div className="ml-12 flex flex-col gap-1 border-l-2 border-slate-100 pl-3">
+                    {auditTabs.map((tab) => (
+                      <a
+                        key={tab.href}
+                        href={tab.href}
+                        onClick={() => setIsMobileOpen(false)}
+                        className={`px-3 py-2 rounded-lg text-sm ${
+                          pathname.startsWith(tab.href) ? "bg-blue-100 text-blue-700 font-semibold" : "text-slate-600 hover:bg-slate-100"
                         }`}
                       >
                         {tab.label}
