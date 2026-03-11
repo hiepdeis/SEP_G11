@@ -18,6 +18,9 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +42,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { auditService, AuditListItemDto } from "@/services/audit-service";
+import { toast } from "sonner"; // Thêm toast để báo lỗi ngày
 
 type UserRole = "admin" | "manager" | "accountant" | "staff";
 
@@ -55,6 +59,15 @@ export default function SharedAuditList({ role }: AuditListProps) {
   // States cho Filter & Pagination
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("All");
+  
+  // States cho Lọc theo thời gian
+  const [datePreset, setDatePreset] = useState<string>("all");
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
+
+  // States cho Sắp xếp (Sort)
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(5);
 
@@ -73,10 +86,10 @@ export default function SharedAuditList({ role }: AuditListProps) {
     fetchData();
   }, []);
 
-  // Reset trang về 1 khi search/filter thay đổi
+  // Reset trang về 1 khi bất kỳ điều kiện lọc nào thay đổi
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterStatus, itemsPerPage]);
+  }, [searchTerm, filterStatus, datePreset, fromDate, toDate, itemsPerPage, sortConfig]);
 
   const navigateTo = (action: string, auditId?: string) => {
     if (action === "create") {
@@ -113,22 +126,101 @@ export default function SharedAuditList({ role }: AuditListProps) {
     );
   };
 
-  // Logic Lọc & Phân trang
+  // Hàm xử lý khi click vào Header cột để Sắp xếp
+  const handleSort = (key: string) => {
+    let direction: "asc" | "desc" = "asc";
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // 1. Logic Lọc Dữ liệu (Filter)
   const filteredData = audits.filter((item) => {
     const matchesStatus = filterStatus === "All" || item.status === filterStatus;
+    
     const term = searchTerm.toLowerCase();
     const matchesSearch =
       item.title.toLowerCase().includes(term) ||
       item.stockTakeId.toString().includes(term) ||
       (item.warehouseName && item.warehouseName.toLowerCase().includes(term));
-    return matchesStatus && matchesSearch;
+
+    let matchesDate = true;
+    if (datePreset !== "all") {
+      if (!item.plannedStartDate) {
+        matchesDate = false;
+      } else {
+        const itemDate = new Date(item.plannedStartDate);
+        const today = new Date();
+
+        if (datePreset === "month") {
+          matchesDate = itemDate.getMonth() === today.getMonth() && itemDate.getFullYear() === today.getFullYear();
+        } else if (datePreset === "year") {
+          matchesDate = itemDate.getFullYear() === today.getFullYear();
+        } else if (datePreset === "custom") {
+          itemDate.setHours(0, 0, 0, 0);
+          
+          if (fromDate) {
+            const fDate = new Date(fromDate);
+            fDate.setHours(0, 0, 0, 0);
+            if (itemDate < fDate) matchesDate = false;
+          }
+          if (toDate && matchesDate) {
+            const tDate = new Date(toDate);
+            tDate.setHours(23, 59, 59, 999);
+            if (itemDate > tDate) matchesDate = false;
+          }
+        }
+      }
+    }
+
+    return matchesStatus && matchesSearch && matchesDate;
   });
 
+  // 2. Logic Sắp xếp Dữ liệu (Sort)
+  const sortedData = [...filteredData].sort((a, b) => {
+    if (!sortConfig) return 0;
+    
+    if (sortConfig.key === "title") {
+      return sortConfig.direction === "asc" ? a.title.localeCompare(b.title) : b.title.localeCompare(a.title);
+    }
+    if (sortConfig.key === "warehouse") {
+      const whA = a.warehouseName || "";
+      const whB = b.warehouseName || "";
+      return sortConfig.direction === "asc" ? whA.localeCompare(whB) : whB.localeCompare(whA);
+    }
+    if (sortConfig.key === "date") {
+      const dateA = a.plannedStartDate ? new Date(a.plannedStartDate).getTime() : 0;
+      const dateB = b.plannedStartDate ? new Date(b.plannedStartDate).getTime() : 0;
+      return sortConfig.direction === "asc" ? dateA - dateB : dateB - dateA;
+    }
+    if (sortConfig.key === "status") {
+      const statusA = a.status || "";
+      const statusB = b.status || "";
+      return sortConfig.direction === "asc" ? statusA.localeCompare(statusB) : statusB.localeCompare(statusA);
+    }
+    if (sortConfig.key === "progress") {
+      return sortConfig.direction === "asc" ? a.countingProgress - b.countingProgress : b.countingProgress - a.countingProgress;
+    }
+    return 0;
+  });
+
+  // 3. Logic Phân trang áp dụng lên sortedData
   const isAll = itemsPerPage === -1;
-  const totalPages = isAll ? 1 : Math.ceil(filteredData.length / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * (isAll ? filteredData.length : itemsPerPage);
-  const endIndex = isAll ? filteredData.length : startIndex + itemsPerPage;
-  const paginatedData = filteredData.slice(startIndex, endIndex);
+  const totalPages = isAll ? 1 : Math.ceil(sortedData.length / itemsPerPage) || 1;
+  const startIndex = (currentPage - 1) * (isAll ? sortedData.length : itemsPerPage);
+  const endIndex = isAll ? sortedData.length : startIndex + itemsPerPage;
+  const paginatedData = sortedData.slice(startIndex, endIndex);
+
+  // Render Icon Mũi tên Sort
+  const getSortIcon = (columnKey: string) => {
+    if (sortConfig?.key === columnKey) {
+      return sortConfig.direction === "asc" 
+        ? <ArrowUp className="w-3.5 h-3.5 text-indigo-600" /> 
+        : <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />;
+    }
+    return <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50 group-hover:opacity-100 transition-opacity" />;
+  };
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
@@ -193,44 +285,136 @@ export default function SharedAuditList({ role }: AuditListProps) {
           {/* Main Table Card */}
           <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] flex flex-col">
             <CardHeader>
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-slate-500 hidden md:block">Filter:</span>
-                  <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="w-full md:w-[180px] bg-white border-slate-200 shadow-sm">
-                      <SelectValue placeholder="Filter by status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="All">All Status</SelectItem>
-                      <SelectItem value="Planned">Planned</SelectItem>
-                      <SelectItem value="Assigned">Assigned</SelectItem>
-                      <SelectItem value="InProgress">In Progress</SelectItem>
-                      <SelectItem value="ReadyForReview">Ready For Review</SelectItem>
-                      <SelectItem value="Completed">Completed</SelectItem>
-                    </SelectContent>
-                  </Select>
+              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+                
+                {/* Khu vực Filter Trạng thái và Thời gian */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Status */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-slate-500 hidden md:block">Status:</span>
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                      <SelectTrigger className="w-[140px] bg-white border-slate-200 shadow-sm h-10">
+                        <SelectValue placeholder="Filter by status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="All">All Status</SelectItem>
+                        <SelectItem value="Planned">Planned</SelectItem>
+                        <SelectItem value="Assigned">Assigned</SelectItem>
+                        <SelectItem value="InProgress">In Progress</SelectItem>
+                        <SelectItem value="ReadyForReview">Ready For Review</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Time / Date */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-slate-500 hidden md:block ml-2">Time:</span>
+                    <Select value={datePreset} onValueChange={setDatePreset}>
+                      <SelectTrigger className="w-[140px] bg-white border-slate-200 shadow-sm h-10">
+                        <SelectValue placeholder="All Time" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Time</SelectItem>
+                        <SelectItem value="month">This Month</SelectItem>
+                        <SelectItem value="year">This Year</SelectItem>
+                        <SelectItem value="custom">Custom Range</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Custom Range Date Pickers (Kèm Validation) */}
+                  {datePreset === "custom" && (
+                    <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
+                      <Input 
+                        type="date" 
+                        className="h-10 w-[140px] text-sm bg-white shadow-sm" 
+                        value={fromDate} 
+                        onChange={(e) => {
+                          setFromDate(e.target.value);
+                          // Nếu đổi ngày bắt đầu lớn hơn ngày kết thúc hiện tại, tự động reset ngày kết thúc
+                          if (toDate && e.target.value > toDate) {
+                            setToDate("");
+                            toast.info("Vui lòng chọn lại ngày kết thúc hợp lệ.");
+                          }
+                        }} 
+                      />
+                      <span className="text-slate-400 text-sm">-</span>
+                      <Input 
+                        type="date" 
+                        className="h-10 w-[140px] text-sm bg-white shadow-sm" 
+                        value={toDate} 
+                        min={fromDate} // HTML validation: Không cho chọn ngày trước fromDate
+                        onChange={(e) => {
+                          if (fromDate && e.target.value < fromDate) {
+                            toast.error("Ngày kết thúc không thể trước ngày bắt đầu!");
+                          } else {
+                            setToDate(e.target.value);
+                          }
+                        }} 
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="relative w-full md:w-72">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
+
+                {/* Khu vực Search */}
+                <div className="relative w-full xl:w-72 flex-shrink-0">
+                  <Search className="absolute left-2.5 top-3 h-4 w-4 text-slate-400" />
                   <Input
                     placeholder="Search title, ID or warehouse..."
-                    className="pl-9 bg-white shadow-sm"
+                    className="pl-9 bg-white shadow-sm h-10"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
               </div>
             </CardHeader>
+            
             <CardContent className="p-0 flex flex-col justify-between flex-1">
               <div className="overflow-x-auto relative">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50/50">
-                      <TableHead className="pl-6">Audit Info</TableHead>
-                      <TableHead>Warehouse</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Progress</TableHead>
+                      <TableHead 
+                        className="pl-6 cursor-pointer select-none group" 
+                        onClick={() => handleSort("title")}
+                      >
+                        <div className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">
+                          Audit Info {getSortIcon("title")}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer select-none group" 
+                        onClick={() => handleSort("warehouse")}
+                      >
+                        <div className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">
+                          Warehouse {getSortIcon("warehouse")}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer select-none group" 
+                        onClick={() => handleSort("date")}
+                      >
+                        <div className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">
+                          Date {getSortIcon("date")}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer select-none group" 
+                        onClick={() => handleSort("status")}
+                      >
+                        <div className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">
+                          Status {getSortIcon("status")}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer select-none group" 
+                        onClick={() => handleSort("progress")}
+                      >
+                        <div className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">
+                          Progress {getSortIcon("progress")}
+                        </div>
+                      </TableHead>
                       <TableHead className="text-right pr-6">Action</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -248,7 +432,7 @@ export default function SharedAuditList({ role }: AuditListProps) {
                         <TableCell colSpan={6} className="h-32 text-center text-slate-500">
                           <div className="flex flex-col items-center justify-center gap-2">
                             <FileText className="w-8 h-8 text-slate-300" />
-                            <p>No audit sessions found.</p>
+                            <p>No audit sessions found matching your filters.</p>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -275,10 +459,10 @@ export default function SharedAuditList({ role }: AuditListProps) {
                           <TableCell>{getStatusBadge(audit.status)}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <div className="w-24 bg-slate-100 rounded-full h-1.5">
+                              <div className="w-24 bg-slate-100 rounded-full h-1.5 overflow-hidden">
                                 <div
                                   className={`h-1.5 rounded-full ${audit.countingProgress === 100 ? "bg-emerald-500" : "bg-indigo-500"}`}
-                                  style={{ width: `${audit.countingProgress}%` }}
+                                  style={{ width: `${Math.min(audit.countingProgress, 100)}%` }}
                                 ></div>
                               </div>
                               <span className="text-xs font-medium text-slate-600">{audit.countingProgress}%</span>
@@ -288,7 +472,7 @@ export default function SharedAuditList({ role }: AuditListProps) {
                             {role === "manager" && (
                               <div className="flex justify-end gap-2">
                                 {(audit.status === "Planned" || audit.status === "Assigned") && (
-                                  <Button size="sm" className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600"
+                                  <Button size="sm" variant="outline" className="border-indigo-200 text-indigo-600 hover:bg-indigo-50"
                                     onClick={() => navigateTo("assign-team", audit.stockTakeId.toString())}>
                                     <Users className="w-3.5 h-3.5 mr-1.5" /> Assign
                                   </Button>
