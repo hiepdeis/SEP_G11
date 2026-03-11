@@ -5,7 +5,7 @@ import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { SidebarProvider } from "@/components/sidebar-context"
 import { Toaster } from "sonner"
-import 'antd/dist/reset.css'
+
 
 
 
