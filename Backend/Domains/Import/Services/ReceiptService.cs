@@ -36,8 +36,8 @@ namespace Backend.Domains.Import.Services
                 throw new Exception($"Cannot create draft. Current status: {receipt.Status}");
 
             // Step 3: Update receipt
-            if (dto.WarehouseId.HasValue && dto.WarehouseId.Value > 0) receipt.WarehouseId = dto.WarehouseId; 
-            
+            if (dto.WarehouseId.HasValue && dto.WarehouseId.Value > 0) receipt.WarehouseId = dto.WarehouseId;
+
             receipt.Status = "Draft";
             receipt.AccountantNotes = dto.Notes;
 
@@ -305,6 +305,18 @@ namespace Backend.Domains.Import.Services
         #endregion
 
         #region Construction Methods
+
+        public async Task<Material> GetMaterialUnitByMaterialCodeAsync(string materialCode)
+        {
+            var material = await _context.Materials
+                .FirstOrDefaultAsync(m => m.Code == materialCode);
+
+            if (material == null)
+                throw new KeyNotFoundException($"Material with code '{materialCode}' not found");
+
+            return material;
+        }
+
         public async Task ImportFromExcelAsync(Stream fileStream, int warehouseId, int currentUserId)
         {
             using (var package = new ExcelPackage(fileStream))
@@ -345,7 +357,32 @@ namespace Backend.Domains.Import.Services
             // Step 2: Dictionary to map MaterialCode to MaterialId
             var materialDictionary = await _context.Materials
                 .Where(m => materialCodes.Contains(m.Code))
-                .ToDictionaryAsync(m => m.Code, m => m.MaterialId);
+                .ToDictionaryAsync(m => m.Code, m => m);
+
+            // Step 2.5: Validate that all material codes exist in the system
+            var validationErrors = new List<string>();
+
+            foreach (var item in dto.Items)
+            {
+                if (!materialDictionary.TryGetValue(item.MaterialCode, out var material))
+                {
+                    validationErrors.Add($"Material code '{item.MaterialCode}' not found in the system.");
+                    continue; // Skip further validation for this item since material is not found
+                }
+                if (item.Quantity <= 0)
+                {
+                    validationErrors.Add($"Quantity for material code '{item.MaterialCode}' must be greater than zero.");
+                }
+                if (!material.IsDecimalUnit && item.Quantity != Math.Floor(item.Quantity))
+                {
+                    validationErrors.Add(
+                        $"Material '{item.MaterialCode}' ({material.Name}) does not support decimal quantity. " +
+                        $"Received: {item.Quantity}, expected a whole number (e.g. {Math.Floor(item.Quantity)})");
+                }
+            }
+
+            if (validationErrors.Any())
+                throw new ArgumentException(string.Join("; ", validationErrors));
 
             // Step 3: Generate unique ReceiptCode
             var receiptCode = await GenerateReceiptCodeAsync();
@@ -634,27 +671,22 @@ namespace Backend.Domains.Import.Services
                 throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
             }
 
-            var totalQuantity = receipt.Status == "Completed"
-                ? receipt.ReceiptDetails.Sum(rd => rd.ActualQuantity ?? rd.Quantity)
-                : receipt.ReceiptDetails.Sum(rd => rd.Quantity);
-
             return new GetInboundRequestListDto
             {
                 ReceiptId = receipt.ReceiptId,
                 ReceiptCode = receipt.ReceiptCode,
                 WarehouseId = receipt.WarehouseId,
-                WarehouseName = receipt.Warehouse?.Name,
+                WarehouseName = receipt.Warehouse != null ? receipt.Warehouse.Name : null,
                 ReceiptApprovalDate = receipt.ApprovedAt,
-                TotalQuantity = totalQuantity,
+                TotalQuantity = receipt.ReceiptDetails.Sum(rd => rd.Quantity),
                 ConfirmedBy = receipt.ConfirmedBy,
                 Status = receipt.Status,
                 Items = receipt.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
                 {
                     DetailId = rd.DetailId,
                     MaterialId = rd.MaterialId,
-                    MaterialCode = rd.Material?.Code ?? "",
-                    MaterialName = rd.Material?.Name ?? "",
-                    Unit = rd.Material?.Unit,
+                    MaterialCode = rd.Material != null ? rd.Material.Code : "",
+                    MaterialName = rd.Material != null ? rd.Material.Name : "",
                     Quantity = rd.Quantity,
                     ActualQuantity = rd.ActualQuantity,
                     UnitPrice = rd.UnitPrice,

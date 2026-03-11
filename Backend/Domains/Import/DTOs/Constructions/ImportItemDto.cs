@@ -4,5 +4,6 @@
     {
         public string? MaterialCode { get; set; }
         public decimal Quantity { get; set; }
+        public decimal Unit { get; set; }
     }
 }
