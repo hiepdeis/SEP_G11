@@ -57,50 +57,47 @@ namespace Backend.Domains.Audit.Services
         }
 
         private async Task<bool> HasConflictingLockForScopeAsync(
-            int warehouseId,
-            int currentStockTakeId,
-            bool isWarehouseScope,
-            List<int> currentScopeBinIds,
-            CancellationToken ct)
+        int warehouseId,
+        int currentStockTakeId,
+        bool isWarehouseScope,
+        List<int> currentScopeBinIds,
+        CancellationToken ct)
         {
-            var otherActiveAuditIds = await _db.StockTakes
+            return await _db.StockTakeLocks
                 .AsNoTracking()
-                .Where(x =>
+                .AnyAsync(x =>
                     x.StockTakeId != currentStockTakeId &&
                     x.WarehouseId == warehouseId &&
-                    x.CompletedAt == null &&
+                    x.IsActive &&
                     (
-                        x.LockedBy != null ||
-                        (x.Status != null && x.Status.ToLower() == "inprogress")
-                    ))
-                .Select(x => x.StockTakeId)
-                .ToListAsync(ct);
-
-            if (otherActiveAuditIds.Count == 0)
-                return false;
-
-            if (isWarehouseScope)
-                return true;
-
-            var otherAssignedBins = await _db.StockTakeBinLocations
-                .AsNoTracking()
-                .Where(x => otherActiveAuditIds.Contains(x.StockTakeId))
-                .Select(x => new { x.StockTakeId, x.BinId })
-                .ToListAsync(ct);
-
-            var scopedAuditIds = otherAssignedBins
-                .Select(x => x.StockTakeId)
-                .Distinct()
-                .ToHashSet();
-
-            var hasWarehouseScopeLock = otherActiveAuditIds.Any(id => !scopedAuditIds.Contains(id));
-            if (hasWarehouseScopeLock)
-                return true;
-
-            var currentScopeSet = currentScopeBinIds.ToHashSet();
-            return otherAssignedBins.Any(x => currentScopeSet.Contains(x.BinId));
+                        x.ScopeType == "Warehouse" ||
+                        (x.ScopeType == "Bin" &&
+                            (isWarehouseScope || currentScopeBinIds.Contains(x.BinId ?? 0)))
+                    ), ct);
         }
+        private async Task<int> UnlockActiveLocksAsync(
+    int stockTakeId,
+    int userId,
+    CancellationToken ct)
+        {
+            var activeLocks = await _db.StockTakeLocks
+                .Where(x => x.StockTakeId == stockTakeId && x.IsActive)
+                .ToListAsync(ct);
 
+            if (activeLocks.Count == 0)
+                return 0;
+
+            var now = DateTime.UtcNow;
+
+            foreach (var item in activeLocks)
+            {
+                item.IsActive = false;
+                item.UnlockedAt = now;
+                item.UnlockedBy = userId;
+            }
+
+            return activeLocks.Count;
+        }
         public async Task<(List<AuditListItemDto> items, int total)> GetAllAuditsAsync(
             int skip,
             int take,
@@ -756,14 +753,14 @@ namespace Backend.Domains.Audit.Services
             };
 
             // Get locked by name if exists
-            string? lockedByName = null;
-            if (st.LockedBy.HasValue)
-            {
-                var lockedByUser = await _db.Users
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.UserId == st.LockedBy, ct);
-                lockedByName = lockedByUser?.FullName;
-            }
+            var latestLock = await _db.StockTakeLocks
+    .AsNoTracking()
+    .Where(x => x.StockTakeId == stockTakeId)
+    .Include(x => x.LockedByNavigation)
+    .OrderByDescending(x => x.LockedAt)
+    .FirstOrDefaultAsync(ct);
+
+            string? lockedByName = latestLock?.LockedByNavigation?.FullName;
 
             // Get completed by name if exists
             string? completedByName = null;
@@ -781,7 +778,7 @@ namespace Backend.Domains.Audit.Services
                 CreatedAt = st.CreatedAt,
                 CreatedByName = st.CreatedByNavigation?.FullName,
                 CheckDate = st.CheckDate,
-                LockedAt = st.LockedAt,
+                LockedAt = latestLock?.LockedAt,
                 LockedByName = lockedByName,
                 CompletedAt = st.CompletedAt,
                 CompletedByName = completedByName
@@ -859,19 +856,19 @@ namespace Backend.Domains.Audit.Services
 
             _db.StockTakeSignatures.Add(signature);
 
-            // Auto-transition status if both staff and manager have signed
-            var allSignatures = await _db.StockTakeSignatures
+            var existingRoles = await _db.StockTakeSignatures
+                .AsNoTracking()
                 .Where(x => x.StockTakeId == stockTakeId)
+                .Select(x => x.Role)
                 .ToListAsync(ct);
 
-            var hasStaffSignature = allSignatures.Any(x => x.Role == "Staff");
-            var hasManagerSignature = allSignatures.Any(x => x.Role == "Manager");
+            var hasStaffSignature = existingRoles.Contains("Staff") || role == "Staff";
+            var hasManagerSignature = existingRoles.Contains("Manager") || role == "Manager";
 
             if (hasStaffSignature && hasManagerSignature)
             {
                 st.Status = "ReadyForReview";
-                // Counting phase is done, release active lock marker.
-                st.LockedBy = null;
+                await UnlockActiveLocksAsync(stockTakeId, userId, ct);
             }
 
             await _db.SaveChangesAsync(ct);
@@ -889,9 +886,9 @@ namespace Backend.Domains.Audit.Services
         }
 
         public async Task<(bool success, string message)> LockAuditScopeAsync(
-            int stockTakeId,
-            int userId,
-            CancellationToken ct)
+        int stockTakeId,
+        int userId,
+        CancellationToken ct)
         {
             var st = await _db.StockTakes
                 .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
@@ -901,6 +898,12 @@ namespace Backend.Domains.Audit.Services
 
             if (st.CompletedAt != null || string.Equals(st.Status, "Completed", StringComparison.OrdinalIgnoreCase))
                 return (false, "Audit is already completed.");
+
+            var existingActiveLocks = await _db.StockTakeLocks
+                .AnyAsync(x => x.StockTakeId == stockTakeId && x.IsActive, ct);
+
+            if (existingActiveLocks)
+                return (true, "Audit scope is already locked.");
 
             var scopeBinIds = await GetScopeBinIdsAsync(stockTakeId, ct);
             var isWarehouseScope = scopeBinIds.Count == 0;
@@ -926,8 +929,37 @@ namespace Backend.Domains.Audit.Services
                 st.CheckDate ??= DateTime.UtcNow;
             }
 
-            st.LockedAt ??= DateTime.UtcNow;
-            st.LockedBy = userId;
+            var now = DateTime.UtcNow;
+
+            if (isWarehouseScope)
+            {
+                _db.StockTakeLocks.Add(new Backend.Entities.StockTakeLock
+                {
+                    StockTakeId = stockTakeId,
+                    ScopeType = "Warehouse",
+                    WarehouseId = st.WarehouseId,
+                    BinId = null,
+                    IsActive = true,
+                    LockedAt = now,
+                    LockedBy = userId
+                });
+            }
+            else
+            {
+                foreach (var binId in scopeBinIds.Distinct())
+                {
+                    _db.StockTakeLocks.Add(new Backend.Entities.StockTakeLock
+                    {
+                        StockTakeId = stockTakeId,
+                        ScopeType = "Bin",
+                        WarehouseId = st.WarehouseId,
+                        BinId = binId,
+                        IsActive = true,
+                        LockedAt = now,
+                        LockedBy = userId
+                    });
+                }
+            }
 
             await _db.SaveChangesAsync(ct);
 
@@ -935,11 +967,10 @@ namespace Backend.Domains.Audit.Services
                 ? "Warehouse scope locked for audit."
                 : $"Locked {scopeBinIds.Count} BinLocation(s) for audit.");
         }
-
         public async Task<(bool success, string message)> UnlockAuditScopeAsync(
-            int stockTakeId,
-            int userId,
-            CancellationToken ct)
+    int stockTakeId,
+    int userId,
+    CancellationToken ct)
         {
             var st = await _db.StockTakes
                 .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
@@ -953,15 +984,15 @@ namespace Backend.Domains.Audit.Services
             if (string.Equals(st.Status, "InProgress", StringComparison.OrdinalIgnoreCase))
                 return (false, "Cannot unlock while audit is InProgress.");
 
-            if (!st.LockedBy.HasValue)
+            var unlockedCount = await UnlockActiveLocksAsync(stockTakeId, userId, ct);
+
+            if (unlockedCount == 0)
                 return (true, "Audit scope is already unlocked.");
 
-            st.LockedBy = null;
             await _db.SaveChangesAsync(ct);
 
             return (true, "Audit scope unlocked.");
         }
-
         public async Task<(bool success, string message)> CompleteAuditAsync(
             int stockTakeId,
             int managerId,
@@ -1106,8 +1137,9 @@ namespace Backend.Domains.Audit.Services
             st.Status = "Completed";
             st.CompletedAt = postedAt;
             st.CompletedBy = managerId;
-            st.LockedBy = null;
             st.Notes = request.Notes?.Trim();
+
+            await UnlockActiveLocksAsync(stockTakeId, managerId, ct);
 
             await _db.SaveChangesAsync(ct);
 

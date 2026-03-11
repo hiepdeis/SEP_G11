@@ -50,4 +50,6 @@ public partial class BinLocation
 
     [InverseProperty("Bin")]
     public virtual ICollection<WarehouseCard> WarehouseCards { get; set; } = new List<WarehouseCard>();
+    [InverseProperty(nameof(StockTakeLock.Bin))]
+    public virtual ICollection<StockTakeLock> StockTakeLocks { get; set; } = new List<StockTakeLock>();
 }

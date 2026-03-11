@@ -90,5 +90,10 @@ public partial class User
 
     [InverseProperty("CreatedByNavigation")]
     public virtual ICollection<WarehouseCard> WarehouseCards { get; set; } = new List<WarehouseCard>();
+    [InverseProperty(nameof(StockTakeLock.LockedByNavigation))]
+    public virtual ICollection<StockTakeLock> StockTakeLockLockedByNavigations { get; set; } = new List<StockTakeLock>();
+
+    [InverseProperty(nameof(StockTakeLock.UnlockedByNavigation))]
+    public virtual ICollection<StockTakeLock> StockTakeLockUnlockedByNavigations { get; set; } = new List<StockTakeLock>();
 
 }
