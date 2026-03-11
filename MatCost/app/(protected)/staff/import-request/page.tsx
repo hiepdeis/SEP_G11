@@ -20,7 +20,8 @@ import {
   Eye,
   ArrowUp,
   ArrowDown,
-  ArrowUpDown, // <-- Thêm icon Eye nếu cần cho trạng thái Completed
+  ArrowUpDown,
+  Delete,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { endOfDay, format, isWithinInterval, startOfDay } from "date-fns";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 export default function StaffInboundPage() {
   const router = useRouter();
@@ -57,6 +66,14 @@ export default function StaffInboundPage() {
   const [filterStatus, setFilterStatus] = useState<
     "All" | "Approved" | "Completed"
   >("Approved");
+
+  const [dateRange, setDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
+  });
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(5);
@@ -100,13 +117,34 @@ export default function StaffInboundPage() {
       matchesStatus = item.status === filterStatus;
     }
 
-    // Lọc theo text search
     const term = searchTerm.toLowerCase();
     const matchesSearch =
       item.receiptCode.toLowerCase().includes(term) ||
       (item.warehouseName && item.warehouseName.toLowerCase().includes(term));
 
-    return matchesStatus && matchesSearch;
+    let matchesDate = true;
+    if (dateRange.from || dateRange.to) {
+      if (!item.receiptApprovalDate) {
+        matchesDate = false;
+      } else {
+        const itemDate = new Date(item.receiptApprovalDate);
+
+        const fromDate = dateRange.from
+          ? startOfDay(dateRange.from)
+          : new Date(2000, 0, 1);
+
+        const toDate = dateRange.to
+          ? endOfDay(dateRange.to)
+          : new Date(2100, 0, 1);
+
+        matchesDate = isWithinInterval(itemDate, {
+          start: fromDate,
+          end: toDate,
+        });
+      }
+    }
+
+    return matchesStatus && matchesSearch && matchesDate;
   });
 
   const sortedData = [...filteredData].sort((a, b) => {
@@ -133,7 +171,7 @@ export default function StaffInboundPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterStatus, sortConfig, itemsPerPage]);
+  }, [searchTerm, filterStatus, sortConfig, itemsPerPage, dateRange]);
 
   const isAll = itemsPerPage === -1;
   const totalPages = isAll
@@ -236,37 +274,119 @@ export default function StaffInboundPage() {
             </Card>
           </div>
 
-          {/* Main List Table */}
           <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] gap-0 pb-0 flex flex-col">
             <CardHeader className="border-b border-slate-100 pb-4 shrink-0">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                {/* 4. TẠO CÁC NÚT TAB FILTER Ở ĐÂY */}
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
+                <div className="flex flex-wrap items-center gap-3">
                   <span className="text-sm font-medium text-slate-500 hidden md:block">
-                    Filter:
+                    Filters:
                   </span>
+
                   <Select
                     value={filterStatus}
                     onValueChange={(value: "Approved" | "Completed" | "All") =>
                       setFilterStatus(value)
                     }
                   >
-                    <SelectTrigger className="w-full md:w-[180px] bg-white border-slate-200 shadow-sm">
-                      <SelectValue placeholder="Filter by status" />
+                    <SelectTrigger className="w-[140px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
+                      <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Approved">Approved (To Do)</SelectItem>
+                      <SelectItem value="Approved">Approved</SelectItem>
                       <SelectItem value="Completed">Completed</SelectItem>
                       <SelectItem value="All">All</SelectItem>
                     </SelectContent>
                   </Select>
+
+                  {/* Lọc Ngày (Từ ngày - Đến ngày) */}
+                  <div className="flex items-center gap-2">
+                    {/* Từ ngày */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "justify-start text-left font-normal h-9 bg-white shadow-sm",
+                            !dateRange.from && "text-slate-500",
+                          )}
+                        >
+                          <CalendarDays className="mr-2 h-4 w-4" />
+                          {dateRange.from ? (
+                            format(dateRange.from, "dd/MM/yyyy")
+                          ) : (
+                            <span>From Date</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={dateRange.from}
+                          onSelect={(date) =>
+                            setDateRange((prev) => ({ ...prev, from: date }))
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+
+                    <span className="text-slate-400">-</span>
+
+                    {/* Đến ngày */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "justify-start text-left font-normal h-9 bg-white shadow-sm",
+                            !dateRange.to && "text-slate-500",
+                          )}
+                        >
+                          <CalendarDays className="mr-2 h-4 w-4" />
+                          {dateRange.to ? (
+                            format(dateRange.to, "dd/MM/yyyy")
+                          ) : (
+                            <span>To Date</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={dateRange.to}
+                          onSelect={(date) =>
+                            setDateRange((prev) => ({ ...prev, to: date }))
+                          }
+                          initialFocus
+                          disabled={(date) =>
+                            dateRange.from ? date < dateRange.from : false
+                          }
+                        />
+                      </PopoverContent>
+                    </Popover>
+
+                    {/* Nút Xóa bộ lọc ngày */}
+                    {(dateRange.from || dateRange.to) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-xs text-slate-500"
+                        onClick={() =>
+                          setDateRange({ from: undefined, to: undefined })
+                        }
+                      >
+                        <Delete className="h-4 w-4"/>
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
+                {/* NHÓM BÊN PHẢI: TÌM KIẾM */}
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                   <Input
-                    placeholder="Search Receipt Code..."
-                    className="pl-9"
+                    placeholder="Search Code or Warehouse..."
+                    className="pl-9 h-9"
                     maxLength={50}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}

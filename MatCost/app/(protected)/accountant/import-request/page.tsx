@@ -20,6 +20,7 @@ import {
   ArrowDown,
   ArrowUpDown,
   Eye,
+  Delete,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { endOfDay, format, isWithinInterval, startOfDay } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 export default function ImportApprovalListPage() {
   const router = useRouter();
@@ -54,6 +59,14 @@ export default function ImportApprovalListPage() {
   const [filterStatus, setFilterStatus] = useState<
     "All" | "Requested" | "Rejected" | "History" | "Draft"
   >("Requested");
+
+  const [dateRange, setDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
+  });
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(5);
@@ -94,7 +107,7 @@ export default function ImportApprovalListPage() {
   // Khi người dùng gõ search hoặc đổi tab filter, tự động quay về trang 1
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterStatus, sortConfig, itemsPerPage]);
+  }, [searchTerm, filterStatus, sortConfig, itemsPerPage, dateRange]);
 
   // 1. Lọc dữ liệu ban đầu
   const filteredData = requests.filter((item) => {
@@ -117,7 +130,29 @@ export default function ImportApprovalListPage() {
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
 
-    return matchesStatus && matchesSearch;
+    let matchesDate = true;
+    if (dateRange.from || dateRange.to) {
+      if (!item.receiptDate) {
+        matchesDate = false; 
+      } else {
+        const itemDate = new Date(item.receiptDate);
+
+        const fromDate = dateRange.from
+          ? startOfDay(dateRange.from)
+          : new Date(2000, 0, 1);
+
+        const toDate = dateRange.to
+          ? endOfDay(dateRange.to)
+          : new Date(2100, 0, 1);
+
+        matchesDate = isWithinInterval(itemDate, {
+          start: fromDate,
+          end: toDate,
+        });
+      }
+    }
+
+    return matchesStatus && matchesSearch && matchesDate;
   });
 
   const sortedData = [...filteredData].sort((a, b) => {
@@ -245,15 +280,14 @@ export default function ImportApprovalListPage() {
             </Card>
           </div>
 
-          {/* Main List */}
           <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] gap-0 pb-0">
             <CardHeader className="border-b border-slate-100 pb-4">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                {/* Các nút Lọc (Giữ nguyên) */}
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
+                <div className="flex flex-wrap items-center gap-3">
                   <span className="text-sm font-medium text-slate-500 hidden md:block">
-                    Filter:
+                    Filters:
                   </span>
+
                   <Select
                     value={filterStatus}
                     onValueChange={(
@@ -265,7 +299,7 @@ export default function ImportApprovalListPage() {
                         | "Draft",
                     ) => setFilterStatus(value)}
                   >
-                    <SelectTrigger className="w-[180px] bg-white border-slate-200 shadow-sm">
+                    <SelectTrigger className="w-[150px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
                       <SelectValue placeholder="Filter by status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -276,13 +310,92 @@ export default function ImportApprovalListPage() {
                       <SelectItem value="All">All</SelectItem>
                     </SelectContent>
                   </Select>
+
+                  <div className="flex items-center gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "justify-start text-left font-normal h-9 bg-white shadow-sm",
+                            !dateRange.from && "text-slate-500",
+                          )}
+                        >
+                          <CalendarDays className="mr-2 h-4 w-4" />
+                          {dateRange.from ? (
+                            format(dateRange.from, "dd/MM/yyyy")
+                          ) : (
+                            <span>From Date</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={dateRange.from}
+                          onSelect={(date) =>
+                            setDateRange((prev) => ({ ...prev, from: date }))
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+
+                    <span className="text-slate-400">-</span>
+
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "justify-start text-left font-normal h-9 bg-white shadow-sm",
+                            !dateRange.to && "text-slate-500",
+                          )}
+                        >
+                          <CalendarDays className="mr-2 h-4 w-4" />
+                          {dateRange.to ? (
+                            format(dateRange.to, "dd/MM/yyyy")
+                          ) : (
+                            <span>To Date</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={dateRange.to}
+                          onSelect={(date) =>
+                            setDateRange((prev) => ({ ...prev, to: date }))
+                          }
+                          initialFocus
+                          disabled={(date) =>
+                            dateRange.from ? date < dateRange.from : false
+                          }
+                        />
+                      </PopoverContent>
+                    </Popover>
+
+                    {(dateRange.from || dateRange.to) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-xs text-slate-500 px-2"
+                        onClick={() =>
+                          setDateRange({ from: undefined, to: undefined })
+                        }
+                      >
+                        <Delete className="h-4 w-4"/>
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
+                {/* NHÓM BÊN PHẢI: TÌM KIẾM */}
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                   <Input
                     placeholder="Search Receipt Code..."
-                    className="pl-9"
+                    className="pl-9 h-9"
                     maxLength={50}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}

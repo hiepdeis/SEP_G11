@@ -17,6 +17,8 @@ import {
   LoaderPinwheel,
   ChevronLeft,
   ChevronRight,
+  FileWarning,
+  ListCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
@@ -46,6 +48,8 @@ export default function StaffInboundDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   const [confirmByName, setConfirmByName] = useState("");
+  const [qcData, setQcData] = useState<any | null>(null);
+  const [incidentData, setIncidentData] = useState<any | null>(null);
 
   const [tablePage, setTablePage] = useState(1);
   const tableItemsPerPage = 5;
@@ -64,6 +68,26 @@ export default function StaffInboundDetailPage() {
         }
 
         setRequest(requestData);
+        if (
+          requestData.status === "Completed" ||
+          requestData.status === "GoodsArrived"
+        ) {
+          try {
+            const qcRes = await staffReceiptApi.getQCCheck(id);
+            setQcData(qcRes.data);
+
+            // Chỉ thử fetch Incident nếu QC là Fail
+            if (qcRes.data.overallResult === "Fail") {
+              const incRes = await staffReceiptApi.getIncidentReport(id);
+              setIncidentData(incRes.data);
+            }
+          } catch (error: any) {
+            // Bỏ qua lỗi 404 vì đơn giản là chưa có dữ liệu
+            if (error.response?.status !== 404) {
+              console.error("Error fetching QC/Incident", error);
+            }
+          }
+        }
       } catch (error) {
         console.error("Error loading receipt detail", error);
         toast.error("Failed to load receipt details");
@@ -228,12 +252,13 @@ export default function StaffInboundDetailPage() {
                 Download Template
               </Button>
 
-              {request.status == "Approved" && (
+              {(request.status == "Approved" || request.status == "GoodsArrived") &&  (
                 <Button
                   className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
                   onClick={handleProcess}
                 >
-                  Start Processing <ArrowRight className="w-4 h-4 ml-2" />
+                  {qcData ? "Continue Processing" : "Start Processing"}{" "}
+                  <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               )}
             </div>
@@ -319,7 +344,7 @@ export default function StaffInboundDetailPage() {
                 </CardHeader>
 
                 <CardContent className="p-0 flex flex-col flex-1">
-                  <div className="[&>div]:max-h-[350px] [&>div]:min-h-[350px] [&>div]:overflow-y-auto">
+                  <div className="[&>div]:max-h-[300px] [&>div]:min-h-[300px] [&>div]:overflow-y-auto">
                     <Table>
                       <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                         <TableRow className="bg-slate-50/50">
@@ -496,6 +521,148 @@ export default function StaffInboundDetailPage() {
                   )}
                 </CardContent>
               </Card>
+              {qcData && (
+                <Card className="border-slate-200 shadow-sm mt-6 gap-0">
+                  <CardHeader className="bg-white border-b border-slate-100 py-4">
+                    <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-slate-500" />
+                      Quality Control & Inspection Results
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-6">
+                    <div>
+                      <div className="flex items-center gap-3 mb-3">
+                        <h4 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                          <ListCheck
+                            className={
+                              qcData.overallResult === "Pass"
+                                ? " text-emerald-700 w-4 h-4"
+                                : "text-red-700 w-4 h-4 "
+                            }
+                          />{" "}
+                          QC Overall Result:
+                        </h4>
+                        <Badge
+                          className={
+                            qcData.overallResult === "Pass"
+                              ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
+                              : "bg-red-100 text-red-700 hover:bg-red-100"
+                          }
+                        >
+                          {qcData.overallResult}
+                        </Badge>
+                      </div>
+
+                      {qcData.overallResult === "Fail" && (
+                        <div className="text-sm text-slate-600 bg-slate-50 p-3 rounded-md border border-slate-200">
+                          <p className="font-medium mb-1">
+                            Failed Items Summary:
+                          </p>
+                          <ul className="list-disc pl-5 space-y-1">
+                            {qcData.details
+                              .filter((d: any) => d.result === "Fail")
+                              .map((item: any, idx: number) => (
+                                <li key={idx}>
+                                  <span className="font-semibold">
+                                    {item.materialName || item.materialCode}
+                                  </span>
+                                  <span className="text-slate-500 ml-2">
+                                    Reason: {item.failReason}
+                                  </span>
+                                </li>
+                              ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* KHỐI TÓM TẮT INCIDENT (NẾU CÓ) */}
+                    {incidentData && (
+                      <div className="pt-4 border-t border-slate-100">
+                        <div className="flex items-center gap-3 mb-3">
+                          <h4 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                            <FileWarning className="w-4 h-4 text-amber-500" />{" "}
+                            Incident Report
+                          </h4>
+                          <Badge
+                            variant="outline"
+                            className="text-slate-500 font-normal"
+                          >
+                            {incidentData.incidentCode}
+                          </Badge>
+                          <Badge
+                            className={
+                              incidentData.status === "Resolved"
+                                ? "bg-emerald-50 text-emerald-600"
+                                : "bg-amber-50 text-amber-600"
+                            }
+                          >
+                            {incidentData.status}
+                          </Badge>
+                        </div>
+
+                        <div className="text-sm text-slate-600 space-y-2">
+                          <p>
+                            <span className="font-medium text-slate-700">
+                              General Description:
+                            </span>{" "}
+                            {incidentData.description}
+                          </p>
+
+                          <div className="mt-3">
+                            <p className="font-medium text-slate-700 mb-1">
+                              Reported Issues:
+                            </p>
+                            <Table>
+                              <TableHeader className="bg-slate-50">
+                                <TableRow>
+                                  <TableHead className="h-8">
+                                    Material
+                                  </TableHead>
+                                  <TableHead className="h-8 text-center">
+                                    Expected
+                                  </TableHead>
+                                  <TableHead className="h-8 text-center">
+                                    Actual
+                                  </TableHead>
+                                  <TableHead className="h-8">
+                                    Issue Type
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {incidentData.details.map(
+                                  (inc: any, idx: number) => (
+                                    <TableRow key={idx}>
+                                      <TableCell className="py-2 text-xs font-medium">
+                                        {inc.materialName}
+                                      </TableCell>
+                                      <TableCell className="py-2 text-xs text-center">
+                                        {inc.expectedQuantity}
+                                      </TableCell>
+                                      <TableCell className="py-2 text-xs text-center font-bold text-red-500">
+                                        {inc.actualQuantity}
+                                      </TableCell>
+                                      <TableCell className="py-2 text-xs">
+                                        <Badge
+                                          variant="secondary"
+                                          className="font-normal text-xs"
+                                        >
+                                          {inc.issueType}
+                                        </Badge>
+                                      </TableCell>
+                                    </TableRow>
+                                  ),
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* Right Column: Summary Stats */}

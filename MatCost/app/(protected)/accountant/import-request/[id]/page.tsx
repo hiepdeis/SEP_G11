@@ -292,6 +292,8 @@ export default function ReceiptReviewPage() {
     setIsSaving(true);
     try {
       const payload = constructPayload();
+      console.log(payload);
+      
       if (receipt?.status === "Requested") {
         await receiptApi.createDraft(id, payload);
       } else {

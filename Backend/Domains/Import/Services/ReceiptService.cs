@@ -398,7 +398,7 @@ namespace Backend.Domains.Import.Services
                 .Where(c => materialDictionary.ContainsKey(c.MaterialCode))
                 .Select(c => new ReceiptDetail
                 {
-                    MaterialId = materialDictionary[c.MaterialCode],
+                    MaterialId = materialDictionary[c.MaterialCode].MaterialId,
                     Quantity = c.Quantity,
                 }).ToList()
             };
