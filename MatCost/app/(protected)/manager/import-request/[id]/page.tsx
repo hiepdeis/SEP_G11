@@ -16,6 +16,8 @@ import {
   Eraser,
   Gavel,
   History,
+  ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,6 +75,9 @@ export default function ManagerReviewPage() {
 
   const sigCanvas = useRef<ReactSignatureCanvas>(null);
   const [isSigned, setIsSigned] = useState(false);
+
+  const [tablePage, setTablePage] = useState(1);
+  const tableItemsPerPage = 10;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -152,6 +157,15 @@ export default function ManagerReviewPage() {
       setIsSigned(false);
     }
   };
+
+  const totalItems = receipt?.details?.length || 0;
+  const totalTablePages = Math.ceil(totalItems / tableItemsPerPage) || 1;
+  const startTableIndex = (tablePage - 1) * tableItemsPerPage;
+  const paginatedTableItems =
+    receipt?.details?.slice(
+      startTableIndex,
+      startTableIndex + tableItemsPerPage,
+    ) || [];
 
   if (isLoading) {
     return (
@@ -234,55 +248,104 @@ export default function ManagerReviewPage() {
                     Pricing
                   </CardTitle>
                   <Badge variant="outline" className="font-normal">
-                    {receipt.details.length} items
+                    {totalItems} items
                   </Badge>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-slate-50/50">
-                        <TableHead className="pl-6 w-[40%]">Material</TableHead>
-                        <TableHead className="w-[30%]">Supplier</TableHead>
-                        <TableHead className="text-center">Quantity</TableHead>
-                        <TableHead className="text-right">Unit Price</TableHead>
-                        <TableHead className="text-right pr-6">
-                          Subtotal
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {receipt.details.map((item, idx) => (
-                        <TableRow key={idx} className="hover:bg-slate-50/50">
-                          <TableCell className="pl-6">
-                            <div className="font-medium text-slate-700">
-                              {item.materialName}
-                            </div>
-                            <div className="text-xs text-slate-500">
-                              {item.materialCode}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm text-slate-600">
-                              {item.supplierName || "N/A"}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className="font-medium">{item.quantity}</span>
-                            <span className="text-xs text-slate-400 ml-1">
-                              {item.unit}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right font-medium text-slate-600">
-                            {formatCurrency(item.unitPrice)}
-                          </TableCell>
-                          <TableCell className="text-right pr-6 font-bold text-slate-800">
-                            {formatCurrency(item.subTotal)}
-                          </TableCell>
+                  <div className="[&>div]:max-h-[300px] [&>div]:min-h-[300px] [&>div]:overflow-y-auto">
+                    <Table>
+                      <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
+                        <TableRow className="bg-slate-50/50">
+                          <TableHead className="pl-6 w-[40%]">
+                            Material
+                          </TableHead>
+                          <TableHead className="w-[30%]">Supplier</TableHead>
+                          <TableHead className="text-center">
+                            Quantity
+                          </TableHead>
+                          <TableHead className="text-right">
+                            Unit Price
+                          </TableHead>
+                          <TableHead className="text-right pr-6">
+                            Subtotal
+                          </TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedTableItems.map((item, idx) => (
+                          <TableRow key={idx} className="hover:bg-slate-50/50">
+                            <TableCell className="pl-6">
+                              <div className="font-medium text-slate-700">
+                                {item.materialName}
+                              </div>
+                              <div className="text-xs text-slate-500">
+                                {item.materialCode}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm text-slate-600">
+                                {item.supplierName || "N/A"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <span className="font-medium">
+                                {item.quantity}
+                              </span>
+                              <span className="text-xs text-slate-400 ml-1">
+                                {item.unit}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right font-medium text-slate-600">
+                              {formatCurrency(item.unitPrice)}
+                            </TableCell>
+                            <TableCell className="text-right pr-6 font-bold text-slate-800">
+                              {formatCurrency(item.subTotal)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CardContent>
+
+                {totalTablePages > 1 && (
+                  <div className="px-6 py-3 flex items-center justify-between border-t border-slate-100 bg-white">
+                    <span className="text-xs text-slate-500">
+                      Showing {startTableIndex + 1}-
+                      {Math.min(
+                        startTableIndex + tableItemsPerPage,
+                        totalItems,
+                      )}{" "}
+                      of {totalItems}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs px-2"
+                        onClick={() => setTablePage((p) => Math.max(1, p - 1))}
+                        disabled={tablePage === 1}
+                      >
+                        <ChevronLeft className="w-3 h-3 mr-1" /> Prev
+                      </Button>
+                      <span className="text-xs font-medium text-slate-600 w-10 text-center">
+                        {tablePage} / {totalTablePages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs px-2"
+                        onClick={() =>
+                          setTablePage((p) => Math.min(totalTablePages, p + 1))
+                        }
+                        disabled={tablePage === totalTablePages}
+                      >
+                        Next <ChevronRight className="w-3 h-3 ml-1" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Grand Total Footer */}
                 <div className="bg-slate-50 p-6 flex justify-end items-center gap-4 border-t border-slate-100">
                   <div className="text-right">
@@ -315,7 +378,8 @@ export default function ManagerReviewPage() {
                   </div>
                   {receipt.status == "Submitted" ? (
                     <p className="text-xs text-indigo-600/70 mt-2">
-                      This receipt has been processed and is waiting for your final approval.
+                      This receipt has been processed and is waiting for your
+                      final approval.
                     </p>
                   ) : (
                     <p className="text-xs text-indigo-600/70 mt-2">

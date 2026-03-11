@@ -15,6 +15,8 @@ import {
   Loader2,
   CheckCircle2,
   LoaderPinwheel,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
@@ -33,6 +35,7 @@ import {
 } from "@/services/receipt-service";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { userApi } from "@/services/user-service";
 
 export default function StaffInboundDetailPage() {
   const params = useParams();
@@ -42,12 +45,25 @@ export default function StaffInboundDetailPage() {
   const [request, setRequest] = useState<GetInboundRequestListDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [confirmByName, setConfirmByName] = useState("");
+
+  const [tablePage, setTablePage] = useState(1);
+  const tableItemsPerPage = 5;
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await staffReceiptApi.getInboundRequestDetail(id);
-        setRequest(res.data);
+        const requestData = res.data;
+
+        if (requestData?.confirmedBy) {
+          const resConfirmByName = await userApi.getById(
+            requestData.confirmedBy,
+          );
+          setConfirmByName(resConfirmByName.data.fullName);
+        }
+
+        setRequest(requestData);
       } catch (error) {
         console.error("Error loading receipt detail", error);
         toast.error("Failed to load receipt details");
@@ -155,6 +171,15 @@ export default function StaffInboundDetailPage() {
     });
   };
 
+  const totalTableItems = request?.items?.length || 0;
+  const totalTablePages = Math.ceil(totalTableItems / tableItemsPerPage) || 1;
+  const startTableIndex = (tablePage - 1) * tableItemsPerPage;
+  const paginatedTableItems =
+    request?.items?.slice(
+      startTableIndex,
+      startTableIndex + tableItemsPerPage,
+    ) || [];
+
   if (isLoading)
     return (
       <div className="h-screen flex items-center justify-center bg-slate-50">
@@ -214,9 +239,9 @@ export default function StaffInboundDetailPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Left Column: General Info */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-3 space-y-6">
               {/* Warehouse & Supplier Info Card */}
               <Card className="border-slate-200 shadow-sm gap-0">
                 <CardHeader className="border-b border-slate-100 py-4">
@@ -255,7 +280,7 @@ export default function StaffInboundDetailPage() {
                             Completed
                           </p>
                           <p className="text-xs text-slate-500">
-                            By Them
+                            By Staff Team - {confirmByName}
                           </p>
                         </div>
                       </div>
@@ -277,8 +302,8 @@ export default function StaffInboundDetailPage() {
               </Card>
 
               {/* Items Table */}
-              <Card className="border-slate-200 shadow-sm overflow-hidden gap-0">
-                <CardHeader className="bg-white border-b border-slate-100 py-4">
+              <Card className="border-slate-200 shadow-sm overflow-hidden gap-0 pb-0 flex flex-col">
+                <CardHeader className="bg-white border-b border-slate-100 py-4 shrink-0">
                   <div className="flex justify-between items-center">
                     <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
                       <Package className="w-5 h-5 text-slate-500" />
@@ -288,71 +313,187 @@ export default function StaffInboundDetailPage() {
                       variant="secondary"
                       className="bg-slate-100 text-slate-700"
                     >
-                      {request.items.length} materials
+                      {totalTableItems} materials
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-slate-50/50">
-                        <TableHead className="w-[50px] text-center pl-6">
-                          #
-                        </TableHead>
-                        <TableHead className="w-[35%]">Material</TableHead>
-                        <TableHead className="w-[30%]">Supplier</TableHead>
-                        <TableHead className="text-center w-[15%]">
-                          Expected Quantity
-                        </TableHead>
-                        <TableHead className="text-center w-[15%] pr-6">
-                          Status
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {request.items.map((item, index) => (
-                        <TableRow
-                          key={item.detailId}
-                          className="hover:bg-slate-50"
-                        >
-                          <TableCell className="text-center text-slate-500 text-sm pl-6">
-                            {index + 1}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-medium text-slate-700 text-sm">
-                                {item.materialName}
-                              </span>
-                              <span className="text-xs font-mono text-slate-500 bg-slate-100 w-fit px-1 rounded mt-0.5">
-                                {item.materialCode}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Truck className="w-3 h-3 text-slate-400" />
-                              <span className="text-sm text-slate-600">
-                                {item.supplierName}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className="font-bold text-slate-800">
-                              {item.quantity?.toLocaleString("vi-VN")}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-center pr-6">
-                            <Badge
-                              variant="outline"
-                              className="border-slate-200 text-slate-500 font-normal text-xs"
-                            >
-                              Pending Check
-                            </Badge>
-                          </TableCell>
+
+                <CardContent className="p-0 flex flex-col flex-1">
+                  <div className="[&>div]:max-h-[350px] [&>div]:min-h-[350px] [&>div]:overflow-y-auto">
+                    <Table>
+                      <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
+                        <TableRow className="bg-slate-50/50">
+                          <TableHead className="w-[5%] pl-6">#</TableHead>
+                          <TableHead className="w-[25%]">Material</TableHead>
+                          <TableHead className="w-[20%]">Supplier</TableHead>
+                          <TableHead className="text-center w-[10%]">
+                            Expected Quantity
+                          </TableHead>
+                          {request.status === "Completed" && (
+                            <TableHead className="text-center w-[10%]">
+                              Actual Quantity
+                            </TableHead>
+                          )}
+                          {request.status === "Completed" ? (
+                            <>
+                              <TableHead className="text-center w-[15%]">
+                                Bin Code
+                              </TableHead>
+                              <TableHead className="text-center w-[15%]">
+                                Batch Code
+                              </TableHead>
+                              <TableHead className="text-center w-[25%] pr-6">
+                                MFG Date
+                              </TableHead>
+                            </>
+                          ) : (
+                            <TableHead className="text-center w-[15%] pr-6">
+                              Status
+                            </TableHead>
+                          )}
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {/* DÙNG paginatedTableItems THAY VÌ request.items */}
+                        {paginatedTableItems.map((item, index) => (
+                          <TableRow
+                            key={item.detailId}
+                            className="hover:bg-slate-50"
+                          >
+                            <TableCell className="text-slate-500 text-sm pl-6">
+                              {/* CỘNG startTableIndex ĐỂ HIỂN THỊ ĐÚNG SỐ THỨ TỰ */}
+                              {startTableIndex + index + 1}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-medium text-slate-700 text-sm">
+                                  {item.materialName}
+                                </span>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] px-1.5 py-0 border-slate-200 bg-white font-mono text-slate-500"
+                                  >
+                                    {item.materialCode}
+                                  </Badge>
+                                  <span className="text-xs text-slate-400">
+                                    {item.unit}
+                                  </span>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Truck className="w-3 h-3 text-slate-400" />
+                                <span className="text-sm font-semibold text-slate-600 bg-slate-100 px-2 py-1 rounded">
+                                  {item.supplierName}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <span className="font-bold text-slate-800">
+                                {item.quantity?.toLocaleString("vi-VN")}
+                              </span>
+                            </TableCell>
+                            {request.status === "Completed" && (
+                              <TableCell className="text-center w-[15%]">
+                                <span
+                                  className={`font-bold ${
+                                    item.actualQuantity === item.quantity
+                                      ? "text-green-600"
+                                      : "text-yellow-500"
+                                  }`}
+                                >
+                                  {item.actualQuantity?.toLocaleString("vi-VN")}
+                                </span>
+                              </TableCell>
+                            )}
+                            {request.status === "Completed" ? (
+                              <>
+                                <TableCell className="text-center pr-6">
+                                  <Badge
+                                    variant="outline"
+                                    className="border-slate-200 text-slate-500 font-normal text-xs"
+                                  >
+                                    {item.binCode}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-center pr-6">
+                                  <Badge
+                                    variant="outline"
+                                    className="border-slate-200 text-slate-500 font-normal text-xs"
+                                  >
+                                    {item.batchCode}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-center pr-6">
+                                  <span className="text-slate-800">
+                                    {item.mfgDate
+                                      ? new Date(
+                                          item.mfgDate,
+                                        ).toLocaleDateString("vi-VN")
+                                      : "N/A"}
+                                  </span>
+                                </TableCell>
+                              </>
+                            ) : (
+                              <TableCell className="text-center pr-6">
+                                <Badge
+                                  variant="outline"
+                                  className="border-slate-200 text-slate-500 font-normal text-xs"
+                                >
+                                  Pending Check
+                                </Badge>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* THÊM THANH PHÂN TRANG VÀO ĐÂY */}
+                  {totalTablePages > 1 && (
+                    <div className="px-6 py-3 flex items-center justify-between border-t border-slate-100 bg-white shrink-0 mt-auto">
+                      <span className="text-xs text-slate-500">
+                        Showing {startTableIndex + 1}-
+                        {Math.min(
+                          startTableIndex + tableItemsPerPage,
+                          totalTableItems,
+                        )}{" "}
+                        of {totalTableItems}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs px-2"
+                          onClick={() =>
+                            setTablePage((p) => Math.max(1, p - 1))
+                          }
+                          disabled={tablePage === 1}
+                        >
+                          <ChevronLeft className="w-3 h-3 mr-1" /> Prev
+                        </Button>
+                        <span className="text-xs font-medium text-slate-600 w-10 text-center">
+                          {tablePage} / {totalTablePages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs px-2"
+                          onClick={() =>
+                            setTablePage((p) =>
+                              Math.min(totalTablePages, p + 1),
+                            )
+                          }
+                          disabled={tablePage === totalTablePages}
+                        >
+                          Next <ChevronRight className="w-3 h-3 ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
