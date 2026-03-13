@@ -106,18 +106,18 @@ export default function ManagerReviewPage() {
 
   const handleApprove = () => {
     showConfirmToast({
-      title: "Approve Receipt?",
-      description: "Are you sure you want to approve this receipt?",
-      confirmLabel: "Yes, Approve",
+      title: t("Approve Receipt?"),
+      description: t("Are you sure you want to approve this receipt?"),
+      confirmLabel: t("Yes, Approve"),
       onConfirm: async () => {
         setIsProcessing(true);
         try {
           await managerReceiptApi.approveReceipt(id, { approvalNotes: notes });
-          toast.success("Receipt approved successfully!");
+          toast.success(t("Receipt approved successfully!"));
           router.push("/manager/import-request");
         } catch (error) {
           console.error(error);
-          toast.error("Failed to approve receipt.");
+          toast.error(t("Failed to approve receipt."));
         } finally {
           setIsProcessing(false);
         }
@@ -127,7 +127,7 @@ export default function ManagerReviewPage() {
 
   const handleReject = async () => {
     if (!rejectReason.trim()) {
-      toast.error("Please provide a reason for rejection.");
+      toast.error(t("Please provide a reason for rejection."));
       return;
     }
 
@@ -136,11 +136,11 @@ export default function ManagerReviewPage() {
       await managerReceiptApi.rejectReceipt(id, {
         rejectionReason: rejectReason,
       });
-      toast.success("Receipt rejected.");
+      toast.success(t("Receipt rejected."));
       router.push("/manager/import-request");
     } catch (error) {
       console.error(error);
-      toast.error("Failed to reject receipt.");
+      toast.error(t("Failed to reject receipt."));
     } finally {
       setIsProcessing(false);
       setIsRejectDialogOpen(false);

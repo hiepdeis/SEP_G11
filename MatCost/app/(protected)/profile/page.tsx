@@ -26,8 +26,10 @@ import { Card } from "@/components/ui/custom/card-wrapper";
 import { FullPageSpinner } from "@/components/ui/custom/full-page-spinner";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Header } from "@/components/ui/custom/header";
+import { useTranslation } from "react-i18next";
 
 export default function ProfilePage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const [user, setUser] = useState<UserDto | null>(null);
   const { user: userDecode } = useAuth();
@@ -105,10 +107,10 @@ export default function ProfilePage() {
 
       setOriginalUser(user);
 
-      toast.success("Update success!");
+      toast.success(t("Update success!"));
     } catch (error) {
       console.error("Update failed", error);
-      toast.error("Update failed!");
+      toast.error(t("Update failed!"));
     } finally {
       setIsSaving(false);
     }
@@ -144,7 +146,7 @@ export default function ProfilePage() {
       <Sidebar />
 
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title="My Profile"></Header>
+        <Header title={t("My Profile")}></Header>
 
         <div className="flex-grow overflow-y-auto">
           <div className="px-6 lg:px-10 py-8 max-w-5xl mx-auto w-full">
@@ -152,10 +154,10 @@ export default function ProfilePage() {
             <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-bold text-slate-900 mb-2 tracking-tight">
-                  Account Settings
+                  {t("Account Settings")}
                 </h1>
                 <p className="text-slate-500 text-lg">
-                  Manage your personal information and preferences
+                  {t("Manage your personal information and preferences")}
                 </p>
               </div>
               <div className="flex gap-3">
@@ -165,7 +167,7 @@ export default function ProfilePage() {
                     className="text-slate-600 border-slate-300 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-all duration-300 animate-in fade-in slide-in-from-right-4"
                     onClick={handleCancel}
                   >
-                    Cancel
+                    {t("Cancel")}
                   </Button>
                 )}
                 <Button
@@ -175,11 +177,12 @@ export default function ProfilePage() {
                 >
                   {isSaving ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                      <Loader2 className="w-4 h-4 animate-spin" />{" "}
+                      {t("Saving...")}
                     </>
                   ) : (
                     <>
-                      <Save className="w-4 h-4" /> Save Changes
+                      <Save className="w-4 h-4" /> {t("Save Changes")}
                     </>
                   )}
                 </Button>
@@ -216,13 +219,13 @@ export default function ProfilePage() {
                     </h3>
                     {/* Role từ API (ví dụ: WORKER) */}
                     <p className="text-center text-slate-500 text-sm mb-4">
-                      {user.roleName || "N/A"}
+                      {user.roleName || t("N/A")}
                     </p>
 
                     <div className="flex items-center justify-center gap-2 mb-6">
                       {user.status && (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          Active Status
+                          {t("Active Status")}
                         </span>
                       )}
                     </div>
@@ -234,7 +237,7 @@ export default function ProfilePage() {
                       </div>
                       <div className="flex items-center gap-3 text-sm text-slate-600">
                         <Phone className="w-4 h-4 text-slate-400" />
-                        <span>{user.phoneNumber || "No phone number"}</span>
+                        <span>{user.phoneNumber || t("No phone number")}</span>
                       </div>
                     </div>
                   </div>
@@ -295,10 +298,10 @@ export default function ProfilePage() {
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold text-slate-900">
-                          Personal Information
+                          {t("Personal Information")}
                         </h3>
                         <p className="text-slate-500 text-sm">
-                          Update your personal details here.
+                          {t("Update your personal details here.")}
                         </p>
                       </div>
                     </div>
@@ -317,7 +320,7 @@ export default function ProfilePage() {
                           }
                           maxLength={LIMITS.fullName}
                         >
-                          Full Name
+                          {t("Full Name")}
                         </LabelCharCount>
                       </div>
                       <Input
@@ -332,7 +335,7 @@ export default function ProfilePage() {
                           setFocusedField(null);
                           validateField("fullName", user.fullName);
                         }}
-                        placeholder="Enter your full name"
+                        placeholder={t("Enter your full name")}
                         maxLength={LIMITS.fullName}
                         className={
                           errors.fullName
@@ -349,14 +352,14 @@ export default function ProfilePage() {
 
                     {/* --- EMAIL --- */}
                     <div className="space-y-2">
-                      <LabelCharCount>Email Address</LabelCharCount>
+                      <LabelCharCount>{t("Email Address")}</LabelCharCount>
                       <Input
                         value={user.email}
                         disabled
                         className="bg-slate-50 text-slate-500 cursor-not-allowed"
                       />
                       <p className="text-xs text-slate-400">
-                        Email cannot be changed.
+                        {t("Email cannot be changed.")}
                       </p>
                     </div>
 
@@ -372,7 +375,7 @@ export default function ProfilePage() {
                           }
                           maxLength={LIMITS.phoneNumber}
                         >
-                          Phone Number
+                          {t("Phone Number")}
                         </LabelCharCount>
                       </div>
                       <Input
@@ -416,7 +419,7 @@ export default function ProfilePage() {
                           }
                           maxLength={LIMITS.bio}
                         >
-                          Bio / Notes
+                          {t("Bio / Notes")}
                         </LabelCharCount>
                       </div>
                       <textarea
@@ -426,7 +429,7 @@ export default function ProfilePage() {
                     ? "border-red-500 focus-visible:ring-red-500 placeholder:text-red-300"
                     : "border-slate-300 focus-visible:ring-indigo-600 placeholder:text-slate-500"
                 }`}
-                        placeholder="Write a short bio..."
+                        placeholder={t("Write a short bio...")}
                         value={(user as any).bio || ""}
                         onChange={(e) => {
                           setUser({ ...user, bio: e.target.value } as any);
@@ -456,7 +459,7 @@ export default function ProfilePage() {
                           }
                           maxLength={LIMITS.address}
                         >
-                          Personal Address
+                          {t("Personal Address")}
                         </LabelCharCount>
                       </div>
                       <Input
@@ -471,7 +474,7 @@ export default function ProfilePage() {
                           setFocusedField(null);
                           validateField("address", user.address || "");
                         }}
-                        placeholder="Enter your personal address"
+                        placeholder={t("Enter your personal address")}
                         maxLength={LIMITS.address}
                         className={
                           errors.address

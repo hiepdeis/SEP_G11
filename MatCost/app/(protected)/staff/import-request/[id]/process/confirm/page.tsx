@@ -195,10 +195,11 @@ export default function StaffConfirmInboundPage() {
       return toast.error(`Select Batch Code for all items.`);
 
     showConfirmToast({
-      title: "Confirm Inbound Completion?",
-      description:
+      title: t("Confirm Inbound Completion?"),
+      description: t(
         "Inventory will be updated. Ensure physical count is correct.",
-      confirmLabel: "Yes, Confirm",
+      ),
+      confirmLabel: t("Yes, Confirm"),
       onConfirm: async () => {
         setIsSubmitting(true);
         try {
@@ -215,11 +216,11 @@ export default function StaffConfirmInboundPage() {
           };
 
           await staffReceiptApi.confirmGoodsReceipt(id, payload);
-          toast.success("Inbound confirmed successfully!");
+          toast.success(t("Inbound confirmed successfully!"));
           router.push("/staff/import-request");
         } catch (error: any) {
           toast.error(
-            error.response?.data?.message || "Failed to confirm inbound",
+            error.response?.data?.message || t("Failed to confirm inbound"),
           );
         } finally {
           setIsSubmitting(false);
@@ -556,7 +557,7 @@ export default function StaffConfirmInboundPage() {
                                       <Button
                                         variant="ghost"
                                         size="icon"
-                                        className={`h-9 w-9 rounded-full ${item.certificateImage ? "text-indigo-600 bg-indigo-50 border-indigo-100" : "text-slate-400 hover:bg-slate-100"}`}
+                                        className={`h-9 w-9 rounded-full ${item.certificateImage ? "text-indigo-600 bg-indigo-50 border-indigo-100" : "text-slate-400 hover:bg-slate-100 hover:text-indigo-600"}`}
                                       >
                                         <ImageIcon className="w-4 h-4" />
                                       </Button>

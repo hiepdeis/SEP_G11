@@ -138,7 +138,7 @@ export default function ReceiptReviewPage() {
         setItems(formItems);
       } catch (error) {
         console.error("Error loading receipt", error);
-        toast.error("Failed to load receipt data");
+        toast.error(t("Failed to load receipt data"));
       } finally {
         setIsLoading(false);
       }
@@ -268,7 +268,7 @@ export default function ReceiptReviewPage() {
   const handleSaveDraft = async () => {
     if (!selectedWarehouseId && hasAllSupplierMissing) {
       return toast.error(
-        "Please select a warehouse or a supplier to save draft",
+        t("Please select a warehouse or a supplier to save draft"),
       );
     }
     setIsSaving(true);
@@ -280,7 +280,7 @@ export default function ReceiptReviewPage() {
       } else {
         await receiptApi.updateDraft(id, payload);
       }
-      toast.success("Draft saved successfully!");
+      toast.success(t("Draft saved successfully!"));
     } catch (error: any) {
       console.error(error);
       const msg = error.response?.data?.message || "Failed to save draft";
@@ -302,7 +302,7 @@ export default function ReceiptReviewPage() {
         await receiptApi.updateDraft(id, payload);
       }
       await receiptApi.submitForApproval(id);
-      toast.success("Submitted successfully!");
+      toast.success(t("Submitted successfully!"));
       router.push("/accountant/import-request");
     } catch (error: any) {
       console.error(error);
@@ -313,7 +313,8 @@ export default function ReceiptReviewPage() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedWarehouseId) return toast.error("Please select a warehouse");
+    if (!selectedWarehouseId)
+      return toast.error(t("Please select a warehouse"));
 
     const newErrors = { ...errors };
     let localMissingCheck = false;
@@ -328,19 +329,22 @@ export default function ReceiptReviewPage() {
     setErrors(newErrors);
     if (localMissingCheck) {
       setHasMissingSupplier(true);
-      return toast.error("Please select a supplier for all items.");
+      return toast.error(t("Please select a supplier for all items."));
     }
     const hasOtherErrors = Object.values(newErrors).some((e) => e !== "");
-    if (hasOtherErrors) return toast.error("Please fix validation errors.");
+    if (hasOtherErrors) return toast.error(t("Please fix validation errors."));
     if (items.some((i) => Number(i.unitPrice) <= 0)) {
-      return toast.error("All items must have a valid unit price > 0.");
+      return toast.error(
+        t("All items must have a valid unit price larger than 0."),
+      );
     }
 
     showConfirmToast({
-      title: "Submit for Approval?",
-      description:
+      title: t("Submit for Approval?"),
+      description: t(
         "You are about to submit this receipt. You cannot edit it afterwards.",
-      confirmLabel: "Yes, Submit",
+      ),
+      confirmLabel: t("Yes, Submit"),
       onConfirm: () => executeSubmit(),
     });
   };

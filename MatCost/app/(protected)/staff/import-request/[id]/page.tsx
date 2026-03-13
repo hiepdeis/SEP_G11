@@ -92,7 +92,7 @@ export default function StaffInboundDetailPage() {
         }
       } catch (error) {
         console.error("Error loading receipt detail", error);
-        toast.error("Failed to load receipt details");
+        toast.error(t("Failed to load receipt details"));
       } finally {
         setIsLoading(false);
       }
@@ -170,19 +170,21 @@ export default function StaffInboundDetailPage() {
       XLSX.utils.book_append_sheet(workbook, worksheet, "INBOUND_CHECK");
       XLSX.writeFile(workbook, `Inbound_${request.receiptCode}.xlsx`);
 
-      toast.success("Template downloaded successfully!", {
-        description: "Please fill in Actual Qantity, Bin Code, and Batch info.",
+      toast.success(t("Template downloaded successfully!"), {
+        description: t(
+          "Please fill in Actual Qantity, Bin Code, and Batch info.",
+        ),
       });
     } catch (error) {
       console.error("Download error:", error);
-      toast.error("Failed to download template");
+      toast.error(t("Failed to download template"));
     } finally {
       setIsDownloading(false);
     }
   };
 
   const handleProcess = () => {
-    toast.info("Proceeding to QC check");
+    toast.info(t("Proceeding to QC check"));
     router.push(`${id}/process`);
   };
 
