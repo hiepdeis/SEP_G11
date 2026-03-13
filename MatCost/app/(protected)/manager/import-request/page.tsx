@@ -54,10 +54,11 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 export default function ManagerImportRequestPage() {
+  const { t } = useTranslation();
   const router = useRouter();
-
   const [requests, setRequests] = useState<PendingReceiptDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingId, setLoadingId] = useState<number | null>(null);
@@ -201,19 +202,48 @@ export default function ManagerImportRequestPage() {
     return val.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
   };
 
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const waitingCount = requests.filter(
+    (item) => item.status === "Submitted",
+  ).length;
+
+  const pendingValue = requests
+    .filter((item) => item.status === "Submitted")
+    .reduce((sum, item) => sum + (item.totalAmount || 0), 0);
+
+  const approvedCount = requests.filter((item) => {
+    if (!item.receiptDate) return false;
+    return (
+      item.status === "Approved" && new Date(item.receiptDate) >= sevenDaysAgo
+    );
+  }).length;
+
+  const rejectedCount = requests.filter((item) => {
+    if (!item.receiptDate) return false;
+    return (
+      item.status === "Rejected" && new Date(item.receiptDate) >= sevenDaysAgo
+    );
+  }).length;
+
+  const formatPlus = (num: number) => (num > 999 ? "999+" : num);
+
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title="Manager Dashboard" />
+        <Header title={t("Manager Dashboard")} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div className="flex flex-col gap-1">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Approval Queue
+              {t("Approval Queue")}
             </h1>
             <p className="text-sm text-slate-500">
-              Review receipts processed by Accountants and make final approval.
+              {t(
+                "Review receipts processed by Accountants and make final approval.",
+              )}
             </p>
           </div>
 
@@ -226,17 +256,15 @@ export default function ManagerImportRequestPage() {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    Waiting for Approval
+                    {t("Waiting for Approval")}
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {
-                      requests.filter((item) => item.status === "Submitted")
-                        .length
-                    }
+                    {formatPlus(waitingCount)}
                   </h3>
                 </div>
               </CardContent>
             </Card>
+
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
@@ -244,21 +272,15 @@ export default function ManagerImportRequestPage() {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    Total Pending Value
+                    {t("Total Pending Value")}
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {formatCurrency(
-                      requests
-                        .filter((item) => item.status === "Submitted")
-                        .reduce(
-                          (sum, item) => sum + (item.totalAmount || 0),
-                          0,
-                        ),
-                    )}
+                    {formatCurrency(pendingValue)}
                   </h3>
                 </div>
               </CardContent>
             </Card>
+
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 bg-green-100 text-green-600 rounded-lg">
@@ -266,25 +288,15 @@ export default function ManagerImportRequestPage() {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    Approved last 7 days
+                    {t("Approved last 7 days")}
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {
-                      requests.filter((item) => {
-                        if (!item.receiptDate) return false;
-
-                        const itemDate = new Date(item.receiptDate);
-                        const sevenDaysAgo = new Date();
-                        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                        return (
-                          item.status === "Approved" && itemDate >= sevenDaysAgo
-                        );
-                      }).length
-                    }
+                    {formatPlus(approvedCount)}
                   </h3>
                 </div>
               </CardContent>
             </Card>
+
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 bg-red-100 text-red-600 rounded-lg">
@@ -292,21 +304,10 @@ export default function ManagerImportRequestPage() {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    Rejected last 7 days
+                    {t("Rejected last 7 days")}
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {
-                      requests.filter((item) => {
-                        if (!item.receiptDate) return false;
-
-                        const itemDate = new Date(item.receiptDate);
-                        const sevenDaysAgo = new Date();
-                        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                        return (
-                          item.status === "Rejected" && itemDate >= sevenDaysAgo
-                        );
-                      }).length
-                    }
+                    {formatPlus(rejectedCount)}
                   </h3>
                 </div>
               </CardContent>
@@ -318,7 +319,7 @@ export default function ManagerImportRequestPage() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="text-sm font-medium text-slate-500 hidden md:block">
-                    Filters:
+                    {t("Filters")}:
                   </span>
 
                   <Select
@@ -328,12 +329,14 @@ export default function ManagerImportRequestPage() {
                     }
                   >
                     <SelectTrigger className="w-full md:w-[150px] bg-white border-slate-200 shadow-sm h-9">
-                      <SelectValue placeholder="Filter by status" />
+                      <SelectValue placeholder={t("Filter by status")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Submitted">Submitted</SelectItem>
-                      <SelectItem value="History">History</SelectItem>
-                      <SelectItem value="All">All</SelectItem>
+                      <SelectItem value="Submitted">
+                        {t("Submitted")}
+                      </SelectItem>
+                      <SelectItem value="History">{t("History")}</SelectItem>
+                      <SelectItem value="All">{t("All")}</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -351,7 +354,7 @@ export default function ManagerImportRequestPage() {
                           {dateRange.from ? (
                             format(dateRange.from, "dd/MM/yyyy")
                           ) : (
-                            <span>From Date</span>
+                            <span>{t("From Date")}</span>
                           )}
                         </Button>
                       </PopoverTrigger>
@@ -382,7 +385,7 @@ export default function ManagerImportRequestPage() {
                           {dateRange.to ? (
                             format(dateRange.to, "dd/MM/yyyy")
                           ) : (
-                            <span>To Date</span>
+                            <span>{t("To Date")}</span>
                           )}
                         </Button>
                       </PopoverTrigger>
@@ -420,7 +423,7 @@ export default function ManagerImportRequestPage() {
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                   <Input
-                    placeholder="Search Receipt Code..."
+                    placeholder={t("Search Receipt Code...")}
                     className="pl-9 bg-white shadow-sm h-9"
                     maxLength={50}
                     value={searchTerm}
@@ -440,7 +443,7 @@ export default function ManagerImportRequestPage() {
                         onClick={() => handleSort("date")}
                       >
                         <div className="flex items-center gap-1.5 select-none">
-                          Receipt Code
+                          {t("Receipt Code")}
                           {sortConfig?.key === "date" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
@@ -453,7 +456,7 @@ export default function ManagerImportRequestPage() {
                         </div>
                       </TableHead>
 
-                      <TableHead>Warehouse</TableHead>
+                      <TableHead>{t("Warehouse")}</TableHead>
 
                       {/* Cột Total Amount: Click để sort theo total */}
                       <TableHead
@@ -461,7 +464,7 @@ export default function ManagerImportRequestPage() {
                         onClick={() => handleSort("total")}
                       >
                         <div className="flex items-center justify-end gap-1.5 select-none">
-                          Total Amount
+                          {t("Total Amount")}
                           {sortConfig?.key === "total" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
@@ -474,8 +477,12 @@ export default function ManagerImportRequestPage() {
                         </div>
                       </TableHead>
 
-                      <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-right pr-6">Action</TableHead>
+                      <TableHead className="text-center">
+                        {t("Status")}
+                      </TableHead>
+                      <TableHead className="text-right pr-6">
+                        {t("Action")}
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -483,8 +490,8 @@ export default function ManagerImportRequestPage() {
                       <TableRow>
                         <TableCell colSpan={6} className="h-32 text-center">
                           <div className="flex justify-center items-center gap-2 text-indigo-600">
-                            <Loader2 className="w-6 h-6 animate-spin" /> Loading
-                            requests...
+                            <Loader2 className="w-6 h-6 animate-spin" />{" "}
+                            {t("Loading requests...")}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -496,7 +503,7 @@ export default function ManagerImportRequestPage() {
                         >
                           <div className="flex flex-col items-center justify-center gap-2">
                             <FileText className="w-8 h-8 text-slate-300" />
-                            <p>No pending approvals found.</p>
+                            <p>{t("No pending approvals found.")}</p>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -523,7 +530,7 @@ export default function ManagerImportRequestPage() {
                           <TableCell>
                             <div className="flex items-center gap-2 text-slate-600">
                               <MapPin className="w-4 h-4 text-slate-400" />
-                              {item.warehouseName || "N/A"}
+                              {item.warehouseName || t("N/A")}
                             </div>
                           </TableCell>
 
@@ -548,9 +555,9 @@ export default function ManagerImportRequestPage() {
                                                 ? "bg-red-50 text-red-700 border-red-200"
                                                 : "bg-gray-50 text-gray-700 border-gray-200"
                                         }
-                                     `}
+                                      `}
                             >
-                              {item.status}
+                              {t(item.status)}
                             </Badge>
                           </TableCell>
 
@@ -578,11 +585,11 @@ export default function ManagerImportRequestPage() {
                               ) : item.status === "Approved" ||
                                 item.status === "Rejected" ? (
                                 <>
-                                  View <Eye className="w-4 h-4 ml-1.5" />
+                                  {t("View")} <Eye className="w-4 h-4 ml-1.5" />
                                 </>
                               ) : (
                                 <>
-                                  Process{" "}
+                                  {t("Process")}{" "}
                                   <ArrowRight className="w-4 h-4 ml-1.5" />
                                 </>
                               )}
@@ -597,25 +604,25 @@ export default function ManagerImportRequestPage() {
               {!isLoading && filteredData.length > 0 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 gap-4">
                   <div className="text-sm text-slate-500">
-                    Showing{" "}
+                    {t("Showing")}{" "}
                     <span className="font-medium text-slate-900">
                       {startIndex + 1}
                     </span>{" "}
-                    to{" "}
+                    {t("to")}{" "}
                     <span className="font-medium text-slate-900">
                       {Math.min(endIndex, filteredData.length)}
                     </span>{" "}
-                    of{" "}
+                    {t("of")}{" "}
                     <span className="font-medium text-slate-900">
                       {filteredData.length}
                     </span>{" "}
-                    results
+                    {t("results")}
                   </div>
 
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-slate-500 whitespace-nowrap">
-                        Rows per page:
+                        {t("Rows per page")}:
                       </span>
                       <Select
                         value={itemsPerPage.toString()}
@@ -630,7 +637,7 @@ export default function ManagerImportRequestPage() {
                           <SelectItem value="20">20</SelectItem>
                           <SelectItem value="50">50</SelectItem>
                           <SelectItem value="100">100</SelectItem>
-                          <SelectItem value="-1">All</SelectItem>
+                          <SelectItem value="-1">{t("All")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -646,10 +653,10 @@ export default function ManagerImportRequestPage() {
                         disabled={currentPage === 1}
                         className="h-8"
                       >
-                        <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                        <ChevronLeft className="w-4 h-4 mr-1" /> {t("Previous")}
                       </Button>
                       <div className="text-sm font-medium text-slate-600 px-2 min-w-[80px] text-center">
-                        Page {currentPage} of {totalPages}
+                        {t("Page")} {currentPage} {t("of")} {totalPages}
                       </div>
                       <Button
                         variant="outline"
@@ -662,7 +669,7 @@ export default function ManagerImportRequestPage() {
                         disabled={currentPage === totalPages}
                         className="h-8"
                       >
-                        Next <ChevronRight className="w-4 h-4 ml-1" />
+                        {t("Next")} <ChevronRight className="w-4 h-4 ml-1" />
                       </Button>
                     </div>
                   </div>

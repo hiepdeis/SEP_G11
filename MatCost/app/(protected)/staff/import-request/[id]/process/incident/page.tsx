@@ -42,6 +42,7 @@ import {
 } from "@/services/receipt-service";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { useTranslation } from "react-i18next";
 
 interface IncidentItem {
   detailId: number;
@@ -55,6 +56,7 @@ interface IncidentItem {
 }
 
 export default function StaffIncidentPage() {
+  const { t } = useTranslation();
   const params = useParams();
   const router = useRouter();
   const id = Number(params.id);
@@ -195,7 +197,7 @@ export default function StaffIncidentPage() {
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
         <Header
-          title={`Incident Report - Receipt #${qcData?.receiptCode || id}`}
+          title={`${t("Incident Report - Receipt")} #${qcData?.receiptCode || id}`}
         />
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -207,13 +209,13 @@ export default function StaffIncidentPage() {
                 }
                 className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit -ml-2 mb-1 h-8"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" /> Back
+                <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back")}
               </Button>
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold text-slate-900">
                   {isHistoryView
-                    ? "Incident Report Record"
-                    : "Create Incident Report"}
+                    ? t("Incident Report Record")
+                    : t("Create Incident Report")}
                 </h1>
                 {isHistoryView && historicalIncidentData && (
                   <Badge
@@ -228,7 +230,7 @@ export default function StaffIncidentPage() {
                     ) : (
                       <AlertTriangle className="w-3 h-3 mr-1" />
                     )}
-                    Status: {historicalIncidentData.status}
+                    {t("Status")}: {historicalIncidentData.status}
                   </Badge>
                 )}
               </div>
@@ -245,14 +247,15 @@ export default function StaffIncidentPage() {
                 ) : (
                   <FileWarning className="w-4 h-4 mr-2" />
                 )}
-                Submit Incident
+                {t("Submit Incident")}
               </Button>
             ) : (
               <Button
                 className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
                 onClick={handleProceedFromHistory}
               >
-                Proceed to Next Step <ChevronRight className="w-4 h-4 ml-2" />
+                {t("Proceed to Next Step")}{" "}
+                <ChevronRight className="w-4 h-4 ml-2" />
               </Button>
             )}
           </div>
@@ -261,11 +264,13 @@ export default function StaffIncidentPage() {
             <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
               <div>
-                <h3 className="font-bold text-sm">Incident Report Required</h3>
+                <h3 className="font-bold text-sm">
+                  {t("Incident Report Required")}
+                </h3>
                 <p className="text-xs mt-1">
-                  Some items did not pass the Quality Control check. Please fill
-                  out the incident details below before you can proceed to
-                  confirm the inbound receipt.
+                  {t(
+                    "Some items did not pass the Quality Control check. Please fill out the incident details below before you can proceed to confirm the inbound receipt.",
+                  )}
                 </p>
               </div>
             </div>
@@ -274,12 +279,14 @@ export default function StaffIncidentPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-md">
-                General Incident Description
+                {t("General Incident Description")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <Textarea
-                placeholder="Describe the overall issue (e.g., Delivery truck arrived with water damage...)"
+                placeholder={t(
+                  "Describe the overall issue (e.g., Delivery truck arrived with water damage...)",
+                )}
                 value={incidentDescription}
                 onChange={(e) => setIncidentDescription(e.target.value)}
                 className={`min-h-[100px] ${isHistoryView ? "bg-slate-50 cursor-not-allowed opacity-80" : ""}`}
@@ -290,24 +297,30 @@ export default function StaffIncidentPage() {
 
           <Card className="border-slate-200 shadow-sm overflow-hidden flex flex-col gap-0">
             <CardHeader className="bg-white border-b border-slate-100 py-4 shrink-0">
-              <CardTitle className="text-md">Failed Items Details</CardTitle>
+              <CardTitle className="text-md">
+                {t("Failed Items Details")}
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-0 flex flex-col flex-1">
               <div className="[&>div]:max-h-[350px] [&>div]:min-h-[350px] [&>div]:overflow-y-auto">
                 <Table>
                   <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                     <TableRow>
-                      <TableHead className="pl-6 w-[25%]">Material</TableHead>
+                      <TableHead className="pl-6 w-[25%]">
+                        {t("Material")}
+                      </TableHead>
                       <TableHead className="w-[10%] text-center">
-                        Expected
+                        {t("Expected")}
                       </TableHead>
                       <TableHead className="w-[15%] text-center">
-                        Actual Received
+                        {t("Actual Received")}
                       </TableHead>
                       <TableHead className="w-[20%] text-center">
-                        Issue Type
+                        {t("Issue Type")}
                       </TableHead>
-                      <TableHead className="pr-6">Specific Notes</TableHead>
+                      <TableHead className="pr-6">
+                        {t("Specific Notes")}
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -326,7 +339,6 @@ export default function StaffIncidentPage() {
                       return (
                         <>
                           {paginatedIncidentItems.map((item, relativeIndex) => {
-                            // TÌM INDEX GỐC TRONG MẢNG `incidentItems` ĐỂ UPDATEITEM() HOẠT ĐỘNG ĐÚNG
                             const absoluteIdx = incidentItems.findIndex(
                               (i) => i.detailId === item.detailId,
                             );
@@ -352,7 +364,7 @@ export default function StaffIncidentPage() {
                                           {item.materialCode}
                                         </Badge>
                                         <span className="text-xs text-slate-400">
-                                          {item.unit || "Unit"}
+                                          {item.unit || t("Unit")}
                                         </span>
                                       </div>
                                     </div>
@@ -388,17 +400,19 @@ export default function StaffIncidentPage() {
                                     <SelectTrigger
                                       className={`h-9 w-full border-slate-300 ${isHistoryView ? "bg-slate-50 opacity-80" : ""}`}
                                     >
-                                      <SelectValue placeholder="Select type" />
+                                      <SelectValue
+                                        placeholder={t("Select type")}
+                                      />
                                     </SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="Quantity">
-                                        Missing Quantity
+                                        {t("Quantity")}
                                       </SelectItem>
                                       <SelectItem value="Quality">
-                                        Poor Quality
+                                        {t("Quality")}
                                       </SelectItem>
                                       <SelectItem value="Damage">
-                                        Damaged in Transit
+                                        {t("Damage")}
                                       </SelectItem>
                                     </SelectContent>
                                   </Select>
@@ -414,17 +428,13 @@ export default function StaffIncidentPage() {
                                       )
                                     }
                                     className={`h-9 ${isHistoryView ? "bg-slate-50 border-slate-200 opacity-80 pointer-events-none" : ""}`}
-                                    placeholder="Details..."
+                                    placeholder={t("Details...")}
                                     readOnly={isHistoryView}
                                   />
                                 </TableCell>
                               </TableRow>
                             );
                           })}
-
-                          {/* THANH PHÂN TRANG (Render ngay trong Tbody hoặc có thể bỏ ra ngoài nếu muốn) */}
-                          {/* Lưu ý: Trong React, đặt div trực tiếp vào TableBody thường gây lỗi cấu trúc HTML (trừ khi dùng <tr><td>). 
-                              Do đó ta sẽ đưa thanh phân trang ra phía dưới thẻ </div> bọc <Table>. */}
                         </>
                       );
                     })()}
@@ -441,12 +451,12 @@ export default function StaffIncidentPage() {
                 return totalTablePages > 1 ? (
                   <div className="px-6 py-3 flex items-center justify-between border-t border-slate-100 bg-slate-50/50 shrink-0 mt-auto">
                     <span className="text-xs text-slate-500">
-                      Showing {startTableIndex + 1}-
+                      {t("Showing")} {startTableIndex + 1}-
                       {Math.min(
                         startTableIndex + tableItemsPerPage,
                         incidentItems.length,
                       )}{" "}
-                      of {incidentItems.length}
+                      {t("of")} {incidentItems.length}
                     </span>
                     <div className="flex items-center gap-2">
                       <Button
@@ -456,7 +466,7 @@ export default function StaffIncidentPage() {
                         onClick={() => setTablePage((p) => Math.max(1, p - 1))}
                         disabled={tablePage === 1}
                       >
-                        <ChevronLeft className="w-3 h-3 mr-1" /> Prev
+                        <ChevronLeft className="w-3 h-3 mr-1" /> {t("Prev")}
                       </Button>
                       <span className="text-xs font-medium text-slate-600 w-10 text-center">
                         {tablePage} / {totalTablePages}
@@ -470,7 +480,7 @@ export default function StaffIncidentPage() {
                         }
                         disabled={tablePage === totalTablePages}
                       >
-                        Next <ChevronRight className="w-3 h-3 ml-1" />
+                        {t("Next")} <ChevronRight className="w-3 h-3 ml-1" />
                       </Button>
                     </div>
                   </div>

@@ -61,6 +61,7 @@ import { showConfirmToast } from "@/hooks/confirm-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 interface ConfirmItem {
   detailId: number;
@@ -77,6 +78,7 @@ interface ConfirmItem {
 }
 
 export default function StaffConfirmInboundPage() {
+  const { t } = useTranslation();
   const params = useParams();
   const router = useRouter();
   const id = Number(params.id);
@@ -232,12 +234,11 @@ export default function StaffConfirmInboundPage() {
         <Loader2 className="animate-spin" />
       </div>
     );
-
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title={`Final Confirm - #${receipt?.receiptCode}`} />
+        <Header title={`${t("Final Confirm")} - #${receipt?.receiptCode}`} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -247,11 +248,11 @@ export default function StaffConfirmInboundPage() {
                 onClick={() => router.push(`/staff/import-request/${id}`)}
                 className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit -ml-2 mb-1 h-8"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" /> Back to detail
+                <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to detail")}
               </Button>
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                  Final Confirm Inbound
+                  {t("Final Confirm Inbound")}
                 </h1>
                 {receipt?.warehouseName && (
                   <Badge
@@ -275,7 +276,7 @@ export default function StaffConfirmInboundPage() {
               ) : (
                 <CheckCircle className="w-4 h-4 mr-2" />
               )}
-              Confirm Inbound
+              {t("Confirm Inbound")}
             </Button>
           </div>
 
@@ -287,11 +288,14 @@ export default function StaffConfirmInboundPage() {
             />
             <div>
               <h3 className="font-bold text-sm">
-                {hasIncident ? "Incident Report Logged" : "Ready for Storage"}
+                {hasIncident
+                  ? t("Incident Report Logged")
+                  : t("Ready for Storage")}
               </h3>
               <p className="text-xs mt-1">
-                Please enter the actual quantities you are taking into the
-                warehouse and assign Bin/Batch locations.
+                {t(
+                  "Please enter the actual quantities you are taking into the warehouse and assign Bin/Batch locations.",
+                )}
               </p>
             </div>
           </div>
@@ -303,24 +307,26 @@ export default function StaffConfirmInboundPage() {
                   <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                     <TableRow>
                       <TableHead className="w-[20%] pl-6">
-                        Material Info
+                        {t("Material Info")}
                       </TableHead>
                       <TableHead className="w-[15%] text-center">
-                        Supplier
+                        {t("Supplier")}
                       </TableHead>
                       <TableHead className="w-[10%] text-center">
-                        Required
+                        {t("Required")}
                       </TableHead>
                       <TableHead className="w-[10%] text-center">
-                        Actual
+                        {t("Actual")}
                       </TableHead>
                       <TableHead className="w-[15%] text-center">
-                        Bin Location
+                        {t("Bin Location")}
                       </TableHead>
                       <TableHead className="w-[15%] text-center">
-                        Batch Info
+                        {t("Batch Info")}
                       </TableHead>
-                      <TableHead className="text-center">Image</TableHead>
+                      <TableHead className="text-center">
+                        {t("Image")}
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -392,7 +398,7 @@ export default function StaffConfirmInboundPage() {
                                   <div className="flex items-center justify-center gap-2">
                                     <Truck className="w-3 h-3 text-slate-400" />
                                     <span className="text-sm font-semibold text-slate-600 bg-slate-100 px-2 py-1 rounded text-center">
-                                      {item.supplierName || "N/A"}
+                                      {item.supplierName || t("N/A")}
                                     </span>
                                   </div>
                                 </TableCell>
@@ -431,7 +437,7 @@ export default function StaffConfirmInboundPage() {
                                     </div>
                                     {(isShort || isOver) && (
                                       <p className="text-[10px] text-center font-medium text-slate-500">
-                                        Diff: {actual - item.expectedQty}
+                                        {t("Diff")}: {actual - item.expectedQty}
                                       </p>
                                     )}
                                   </div>
@@ -451,7 +457,9 @@ export default function StaffConfirmInboundPage() {
                                     <SelectTrigger
                                       className={`h-9 text-md w-full ${!item.binLocationId ? "border-red-300 bg-red-50" : "border-slate-300"}`}
                                     >
-                                      <SelectValue placeholder="Select Bin" />
+                                      <SelectValue
+                                        placeholder={t("Select Bin")}
+                                      />
                                     </SelectTrigger>
                                     <SelectContent>
                                       {binLocations.map((bin) => (
@@ -474,7 +482,7 @@ export default function StaffConfirmInboundPage() {
                                       />
                                       <Input
                                         className={`h-9 text-xs pl-10 w-full ${!item.batchCode ? "border-red-300 bg-red-50" : "border-slate-300"}`}
-                                        placeholder="Batch Code"
+                                        placeholder={t("Batch Code")}
                                         value={item.batchCode}
                                         onChange={(e) =>
                                           updateConfirmItem(
@@ -503,7 +511,7 @@ export default function StaffConfirmInboundPage() {
                                                   new Date(item.mfgDate),
                                                   "dd/MM/yyyy",
                                                 )
-                                              : "MFG date"}
+                                              : t("MFG date")}
                                           </span>
                                         </Button>
                                       </PopoverTrigger>
@@ -555,17 +563,17 @@ export default function StaffConfirmInboundPage() {
                                     </DialogTrigger>
                                     {item.certificateImage ? (
                                       <div className="text-emerald-600 mt-1 text-xs font-semibold">
-                                        Attached
+                                        {t("Attached")}
                                       </div>
                                     ) : (
                                       <div className="text-red-500 mt-1 text-xs font-semibold">
-                                        No Image
+                                        {t("No Image")}
                                       </div>
                                     )}
                                     <DialogContent>
                                       <DialogHeader>
                                         <DialogTitle>
-                                          Certificate Image
+                                          {t("Certificate Image")}
                                         </DialogTitle>
                                       </DialogHeader>
                                       <div className="space-y-4">
@@ -596,7 +604,7 @@ export default function StaffConfirmInboundPage() {
                                               }
                                             >
                                               <Trash2 className="w-4 h-4 mr-2" />{" "}
-                                              Remove Image
+                                              {t("Remove Image")}
                                             </Button>
                                           </div>
                                         )}
@@ -614,7 +622,6 @@ export default function StaffConfirmInboundPage() {
                 </Table>
               </div>
 
-              {/* FOOTER ĐIỀU HƯỚNG */}
               {(() => {
                 const totalTablePages =
                   Math.ceil(confirmItems.length / tableItemsPerPage) || 1;
@@ -623,12 +630,12 @@ export default function StaffConfirmInboundPage() {
                 return totalTablePages > 1 ? (
                   <div className="px-6 py-3 flex items-center justify-between border-t border-slate-100 bg-slate-50/50 shrink-0 mt-auto">
                     <span className="text-xs text-slate-500">
-                      Showing {startTableIndex + 1}-
+                      {t("Showing")} {startTableIndex + 1}-
                       {Math.min(
                         startTableIndex + tableItemsPerPage,
                         confirmItems.length,
                       )}{" "}
-                      of {confirmItems.length}
+                      {t("of")} {confirmItems.length}
                     </span>
                     <div className="flex items-center gap-2">
                       <Button
@@ -638,7 +645,7 @@ export default function StaffConfirmInboundPage() {
                         onClick={() => setTablePage((p) => Math.max(1, p - 1))}
                         disabled={tablePage === 1}
                       >
-                        <ChevronLeft className="w-3 h-3 mr-1" /> Prev
+                        <ChevronLeft className="w-3 h-3 mr-1" /> {t("Prev")}
                       </Button>
                       <span className="text-xs font-medium text-slate-600 w-10 text-center">
                         {tablePage} / {totalTablePages}
@@ -652,7 +659,7 @@ export default function StaffConfirmInboundPage() {
                         }
                         disabled={tablePage === totalTablePages}
                       >
-                        Next <ChevronRight className="w-3 h-3 ml-1" />
+                        {t("Next")} <ChevronRight className="w-3 h-3 ml-1" />
                       </Button>
                     </div>
                   </div>

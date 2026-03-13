@@ -314,7 +314,8 @@ namespace Backend.Domains.Import.Services
                 .Select(m => new ImportItemDto
                 {
                     MaterialCode = m.Code,
-                    MaterialName = m.Name
+                    MaterialName = m.Name,
+                    Unit = m.Unit
                 })
                 .ToListAsync();
         }
@@ -641,7 +642,7 @@ namespace Backend.Domains.Import.Services
                                         .ThenInclude(rd => rd.Material)
                                         .Include(r => r.ReceiptDetails)
                                         .ThenInclude(rd => rd.Supplier)
-                            .Where(r => r.Status == "Approved" || r.Status == "Completed")
+                            .Where(r => r.Status == "Approved" || r.Status == "GoodsArrived" || r.Status == "Completed")
                             .OrderByDescending(r => r.ApprovedAt)
                             .Select(r => new GetInboundRequestListDto
                             {
@@ -733,7 +734,7 @@ namespace Backend.Domains.Import.Services
                 if (receipt == null)
                     throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
 
-                if (receipt.Status != "Approved")
+                if (receipt.Status != "GoodsArrived")
                     throw new InvalidOperationException("Receipt must be approved before confirmation");
 
                 if (receipt.Status == "Completed")

@@ -2,7 +2,9 @@ import axiosClient from "@/lib/axios-client";
 
 export interface ImportItemDto {
   materialCode: string | null;
+  materialName: string | null;
   quantity: number;
+  unit: string | null;
 }
 
 export interface CreateImportRequestDto {
@@ -18,6 +20,11 @@ export interface ImportRequestResultDto {
 export interface ImportExcelResponseDto {
   message: string;
   fileName: string;
+}
+
+export interface MaterialUnitResponseDto {
+  materialCode: string;
+  unit: string;
 }
 
 export const importApi = {
@@ -39,5 +46,15 @@ export const importApi = {
 
   getMyRequests: () => {
     return axiosClient.get<CreateImportRequestDto[]>("/Import/my-requests");
+  },
+
+  getMaterialUnit: (materialCode: string) => {
+    return axiosClient.get<MaterialUnitResponseDto>("/Import/material-unit", {
+      params: { materialCode }
+    });
+  },
+
+  getAllMaterialCodeAndName: () => {
+    return axiosClient.get<Record<string, string>>("/Import/material-codes-names");
   },
 };

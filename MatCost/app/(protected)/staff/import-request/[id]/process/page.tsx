@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { GetInboundRequestListDto, staffReceiptApi, SubmitQCCheckDto, QCCheckDto } from "@/services/receipt-service";
 import { toast } from "sonner";
 import { showConfirmToast } from "@/hooks/confirm-toast";
+import { useTranslation } from "react-i18next";
 
 interface QCItem {
   detailId: number;
@@ -27,6 +28,7 @@ interface QCItem {
 }
 
 export default function StaffQCCheckPage() {
+  const { t } = useTranslation();
   const params = useParams();
   const router = useRouter();
   const id = Number(params.id);
@@ -176,28 +178,27 @@ export default function StaffQCCheckPage() {
   const qcProgressPercent = qcItems.length > 0 ? (qcCheckedCount / qcItems.length) * 100 : 0;
 
   if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
-
-  return (
+return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title={`QC Check - Receipt #${receipt?.receiptCode}`} />
+        <Header title={`${t("QC Check - Receipt")} #${receipt?.receiptCode}`} />
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex flex-col gap-1">
               <Button variant="ghost" onClick={() => router.push(`/staff/import-request/${id}`)} className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit -ml-2 mb-1 h-8">
-                <ArrowLeft className="w-4 h-4 mr-2" /> Back to detail
+                <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to detail")}
               </Button>
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold text-slate-900">
-                    {isHistoryView ? "Quality Control Check Record" : "Quality Control Check"}
+                    {isHistoryView ? t("Quality Control Check Record") : t("Quality Control Check")}
                 </h1>
                 {/* Show overall result badge if in history mode */}
                 {isHistoryView && historicalQcData && (
-                     <Badge className={historicalQcData.overallResult === "Pass" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}>
-                         {historicalQcData.overallResult === "Pass" ? <CheckCircle className="w-3 h-3 mr-1"/> : <XCircle className="w-3 h-3 mr-1"/>}
-                         Overall: {historicalQcData.overallResult}
-                     </Badge>
+                      <Badge className={historicalQcData.overallResult === "Pass" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}>
+                          {historicalQcData.overallResult === "Pass" ? <CheckCircle className="w-3 h-3 mr-1"/> : <XCircle className="w-3 h-3 mr-1"/>}
+                          {t("Overall")}: {t(historicalQcData.overallResult)}
+                      </Badge>
                 )}
               </div>
             </div>
@@ -206,11 +207,11 @@ export default function StaffQCCheckPage() {
             {!isHistoryView ? (
                 <Button className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[150px]" onClick={handleSubmitQc} disabled={isSubmitting || qcCheckedCount < qcItems.length}>
                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                Submit QC Check
+                {t("Submit QC Check")}
                 </Button>
             ) : (
                 <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md" onClick={handleProceedFromHistory}>
-                  Proceed to Next Step <ChevronRight className="w-4 h-4 ml-2" />
+                  {t("Proceed to Next Step")} <ChevronRight className="w-4 h-4 ml-2" />
                 </Button>
             )}
           </div>
@@ -219,14 +220,14 @@ export default function StaffQCCheckPage() {
             <CardContent className="p-4 flex flex-col md:flex-row gap-6 items-center">
               <div className="flex-1 w-full space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="font-medium text-slate-700">QC Progress</span>
-                  <span className="text-slate-500">{qcCheckedCount} / {qcItems.length} checked</span>
+                  <span className="font-medium text-slate-700">{t("QC Progress")}</span>
+                  <span className="text-slate-500">{qcCheckedCount} / {qcItems.length} {t("checked")}</span>
                 </div>
                 <Progress value={qcProgressPercent} className="h-2" />
               </div>
               <div className="w-full md:w-1/3 relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-                <Input placeholder="Find material..." className="pl-9" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <Input placeholder={t("Find material...")} className="pl-9" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
             </CardContent>
           </Card>
@@ -237,10 +238,10 @@ export default function StaffQCCheckPage() {
                 <Table>
                   <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                     <TableRow>
-                      <TableHead className="w-[30%] pl-6">Material Info</TableHead>
-                      <TableHead className="w-[15%] text-center">Expected Qty</TableHead>
-                      <TableHead className="w-[20%] text-center">QC Result</TableHead>
-                      <TableHead className="w-[35%]">Fail Reason</TableHead>
+                      <TableHead className="w-[30%] pl-6">{t("Material Info")}</TableHead>
+                      <TableHead className="w-[15%] text-center">{t("Expected Qty")}</TableHead>
+                      <TableHead className="w-[20%] text-center">{t("QC Result")}</TableHead>
+                      <TableHead className="w-[35%]">{t("Fail Reason")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -256,25 +257,25 @@ export default function StaffQCCheckPage() {
                           <TableCell className="text-center">
                             <Select value={item.result} onValueChange={(val: "Pass" | "Fail") => updateQcItem(absoluteIdx, "result", val)} disabled={isHistoryView}>
                               <SelectTrigger className={`mx-auto w-[120px] ${item.result === "Pass" ? "text-emerald-700 bg-emerald-100 border-emerald-200 opacity-100" : item.result === "Fail" ? "text-red-700 bg-red-100 border-red-200 opacity-100" : ""}`}>
-                                <SelectValue placeholder="Select..." />
+                                <SelectValue placeholder={t("Select...")} />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="Pass" className="text-emerald-600 font-medium">Pass</SelectItem>
-                                <SelectItem value="Fail" className="text-red-600 font-medium">Fail</SelectItem>
+                                <SelectItem value="Pass" className="text-emerald-600 font-medium">{t("Pass")}</SelectItem>
+                                <SelectItem value="Fail" className="text-red-600 font-medium">{t("Fail")}</SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>
                           <TableCell className="pr-6">
                             {item.result === "Fail" ? (
                               <Input 
-                                placeholder="Enter reason for failure..." 
+                                placeholder={t("Enter reason for failure...")} 
                                 value={item.failReason} 
                                 onChange={(e) => updateQcItem(absoluteIdx, "failReason", e.target.value)} 
                                 className={`border-red-300 focus-visible:ring-red-400 ${isHistoryView ? "opacity-100 bg-white" : ""}`}
                                 readOnly={isHistoryView}
                               />
                             ) : (
-                              <span className="text-xs text-slate-400 italic">Not required</span>
+                              <span className="text-xs text-slate-400 italic">{t("Not required")}</span>
                             )}
                           </TableCell>
                         </TableRow>
@@ -285,7 +286,7 @@ export default function StaffQCCheckPage() {
               </div>
               {totalTablePages > 1 && (
                 <div className="px-6 py-3 flex items-center justify-between border-t border-slate-100 bg-slate-50/50 mt-auto">
-                  <span className="text-xs text-slate-500">Showing {startTableIndex + 1}-{Math.min(startTableIndex + tableItemsPerPage, filteredQcItems.length)} of {filteredQcItems.length}</span>
+                  <span className="text-xs text-slate-500">{t("Showing")} {startTableIndex + 1}-{Math.min(startTableIndex + tableItemsPerPage, filteredQcItems.length)} {t("of")} {filteredQcItems.length}</span>
                   <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => setTablePage(p => Math.max(1, p - 1))} disabled={tablePage === 1}><ChevronLeft className="w-3 h-3" /></Button>
                     <span className="text-xs font-medium w-8 text-center">{tablePage}/{totalTablePages}</span>

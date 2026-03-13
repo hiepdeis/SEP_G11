@@ -44,12 +44,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { endOfDay, format, isWithinInterval, startOfDay } from "date-fns";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 export default function ImportApprovalListPage() {
   const router = useRouter();
+  const { t } = useTranslation();
 
   const [requests, setRequests] = useState<ReceiptSummaryDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -133,7 +139,7 @@ export default function ImportApprovalListPage() {
     let matchesDate = true;
     if (dateRange.from || dateRange.to) {
       if (!item.receiptDate) {
-        matchesDate = false; 
+        matchesDate = false;
       } else {
         const itemDate = new Date(item.receiptDate);
 
@@ -209,26 +215,35 @@ export default function ImportApprovalListPage() {
     return new Date(dateString).toLocaleDateString("vi-VN");
   };
 
+  const formatPlus = (num: number) => (num > 999 ? "999+" : num);
+
+  const pendingCount = requests.filter(
+    (item) => item.status === "Requested",
+  ).length;
+  const draftCount = requests.filter((item) => item.status === "Draft").length;
+  const rejectCount = requests.filter(
+    (item) => item.status === "Rejected",
+  ).length;
+
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title="Accountant Dashboard"></Header>
+        <Header title={t("Accountant Dashboard")}></Header>
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                Inbound Approvals
+                {t("Inbound Approvals")}
               </h1>
               <p className="text-sm text-slate-500">
-                Select a supplier and pricing for requested materials.
+                {t("Select a supplier and pricing for requested materials.")}
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Các thẻ tổng quan (Giữ nguyên) */}
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 bg-yellow-100 text-yellow-600 rounded-lg">
@@ -236,44 +251,42 @@ export default function ImportApprovalListPage() {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    Pending Requests
+                    {t("Pending Requests")}
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {
-                      requests.filter((item) => item.status === "Requested")
-                        .length
-                    }
+                    {formatPlus(pendingCount)}
                   </h3>
                 </div>
               </CardContent>
             </Card>
+
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 bg-slate-100 text-slate-600 rounded-lg">
                   <File className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-sm text-slate-500 font-medium">Drafts</p>
+                  <p className="text-sm text-slate-500 font-medium">
+                    {t("Drafts")}
+                  </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {" "}
-                    {requests.filter((item) => item.status === "Draft").length}
+                    {formatPlus(draftCount)}
                   </h3>
                 </div>
               </CardContent>
             </Card>
+
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 bg-red-100 text-red-600 rounded-lg">
                   <BadgeX className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-sm text-slate-500 font-medium">Rejects</p>
+                  <p className="text-sm text-slate-500 font-medium">
+                    {t("Rejects")}
+                  </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {" "}
-                    {
-                      requests.filter((item) => item.status === "Rejected")
-                        .length
-                    }
+                    {formatPlus(rejectCount)}
                   </h3>
                 </div>
               </CardContent>
@@ -285,7 +298,7 @@ export default function ImportApprovalListPage() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="text-sm font-medium text-slate-500 hidden md:block">
-                    Filters:
+                    {t("Filters")}:
                   </span>
 
                   <Select
@@ -300,14 +313,16 @@ export default function ImportApprovalListPage() {
                     ) => setFilterStatus(value)}
                   >
                     <SelectTrigger className="w-[150px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
-                      <SelectValue placeholder="Filter by status" />
+                      <SelectValue placeholder={t("Filter by status")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Requested">Requested</SelectItem>
-                      <SelectItem value="Draft">Draft</SelectItem>
-                      <SelectItem value="Rejected">Rejected</SelectItem>
-                      <SelectItem value="History">History</SelectItem>
-                      <SelectItem value="All">All</SelectItem>
+                      <SelectItem value="Requested">
+                        {t("Requested")}
+                      </SelectItem>
+                      <SelectItem value="Draft">{t("Draft")}</SelectItem>
+                      <SelectItem value="Rejected">{t("Rejected")}</SelectItem>
+                      <SelectItem value="History">{t("History")}</SelectItem>
+                      <SelectItem value="All">{t("All")}</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -325,7 +340,7 @@ export default function ImportApprovalListPage() {
                           {dateRange.from ? (
                             format(dateRange.from, "dd/MM/yyyy")
                           ) : (
-                            <span>From Date</span>
+                            <span>{t("From Date")}</span>
                           )}
                         </Button>
                       </PopoverTrigger>
@@ -356,7 +371,7 @@ export default function ImportApprovalListPage() {
                           {dateRange.to ? (
                             format(dateRange.to, "dd/MM/yyyy")
                           ) : (
-                            <span>To Date</span>
+                            <span>{t("To Date")}</span>
                           )}
                         </Button>
                       </PopoverTrigger>
@@ -384,17 +399,16 @@ export default function ImportApprovalListPage() {
                           setDateRange({ from: undefined, to: undefined })
                         }
                       >
-                        <Delete className="h-4 w-4"/>
+                        <Delete className="h-4 w-4" />
                       </Button>
                     )}
                   </div>
                 </div>
 
-                {/* NHÓM BÊN PHẢI: TÌM KIẾM */}
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                   <Input
-                    placeholder="Search Receipt Code..."
+                    placeholder={t("Search Receipt Code...")}
                     className="pl-9 h-9"
                     maxLength={50}
                     value={searchTerm}
@@ -413,7 +427,7 @@ export default function ImportApprovalListPage() {
                         onClick={() => handleSort("date")}
                       >
                         <div className="flex items-center gap-1.5 select-none">
-                          Receipt & Date
+                          {t("Receipt & Date")}
                           {sortConfig?.key === "date" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
@@ -426,15 +440,14 @@ export default function ImportApprovalListPage() {
                         </div>
                       </TableHead>
 
-                      <TableHead>Requester</TableHead>
+                      <TableHead>{t("Requester")}</TableHead>
 
-                      {/* Cột Items: Cho phép click để sort theo số lượng */}
                       <TableHead
                         className="cursor-pointer transition-colors"
                         onClick={() => handleSort("items")}
                       >
                         <div className="flex items-center gap-1.5 select-none">
-                          Items
+                          {t("Items")}
                           {sortConfig?.key === "items" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
@@ -447,11 +460,13 @@ export default function ImportApprovalListPage() {
                         </div>
                       </TableHead>
 
-                      <TableHead>Status</TableHead>
+                      <TableHead>{t("Status")}</TableHead>
                       {filterStatus == "Rejected" && (
-                        <TableHead>Reject Reasons</TableHead>
+                        <TableHead>{t("Reject Reasons")}</TableHead>
                       )}
-                      <TableHead className="text-right pr-6">Action</TableHead>
+                      <TableHead className="text-right pr-6">
+                        {t("Action")}
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -459,8 +474,8 @@ export default function ImportApprovalListPage() {
                       <TableRow>
                         <TableCell colSpan={6} className="h-32 text-center">
                           <div className="flex justify-center items-center gap-2 text-indigo-600">
-                            <Loader2 className="w-6 h-6 animate-spin" /> Loading
-                            data...
+                            <Loader2 className="w-6 h-6 animate-spin" />{" "}
+                            {t("Loading data...")}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -470,7 +485,7 @@ export default function ImportApprovalListPage() {
                           colSpan={6}
                           className="h-32 text-center text-slate-500"
                         >
-                          No pending requests found.
+                          {t("No pending requests found.")}
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -496,14 +511,14 @@ export default function ImportApprovalListPage() {
                                 {item.createdByName}
                               </span>
                               <span className="text-xs text-slate-400">
-                                Construction Team
+                                {t("Construction Team")}
                               </span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2 text-slate-600">
                               <Package className="w-4 h-4 text-slate-400" />
-                              {item.itemCount} items
+                              {item.itemCount} {t("items")}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -519,14 +534,14 @@ export default function ImportApprovalListPage() {
                                       : "bg-gray-50 text-gray-700 border-gray-200"
                               }
                             >
-                              {item.status}
+                              {t(item.status)}
                             </Badge>
                           </TableCell>
                           {filterStatus == "Rejected" && (
                             <TableCell>
                               <div className="flex items-center gap-2 text-slate-600 max-w-xs truncate">
-                                {/* Thêm truncate nếu lý do quá dài */}
-                                {item.rejectionReason || "No reason provided"}
+                                {item.rejectionReason ||
+                                  t("No reason provided")}
                               </div>
                             </TableCell>
                           )}
@@ -555,16 +570,16 @@ export default function ImportApprovalListPage() {
                                 <Loader2 className="w-4 h-4 animate-spin" />
                               ) : item.status === "Rejected" ? (
                                 <>
-                                  Revert to Draft{" "}
+                                  {t("Revert to Draft")}{" "}
                                   <RotateCcw className="w-4 h-4 ml-1.5" />
                                 </>
                               ) : item.status === "Submitted" ? (
                                 <>
-                                  View <Eye className="w-4 h-4 ml-1.5" />
+                                  {t("View")} <Eye className="w-4 h-4 ml-1.5" />
                                 </>
                               ) : (
                                 <>
-                                  Process{" "}
+                                  {t("Process")}{" "}
                                   <ArrowRight className="w-4 h-4 ml-1.5" />
                                 </>
                               )}
@@ -577,29 +592,28 @@ export default function ImportApprovalListPage() {
                 </Table>
               </div>
 
-              {/* THÊM KHỐI CONTROLS PHÂN TRANG (PAGINATION) Ở ĐÂY */}
               {!isLoading && filteredData.length > 0 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 gap-4">
                   <div className="text-sm text-slate-500">
-                    Showing{" "}
+                    {t("Showing")}{" "}
                     <span className="font-medium text-slate-900">
                       {startIndex + 1}
                     </span>{" "}
-                    to{" "}
+                    {t("to")}{" "}
                     <span className="font-medium text-slate-900">
                       {Math.min(endIndex, filteredData.length)}
                     </span>{" "}
-                    of{" "}
+                    {t("of")}{" "}
                     <span className="font-medium text-slate-900">
                       {filteredData.length}
                     </span>{" "}
-                    results
+                    {t("results")}
                   </div>
 
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-slate-500 whitespace-nowrap">
-                        Rows per page:
+                        {t("Rows per page:")}
                       </span>
                       <Select
                         value={itemsPerPage.toString()}
@@ -614,12 +628,11 @@ export default function ImportApprovalListPage() {
                           <SelectItem value="20">20</SelectItem>
                           <SelectItem value="50">50</SelectItem>
                           <SelectItem value="100">100</SelectItem>
-                          <SelectItem value="-1">All</SelectItem>
+                          <SelectItem value="-1">{t("All")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
-                    {/* Các nút chuyển trang */}
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
@@ -630,10 +643,10 @@ export default function ImportApprovalListPage() {
                         disabled={currentPage === 1}
                         className="h-8"
                       >
-                        <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                        <ChevronLeft className="w-4 h-4 mr-1" /> {t("Previous")}
                       </Button>
                       <div className="text-sm font-medium text-slate-600 px-2 min-w-[80px] text-center">
-                        Page {currentPage} of {totalPages}
+                        {t("Page")} {currentPage} {t("of")} {totalPages}
                       </div>
                       <Button
                         variant="outline"
@@ -646,7 +659,7 @@ export default function ImportApprovalListPage() {
                         disabled={currentPage === totalPages}
                         className="h-8"
                       >
-                        Next <ChevronRight className="w-4 h-4 ml-1" />
+                        {t("Next")} <ChevronRight className="w-4 h-4 ml-1" />
                       </Button>
                     </div>
                   </div>

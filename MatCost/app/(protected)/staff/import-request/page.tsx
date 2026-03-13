@@ -22,6 +22,7 @@ import {
   ArrowDown,
   ArrowUpDown,
   Delete,
+  FolderInput,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,8 +55,10 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 export default function StaffInboundPage() {
+  const { t } = useTranslation();
   const router = useRouter();
 
   const [requests, setRequests] = useState<GetInboundRequestListDto[]>([]);
@@ -64,7 +67,7 @@ export default function StaffInboundPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const [filterStatus, setFilterStatus] = useState<
-    "All" | "Approved" | "Completed"
+    "All" | "Approved" | "GoodsArrived" | "Completed"
   >("Approved");
 
   const [dateRange, setDateRange] = useState<{
@@ -196,25 +199,40 @@ export default function StaffInboundPage() {
     });
   };
 
+  const approvedCount = requests.filter((r) => r.status === "Approved").length;
+  const goodsArrivedCount = requests.filter(
+    (r) => r.status === "GoodsArrived",
+  ).length;
+  const totalQuantityCount = requests.reduce(
+    (sum, item) => sum + (item.totalQuantity || 0),
+    0,
+  );
+  const totalReceiptApprovalDate = requests.filter((item) => {
+    if (!item.receiptApprovalDate) return false;
+    const date = new Date(item.receiptApprovalDate);
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  }).length;
+
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title="Warehouse Dashboard" />
+        <Header title={t("Warehouse Dashboard")} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div className="flex flex-col gap-1">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Inbound Requests
+              {t("Inbound Requests")}
             </h1>
             <p className="text-sm text-slate-500">
-              Approved receipts waiting for physical inventory check and
-              confirmation.
+              {t(
+                "Approved receipts waiting for physical inventory check and confirmation.",
+              )}
             </p>
           </div>
 
-          {/* KPI Cards (Giữ nguyên) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg">
@@ -222,11 +240,10 @@ export default function StaffInboundPage() {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    Pending Shipments
+                    {t("Pending Shipments")}
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {requests.filter((r) => r.status === "Approved").length}{" "}
-                    {/* Cập nhật đếm số lượng pending */}
+                    {approvedCount > 999 ? "999+" : approvedCount}
                   </h3>
                 </div>
               </CardContent>
@@ -235,16 +252,30 @@ export default function StaffInboundPage() {
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 bg-amber-100 text-amber-600 rounded-lg">
+                  <FolderInput className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500 font-medium">
+                    {t("Pending Inbound")}
+                  </p>
+                  <h3 className="text-2xl font-bold text-slate-900">
+                    {goodsArrivedCount > 999 ? "999+" : goodsArrivedCount}
+                  </h3>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="p-3 bg-slate-100 text-slate-600 rounded-lg">
                   <Package className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    Total Items Quantity
+                    {t("Total Items Quantity")}
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {requests
-                      .reduce((sum, item) => sum + (item.totalQuantity || 0), 0)
-                      .toLocaleString("vi-VN")}
+                    {totalQuantityCount > 999 ? "999+" : totalQuantityCount}
                   </h3>
                 </div>
               </CardContent>
@@ -257,17 +288,12 @@ export default function StaffInboundPage() {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    Approved Today
+                    {t("Approved Today")}
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {
-                      requests.filter((item) => {
-                        if (!item.receiptApprovalDate) return false;
-                        const date = new Date(item.receiptApprovalDate);
-                        const today = new Date();
-                        return date.toDateString() === today.toDateString();
-                      }).length
-                    }
+                    {totalReceiptApprovalDate > 999
+                      ? "999+"
+                      : totalReceiptApprovalDate}
                   </h3>
                 </div>
               </CardContent>
@@ -279,22 +305,27 @@ export default function StaffInboundPage() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="text-sm font-medium text-slate-500 hidden md:block">
-                    Filters:
+                    {t("Filters")}:
                   </span>
 
                   <Select
                     value={filterStatus}
-                    onValueChange={(value: "Approved" | "Completed" | "All") =>
-                      setFilterStatus(value)
-                    }
+                    onValueChange={(
+                      value: "Approved" | "GoodsArrived" | "Completed" | "All",
+                    ) => setFilterStatus(value)}
                   >
                     <SelectTrigger className="w-[140px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
-                      <SelectValue placeholder="Status" />
+                      <SelectValue placeholder={t("Status")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Approved">Approved</SelectItem>
-                      <SelectItem value="Completed">Completed</SelectItem>
-                      <SelectItem value="All">All</SelectItem>
+                      <SelectItem value="Approved">{t("Approved")}</SelectItem>
+                      <SelectItem value="GoodsArrived">
+                        {t("Goods Arrived")}
+                      </SelectItem>
+                      <SelectItem value="Completed">
+                        {t("Completed")}
+                      </SelectItem>
+                      <SelectItem value="All">{t("All")}</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -314,7 +345,7 @@ export default function StaffInboundPage() {
                           {dateRange.from ? (
                             format(dateRange.from, "dd/MM/yyyy")
                           ) : (
-                            <span>From Date</span>
+                            <span>{t("From Date")}</span>
                           )}
                         </Button>
                       </PopoverTrigger>
@@ -346,7 +377,7 @@ export default function StaffInboundPage() {
                           {dateRange.to ? (
                             format(dateRange.to, "dd/MM/yyyy")
                           ) : (
-                            <span>To Date</span>
+                            <span>{t("To Date")}</span>
                           )}
                         </Button>
                       </PopoverTrigger>
@@ -375,7 +406,7 @@ export default function StaffInboundPage() {
                           setDateRange({ from: undefined, to: undefined })
                         }
                       >
-                        <Delete className="h-4 w-4"/>
+                        <Delete className="h-4 w-4" />
                       </Button>
                     )}
                   </div>
@@ -385,7 +416,7 @@ export default function StaffInboundPage() {
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                   <Input
-                    placeholder="Search Code or Warehouse..."
+                    placeholder={t("Search Code or Warehouse...")}
                     className="pl-9 h-9"
                     maxLength={50}
                     value={searchTerm}
@@ -399,8 +430,10 @@ export default function StaffInboundPage() {
                 <Table>
                   <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                     <TableRow className="bg-slate-50">
-                      <TableHead className="pl-6">Receipt Code</TableHead>
-                      <TableHead>Warehouse</TableHead>
+                      <TableHead className="pl-6">
+                        {t("Receipt Code")}
+                      </TableHead>
+                      <TableHead>{t("Warehouse")}</TableHead>
 
                       {/* Cột Approval Date: Click để sort theo date */}
                       <TableHead
@@ -408,7 +441,7 @@ export default function StaffInboundPage() {
                         onClick={() => handleSort("date")}
                       >
                         <div className="flex items-center justify-center gap-1.5 select-none">
-                          Approval Date
+                          {t("Approval Date")}
                           {sortConfig?.key === "date" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
@@ -427,7 +460,7 @@ export default function StaffInboundPage() {
                         onClick={() => handleSort("total")}
                       >
                         <div className="flex items-center justify-center gap-1.5 select-none">
-                          Total Quantity
+                          {t("Total Quantity")}
                           {sortConfig?.key === "total" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
@@ -440,8 +473,12 @@ export default function StaffInboundPage() {
                         </div>
                       </TableHead>
 
-                      <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-right pr-6">Action</TableHead>
+                      <TableHead className="text-center">
+                        {t("Status")}
+                      </TableHead>
+                      <TableHead className="text-right pr-6">
+                        {t("Action")}
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -449,8 +486,8 @@ export default function StaffInboundPage() {
                       <TableRow>
                         <TableCell colSpan={6} className="h-32 text-center">
                           <div className="flex justify-center items-center gap-2 text-indigo-600">
-                            <Loader2 className="w-6 h-6 animate-spin" /> Loading
-                            inbound requests...
+                            <Loader2 className="w-6 h-6 animate-spin" />{" "}
+                            {t("Loading inbound requests...")}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -462,7 +499,7 @@ export default function StaffInboundPage() {
                         >
                           <div className="flex flex-col items-center justify-center gap-2">
                             <AlertCircle className="w-8 h-8 text-slate-300" />
-                            <p>No requests found for this filter.</p>
+                            <p>{t("No requests found for this filter.")}</p>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -481,7 +518,7 @@ export default function StaffInboundPage() {
                           <TableCell>
                             <div className="flex items-center gap-2 text-slate-600">
                               <MapPin className="w-4 h-4 text-slate-400" />
-                              {item.warehouseName || "N/A"}
+                              {item.warehouseName || t("N/A")}
                             </div>
                           </TableCell>
 
@@ -501,7 +538,6 @@ export default function StaffInboundPage() {
                             </div>
                           </TableCell>
 
-                          {/* 5. CẬP NHẬT MÀU STATUS ĐỘNG THEO API */}
                           <TableCell className="text-center">
                             <Badge
                               variant="outline"
@@ -510,10 +546,14 @@ export default function StaffInboundPage() {
                                   ? "bg-blue-50 text-blue-700 border-blue-200"
                                   : item.status === "Approved"
                                     ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                    : "bg-slate-50 text-slate-700 border-slate-200"
+                                    : item.status === "GoodsArrived"
+                                      ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                      : "bg-slate-50 text-slate-700 border-slate-200"
                               }
                             >
-                              {item.status}
+                              {item.status === "GoodsArrived"
+                                ? t("Goods Arrived")
+                                : t(item.status)}
                             </Badge>
                           </TableCell>
 
@@ -538,11 +578,11 @@ export default function StaffInboundPage() {
                                 <Loader2 className="w-4 h-4 animate-spin" />
                               ) : item.status === "Completed" ? (
                                 <>
-                                  View <Eye className="w-4 h-4 ml-1.5" />
+                                  {t("View")} <Eye className="w-4 h-4 ml-1.5" />
                                 </>
                               ) : (
                                 <>
-                                  Process{" "}
+                                  {t("Process")}{" "}
                                   <ArrowRight className="w-4 h-4 ml-1.5" />
                                 </>
                               )}
@@ -559,25 +599,25 @@ export default function StaffInboundPage() {
               {!isLoading && filteredData.length > 0 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 gap-4">
                   <div className="text-sm text-slate-500">
-                    Showing{" "}
+                    {t("Showing")}{" "}
                     <span className="font-medium text-slate-900">
                       {startIndex + 1}
                     </span>{" "}
-                    to{" "}
+                    {t("to")}{" "}
                     <span className="font-medium text-slate-900">
                       {Math.min(endIndex, filteredData.length)}
                     </span>{" "}
-                    of{" "}
+                    {t("of")}{" "}
                     <span className="font-medium text-slate-900">
                       {filteredData.length}
                     </span>{" "}
-                    results
+                    {t("results")}
                   </div>
 
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-slate-500 whitespace-nowrap">
-                        Rows per page:
+                        {t("Rows per page")}:
                       </span>
                       <Select
                         value={itemsPerPage.toString()}
@@ -592,7 +632,7 @@ export default function StaffInboundPage() {
                           <SelectItem value="20">20</SelectItem>
                           <SelectItem value="50">50</SelectItem>
                           <SelectItem value="100">100</SelectItem>
-                          <SelectItem value="-1">All</SelectItem>
+                          <SelectItem value="-1">{t("All")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -608,10 +648,10 @@ export default function StaffInboundPage() {
                         disabled={currentPage === 1}
                         className="h-8"
                       >
-                        <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                        <ChevronLeft className="w-4 h-4 mr-1" /> {t("Previous")}
                       </Button>
                       <div className="text-sm font-medium text-slate-600 px-2 min-w-[80px] text-center">
-                        Page {currentPage} of {totalPages}
+                        {t("Page")} {currentPage} {t("of")} {totalPages}
                       </div>
                       <Button
                         variant="outline"
@@ -624,7 +664,7 @@ export default function StaffInboundPage() {
                         disabled={currentPage === totalPages}
                         className="h-8"
                       >
-                        Next <ChevronRight className="w-4 h-4 ml-1" />
+                        {t("Next")} <ChevronRight className="w-4 h-4 ml-1" />
                       </Button>
                     </div>
                   </div>

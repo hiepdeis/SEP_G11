@@ -1,17 +1,23 @@
 "use client";
 
-import { User, Settings, LogOut } from "lucide-react";
+import { User, Settings, LogOut, Globe } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuPortal,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
 import { setAccessToken } from "@/lib/axios-client";
 import Link from "next/link";
 import { authApi } from "@/services/auth-service";
+import i18n from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 interface UserDropdownProps {
   trigger: React.ReactNode;
   align?: "center" | "start" | "end";
@@ -25,6 +31,7 @@ export function UserDropdown({
   side = "bottom",
   className,
 }: UserDropdownProps) {
+  const { t } = useTranslation();
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -66,10 +73,28 @@ export function UserDropdown({
           </Link>
         </DropdownMenuItem>
 
-        <DropdownMenuItem className="cursor-pointer rounded-lg group focus:bg-indigo-600 focus:text-white">
-          <Settings className="mr-2 h-4 w-4 text-slate-500 group-focus:text-white transition-colors" />
-          <span>Preferences</span>
-        </DropdownMenuItem>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="cursor-pointer rounded-lg group focus:bg-indigo-600 focus:text-white">
+            <Globe className="mr-2 h-4 w-4 text-slate-500 group-focus:text-white transition-colors" />
+            <span>{t("Language") || "Language"}</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent className="min-w-[150px] rounded-xl shadow-lg">
+              <DropdownMenuItem
+                className={`cursor-pointer rounded-lg ${i18n.language === "en" ? "bg-indigo-50 text-indigo-700 font-semibold" : ""}`}
+                onClick={() => i18n.changeLanguage("en")}
+              >
+                English
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={`cursor-pointer rounded-lg ${i18n.language === "vi" ? "bg-indigo-50 text-indigo-700 font-semibold" : ""}`}
+                onClick={() => i18n.changeLanguage("vi")}
+              >
+                Tiếng Việt
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
 
         <DropdownMenuSeparator className="bg-slate-100" />
 
