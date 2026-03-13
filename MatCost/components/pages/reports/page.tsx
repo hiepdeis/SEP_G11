@@ -52,7 +52,7 @@ const REPORTS = [
     icon: FileSpreadsheet,
     color: "text-green-600",
     bg: "bg-green-100",
-    url: "report/import-export",
+    url: "reports/import-export",
   },
   {
     id: "RPT-003",
@@ -74,7 +74,7 @@ const REPORTS = [
   },
 ];
 
-export default function ReportCenterPage() {
+export default function ReportCenterPage({ role }: { role: string }) {
   const [isExporting, setIsExporting] = useState(false);
   const router = useRouter();
 

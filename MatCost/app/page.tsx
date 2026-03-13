@@ -110,7 +110,7 @@ export default function LoginPage() {
             </p>
 
             {/* Google Sign In Button */}
-            <div className="cursor-pointer">
+            <div className="cursor-pointer mb-5">
               <GoogleSignInButton
                 isLoading={isLoading}
                 onClick={handleGoogleSignIn}

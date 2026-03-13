@@ -36,8 +36,8 @@ namespace Backend.Domains.Import.Services
                 throw new Exception($"Cannot create draft. Current status: {receipt.Status}");
 
             // Step 3: Update receipt
-            if (dto.WarehouseId.HasValue && dto.WarehouseId.Value > 0) receipt.WarehouseId = dto.WarehouseId; 
-            
+            if (dto.WarehouseId.HasValue && dto.WarehouseId.Value > 0) receipt.WarehouseId = dto.WarehouseId;
+
             receipt.Status = "Draft";
             receipt.AccountantNotes = dto.Notes;
 
@@ -106,26 +106,6 @@ namespace Backend.Domains.Import.Services
                 .ToList();
 
             return result;
-        }
-
-        // Get all receipts created by the current user (Suveyors)
-        public async Task<List<CreateImportRequestDto>> GetMyRequestsAsync(int userId)
-        {
-            var receipts = await _context.Receipts
-                .Include(r => r.ReceiptDetails)
-                    .ThenInclude(rd => rd.Material)
-                .Include(r => r.Warehouse)
-                .Where(r => r.CreatedBy == userId)
-                .OrderByDescending(r => r.ReceiptDate)
-                .Select(r => new CreateImportRequestDto
-                {
-                    Items = r.ReceiptDetails.Select(rd => new ImportItemDto
-                    {
-                        MaterialCode = rd.Material != null ? rd.Material.Code : "",
-                        Quantity = rd.Quantity
-                    }).ToList()
-                }).ToListAsync();
-            return receipts;
         }
 
         // Get all receipts that are REQUESTED status
@@ -305,6 +285,55 @@ namespace Backend.Domains.Import.Services
         #endregion
 
         #region Construction Methods
+
+        // Get all receipts created by the current user (Suveyors)
+        public async Task<List<CreateImportRequestDto>> GetMyRequestsAsync(int userId)
+        {
+            var receipts = await _context.Receipts
+                .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.Material)
+                .Include(r => r.Warehouse)
+                .Where(r => r.CreatedBy == userId)
+                .OrderByDescending(r => r.ReceiptDate)
+                .Select(r => new CreateImportRequestDto
+                {
+                    Items = r.ReceiptDetails.Select(rd => new ImportItemDto
+                    {
+                        MaterialCode = rd.Material != null ? rd.Material.Code : "",
+                        MaterialName = rd.Material != null ? rd.Material.Name : "",
+                        Quantity = rd.Quantity,
+                        Unit = rd.Material != null ? rd.Material.Unit : ""
+                    }).ToList()
+                }).ToListAsync();
+            return receipts;
+        }
+
+        public async Task<List<ImportItemDto>> GetAllMaterialCodeAndNameAsync()
+        {
+            return await _context.Materials
+                .Select(m => new ImportItemDto
+                {
+                    MaterialCode = m.Code,
+                    MaterialName = m.Name,
+                    Unit = m.Unit
+                })
+                .ToListAsync();
+        }
+
+        public async Task<string> GetMaterialUnitByMaterialCodeAsync(string materialCode)
+        {
+            var material = await _context.Materials
+                .FirstOrDefaultAsync(m => m.Code == materialCode);
+
+            if (material == null)
+                throw new KeyNotFoundException($"Material with code '{materialCode}' not found");
+
+            if (string.IsNullOrEmpty(material.Unit))
+                throw new Exception($"Material with code '{materialCode}' does not have a defined unit");
+
+            return material.Unit;
+        }
+
         public async Task ImportFromExcelAsync(Stream fileStream, int warehouseId, int currentUserId)
         {
             using (var package = new ExcelPackage(fileStream))
@@ -345,7 +374,32 @@ namespace Backend.Domains.Import.Services
             // Step 2: Dictionary to map MaterialCode to MaterialId
             var materialDictionary = await _context.Materials
                 .Where(m => materialCodes.Contains(m.Code))
-                .ToDictionaryAsync(m => m.Code, m => m.MaterialId);
+                .ToDictionaryAsync(m => m.Code, m => m);
+
+            // Step 2.5: Validate that all material codes exist in the system
+            var validationErrors = new List<string>();
+
+            foreach (var item in dto.Items)
+            {
+                if (!materialDictionary.TryGetValue(item.MaterialCode, out var material))
+                {
+                    validationErrors.Add($"Material code '{item.MaterialCode}' not found in the system.");
+                    continue; // Skip further validation for this item since material is not found
+                }
+                if (item.Quantity <= 0)
+                {
+                    validationErrors.Add($"Quantity for material code '{item.MaterialCode}' must be greater than zero.");
+                }
+                if (!material.IsDecimalUnit && item.Quantity != Math.Floor(item.Quantity))
+                {
+                    validationErrors.Add(
+                        $"Material '{item.MaterialCode}' ({material.Name}) does not support decimal quantity. " +
+                        $"Received: {item.Quantity}, expected a whole number (e.g. {Math.Floor(item.Quantity)})");
+                }
+            }
+
+            if (validationErrors.Any())
+                throw new ArgumentException(string.Join("; ", validationErrors));
 
             // Step 3: Generate unique ReceiptCode
             var receiptCode = await GenerateReceiptCodeAsync();
@@ -361,7 +415,7 @@ namespace Backend.Domains.Import.Services
                 .Where(c => materialDictionary.ContainsKey(c.MaterialCode))
                 .Select(c => new ReceiptDetail
                 {
-                    MaterialId = materialDictionary[c.MaterialCode],
+                    MaterialId = materialDictionary[c.MaterialCode].MaterialId,
                     Quantity = c.Quantity,
                 }).ToList()
             };
@@ -588,7 +642,7 @@ namespace Backend.Domains.Import.Services
                                         .ThenInclude(rd => rd.Material)
                                         .Include(r => r.ReceiptDetails)
                                         .ThenInclude(rd => rd.Supplier)
-                            .Where(r => r.Status == "Approved" || r.Status == "Completed")
+                            .Where(r => r.Status == "Approved" || r.Status == "GoodsArrived" || r.Status == "Completed")
                             .OrderByDescending(r => r.ApprovedAt)
                             .Select(r => new GetInboundRequestListDto
                             {
@@ -598,6 +652,7 @@ namespace Backend.Domains.Import.Services
                                 WarehouseName = r.Warehouse != null ? r.Warehouse.Name : null,
                                 ReceiptApprovalDate = r.ApprovedAt,
                                 TotalQuantity = r.ReceiptDetails.Sum(rd => rd.Quantity),
+                                ConfirmedBy = r.ConfirmedBy,
                                 Status = r.Status,
                                 Items = r.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
                                 {
@@ -623,6 +678,10 @@ namespace Backend.Domains.Import.Services
                                         .ThenInclude(rd => rd.Material)
                                         .Include(r => r.ReceiptDetails)
                                         .ThenInclude(rd => rd.Supplier)
+                                        .Include(r => r.ReceiptDetails)
+                                        .ThenInclude(rd => rd.BinLocation)
+                                        .Include(r => r.ReceiptDetails)
+                                        .ThenInclude(rd => rd.Batch)
                                         .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
             if (receipt == null)
             {
@@ -637,6 +696,7 @@ namespace Backend.Domains.Import.Services
                 WarehouseName = receipt.Warehouse != null ? receipt.Warehouse.Name : null,
                 ReceiptApprovalDate = receipt.ApprovedAt,
                 TotalQuantity = receipt.ReceiptDetails.Sum(rd => rd.Quantity),
+                ConfirmedBy = receipt.ConfirmedBy,
                 Status = receipt.Status,
                 Items = receipt.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
                 {
@@ -645,11 +705,17 @@ namespace Backend.Domains.Import.Services
                     MaterialCode = rd.Material != null ? rd.Material.Code : "",
                     MaterialName = rd.Material != null ? rd.Material.Name : "",
                     Quantity = rd.Quantity,
+                    ActualQuantity = rd.ActualQuantity,
                     UnitPrice = rd.UnitPrice,
-                    Unit = rd.Material?.Unit,
-                    SupplierName = rd.Supplier?.Name,
+                    SupplierName = rd.Supplier?.Name ?? "",
                     SupplierId = rd.SupplierId,
-                    LineTotal = rd.Quantity * (rd.UnitPrice ?? 0)
+                    LineTotal = rd.Quantity * (rd.UnitPrice ?? 0),
+                    BinLocationId = rd.BinLocation != null ? rd.BinLocation.BinId : null,
+                    BinCode = rd.BinLocation?.Code,
+                    BatchId = rd.Batch != null ? rd.Batch.BatchId : null,
+                    BatchCode = rd.Batch?.BatchCode,
+                    MfgDate = rd.Batch?.MfgDate,
+                    Unit = rd.Material?.Unit
                 }).ToList()
             };
         }
@@ -668,7 +734,7 @@ namespace Backend.Domains.Import.Services
                 if (receipt == null)
                     throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
 
-                if (receipt.Status != "Approved")
+                if (receipt.Status != "GoodsArrived")
                     throw new InvalidOperationException("Receipt must be approved before confirmation");
 
                 if (receipt.Status == "Completed")
@@ -964,6 +1030,381 @@ namespace Backend.Domains.Import.Services
                     Notes = w.Notes
                 })
                 .ToListAsync();
+        }
+
+        #endregion
+
+        #region QC Check Methods
+
+        public async Task<QCCheckDto> SubmitQCCheckAsync(long receiptId, SubmitQCCheckDto dto, int staffId)
+        {
+            // Validate result values
+            var validResults = new[] { "Pass", "Fail" };
+            if (!validResults.Contains(dto.OverallResult))
+                throw new ArgumentException("OverallResult must be 'Pass' or 'Fail'");
+
+            foreach (var d in dto.Details)
+            {
+                if (!validResults.Contains(d.Result))
+                    throw new ArgumentException($"Detail result for ReceiptDetailId {d.ReceiptDetailId} must be 'Pass' or 'Fail'");
+
+                if (d.Result == "Fail" && string.IsNullOrWhiteSpace(d.FailReason))
+                    throw new ArgumentException($"FailReason is required when result is 'Fail' for ReceiptDetailId {d.ReceiptDetailId}");
+            }
+
+            var receipt = await _context.Receipts
+                .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.Material)
+                .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
+
+            if (receipt == null)
+                throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
+
+            var allowedStatuses = new[] { "Approved", "GoodsArrived" };
+            if (!allowedStatuses.Contains(receipt.Status))
+                throw new InvalidOperationException(
+                    $"Cannot submit QC check for receipt with status '{receipt.Status}'. Must be 'Approved' or 'GoodsArrived'");
+
+            // Check duplicate QC check
+            var existingQC = await _context.QCChecks
+                .FirstOrDefaultAsync(q => q.ReceiptId == receiptId);
+            if (existingQC != null)
+                throw new InvalidOperationException(
+                    $"A QC check already exists for receipt {receipt.ReceiptCode} (QCCheckCode: {existingQC.QCCheckCode})");
+
+            // Validate receipt detail IDs belong to this receipt
+            var receiptDetailIds = receipt.ReceiptDetails.Select(rd => rd.DetailId).ToHashSet();
+            var invalidIds = dto.Details
+                .Where(d => !receiptDetailIds.Contains(d.ReceiptDetailId))
+                .Select(d => d.ReceiptDetailId)
+                .ToList();
+            if (invalidIds.Any())
+                throw new ArgumentException(
+                    $"ReceiptDetailIds {string.Join(", ", invalidIds)} do not belong to receipt {receiptId}");
+
+            // Generate QCCheckCode
+            var today = DateTime.UtcNow;
+            var codePrefix = $"QC-{today:yyyyMMdd}-";
+            var lastQC = await _context.QCChecks
+                .Where(q => q.QCCheckCode.StartsWith(codePrefix))
+                .OrderByDescending(q => q.QCCheckId)
+                .FirstOrDefaultAsync();
+
+            int nextSeq = 1;
+            if (lastQC != null)
+            {
+                var parts = lastQC.QCCheckCode.Split('-');
+                if (parts.Length > 0 && int.TryParse(parts[^1], out int lastSeq))
+                    nextSeq = lastSeq + 1;
+            }
+
+            var qcCheck = new QCCheck
+            {
+                QCCheckCode = $"{codePrefix}{nextSeq:D4}",
+                ReceiptId = receiptId,
+                CheckedBy = staffId,
+                CheckedAt = today,
+                OverallResult = dto.OverallResult,
+                Notes = dto.Notes,
+                QCCheckDetails = dto.Details.Select(d => new QCCheckDetail
+                {
+                    ReceiptDetailId = d.ReceiptDetailId,
+                    Result = d.Result,
+                    FailReason = d.FailReason
+                }).ToList()
+            };
+
+            _context.QCChecks.Add(qcCheck);
+
+            // Transition status: Approved/GoodsArrived → GoodsArrived
+            receipt.Status = "GoodsArrived";
+
+            await _context.SaveChangesAsync();
+
+            // Return result with navigation data
+            return MapQCCheckToDto(qcCheck, receipt.ReceiptCode, receipt.ReceiptDetails);
+        }
+
+        public async Task<QCCheckDto> GetQCCheckByReceiptAsync(long receiptId)
+        {
+            var receipt = await _context.Receipts
+                .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.Material)
+                .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
+
+            if (receipt == null)
+                throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
+
+            var qcCheck = await _context.QCChecks
+                .Include(q => q.QCCheckDetails)
+                .Include(q => q.CheckedByNavigation)
+                .FirstOrDefaultAsync(q => q.ReceiptId == receiptId);
+
+            if (qcCheck == null)
+                throw new KeyNotFoundException($"No QC check found for receipt ID {receiptId}");
+
+            return MapQCCheckToDto(qcCheck, receipt.ReceiptCode, receipt.ReceiptDetails,
+                qcCheck.CheckedByNavigation?.FullName ?? qcCheck.CheckedByNavigation?.Email);
+        }
+
+        private static QCCheckDto MapQCCheckToDto(
+            QCCheck qcCheck,
+            string receiptCode,
+            IEnumerable<ReceiptDetail> receiptDetails,
+            string? checkedByName = null)
+        {
+            var detailMap = receiptDetails.ToDictionary(rd => rd.DetailId);
+
+            return new QCCheckDto
+            {
+                QCCheckId = qcCheck.QCCheckId,
+                QCCheckCode = qcCheck.QCCheckCode,
+                ReceiptId = qcCheck.ReceiptId,
+                ReceiptCode = receiptCode,
+                CheckedBy = qcCheck.CheckedBy,
+                CheckedByName = checkedByName,
+                CheckedAt = qcCheck.CheckedAt,
+                OverallResult = qcCheck.OverallResult,
+                Notes = qcCheck.Notes,
+                Details = qcCheck.QCCheckDetails.Select(d =>
+                {
+                    detailMap.TryGetValue(d.ReceiptDetailId, out var rd);
+                    return new QCCheckDetailDto
+                    {
+                        DetailId = d.DetailId,
+                        ReceiptDetailId = d.ReceiptDetailId,
+                        MaterialId = rd?.MaterialId,
+                        MaterialCode = rd?.Material?.Code,
+                        MaterialName = rd?.Material?.Name,
+                        Result = d.Result,
+                        FailReason = d.FailReason
+                    };
+                }).ToList()
+            };
+        }
+
+        #endregion
+
+        #region Incident Report Methods
+
+        public async Task<IncidentReportDto> CreateIncidentReportAsync(long receiptId, CreateIncidentReportDto dto, int staffId)
+        {
+            // Validate description
+            if (string.IsNullOrWhiteSpace(dto.Description))
+                throw new ArgumentException("Description is required");
+
+            // Validate IssueType values
+            var validIssueTypes = new[] { "Quantity", "Quality", "Damage" };
+            foreach (var d in dto.Details)
+            {
+                if (!validIssueTypes.Contains(d.IssueType))
+                    throw new ArgumentException(
+                        $"IssueType '{d.IssueType}' is invalid for ReceiptDetailId {d.ReceiptDetailId}. Must be: Quantity | Quality | Damage");
+
+                if (d.ActualQuantity < 0 || d.ExpectedQuantity < 0)
+                    throw new ArgumentException(
+                        $"Quantities must be non-negative for ReceiptDetailId {d.ReceiptDetailId}");
+            }
+
+            var receipt = await _context.Receipts
+                .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.Material)
+                .Include(r => r.Warehouse)
+                .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
+
+            if (receipt == null)
+                throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
+
+            var allowedStatuses = new[] { "Approved", "GoodsArrived" };
+            if (!allowedStatuses.Contains(receipt.Status))
+                throw new InvalidOperationException(
+                    $"Cannot create incident report for receipt with status '{receipt.Status}'");
+
+            // Kiểm tra đã có biên bản chưa
+            var existing = await _context.IncidentReports
+                .FirstOrDefaultAsync(i => i.ReceiptId == receiptId);
+            if (existing != null)
+                throw new InvalidOperationException(
+                    $"An incident report already exists for receipt {receipt.ReceiptCode} (IncidentCode: {existing.IncidentCode})");
+
+            // Validate receipt detail IDs
+            var receiptDetailIds = receipt.ReceiptDetails.Select(rd => rd.DetailId).ToHashSet();
+            var invalidIds = dto.Details
+                .Where(d => !receiptDetailIds.Contains(d.ReceiptDetailId))
+                .Select(d => d.ReceiptDetailId)
+                .ToList();
+            if (invalidIds.Any())
+                throw new ArgumentException(
+                    $"ReceiptDetailIds {string.Join(", ", invalidIds)} do not belong to receipt {receiptId}");
+
+            // Tự động liên kết QCCheck nếu không truyền QCCheckId
+            long? qcCheckId = dto.QCCheckId;
+            QCCheck? linkedQCCheck = null;
+            if (!qcCheckId.HasValue)
+            {
+                linkedQCCheck = await _context.QCChecks
+                    .FirstOrDefaultAsync(q => q.ReceiptId == receiptId && q.OverallResult == "Fail");
+                qcCheckId = linkedQCCheck?.QCCheckId;
+            }
+            else
+            {
+                linkedQCCheck = await _context.QCChecks
+                    .FirstOrDefaultAsync(q => q.QCCheckId == qcCheckId.Value && q.ReceiptId == receiptId);
+                if (linkedQCCheck == null)
+                    throw new KeyNotFoundException(
+                        $"QCCheck with ID {qcCheckId} not found for receipt {receiptId}");
+            }
+
+            // Generate IncidentCode
+            var today = DateTime.UtcNow;
+            var prefix = $"INC-{today:yyyyMMdd}-";
+            var lastInc = await _context.IncidentReports
+                .Where(i => i.IncidentCode.StartsWith(prefix))
+                .OrderByDescending(i => i.IncidentId)
+                .FirstOrDefaultAsync();
+
+            int nextSeq = 1;
+            if (lastInc != null)
+            {
+                var parts = lastInc.IncidentCode.Split('-');
+                if (parts.Length > 0 && int.TryParse(parts[^1], out int lastSeq))
+                    nextSeq = lastSeq + 1;
+            }
+
+            var incident = new IncidentReport
+            {
+                IncidentCode = $"{prefix}{nextSeq:D4}",
+                ReceiptId = receiptId,
+                QCCheckId = qcCheckId,
+                CreatedBy = staffId,
+                CreatedAt = today,
+                Description = dto.Description,
+                Status = "Open",
+                IncidentReportDetails = dto.Details.Select(d => new IncidentReportDetail
+                {
+                    ReceiptDetailId = d.ReceiptDetailId,
+                    MaterialId = receipt.ReceiptDetails.First(rd => rd.DetailId == d.ReceiptDetailId).MaterialId,
+                    ExpectedQuantity = d.ExpectedQuantity,
+                    ActualQuantity = d.ActualQuantity,
+                    IssueType = d.IssueType,
+                    Notes = d.Notes
+                }).ToList()
+            };
+
+            _context.IncidentReports.Add(incident);
+            await _context.SaveChangesAsync();
+
+            // Load creator name
+            var creator = await _context.Users.FindAsync(staffId);
+
+            return MapIncidentReportToDto(
+                incident,
+                receipt.ReceiptCode,
+                receipt.ReceiptDetails,
+                linkedQCCheck,
+                creator?.FullName ?? creator?.Email,
+                null);
+        }
+
+        public async Task<IncidentReportDto> GetIncidentReportByReceiptAsync(long receiptId)
+        {
+            var receipt = await _context.Receipts
+                .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.Material)
+                .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
+
+            if (receipt == null)
+                throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
+
+            var incident = await _context.IncidentReports
+                .Include(i => i.IncidentReportDetails)
+                    .ThenInclude(d => d.Material)
+                .Include(i => i.QCCheck)
+                .Include(i => i.CreatedByNavigation)
+                .Include(i => i.ResolvedByNavigation)
+                .FirstOrDefaultAsync(i => i.ReceiptId == receiptId);
+
+            if (incident == null)
+                throw new KeyNotFoundException($"No incident report found for receipt ID {receiptId}");
+
+            return MapIncidentReportToDto(
+                incident,
+                receipt.ReceiptCode,
+                receipt.ReceiptDetails,
+                incident.QCCheck,
+                incident.CreatedByNavigation?.FullName ?? incident.CreatedByNavigation?.Email,
+                incident.ResolvedByNavigation?.FullName ?? incident.ResolvedByNavigation?.Email);
+        }
+
+        public async Task<List<IncidentReportSummaryDto>> GetAllIncidentReportsAsync()
+        {
+            return await _context.IncidentReports
+                .Include(i => i.Receipt)
+                    .ThenInclude(r => r.Warehouse)
+                .Include(i => i.CreatedByNavigation)
+                .OrderByDescending(i => i.CreatedAt)
+                .Select(i => new IncidentReportSummaryDto
+                {
+                    IncidentId = i.IncidentId,
+                    IncidentCode = i.IncidentCode,
+                    ReceiptId = i.ReceiptId,
+                    ReceiptCode = i.Receipt.ReceiptCode,
+                    WarehouseName = i.Receipt.Warehouse != null ? i.Receipt.Warehouse.Name : null,
+                    CreatedAt = i.CreatedAt,
+                    CreatedByName = i.CreatedByNavigation.FullName ?? i.CreatedByNavigation.Email,
+                    Description = i.Description,
+                    Status = i.Status,
+                    TotalItems = i.IncidentReportDetails.Count
+                })
+                .ToListAsync();
+        }
+
+        private static IncidentReportDto MapIncidentReportToDto(
+            IncidentReport incident,
+            string receiptCode,
+            IEnumerable<ReceiptDetail> receiptDetails,
+            QCCheck? qcCheck,
+            string? createdByName,
+            string? resolvedByName)
+        {
+            var detailMap = receiptDetails.ToDictionary(rd => rd.DetailId);
+
+            return new IncidentReportDto
+            {
+                IncidentId = incident.IncidentId,
+                IncidentCode = incident.IncidentCode,
+                ReceiptId = incident.ReceiptId,
+                ReceiptCode = receiptCode,
+                QCCheckId = incident.QCCheckId,
+                QCCheckCode = qcCheck?.QCCheckCode,
+                QCOverallResult = qcCheck?.OverallResult,
+                CreatedBy = incident.CreatedBy,
+                CreatedByName = createdByName,
+                CreatedAt = incident.CreatedAt,
+                Description = incident.Description,
+                Status = incident.Status,
+                Resolution = incident.Resolution,
+                ResolvedAt = incident.ResolvedAt,
+                ResolvedBy = incident.ResolvedBy,
+                ResolvedByName = resolvedByName,
+                Details = incident.IncidentReportDetails.Select(d =>
+                {
+                    detailMap.TryGetValue(d.ReceiptDetailId, out var rd);
+                    return new IncidentReportDetailDto
+                    {
+                        DetailId = d.DetailId,
+                        ReceiptDetailId = d.ReceiptDetailId,
+                        MaterialId = d.MaterialId,
+                        MaterialCode = d.Material?.Code ?? rd?.Material?.Code,
+                        MaterialName = d.Material?.Name ?? rd?.Material?.Name,
+                        MaterialUnit = d.Material?.Unit ?? rd?.Material?.Unit,
+                        ExpectedQuantity = d.ExpectedQuantity,
+                        ActualQuantity = d.ActualQuantity,
+                        IssueType = d.IssueType,
+                        Notes = d.Notes
+                    };
+                }).ToList()
+            };
         }
 
         #endregion

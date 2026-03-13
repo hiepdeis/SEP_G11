@@ -9,7 +9,7 @@ namespace Backend.Domains.Import.Controllers.Construction
 {
     [Route("api/[controller]")]
     [ApiController]
-   // [Authorize]
+    // [Authorize]
     public class ImportController : ControllerBase
     {
         private readonly IReceiptService _receiptService;
@@ -81,6 +81,38 @@ namespace Backend.Domains.Import.Controllers.Construction
                 var requests = await _receiptService.GetMyRequestsAsync(currentUserId);
 
                 return Ok(requests);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
+
+        [HttpGet("material-unit")]
+        public async Task<IActionResult> GetMaterialUnit([FromQuery] string materialCode)
+        {
+            try
+            {
+                var unit = await _receiptService.GetMaterialUnitByMaterialCodeAsync(materialCode);
+                return Ok(new { materialCode, unit });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
+
+        [HttpGet("material-codes-names")]
+        public async Task<IActionResult> GetAllMaterialCodeAndName()
+        {
+            try
+            {
+                var materialCodeNameDict = await _receiptService.GetAllMaterialCodeAndNameAsync();
+                return Ok(materialCodeNameDict);
             }
             catch (Exception ex)
             {

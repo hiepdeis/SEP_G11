@@ -22,8 +22,10 @@
         public decimal? Quantity { get; set; }
         public decimal? ActualQuantity { get; set; }
         public int? BinLocationId { get; set; }
+        public string? BinCode { get; set; }
         public int? BatchId { get; set; }
-
+        public string? BatchCode { get; set; }
+        public DateTime? MfgDate { get; set; }
         public int? SupplierId { get; set; }
         public string SupplierName { get; set; } = string.Empty;
         public decimal? UnitPrice { get; set; }

@@ -213,15 +213,21 @@ export const managerReceiptApi = {
 
 export interface GetInboundRequestItemDto {
   detailId: number;
-  materialId: number | null;
+  materialId?: number | null;
   materialCode: string;
   materialName: string;
-  quantity: number | null; // decimal?
-  supplierId: number | null;
+  quantity?: number | null;
+  actualQuantity?: number | null;
+  binLocationId?: number | null;
+  binCode?: string | null;
+  batchId?: number | null;
+  batchCode?: string | null;
+  mfgDate?: string | null; 
+  supplierId?: number | null;
   supplierName: string;
-  unitPrice: number | null; // decimal?
-  unit: string;
-  lineTotal: number | null; // decimal?
+  unitPrice?: number | null;
+  unit?: string | null;
+  lineTotal?: number | null;
 }
 
 export interface GetInboundRequestListDto {
@@ -232,6 +238,7 @@ export interface GetInboundRequestListDto {
   receiptApprovalDate: string | null; // DateTime?
   totalQuantity: number; // decimal
   items: GetInboundRequestItemDto[];
+  confirmedBy: number;
   status: string;
 }
 
@@ -293,6 +300,101 @@ export interface WarehouseCardQueryDto {
   transactionType?: string;
 }
 
+export interface QCCheckDetailInputDto {
+  receiptDetailId: number;
+  result: string; // "Pass" | "Fail"
+  failReason?: string | null;
+}
+
+export interface SubmitQCCheckDto {
+  overallResult: string; // "Pass" | "Fail"
+  notes?: string | null;
+  details: QCCheckDetailInputDto[];
+}
+
+export interface QCCheckDetailDto {
+  detailId: number;
+  receiptDetailId: number;
+  materialId?: number | null;
+  materialCode?: string | null;
+  materialName?: string | null;
+  result: string; // "Pass" | "Fail"
+  failReason?: string | null;
+}
+
+export interface QCCheckDto {
+  qcCheckId: number;
+  qcCheckCode: string;
+  receiptId: number;
+  receiptCode?: string | null;
+  checkedBy: number;
+  checkedByName?: string | null;
+  checkedAt: string; // DateTime (ISO string)
+  overallResult: string; // "Pass" | "Fail"
+  notes?: string | null;
+  details: QCCheckDetailDto[];
+}
+
+export interface CreateIncidentReportDetailDto {
+  receiptDetailId: number;
+  expectedQuantity: number;
+  actualQuantity: number;
+  issueType: string; // "Quantity" | "Quality" | "Damage"
+  notes?: string | null;
+}
+
+export interface CreateIncidentReportDto {
+  description: string;
+  qcCheckId?: number | null;
+  details: CreateIncidentReportDetailDto[];
+}
+
+export interface IncidentReportDetailDto {
+  detailId: number;
+  receiptDetailId: number;
+  materialId: number;
+  materialCode?: string | null;
+  materialName?: string | null;
+  materialUnit?: string | null;
+  expectedQuantity: number;
+  actualQuantity: number;
+  issueType: string; // "Quantity" | "Quality" | "Damage"
+  notes?: string | null;
+}
+
+export interface IncidentReportDto {
+  incidentId: number;
+  incidentCode: string;
+  receiptId: number;
+  receiptCode?: string | null;
+  qcCheckId?: number | null;
+  qcCheckCode?: string | null;
+  qcOverallResult?: string | null; // "Pass" | "Fail"
+  createdBy: number;
+  createdByName?: string | null;
+  createdAt: string; // DateTime (ISO string)
+  description: string;
+  status: string; // "Open" | "Resolved"
+  resolution?: string | null;
+  resolvedAt?: string | null; // DateTime (ISO string)
+  resolvedBy?: number | null;
+  resolvedByName?: string | null;
+  details: IncidentReportDetailDto[];
+}
+
+export interface IncidentReportSummaryDto {
+  incidentId: number;
+  incidentCode: string;
+  receiptId: number;
+  receiptCode?: string | null;
+  warehouseName?: string | null;
+  createdAt: string; // DateTime (ISO string)
+  createdByName?: string | null;
+  description: string;
+  status: string;
+  totalItems: number;
+}
+
 // ==========================================
 // STAFF API SERVICE
 // Controller: StaffReceiptsController
@@ -333,6 +435,38 @@ export const staffReceiptApi = {
   getWarehouseCardsByMaterial: (materialId: number) => {
     return axiosClient.get<WarehouseCardDto[]>(
       `/StaffReceipts/warehouse-cards/${materialId}`,
+    );
+  },
+
+  submitQCCheck: (receiptId: number, data: SubmitQCCheckDto) => {
+    return axiosClient.post(
+      `/StaffReceipts/inbound-requests/${receiptId}/qc-check`,
+      data
+    );
+  },
+
+  getQCCheck: (receiptId: number) => {
+    return axiosClient.get<QCCheckDto>(
+      `/StaffReceipts/inbound-requests/${receiptId}/qc-check`
+    );
+  },
+
+  createIncidentReport: (receiptId: number, data: CreateIncidentReportDto) => {
+    return axiosClient.post(
+      `/StaffReceipts/inbound-requests/${receiptId}/incident-report`,
+      data
+    );
+  },
+
+  getIncidentReport: (receiptId: number) => {
+    return axiosClient.get<IncidentReportDto>(
+      `/StaffReceipts/inbound-requests/${receiptId}/incident-report`
+    );
+  },
+
+  getAllIncidentReports: () => {
+    return axiosClient.get<IncidentReportSummaryDto[]>(
+      "/StaffReceipts/incident-reports"
     );
   },
 };

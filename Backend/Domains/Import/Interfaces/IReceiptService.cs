@@ -3,6 +3,7 @@ using Backend.Domains.Import.DTOs.Construction;
 using Backend.Domains.Import.DTOs.Constructions;
 using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.DTOs.Staff;
+using Backend.Entities;
 
 namespace Backend.Domains.Import.Interfaces
 {
@@ -12,6 +13,8 @@ namespace Backend.Domains.Import.Interfaces
         Task<long> CreateRequest(CreateImportRequestDto dto, int currentUserId);
         Task ImportFromExcelAsync(Stream fileStream, int warehouseId, int currentUserId);
         Task<List<CreateImportRequestDto>> GetMyRequestsAsync(int userId);
+        Task<string> GetMaterialUnitByMaterialCodeAsync(string materialCode);
+        Task<List<ImportItemDto>> GetAllMaterialCodeAndNameAsync();
 
         // Accountant flow
         Task<List<ReceiptSummaryDto>> GetReceiptsForAccountantReviewAsync();
@@ -37,5 +40,14 @@ namespace Backend.Domains.Import.Interfaces
         // Warehouse Card flow
         Task<List<WarehouseCardDto>> GetWarehouseCardsAsync(WarehouseCardQueryDto query);
         Task<List<WarehouseCardDto>> GetWarehouseCardsByMaterialAsync(int materialId);
+
+        // QC Check flow
+        Task<QCCheckDto> SubmitQCCheckAsync(long receiptId, SubmitQCCheckDto dto, int staffId);
+        Task<QCCheckDto> GetQCCheckByReceiptAsync(long receiptId);
+
+        // Incident Report flow
+        Task<IncidentReportDto> CreateIncidentReportAsync(long receiptId, CreateIncidentReportDto dto, int staffId);
+        Task<IncidentReportDto> GetIncidentReportByReceiptAsync(long receiptId);
+        Task<List<IncidentReportSummaryDto>> GetAllIncidentReportsAsync();
     }
 }

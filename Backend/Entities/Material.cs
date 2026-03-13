@@ -23,6 +23,8 @@ public partial class Material
     [StringLength(20)]
     public string? Unit { get; set; }
 
+    public bool IsDecimalUnit { get; set; } // Cho biết đơn vị có phải là đơn vị thập phân hay không
+
     [Column(TypeName = "decimal(10, 2)")]
     public decimal? MassPerUnit { get; set; }
 
@@ -64,5 +66,8 @@ public partial class Material
 
     [InverseProperty("Material")]
     public virtual ICollection<WarehouseCard> WarehouseCards { get; set; } = new List<WarehouseCard>();
+
+    [InverseProperty("Material")]
+    public virtual ICollection<IncidentReportDetail> IncidentReportDetails { get; set; } = new List<IncidentReportDetail>();
 
 }

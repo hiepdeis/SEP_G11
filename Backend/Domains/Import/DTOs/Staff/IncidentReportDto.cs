@@ -1,0 +1,98 @@
+namespace Backend.Domains.Import.DTOs.Staff
+{
+    // INPUT DTOs (POST)
+
+    public class CreateIncidentReportDto
+    {
+        /// <summary>Mô tả tổng quát sự cố</summary>
+        public string Description { get; set; } = string.Empty;
+
+        /// <summary>
+        /// ID của QCCheck liên quan (tuỳ chọn — tự động gán nếu receipt đã có QC fail).
+        /// Nếu null và receipt có QCCheck với OverallResult = "Fail", hệ thống tự liên kết.
+        /// </summary>
+        public long? QCCheckId { get; set; }
+
+        public List<CreateIncidentReportDetailDto> Details { get; set; } = new();
+    }
+
+    public class CreateIncidentReportDetailDto
+    {
+        public long ReceiptDetailId { get; set; }
+
+        public decimal ExpectedQuantity { get; set; }
+
+        public decimal ActualQuantity { get; set; }
+
+        /// <summary>"Quantity" | "Quality" | "Damage"</summary>
+        public string IssueType { get; set; } = string.Empty;
+
+        public string? Notes { get; set; }
+    }
+
+    // OUTPUT DTOs (GET)
+
+    public class IncidentReportDto
+    {
+        public long IncidentId { get; set; }
+        public string IncidentCode { get; set; } = string.Empty;
+
+        public long ReceiptId { get; set; }
+        public string? ReceiptCode { get; set; }
+
+        public long? QCCheckId { get; set; }
+        public string? QCCheckCode { get; set; }
+        /// <summary>OverallResult của QCCheck liên quan: "Pass" | "Fail"</summary>
+        public string? QCOverallResult { get; set; }
+
+        public int CreatedBy { get; set; }
+        public string? CreatedByName { get; set; }
+
+        public DateTime CreatedAt { get; set; }
+
+        public string Description { get; set; } = string.Empty;
+
+        /// <summary>"Open" | "Resolved"</summary>
+        public string Status { get; set; } = string.Empty;
+
+        public string? Resolution { get; set; }
+        public DateTime? ResolvedAt { get; set; }
+        public int? ResolvedBy { get; set; }
+        public string? ResolvedByName { get; set; }
+
+        public List<IncidentReportDetailDto> Details { get; set; } = new();
+    }
+
+    public class IncidentReportDetailDto
+    {
+        public long DetailId { get; set; }
+        public long ReceiptDetailId { get; set; }
+
+        public int MaterialId { get; set; }
+        public string? MaterialCode { get; set; }
+        public string? MaterialName { get; set; }
+        public string? MaterialUnit { get; set; }
+
+        public decimal ExpectedQuantity { get; set; }
+        public decimal ActualQuantity { get; set; }
+
+        /// <summary>"Quantity" | "Quality" | "Damage"</summary>
+        public string IssueType { get; set; } = string.Empty;
+
+        public string? Notes { get; set; }
+    }
+
+    public class IncidentReportSummaryDto
+    {
+        public long IncidentId { get; set; }
+        public string IncidentCode { get; set; } = string.Empty;
+        public long ReceiptId { get; set; }
+        public string? ReceiptCode { get; set; }
+        public string? WarehouseName { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string? CreatedByName { get; set; }
+        public string Description { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public int TotalItems { get; set; }
+    }
+}
