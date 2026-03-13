@@ -13,7 +13,8 @@ namespace Backend.Domains.Import.Interfaces
         Task<long> CreateRequest(CreateImportRequestDto dto, int currentUserId);
         Task ImportFromExcelAsync(Stream fileStream, int warehouseId, int currentUserId);
         Task<List<CreateImportRequestDto>> GetMyRequestsAsync(int userId);
-        Task<Material> GetMaterialUnitByMaterialCodeAsync(string materialCode);
+        Task<string> GetMaterialUnitByMaterialCodeAsync(string materialCode);
+        Task<List<ImportItemDto>> GetAllMaterialCodeAndNameAsync();
 
         // Accountant flow
         Task<List<ReceiptSummaryDto>> GetReceiptsForAccountantReviewAsync();

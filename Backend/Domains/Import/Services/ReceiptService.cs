@@ -108,26 +108,6 @@ namespace Backend.Domains.Import.Services
             return result;
         }
 
-        // Get all receipts created by the current user (Suveyors)
-        public async Task<List<CreateImportRequestDto>> GetMyRequestsAsync(int userId)
-        {
-            var receipts = await _context.Receipts
-                .Include(r => r.ReceiptDetails)
-                    .ThenInclude(rd => rd.Material)
-                .Include(r => r.Warehouse)
-                .Where(r => r.CreatedBy == userId)
-                .OrderByDescending(r => r.ReceiptDate)
-                .Select(r => new CreateImportRequestDto
-                {
-                    Items = r.ReceiptDetails.Select(rd => new ImportItemDto
-                    {
-                        MaterialCode = rd.Material != null ? rd.Material.Code : "",
-                        Quantity = rd.Quantity
-                    }).ToList()
-                }).ToListAsync();
-            return receipts;
-        }
-
         // Get all receipts that are REQUESTED status
         public async Task<List<ReceiptSummaryDto>> GetReceiptsForAccountantReviewAsync()
         {
@@ -306,7 +286,40 @@ namespace Backend.Domains.Import.Services
 
         #region Construction Methods
 
-        public async Task<Material> GetMaterialUnitByMaterialCodeAsync(string materialCode)
+        // Get all receipts created by the current user (Suveyors)
+        public async Task<List<CreateImportRequestDto>> GetMyRequestsAsync(int userId)
+        {
+            var receipts = await _context.Receipts
+                .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.Material)
+                .Include(r => r.Warehouse)
+                .Where(r => r.CreatedBy == userId)
+                .OrderByDescending(r => r.ReceiptDate)
+                .Select(r => new CreateImportRequestDto
+                {
+                    Items = r.ReceiptDetails.Select(rd => new ImportItemDto
+                    {
+                        MaterialCode = rd.Material != null ? rd.Material.Code : "",
+                        MaterialName = rd.Material != null ? rd.Material.Name : "",
+                        Quantity = rd.Quantity,
+                        Unit = rd.Material != null ? rd.Material.Unit : ""
+                    }).ToList()
+                }).ToListAsync();
+            return receipts;
+        }
+
+        public async Task<List<ImportItemDto>> GetAllMaterialCodeAndNameAsync()
+        {
+            return await _context.Materials
+                .Select(m => new ImportItemDto
+                {
+                    MaterialCode = m.Code,
+                    MaterialName = m.Name
+                })
+                .ToListAsync();
+        }
+
+        public async Task<string> GetMaterialUnitByMaterialCodeAsync(string materialCode)
         {
             var material = await _context.Materials
                 .FirstOrDefaultAsync(m => m.Code == materialCode);
@@ -314,7 +327,10 @@ namespace Backend.Domains.Import.Services
             if (material == null)
                 throw new KeyNotFoundException($"Material with code '{materialCode}' not found");
 
-            return material;
+            if (string.IsNullOrEmpty(material.Unit))
+                throw new Exception($"Material with code '{materialCode}' does not have a defined unit");
+
+            return material.Unit;
         }
 
         public async Task ImportFromExcelAsync(Stream fileStream, int warehouseId, int currentUserId)
@@ -398,7 +414,7 @@ namespace Backend.Domains.Import.Services
                 .Where(c => materialDictionary.ContainsKey(c.MaterialCode))
                 .Select(c => new ReceiptDetail
                 {
-                    MaterialId = materialDictionary[c.MaterialCode],
+                    MaterialId = materialDictionary[c.MaterialCode].MaterialId,
                     Quantity = c.Quantity,
                 }).ToList()
             };
@@ -697,7 +713,8 @@ namespace Backend.Domains.Import.Services
                     BinCode = rd.BinLocation?.Code,
                     BatchId = rd.Batch != null ? rd.Batch.BatchId : null,
                     BatchCode = rd.Batch?.BatchCode,
-                    MfgDate = rd.Batch?.MfgDate
+                    MfgDate = rd.Batch?.MfgDate,
+                    Unit = rd.Material?.Unit
                 }).ToList()
             };
         }
