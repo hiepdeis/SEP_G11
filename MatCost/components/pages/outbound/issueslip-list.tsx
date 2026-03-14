@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
 import {
   Search, Calendar, Loader2, FileText, ChevronLeft, ChevronRight,
-  ArrowUp, ArrowDown, ArrowUpDown, FileOutput, CheckCircle2, XCircle, AlertCircle
+  ArrowUp, ArrowDown, ArrowUpDown, FileOutput, CheckCircle2, XCircle, AlertCircle, Clock, Truck, PackageCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,23 +65,21 @@ export default function SharedIssueSlipList({ role }: IssueSlipListProps) {
 
   const navigateToDetail = (issueId: number) => {
     if(role === "accountant"){
-      router.push(`/accountant/outbound/checkInventory/${issueId}`);
+      router.push(`/accountant/outbound/issueSlip/checkInventory/${issueId}`);
     } else {
-      router.push(`/${role}/outbound/IssueSlipDetail/${issueId}`);
+      router.push(`/${role}/outbound/issueSlip/issueSlipDetail/${issueId}`);
     }
   };
 
   const getStatusBadge = (status: string) => {
     const s = status?.toLowerCase() || "";
-    if (s === "approved") {
-      return <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 gap-1 border-emerald-200"><CheckCircle2 className="w-3 h-3" /> {status}</Badge>;
-    }
-    if (s === "rejected") {
-      return <Badge className="bg-rose-50 text-rose-700 hover:bg-rose-100 gap-1 border-rose-200"><XCircle className="w-3 h-3" /> {status}</Badge>;
-    }
-    if (s === "pending") {
-      return <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-100 gap-1 border-amber-200"><AlertCircle className="w-3 h-3" /> {status}</Badge>;
-    }
+    if (s === "approved") return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200"><CheckCircle2 className="w-3 h-3 mr-1" /> {status}</Badge>;
+    if (s === "rejected") return <Badge className="bg-rose-50 text-rose-700 border-rose-200"><XCircle className="w-3 h-3 mr-1" /> {status}</Badge>;
+    if (s === "pending") return <Badge className="bg-amber-50 text-amber-700 border-amber-200"><AlertCircle className="w-3 h-3 mr-1" /> {status}</Badge>;
+    if (s === "processing") return <Badge className="bg-blue-50 text-blue-700 border-blue-200"><Clock className="w-3 h-3 mr-1" /> {status}</Badge>;
+    if (s === "delivering") return <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200"><Truck className="w-3 h-3 mr-1" /> {status}</Badge>;
+    if (s === "completed") return <Badge className="bg-teal-50 text-teal-700 border-teal-200"><PackageCheck className="w-3 h-3 mr-1" /> {status}</Badge>;
+    
     return <Badge variant="outline" className="text-slate-500 bg-slate-50">{status || "Unknown"}</Badge>;
   };
 
@@ -260,6 +258,9 @@ export default function SharedIssueSlipList({ role }: IssueSlipListProps) {
                         <SelectItem value="Pending">Pending</SelectItem>
                         <SelectItem value="Approved">Approved</SelectItem>
                         <SelectItem value="Rejected">Rejected</SelectItem>
+                        <SelectItem value="Processing">Processing</SelectItem>
+                        <SelectItem value="Delivering">Delivering</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

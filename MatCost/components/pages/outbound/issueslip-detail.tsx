@@ -8,7 +8,7 @@ import { issueSlipApi, IssueSlipDetail } from "@/services/issueslip-service";
 import axiosClient from "@/lib/axios-client";
 import {
   ArrowLeft, Calendar, Loader2, PackageSearch, ClipboardList,
-  CheckCircle2, XCircle, AlertCircle, FileText
+  CheckCircle2, XCircle, AlertCircle, FileText, Clock, Truck, PackageCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
@@ -73,7 +73,11 @@ export default function SharedIssueSlipDetail({ role, issueId }: IssueSlipDetail
     if (s === "approved") return <Badge className="bg-emerald-100 text-emerald-800 border-none"><CheckCircle2 className="w-4 h-4 mr-1.5" /> {status}</Badge>;
     if (s === "rejected") return <Badge className="bg-rose-100 text-rose-800 border-none"><XCircle className="w-4 h-4 mr-1.5" /> {status}</Badge>;
     if (s === "pending") return <Badge className="bg-amber-100 text-amber-800 border-none"><AlertCircle className="w-4 h-4 mr-1.5" /> {status}</Badge>;
-    return <Badge variant="secondary" className="bg-slate-100 text-slate-700 border-none">{status}</Badge>;
+    if (s === "processing") return <Badge className="bg-blue-100 text-blue-800 border-none px-3 py-1"><Clock className="w-4 h-4 mr-1.5" /> {status}</Badge>;
+    if (s === "delivering") return <Badge className="bg-indigo-100 text-indigo-800 border-none px-3 py-1"><Truck className="w-4 h-4 mr-1.5" /> {status}</Badge>;
+    if (s === "completed") return <Badge className="bg-teal-100 text-teal-800 border-none px-3 py-1"><PackageCheck className="w-4 h-4 mr-1.5" /> {status}</Badge>;
+    
+    return <Badge variant="secondary" className="bg-slate-100 text-slate-700 border-none px-3 py-1">{status}</Badge>;
   };
 
   if (loading) {
