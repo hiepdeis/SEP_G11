@@ -33,7 +33,7 @@ builder.Configuration
 
 builder.Services.AddDbContext<MyDbContext>(options =>
               options.UseSqlServer(
-                  builder.Configuration.GetConnectionString("MyDbContext")
+                  builder.Configuration.GetConnectionString("DefaultConnection")
                  //ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
               ));
 // Add services to the container.

@@ -28,6 +28,8 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 
+import {MaterialDto, materialApi } from "@/services/materials-service";
+
 const { TextArea } = Input;
 const { Title } = Typography;
 
