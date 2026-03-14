@@ -11,6 +11,10 @@ export interface IssueSlipDto {
   issueCode: string;
   userId: number;
   description: string;
+  WorkItem ?: string;
+  Department ?: string;
+  DeliveryLocation ?: string;
+  ReferenceCode ?: string;
 }
 
 export interface IssueSlip {

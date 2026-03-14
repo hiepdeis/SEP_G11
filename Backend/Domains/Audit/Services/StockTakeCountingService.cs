@@ -23,54 +23,32 @@ namespace Backend.Domains.Audit.Services
                 .Select(x => x.BinId)
                 .ToListAsync(ct);
         }
-
-        private async Task<bool> HasConflictingLockAsync(
-            int warehouseId,
-            int currentStockTakeId,
-            bool isWarehouseScopeAudit,
-            int? targetBinId,
-            CancellationToken ct)
+        private async Task<bool> HasActiveLockForCurrentAuditAsync(
+    int stockTakeId,
+    CancellationToken ct)
         {
-            var otherActiveAuditIds = await _db.StockTakes
+            return await _db.StockTakeLocks
                 .AsNoTracking()
-                .Where(x =>
+                .AnyAsync(x => x.StockTakeId == stockTakeId && x.IsActive, ct);
+        }
+        private async Task<bool> HasConflictingLockForBinAsync(
+     int warehouseId,
+     int currentStockTakeId,
+     bool isWarehouseScopeAudit,
+     int currentBinId,
+     CancellationToken ct)
+        {
+            return await _db.StockTakeLocks
+                .AsNoTracking()
+                .AnyAsync(x =>
                     x.StockTakeId != currentStockTakeId &&
                     x.WarehouseId == warehouseId &&
-                    x.CompletedAt == null &&
+                    x.IsActive &&
                     (
-                        x.LockedBy != null ||
-                        (x.Status != null && x.Status.ToLower() == "inprogress")
-                    ))
-                .Select(x => x.StockTakeId)
-                .ToListAsync(ct);
-
-            if (otherActiveAuditIds.Count == 0)
-                return false;
-
-            // Whole-warehouse audit conflicts with any active lock in the same warehouse.
-            if (isWarehouseScopeAudit)
-                return true;
-
-            var otherAssignedBins = await _db.StockTakeBinLocations
-                .AsNoTracking()
-                .Where(x => otherActiveAuditIds.Contains(x.StockTakeId))
-                .Select(x => new { x.StockTakeId, x.BinId })
-                .ToListAsync(ct);
-
-            var scopedAuditIds = otherAssignedBins
-                .Select(x => x.StockTakeId)
-                .Distinct()
-                .ToHashSet();
-
-            // If active audit has no assigned bins, treat it as warehouse-level lock.
-            var hasWarehouseScopeLock = otherActiveAuditIds.Any(id => !scopedAuditIds.Contains(id));
-            if (hasWarehouseScopeLock)
-                return true;
-
-            if (!targetBinId.HasValue)
-                return false;
-
-            return otherAssignedBins.Any(x => x.BinId == targetBinId.Value);
+                        x.ScopeType == "Warehouse" ||
+                        (x.ScopeType == "Bin" &&
+                            (isWarehouseScopeAudit || x.BinId == currentBinId))
+                    ), ct);
         }
 
         public async Task<bool> IsTeamMemberAsync(int stockTakeId, int userId, CancellationToken ct)
@@ -198,7 +176,6 @@ namespace Backend.Domains.Audit.Services
 
             if (!string.Equals(st.Status, "InProgress", StringComparison.OrdinalIgnoreCase))
             {
-                // Only allow transition from Planned/Assigned
                 if (string.Equals(st.Status, "Planned", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(st.Status, "Assigned", StringComparison.OrdinalIgnoreCase))
                 {
@@ -235,7 +212,11 @@ namespace Backend.Domains.Audit.Services
             if (!isWarehouseScopeAudit && !assignedBinIds.Contains(binId))
                 return (false, "BinLocation is outside assigned scope of this audit.");
 
-            var hasConflict = await HasConflictingLockAsync(
+            var hasActiveLock = await HasActiveLockForCurrentAuditAsync(stockTakeId, ct);
+            if (!hasActiveLock)
+                return (false, "Audit scope is not locked yet.");
+
+            var hasConflict = await HasConflictingLockForBinAsync(
                 st.WarehouseId,
                 stockTakeId,
                 isWarehouseScopeAudit,
@@ -249,8 +230,7 @@ namespace Backend.Domains.Audit.Services
                     : "BinLocation is currently locked by another active audit.");
             }
 
-            st.LockedAt ??= DateTime.UtcNow;
-            st.LockedBy ??= userId;
+
 
             var ic = await _db.InventoryCurrents.AsNoTracking()
                 .FirstOrDefaultAsync(x =>
