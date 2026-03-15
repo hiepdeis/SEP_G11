@@ -90,7 +90,7 @@
   "Please select a target warehouse.": "Vui lòng chọn kho đích.",
   "Unknown Warehouse": "Kho không xác định",
   "No warehouse selected": "Chưa chọn kho",
-  "Rejection Feedback": "Phản hồi từ chối",
+  "Rejection Feedback": "Dòng thời gian phản hồi từ chối",
   "Manager": "Quản lý",
   "Manager Dashboard": "Bảng điều khiển Quản lý",
   "Approval Queue": "Hàng đợi Phê duyệt",
@@ -152,8 +152,6 @@
   "By Staff Team": "Bởi Đội ngũ nhân viên",
   "Approved - Ready for QC Check": "Đã duyệt - Sẵn sàng kiểm tra QC",
   "QC Check Completed - Ready for Import": "Kiểm tra QC hoàn tất - Sẵn sàng nhập",
-  "Expected Items": "Vật tư dự kiến",
-  "Expected Quantity": "SL dự kiến",
   "Actual Quantity": "SL thực tế",
   "Bin Code": "Mã vị trí (Bin)",
   "Batch Code": "Mã lô (Batch)",
@@ -394,5 +392,7 @@
   "This action cannot be undone.": "Hành động này không thể hoàn tác.",
   "Confirm": "Xác nhận",
   "Submit Material Request?": "Gửi yêu cầu vật tư?",
-  "Are you sure you want to submit this request? This action cannot be undone.": "Bạn có chắc chắn muốn gửi yêu cầu này không? Hành động này không thể hoàn tác."
+  "Are you sure you want to submit this request? This action cannot be undone.": "Bạn có chắc chắn muốn gửi yêu cầu này không? Hành động này không thể hoàn tác.",
+  "Created Date" : "Ngày tạo phiếu",
+  "Created By": "Người tạo"
 }

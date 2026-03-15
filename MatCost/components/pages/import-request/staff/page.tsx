@@ -37,7 +37,6 @@ import {
 } from "@/services/receipt-service";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
-import { userApi } from "@/services/user-service";
 import { useTranslation } from "react-i18next";
 
 interface Props {
@@ -204,6 +203,11 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
       startTableIndex + tableItemsPerPage,
     ) || [];
 
+  const formatCurrency = (val: number | null | undefined) => {
+    if (val === null || val === undefined) return "0 ₫";
+    return val.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
+  };
+
   if (isLoading)
     return (
       <div className="h-screen flex items-center justify-center bg-slate-50">
@@ -230,43 +234,52 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <Button
               variant="ghost"
-              onClick={() => router.push(role === 'manager' ? '/manager/import-request' : '/staff/import-request')}
+              onClick={() =>
+                router.push(
+                  role === "manager"
+                    ? "/manager/import-request"
+                    : "/staff/import-request",
+                )
+              }
               className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit"
             >
               <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}
             </Button>
 
             <div className="flex gap-3">
-              {role == "staff" && <Button
-                variant="outline"
-                className="bg-white border-green-600 text-green-700 hover:bg-green-50 hover:text-green-700"
-                onClick={handleDownloadTemplate}
-                disabled={isDownloading}
-              >
-                {isDownloading ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
-                )}
-                {t("Download Template")}
-              </Button>}
-
-              {(request.status == "Approved" ||
-                request.status == "GoodsArrived") && role == "staff" && (
+              {role == "staff" && (
                 <Button
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
-                  onClick={handleProcess}
+                  variant="outline"
+                  className="bg-white border-green-600 text-green-700 hover:bg-green-50 hover:text-green-700"
+                  onClick={handleDownloadTemplate}
+                  disabled={isDownloading}
                 >
-                  {qcData ? t("Continue Processing") : t("Start Processing")}{" "}
-                  <ArrowRight className="w-4 h-4 ml-2" />
+                  {isDownloading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  )}
+                  {t("Download Template")}
                 </Button>
               )}
+
+              {(request.status == "Approved" ||
+                request.status == "GoodsArrived") &&
+                role == "staff" && (
+                  <Button
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
+                    onClick={handleProcess}
+                  >
+                    {qcData ? t("Continue Processing") : t("Start Processing")}{" "}
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                )}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             {/* Left Column: General Info */}
-            <div className="lg:col-span-3 space-y-6">
+            <div className="lg:col-span-4 space-y-6">
               {/* Warehouse & Supplier Info Card */}
               <Card className="border-slate-200 shadow-sm gap-0">
                 <CardHeader className="border-b border-slate-100 py-4">
@@ -371,12 +384,22 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                           <TableHead className="w-[20%]">
                             {t("Supplier")}
                           </TableHead>
+                          {role == "manager" && (
+                            <>
+                              <TableHead className="w-[20%]">
+                                {t("Unit Price")}
+                              </TableHead>
+                              <TableHead className="w-[20%]">
+                                {t("Subtotal")}
+                              </TableHead>
+                            </>
+                          )}
                           <TableHead className="text-center w-[10%]">
-                            {t("Expected Quantity")}
+                            {t("Expected")}
                           </TableHead>
                           {request.status === "Completed" && (
                             <TableHead className="text-center w-[10%]">
-                              {t("Actual Quantity")}
+                              {t("Actual")}
                             </TableHead>
                           )}
                           {request.status === "Completed" ? (
@@ -430,6 +453,24 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                                 </span>
                               </div>
                             </TableCell>
+                            {role == "manager" && (
+                              <>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-right font-medium text-slate-600">
+                                      {formatCurrency(item.unitPrice)}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-semiboldtext-right pr-6 font-bold text-slate-800">
+                                      {formatCurrency(item.lineTotal)}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                              </>
+                            )}
                             <TableCell className="text-center">
                               <span className="font-medium">
                                 {item.quantity}

@@ -301,13 +301,17 @@ namespace Backend.Domains.Import.Services
         public async Task<List<CreateImportRequestDto>> GetMyRequestsAsync(int userId)
         {
             var receipts = await _context.Receipts
+                .Include(r => r.CreatedByNavigation)
                 .Include(r => r.ReceiptDetails)
-                    .ThenInclude(rd => rd.Material)
+                .ThenInclude(rd => rd.Material)
                 .Include(r => r.Warehouse)
                 .Where(r => r.CreatedBy == userId)
                 .OrderByDescending(r => r.ReceiptDate)
                 .Select(r => new CreateImportRequestDto
                 {
+                    CreatedByName = r.CreatedByNavigation != null ? r.CreatedByNavigation.FullName : "Unknown",
+                    CreatedDate = r.ReceiptDate,
+
                     Items = r.ReceiptDetails.Select(rd => new ImportItemDto
                     {
                         MaterialCode = rd.Material != null ? rd.Material.Code : "",
@@ -671,7 +675,7 @@ namespace Backend.Domains.Import.Services
                                 WarehouseId = r.WarehouseId,
                                 WarehouseName = r.Warehouse != null ? r.Warehouse.Name : null,
                                 ReceiptApprovalDate = r.ApprovedAt,
-                                TotalQuantity = r.ReceiptDetails.Sum(rd => rd.Quantity)
+                                TotalQuantity = r.ReceiptDetails.Sum(rd => rd.Quantity),
                                 Status = r.Status,
                                 Items = r.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
                                 {

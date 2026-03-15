@@ -31,7 +31,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="scroll-smooth">
       <body className={`font-sans antialiased`} suppressHydrationWarning>
         <SidebarProvider>{children}</SidebarProvider>
         <Toaster richColors position="top-right" />

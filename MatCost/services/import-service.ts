@@ -8,6 +8,8 @@ export interface ImportItemDto {
 }
 
 export interface CreateImportRequestDto {
+  createdByName: string;
+  createdDate: string;
   items: ImportItemDto[];
 }
 

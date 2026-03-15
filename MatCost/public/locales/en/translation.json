@@ -90,7 +90,7 @@
   "Please select a target warehouse.": "Please select a target warehouse.",
   "Unknown Warehouse": "Unknown Warehouse",
   "No warehouse selected": "No warehouse selected",
-  "Rejection Feedback": "Rejection Feedback",
+  "Rejection Feedback": "Rejection Feedback Timeline",
   "Manager": "Manager",
   "Manager Dashboard": "Manager Dashboard",
   "Approval Queue": "Approval Queue",
@@ -154,8 +154,6 @@
   "Approved - Ready for QC Check": "Approved - Ready for QC Check",
   "QC Check Completed - Ready for Import": "QC Check Completed - Ready for Import",
   "Expected Items": "Expected Items",
-  "Expected Quantity": "Expected Quantity",
-  "Actual Quantity": "Actual Quantity",
   "Bin Code": "Bin Code",
   "Batch Code": "Batch Code",
   "MFG Date": "MFG Date",
@@ -394,5 +392,7 @@
   "This action cannot be undone.": "This action cannot be undone.",
   "Confirm": "Confirm",
   "Submit Material Request?": "Submit Material Request?",
-  "Are you sure you want to submit this request? This action cannot be undone.": "Are you sure you want to submit this request? This action cannot be undone."
+  "Are you sure you want to submit this request? This action cannot be undone.": "Are you sure you want to submit this request? This action cannot be undone.",
+  "Created Date": "Created Date",
+  "Created By": "Created By"
 }

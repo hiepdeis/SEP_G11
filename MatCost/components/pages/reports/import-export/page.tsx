@@ -413,7 +413,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                         value={selectedStaffId}
                         onValueChange={(val) => setSelectedStaffId(val)}
                       >
-                        <SelectTrigger className="w-full sm:w-[150px] bg-white shadow-sm border-slate-200 h-9">
+                        <SelectTrigger className="bg-white shadow-sm border-slate-200 h-9">
                           <div className="flex items-center gap-2">
                             <User className="w-4 h-4 text-slate-500" />
                             <span className="truncate">

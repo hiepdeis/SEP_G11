@@ -791,7 +791,7 @@ export default function ReceiptReviewPage() {
                 <Card className="border-red-200 shadow-sm bg-red-50/40">
                   <CardHeader className="pb-3 border-b border-red-100">
                     <CardTitle className="text-sm font-bold text-red-800 uppercase tracking-wide flex items-center gap-2">
-                      <History className="w-4 h-4" /> {t("Rejection Feedback")}
+                      <History className="w-4 h-4" /> {t("Rejection Feedback Timeline")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-5">
