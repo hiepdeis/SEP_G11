@@ -553,11 +553,17 @@ export default function ManagerImportRequestPage() {
                                               ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                               : item.status === "Rejected"
                                                 ? "bg-red-50 text-red-700 border-red-200"
-                                                : "bg-gray-50 text-gray-700 border-gray-200"
+                                                : item.status === "GoodsArrived"
+                                                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                                                  : item.status === "Completed"
+                                                    ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                                    : "bg-gray-50 text-gray-700 border-gray-200"
                                         }
                                       `}
                             >
-                              {t(item.status)}
+                              {item.status === "GoodsArrived"
+                                ? t("Goods Arrived")
+                                : t(item.status)}
                             </Badge>
                           </TableCell>
 
@@ -568,29 +574,26 @@ export default function ManagerImportRequestPage() {
                               onClick={() => handleReview(item.receiptId)}
                               disabled={loadingId === item.receiptId}
                               variant={
-                                item.status === "Approved" ||
-                                item.status === "Rejected"
-                                  ? "outline"
-                                  : "default"
+                                item.status === "Submitted"
+                                  ? "default"
+                                  : "outline"
                               }
                               className={`w-[100px] ${
-                                item.status === "Approved" ||
-                                item.status === "Rejected"
-                                  ? "text-indigo-600 border border-indigo-200 hover:bg-indigo-50 hover:text-primary"
-                                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                                item.status === "Submitted"
+                                  ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                                  : "text-indigo-600 border border-indigo-200 hover:bg-indigo-50 hover:text-primary"
                               }`}
                             >
                               {loadingId === item.receiptId ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : item.status === "Approved" ||
-                                item.status === "Rejected" ? (
-                                <>
-                                  {t("View")} <Eye className="w-4 h-4 ml-1.5" />
-                                </>
-                              ) : (
+                              ) : item.status === "Submitted" ? (
                                 <>
                                   {t("Process")}{" "}
                                   <ArrowRight className="w-4 h-4 ml-1.5" />
+                                </>
+                              ) : (
+                                <>
+                                  {t("View")} <Eye className="w-4 h-4 ml-1.5" />
                                 </>
                               )}
                             </Button>

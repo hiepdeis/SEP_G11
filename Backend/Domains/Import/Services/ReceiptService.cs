@@ -470,7 +470,7 @@ namespace Backend.Domains.Import.Services
                     .ThenInclude(rd => rd.Material)
                 .Include(r => r.ReceiptDetails)
                     .ThenInclude(rd => rd.Supplier)
-                .Where(r => r.Status == "Submitted" || r.Status == "Approved" || r.Status == "Rejected") // reject, approval
+                .Where(r => r.Status == "Submitted" || r.Status == "Approved" || r.Status == "Rejected" || r.Status == "GoodsArrived" || r.Status == "Completed") // reject, approval
                 .OrderByDescending(r => r.SubmittedAt)
                 .ToListAsync();
 
