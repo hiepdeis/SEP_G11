@@ -19,7 +19,14 @@
         public decimal? TotalAmount { get; set; }
         public string Status { get; set; } = string.Empty;
         public string? CreatedByName { get; set; }
-        public DateTime? CreatedDate { get; set; }
+        public string? SubbmittedByName { get; set; }
+        public DateTime? SubmittedDate { get; set; }
+        public string? ApprovedByName { get; set; }
+        public DateTime? ApprovedDate { get; set; }
+        public string? RejectedByName { get; set; }
+        public DateTime? RejectedDate { get; set; }
+        public string? ConfirmedByName { get; set; }
+        public DateTime? ConfirmDate { get; set; }
         public List<PendingReceiptDetailDto> Details { get; set; } = new();
     }
 

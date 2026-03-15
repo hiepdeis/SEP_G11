@@ -53,7 +53,6 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
   const [request, setRequest] = useState<GetInboundRequestListDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [confirmByName, setConfirmByName] = useState("");
   const [qcData, setQcData] = useState<any | null>(null);
   const [incidentData, setIncidentData] = useState<any | null>(null);
 
@@ -65,13 +64,6 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
       try {
         const res = await staffReceiptApi.getInboundRequestDetail(id);
         const requestData = res.data;
-
-        if (requestData?.confirmedBy) {
-          const resConfirmByName = await userApi.getById(
-            requestData.confirmedBy,
-          );
-          setConfirmByName(resConfirmByName.data.fullName);
-        }
 
         setRequest(requestData);
         if (
@@ -315,7 +307,7 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                             {t("Completed")}
                           </p>
                           <p className="text-xs text-slate-500">
-                            {t("By Staff Team")} - {confirmByName}
+                            {t("By Staff Team")} - Them
                           </p>
                         </div>
                       </div>

@@ -535,7 +535,7 @@ export default function ImportApprovalListPage() {
                                       : "bg-gray-50 text-gray-700 border-gray-200"
                               }
                             >
-                              {t(item.status)}
+                              {item.status != null && t(item.status)}
                             </Badge>
                           </TableCell>
                           {filterStatus == "Rejected" && (

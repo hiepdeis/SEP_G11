@@ -140,10 +140,13 @@ namespace Backend.Domains.Import.Services
         public async Task<ReceiptDetailDto?> GetReceiptDetailForAccountantReviewAsync(long receiptId)
         {
             var receipt = await _context.Receipts
-                .Include(r => r.Warehouse)
-                .Include(r => r.ReceiptDetails)
-                    .ThenInclude(rd => rd.Material)
-                .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
+            .Include(r => r.Warehouse)
+            .Include(r => r.CreatedByNavigation)
+            .Include(r => r.ReceiptDetails)
+            .ThenInclude(rd => rd.Material)
+            .Include(r => r.ReceiptDetails)      
+            .ThenInclude(rd => rd.Supplier)  
+            .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
 
             if (receipt == null)
                 return null;
@@ -157,6 +160,14 @@ namespace Backend.Domains.Import.Services
                 ReceiptDate = receipt.ReceiptDate,
                 Status = receipt.Status,
                 TotalAmount = receipt.ReceiptDetails.Sum(rd => rd.Quantity * (rd.UnitPrice ?? 0)),
+                CreatedByName = receipt.CreatedByNavigation != null
+                        ? receipt.CreatedByNavigation.FullName ?? receipt.CreatedByNavigation.Email
+                        : "Unknown",
+                CreatedDate = receipt.ReceiptDate,
+                SubmittedByName = null, //Sửa, hiện tại chưa có trường SubmittedByNavigation, tạm thời để null
+                SubmittedDate = receipt.SubmittedAt,
+                RejectedByName = null, //Sửa, hiện tại chưa có trường RejectedByNavigation, tạm thời để null
+                RejectedDate = receipt.RejectedAt,
                 Items = receipt.ReceiptDetails.Select(rd => new ReceiptItemDto
                 {
                     DetailId = rd.DetailId,
@@ -483,7 +494,7 @@ namespace Backend.Domains.Import.Services
                 TotalAmount = r.ReceiptDetails.Sum(rd => rd.Quantity * rd.UnitPrice),
                 Status = r.Status ?? "Unknown",
                 CreatedByName = r.CreatedByNavigation?.FullName,
-                CreatedDate = r.SubmittedAt,
+                SubmittedDate = r.SubmittedAt,
                 Details = r.ReceiptDetails.Select(rd => new PendingReceiptDetailDto
                 {
                     DetailId = rd.DetailId,
@@ -524,7 +535,15 @@ namespace Backend.Domains.Import.Services
                 TotalAmount = receipt.ReceiptDetails.Sum(rd => rd.Quantity * rd.UnitPrice),
                 Status = receipt.Status ?? "Unknown",
                 CreatedByName = receipt.CreatedByNavigation?.FullName,
-                CreatedDate = receipt.ReceiptDate,
+                SubbmittedByName = receipt.CreatedByNavigation?.FullName, //Sửa, hiện tại chưa có trường SubmittedByNavigation, tạm thời lấy CreatedByNavigation
+                SubmittedDate = receipt.SubmittedAt,
+                ApprovedByName = receipt.CreatedByNavigation?.FullName, //Sửa, hiện tại chưa có trường ApprovedByNavigation, tạm thời lấy CreatedByNavigation
+                ApprovedDate = receipt.ApprovedAt,
+                RejectedByName = receipt.CreatedByNavigation?.FullName, //Sửa, hiện tại chưa có trường RejectedByNavigation, tạm thời lấy CreatedByNavigation
+                RejectedDate = receipt.RejectedAt,
+                ConfirmedByName = receipt.CreatedByNavigation?.FullName, //Sửa, hiện tại chưa có trường ConfirmedByNavigation, tạm thời lấy CreatedByNavigation
+                ConfirmDate = null, //Sửa, chưa có trường ConfirmDate, tạm thời để null
+
                 Details = receipt.ReceiptDetails.Select(rd => new PendingReceiptDetailDto
                 {
                     DetailId = rd.DetailId,
@@ -640,6 +659,7 @@ namespace Backend.Domains.Import.Services
                            .Include(r => r.Warehouse)
                                         .Include(r => r.ReceiptDetails)
                                         .ThenInclude(rd => rd.Material)
+                                        .Include(r => r.CreatedByNavigation)
                                         .Include(r => r.ReceiptDetails)
                                         .ThenInclude(rd => rd.Supplier)
                             .Where(r => r.Status == "Approved" || r.Status == "GoodsArrived" || r.Status == "Completed")
@@ -652,7 +672,22 @@ namespace Backend.Domains.Import.Services
                                 WarehouseName = r.Warehouse != null ? r.Warehouse.Name : null,
                                 ReceiptApprovalDate = r.ApprovedAt,
                                 TotalQuantity = r.ReceiptDetails.Sum(rd => rd.Quantity),
-                                ConfirmedBy = r.ConfirmedBy,
+                                CreatedByName = r.CreatedByNavigation != null
+                                ? r.CreatedByNavigation.FullName ?? r.CreatedByNavigation.Email
+                                : "Unknown",
+                                CreatedDate = r.ReceiptDate,
+                                SubmittedByName = r.CreatedByNavigation != null
+                                ? r.CreatedByNavigation.FullName ?? r.CreatedByNavigation.Email
+                                : "Unknown",//Sửa
+                                SubmittedDate = r.SubmittedAt,
+                                ApprovedByName = r.CreatedByNavigation != null
+                                ? r.CreatedByNavigation.FullName ?? r.CreatedByNavigation.Email
+                                : "Unknown", //Sửa
+                                ApprovedDate = r.ApprovedAt,
+                                ConfirmedByName = r.CreatedByNavigation != null
+                                ? r.CreatedByNavigation.FullName ?? r.CreatedByNavigation.Email
+                                : "Unknown", //Sửa
+                                ConfirmedDate = null, //Sửa, chưa có trong db
                                 Status = r.Status,
                                 Items = r.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
                                 {
@@ -696,7 +731,7 @@ namespace Backend.Domains.Import.Services
                 WarehouseName = receipt.Warehouse != null ? receipt.Warehouse.Name : null,
                 ReceiptApprovalDate = receipt.ApprovedAt,
                 TotalQuantity = receipt.ReceiptDetails.Sum(rd => rd.Quantity),
-                ConfirmedBy = receipt.ConfirmedBy,
+                ConfirmedByName = null, //Sửa
                 Status = receipt.Status,
                 Items = receipt.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
                 {

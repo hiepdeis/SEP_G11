@@ -132,10 +132,10 @@ export default function ManagerImportRequestPage() {
 
     let matchesDate = true;
     if (dateRange.from || dateRange.to) {
-      if (!item.createdDate) {
+      if (!item.submittedDate) {
         matchesDate = false;
       } else {
-        const itemDate = new Date(item.createdDate);
+        const itemDate = new Date(item.submittedDate);
 
         const fromDate = dateRange.from
           ? startOfDay(dateRange.from)
@@ -159,8 +159,8 @@ export default function ManagerImportRequestPage() {
     if (!sortConfig) return 0;
 
     if (sortConfig.key === "date") {
-      const dateA = a.receiptDate ? new Date(a.receiptDate).getTime() : 0;
-      const dateB = b.receiptDate ? new Date(b.receiptDate).getTime() : 0;
+      const dateA = a.submittedDate ? new Date(a.submittedDate).getTime() : 0;
+      const dateB = b.submittedDate ? new Date(b.submittedDate).getTime() : 0;
       return sortConfig.direction === "asc" ? dateA - dateB : dateB - dateA;
     }
 
@@ -214,16 +214,16 @@ export default function ManagerImportRequestPage() {
     .reduce((sum, item) => sum + (item.totalAmount || 0), 0);
 
   const approvedCount = requests.filter((item) => {
-    if (!item.receiptDate) return false;
+    if (!item.submittedDate) return false;
     return (
-      item.status === "Approved" && new Date(item.receiptDate) >= sevenDaysAgo
+      item.status === "Approved" && new Date(item.submittedDate) >= sevenDaysAgo
     );
   }).length;
 
   const rejectedCount = requests.filter((item) => {
-    if (!item.receiptDate) return false;
+    if (!item.submittedDate) return false;
     return (
-      item.status === "Rejected" && new Date(item.receiptDate) >= sevenDaysAgo
+      item.status === "Rejected" && new Date(item.submittedDate) >= sevenDaysAgo
     );
   }).length;
 
@@ -521,7 +521,7 @@ export default function ManagerImportRequestPage() {
                               </span>
                               <span className="text-xs text-slate-400 flex items-center gap-1">
                                 <CalendarDays className="w-3 h-3" />{" "}
-                                {formatDate(item.receiptDate)}
+                                {formatDate(item.submittedDate)}
                               </span>
                             </div>
                           </TableCell>
