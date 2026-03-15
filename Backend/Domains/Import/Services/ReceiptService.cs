@@ -671,23 +671,7 @@ namespace Backend.Domains.Import.Services
                                 WarehouseId = r.WarehouseId,
                                 WarehouseName = r.Warehouse != null ? r.Warehouse.Name : null,
                                 ReceiptApprovalDate = r.ApprovedAt,
-                                TotalQuantity = r.ReceiptDetails.Sum(rd => rd.Quantity),
-                                CreatedByName = r.CreatedByNavigation != null
-                                ? r.CreatedByNavigation.FullName ?? r.CreatedByNavigation.Email
-                                : "Unknown",
-                                CreatedDate = r.ReceiptDate,
-                                SubmittedByName = r.CreatedByNavigation != null
-                                ? r.CreatedByNavigation.FullName ?? r.CreatedByNavigation.Email
-                                : "Unknown",//Sửa
-                                SubmittedDate = r.SubmittedAt,
-                                ApprovedByName = r.CreatedByNavigation != null
-                                ? r.CreatedByNavigation.FullName ?? r.CreatedByNavigation.Email
-                                : "Unknown", //Sửa
-                                ApprovedDate = r.ApprovedAt,
-                                ConfirmedByName = r.CreatedByNavigation != null
-                                ? r.CreatedByNavigation.FullName ?? r.CreatedByNavigation.Email
-                                : "Unknown", //Sửa
-                                ConfirmedDate = null, //Sửa, chưa có trong db
+                                TotalQuantity = r.ReceiptDetails.Sum(rd => rd.Quantity)
                                 Status = r.Status,
                                 Items = r.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
                                 {
@@ -731,7 +715,21 @@ namespace Backend.Domains.Import.Services
                 WarehouseName = receipt.Warehouse != null ? receipt.Warehouse.Name : null,
                 ReceiptApprovalDate = receipt.ApprovedAt,
                 TotalQuantity = receipt.ReceiptDetails.Sum(rd => rd.Quantity),
-                ConfirmedByName = null, //Sửa
+                CreatedByName = receipt.CreatedByNavigation != null
+                                ? receipt.CreatedByNavigation.FullName ?? receipt.CreatedByNavigation.Email
+                                : "Unknown",
+                CreatedDate = receipt.ReceiptDate,
+                SubmittedByName = receipt.CreatedByNavigation != null
+                                ? receipt.CreatedByNavigation.FullName ?? receipt.CreatedByNavigation.Email
+                                : "Unknown",//Sửa
+                SubmittedDate = receipt.SubmittedAt,
+                ApprovedByName = receipt.CreatedByNavigation != null
+                                ? receipt.CreatedByNavigation.FullName ?? receipt.CreatedByNavigation.Email
+                                : "Unknown", //Sửa
+                ConfirmedByName = receipt.CreatedByNavigation != null
+                                ? receipt.CreatedByNavigation.FullName ?? receipt.CreatedByNavigation.Email
+                                : "Unknown", //Sửa
+                ConfirmedDate = null, //Sửa, chưa có trong db
                 Status = receipt.Status,
                 Items = receipt.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
                 {
