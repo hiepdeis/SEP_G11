@@ -8,12 +8,13 @@ import { issueSlipApi, IssueSlipDetail } from "@/services/issueslip-service";
 import axiosClient from "@/lib/axios-client";
 import {
   ArrowLeft, Calendar, Loader2, PackageSearch, ClipboardList,
-  CheckCircle2, XCircle, AlertCircle, FileText, Clock, Truck, PackageCheck
+  CheckCircle2, XCircle, AlertCircle, FileText, User, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
 type UserRole = "admin" | "manager" | "accountant" | "staff" | "construction";
@@ -29,6 +30,10 @@ export default function SharedIssueSlipDetail({ role, issueId }: IssueSlipDetail
   const [loading, setLoading] = useState(true);
   const [reviewing, setReviewing] = useState(false);
 
+  // States cho Phân trang
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+
   useEffect(() => {
     if (!issueId) return;
     const fetchDetail = async () => {
@@ -37,7 +42,6 @@ export default function SharedIssueSlipDetail({ role, issueId }: IssueSlipDetail
         const data = await issueSlipApi.getIssueSlipDetail(issueId);
         setDetail(data);
       } catch (error) {
-        console.error(error);
         toast.error("Không thể tải chi tiết phiếu xuất.");
       } finally {
         setLoading(false);
@@ -52,13 +56,10 @@ export default function SharedIssueSlipDetail({ role, issueId }: IssueSlipDetail
       reason = prompt("Nhập lý do từ chối:") || "";
       if (!reason.trim()) return;
     }
-    
     try {
       setReviewing(true);
       await axiosClient.put(`/IssueSlips/${issueId}/review`, { action, reason });
       toast.success(action === "Approved" ? "Đã duyệt phiếu xuất!" : "Đã từ chối phiếu xuất!");
-      
-      // Reload lại data thay vì load lại toàn bộ trang
       const data = await issueSlipApi.getIssueSlipDetail(issueId);
       setDetail(data);
     } catch (err) {
@@ -70,14 +71,17 @@ export default function SharedIssueSlipDetail({ role, issueId }: IssueSlipDetail
 
   const getStatusBadge = (status: string) => {
     const s = status?.toLowerCase() || "";
-    if (s === "approved") return <Badge className="bg-emerald-100 text-emerald-800 border-none"><CheckCircle2 className="w-4 h-4 mr-1.5" /> {status}</Badge>;
-    if (s === "rejected") return <Badge className="bg-rose-100 text-rose-800 border-none"><XCircle className="w-4 h-4 mr-1.5" /> {status}</Badge>;
-    if (s === "pending") return <Badge className="bg-amber-100 text-amber-800 border-none"><AlertCircle className="w-4 h-4 mr-1.5" /> {status}</Badge>;
-    if (s === "processing") return <Badge className="bg-blue-100 text-blue-800 border-none px-3 py-1"><Clock className="w-4 h-4 mr-1.5" /> {status}</Badge>;
-    if (s === "delivering") return <Badge className="bg-indigo-100 text-indigo-800 border-none px-3 py-1"><Truck className="w-4 h-4 mr-1.5" /> {status}</Badge>;
-    if (s === "completed") return <Badge className="bg-teal-100 text-teal-800 border-none px-3 py-1"><PackageCheck className="w-4 h-4 mr-1.5" /> {status}</Badge>;
-    
+    if (s === "approved") return <Badge className="bg-emerald-100 text-emerald-800 border-none px-3 py-1"><CheckCircle2 className="w-4 h-4 mr-1.5" /> {status}</Badge>;
+    if (s === "rejected") return <Badge className="bg-rose-100 text-rose-800 border-none px-3 py-1"><XCircle className="w-4 h-4 mr-1.5" /> {status}</Badge>;
+    if (s === "pending") return <Badge className="bg-amber-100 text-amber-800 border-none px-3 py-1"><AlertCircle className="w-4 h-4 mr-1.5" /> {status}</Badge>;
     return <Badge variant="secondary" className="bg-slate-100 text-slate-700 border-none px-3 py-1">{status}</Badge>;
+  };
+
+  const formatWorkItem = (code?: string) => {
+    if (code === 'foundation') return "Móng";
+    if (code === 'body') return "Thân";
+    if (code === 'roof') return "Mái";
+    return code || "N/A";
   };
 
   if (loading) {
@@ -93,6 +97,14 @@ export default function SharedIssueSlipDetail({ role, issueId }: IssueSlipDetail
 
   if (!detail) return <div className="p-10 text-center">Issue Slip not found</div>;
 
+  // Logic Phân trang áp dụng cho detail.details
+  const detailsList = detail.details || [];
+  const isAll = itemsPerPage === -1;
+  const totalPages = isAll ? 1 : Math.ceil(detailsList.length / itemsPerPage) || 1;
+  const startIndex = (currentPage - 1) * (isAll ? detailsList.length : itemsPerPage);
+  const endIndex = isAll ? detailsList.length : startIndex + itemsPerPage;
+  const paginatedDetails = detailsList.slice(startIndex, endIndex);
+
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
@@ -107,46 +119,87 @@ export default function SharedIssueSlipDetail({ role, issueId }: IssueSlipDetail
             {getStatusBadge(detail.status)}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             {/* LEFT COLUMN: Data Table (2/3) */}
-            <div className="lg:col-span-2 space-y-6">
-              <Card className="border-slate-200 shadow-sm overflow-hidden gap-0">
+            <div className="xl:col-span-2 space-y-6">
+              <Card className="border-slate-200 shadow-sm gap-0 flex flex-col min-h-[400px]">
                 <CardHeader className="bg-white border-b border-slate-100 py-4">
                   <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
                     <PackageSearch className="w-5 h-5 text-indigo-600" /> Requested Materials
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-slate-50/50">
-                        <TableHead className="pl-6">Material Name</TableHead>
-                        <TableHead>Unit</TableHead>
-                        <TableHead className="text-right">Requested Qty</TableHead>
-                        <TableHead className="text-right">Current Stock</TableHead>
-                        <TableHead className="text-center">Availability</TableHead>
-                        <TableHead className="pr-6">Notes</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {detail.details.map((item) => (
-                        <TableRow key={item.detailId} className="hover:bg-slate-50/50">
-                          <TableCell className="pl-6 font-medium text-slate-700">{item.materialName}</TableCell>
-                          <TableCell className="text-slate-500">{item.unit}</TableCell>
-                          <TableCell className="text-right font-bold text-slate-900">{item.requestedQty}</TableCell>
-                          <TableCell className="text-right text-slate-500">{item.totalStock}</TableCell>
-                          <TableCell className="text-center">
-                            {item.isEnough ? (
-                              <Badge className="bg-emerald-50 text-emerald-600 border-emerald-200 font-normal"><CheckCircle2 className="w-3 h-3 mr-1" /> Enough</Badge>
-                            ) : (
-                              <Badge className="bg-rose-50 text-rose-600 border-rose-200 font-normal"><XCircle className="w-3 h-3 mr-1" /> Shortage</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-xs text-slate-500 pr-6">{item.message || "—"}</TableCell>
+                <CardContent className="p-0 bg-white flex flex-col justify-between flex-1">
+                  <div className="overflow-x-auto relative">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50/50">
+                          <TableHead className="w-[60px] text-center pl-4">STT</TableHead>
+                          <TableHead>Material Name</TableHead>
+                          <TableHead className="text-center">Unit</TableHead>
+                          <TableHead className="text-right">Requested Qty</TableHead>
+                          <TableHead className="text-right">Current Stock</TableHead>
+                          <TableHead className="text-center">Availability</TableHead>
+                          <TableHead className="pr-6">Notes</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedDetails.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="h-32 text-center text-slate-500">
+                              No materials found in this request.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          paginatedDetails.map((item, index) => (
+                            <TableRow key={item.detailId} className="hover:bg-slate-50/50">
+                              <TableCell className="text-center font-medium text-slate-500 pl-4">
+                                {startIndex + index + 1}
+                              </TableCell>
+                              <TableCell className="font-medium text-slate-700">{item.materialName}</TableCell>
+                              <TableCell className="text-center text-slate-500">{item.unit}</TableCell>
+                              <TableCell className="text-right font-bold text-slate-900">{item.requestedQty}</TableCell>
+                              <TableCell className="text-right text-slate-500">{item.totalStock}</TableCell>
+                              <TableCell className="text-center">
+                                {item.isEnough ? (
+                                  <Badge className="bg-emerald-50 text-emerald-600 border-emerald-200 font-normal"><CheckCircle2 className="w-3 h-3 mr-1" /> Enough</Badge>
+                                ) : (
+                                  <Badge className="bg-rose-50 text-rose-600 border-rose-200 font-normal"><XCircle className="w-3 h-3 mr-1" /> Shortage</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-xs text-slate-500 pr-6">{item.message || "—"}</TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* FOOTER PHÂN TRANG */}
+                  {detailsList.length > 0 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 gap-4 mt-auto">
+                      <div className="text-sm text-slate-500">
+                        Hiển thị <span className="font-medium text-slate-900">{startIndex + 1}</span> đến <span className="font-medium text-slate-900">{Math.min(endIndex, detailsList.length)}</span> trong tổng số <span className="font-medium text-slate-900">{detailsList.length}</span> vật tư
+                      </div>
+                      <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-slate-500">Số dòng:</span>
+                          <Select value={itemsPerPage.toString()} onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}>
+                            <SelectTrigger className="h-8 w-[70px] bg-white border-slate-200"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="10">10</SelectItem>
+                              <SelectItem value="20">20</SelectItem>
+                              <SelectItem value="-1">Tất cả</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="h-8"><ChevronLeft className="w-4 h-4" /></Button>
+                          <div className="text-sm font-medium text-slate-600 px-2">Trang {currentPage} / {totalPages}</div>
+                          <Button variant="outline" size="sm" onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="h-8"><ChevronRight className="w-4 h-4" /></Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -159,25 +212,53 @@ export default function SharedIssueSlipDetail({ role, issueId }: IssueSlipDetail
                      <FileText className="w-5 h-5 text-indigo-600" /> Slip Information
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Project ID</label>
-                    <div className="mt-1 font-medium text-slate-800">{detail.projectName || "N/A"}</div>
+                <CardContent className="p-6 grid grid-cols-2 gap-y-4 gap-x-2">
+                  
+                  <div className="col-span-2">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Project / Công trình</label>
+                    <div className="mt-1 font-bold text-indigo-700">{detail.projectName || "N/A"}</div>
                   </div>
+
                   <div>
-                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Created By</label>
-                    <div className="mt-1 text-slate-800">{detail.createdByName}</div>
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Hạng mục</label>
+                    <div className="mt-1 text-slate-800 font-medium">{formatWorkItem(detail.workItem)}</div>
                   </div>
+
                   <div>
-                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Creation Date</label>
-                    <div className="mt-1 text-slate-800 flex items-center gap-1.5">
-                       <Calendar className="w-4 h-4 text-slate-400" /> {new Date(detail.issueDate).toLocaleString("vi-VN")}
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Mã tham chiếu</label>
+                    <div className="mt-1 text-slate-800">{detail.referenceCode || "—"}</div>
+                  </div>
+
+                  <div className="col-span-2 pt-2 border-t border-slate-100">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Người yêu cầu</label>
+                    <div className="mt-1 text-slate-800 flex items-center gap-1.5 font-medium">
+                       <User className="w-4 h-4 text-slate-400" /> {detail.createdByName}
                     </div>
                   </div>
+
+                  <div className="col-span-2">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đơn vị (Department)</label>
+                    <div className="mt-1 text-slate-800">{detail.department || "—"}</div>
+                  </div>
+
+                  <div className="col-span-2 pt-2 border-t border-slate-100">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Nơi nhận hàng</label>
+                    <div className="mt-1 text-slate-800 font-medium text-sm leading-relaxed">
+                       {detail.deliveryLocation || "—"}
+                    </div>
+                  </div>
+
+                  <div className="col-span-2 pt-2 border-t border-slate-100">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Ngày tạo</label>
+                    <div className="mt-1 text-slate-800 flex items-center gap-1.5">
+                       <Calendar className="w-4 h-4 text-slate-400" /> {detail.issueDate ? new Date(detail.issueDate).toLocaleString("vi-VN") : "N/A"}
+                    </div>
+                  </div>
+
                   {detail.description && (
-                    <div>
-                       <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Description</label>
-                       <p className="text-sm text-slate-700 mt-1 bg-slate-50 p-3 rounded-md border border-slate-100">{detail.description}</p>
+                    <div className="col-span-2">
+                       <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Ghi chú</label>
+                       <p className="text-sm text-slate-700 mt-1 bg-amber-50/50 p-3 rounded-md border border-amber-100 italic">{detail.description}</p>
                     </div>
                   )}
                 </CardContent>
@@ -195,20 +276,10 @@ export default function SharedIssueSlipDetail({ role, issueId }: IssueSlipDetail
                     <p className="text-sm text-indigo-700/80 mb-2">
                       Please review the requested quantities against current stock before approving.
                     </p>
-                    <Button 
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm h-11"
-                      onClick={() => handleReview("Approved")}
-                      disabled={reviewing}
-                    >
-                      {reviewing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-                      Approve Slip
+                    <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm h-11" onClick={() => handleReview("Approved")} disabled={reviewing}>
+                      {reviewing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />} Approve Slip
                     </Button>
-                    <Button 
-                      variant="outline"
-                      className="w-full text-rose-600 border-rose-200 hover:bg-rose-50 h-11"
-                      onClick={() => handleReview("Rejected")}
-                      disabled={reviewing}
-                    >
+                    <Button variant="outline" className="w-full text-rose-600 border-rose-200 hover:bg-rose-50 h-11" onClick={() => handleReview("Rejected")} disabled={reviewing}>
                       <XCircle className="w-4 h-4 mr-2" /> Reject
                     </Button>
                   </CardContent>
