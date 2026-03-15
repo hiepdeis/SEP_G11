@@ -16,6 +16,8 @@ import {
   History,
   Hash,
   ArrowLeft,
+  User,
+  Delete,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -39,18 +41,45 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/components/providers/auth-provider";
+import { userApi, UserDto } from "@/services/user-service"; 
+// CÁC IMPORT CẦN THIẾT CHO DATE FILTER
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { cn } from "@/lib/utils";
 
-export default function WarehouseCardPage() {
+interface Props {
+  role?: "staff" | "manager";
+}
+
+export default function WarehouseCardPage({ role = "staff" }: Props) {
   const router = useRouter();
+  const { user } = useAuth(); 
 
   const [cards, setCards] = useState<WarehouseCardDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // STATE CHO TAB VÀ PHÂN TRANG
   const [activeTab, setActiveTab] = useState<"Import" | "Export">("Import");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(5);
+
+  const [staffList, setStaffList] = useState<UserDto[]>([]);
+  const [selectedStaffId, setSelectedStaffId] = useState<string>("All");
+
+  // STATE QUẢN LÝ DATE FILTER
+  const [dateRange, setDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
+  });
 
   useEffect(() => {
     const fetchCards = async () => {
@@ -69,23 +98,74 @@ export default function WarehouseCardPage() {
   }, []);
 
   useEffect(() => {
+    const fetchStaffs = async () => {
+      if (role?.toLowerCase() === "manager") {
+        try {
+          const res = await userApi.getAll(1, 100);
+          
+          const staffs = res.data.users.filter(
+            (u) => u.roleName.toLowerCase() === "staff"
+          );
+          
+          setStaffList(staffs);
+        } catch (error) {
+          console.error("Failed to fetch staff list", error);
+        }
+      }
+    };
+    fetchStaffs();
+  }, [role]);
+
+  useEffect(() => {
+    if (role?.toLowerCase() === "staff" && user?.id) {
+      setSelectedStaffId(user.id.toString());
+    }
+  }, [user, role]);
+
+  // Reset page khi có bất kỳ filter nào thay đổi
+  useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, activeTab, itemsPerPage]);
+  }, [searchTerm, activeTab, itemsPerPage, selectedStaffId, dateRange]);
 
   const filteredData = cards.filter((item) => {
+    // 1. Tab Filter
     const matchesTab =
       item.transactionType.toLowerCase() === activeTab.toLowerCase();
 
+    // 2. Staff Filter
+    let matchesStaff = true;
+    if (role?.toLowerCase() === "staff") {
+      matchesStaff = item.createdBy === user?.id;
+    } else if (
+      role?.toLowerCase() === "manager" &&
+      selectedStaffId !== "All"
+    ) {
+      matchesStaff = item.createdBy.toString() === selectedStaffId;
+    }
+
+    // 3. Search Filter
     const term = searchTerm.toLowerCase();
     const matchesSearch =
       item.cardCode.toLowerCase().includes(term) ||
       (item.materialCode && item.materialCode.toLowerCase().includes(term)) ||
       (item.materialName && item.materialName.toLowerCase().includes(term));
 
-    return matchesTab && matchesSearch;
+    // 4. Date Filter
+    let matchesDate = true;
+    if (dateRange.from || dateRange.to) {
+      if (!item.transactionDate) {
+        matchesDate = false;
+      } else {
+        const itemDate = new Date(item.transactionDate);
+        const fromDate = dateRange.from ? startOfDay(dateRange.from) : new Date(2000, 0, 1);
+        const toDate = dateRange.to ? endOfDay(dateRange.to) : new Date(2100, 0, 1);
+        matchesDate = isWithinInterval(itemDate, { start: fromDate, end: toDate });
+      }
+    }
+
+    return matchesTab && matchesStaff && matchesSearch && matchesDate;
   });
 
-  // PHÂN TRANG
   const isAll = itemsPerPage === -1;
   const totalPages = isAll
     ? 1
@@ -95,11 +175,11 @@ export default function WarehouseCardPage() {
   const endIndex = isAll ? filteredData.length : startIndex + itemsPerPage;
   const paginatedData = filteredData.slice(startIndex, endIndex);
 
-  // TÍNH TOÁN KPI
-  const importCards = cards.filter(
+  // Tính toán KPI dựa trên mảng sau khi lọc
+  const importCards = filteredData.filter(
     (c) => c.transactionType.toLowerCase() === "import",
   );
-  const exportCards = cards.filter(
+  const exportCards = filteredData.filter(
     (c) => c.transactionType.toLowerCase() === "export",
   );
 
@@ -131,17 +211,15 @@ export default function WarehouseCardPage() {
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6 ">
           <div className="flex items-start gap-3">
-            {/* Nút Back thu gọn thành Icon tròn, ngang hàng tiêu đề */}
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => router.push("/report")}
+              onClick={() => router.push(`/${role}/reports`)}
               className="h-8 w-8 mt-0.5 shrink-0 rounded-full hover:bg-slate-200 text-slate-500 hover:text-indigo-600 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
             </Button>
 
-            {/* Cụm Tiêu đề */}
             <div className="flex flex-col gap-1">
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">
                 Warehouse Cards
@@ -207,7 +285,7 @@ export default function WarehouseCardPage() {
                     Total Transactions
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {cards.length}
+                    {filteredData.length}
                   </h3>
                 </div>
               </CardContent>
@@ -225,8 +303,8 @@ export default function WarehouseCardPage() {
                 }
                 className="w-full"
               >
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                  {/* TABS LIST THAY THẾ CHO BADGE/FILTER */}
+                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                  {/* TABS LIST */}
                   <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
                     <TabsTrigger
                       value="Import"
@@ -242,15 +320,112 @@ export default function WarehouseCardPage() {
                     </TabsTrigger>
                   </TabsList>
 
-                  <div className="relative w-full md:w-64">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
-                    <Input
-                      placeholder="Search Material or Card Code..."
-                      className="pl-9"
-                      maxLength={50}
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                  <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3">
+                    
+                    <div className="flex items-center gap-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "justify-start text-left font-normal h-9 bg-white shadow-sm",
+                              !dateRange.from && "text-slate-500"
+                            )}
+                          >
+                            <CalendarDays className="mr-2 h-4 w-4" />
+                            {dateRange.from ? format(dateRange.from, "dd/MM/yyyy") : <span>From Date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={dateRange.from}
+                            onSelect={(date) => setDateRange(prev => ({ ...prev, from: date }))}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+
+                      <span className="text-slate-400">-</span>
+
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "justify-start text-left font-normal h-9 bg-white shadow-sm",
+                              !dateRange.to && "text-slate-500"
+                            )}
+                          >
+                            <CalendarDays className="mr-2 h-4 w-4" />
+                            {dateRange.to ? format(dateRange.to, "dd/MM/yyyy") : <span>To Date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={dateRange.to}
+                            onSelect={(date) => setDateRange(prev => ({ ...prev, to: date }))}
+                            initialFocus
+                            disabled={(date) => dateRange.from ? date < dateRange.from : false}
+                          />
+                        </PopoverContent>
+                      </Popover>
+
+                      {(dateRange.from || dateRange.to) && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 text-xs text-slate-500 px-2"
+                          onClick={() => setDateRange({ from: undefined, to: undefined })}
+                        >
+                          <Delete className="h-4 w-4"/>
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* HIỂN THỊ DROPDOWN LỌC STAFF NẾU ROLE LÀ MANAGER */}
+                    {role?.toLowerCase() === "manager" && (
+                      <Select
+                        value={selectedStaffId}
+                        onValueChange={(val) => setSelectedStaffId(val)}
+                      >
+                        <SelectTrigger className="w-full sm:w-[150px] bg-white shadow-sm border-slate-200 h-9">
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-slate-500" />
+                            <span className="truncate">
+                              {selectedStaffId === "All"
+                                ? "All Staffs"
+                                : staffList.find(
+                                    (s) => s.id.toString() === selectedStaffId,
+                                  )?.fullName || "Unknown Staff"}
+                            </span>
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="All">All Staffs</SelectItem>
+                          {staffList.map((staff) => (
+                            <SelectItem
+                              key={staff.id}
+                              value={staff.id.toString()}
+                            >
+                              {staff.fullName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+
+                    <div className="relative w-full sm:w-64">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
+                      <Input
+                        placeholder="Search Material or Card Code..."
+                        className="pl-9 h-9 shadow-sm"
+                        maxLength={50}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
                   </div>
                 </div>
               </Tabs>
@@ -278,7 +453,7 @@ export default function WarehouseCardPage() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-40 text-center">
+                        <TableCell colSpan={7} className="h-40 text-center">
                           <div className="flex justify-center items-center gap-2 text-indigo-600">
                             <Loader2 className="w-6 h-6 animate-spin" /> Loading
                             stock cards...
@@ -288,7 +463,7 @@ export default function WarehouseCardPage() {
                     ) : paginatedData.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={6}
+                          colSpan={7}
                           className="h-40 text-center text-slate-500"
                         >
                           <div className="flex flex-col items-center justify-center gap-2">
@@ -319,6 +494,12 @@ export default function WarehouseCardPage() {
                               >
                                 {item.referenceType} #{item.referenceId}
                               </Badge>
+                              {/* Hiển thị thêm người tạo nếu đang đứng dưới role Manager */}
+                              {role?.toLowerCase() === "manager" && (
+                                <span className="text-[10px] text-slate-400 mt-0.5 font-medium">
+                                  by: {item.createdByName || `ID: ${item.createdBy}`}
+                                </span>
+                              )}
                             </div>
                           </TableCell>
 

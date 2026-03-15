@@ -17,6 +17,8 @@ import {
   LoaderPinwheel,
   ChevronLeft,
   ChevronRight,
+  FileWarning,
+  ListCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
@@ -36,8 +38,10 @@ import {
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { userApi } from "@/services/user-service";
+import { useTranslation } from "react-i18next";
 
 export default function StaffInboundDetailPage() {
+  const { t } = useTranslation();
   const params = useParams();
   const router = useRouter();
   const id = Number(params.id);
@@ -46,6 +50,8 @@ export default function StaffInboundDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   const [confirmByName, setConfirmByName] = useState("");
+  const [qcData, setQcData] = useState<any | null>(null);
+  const [incidentData, setIncidentData] = useState<any | null>(null);
 
   const [tablePage, setTablePage] = useState(1);
   const tableItemsPerPage = 5;
@@ -64,6 +70,26 @@ export default function StaffInboundDetailPage() {
         }
 
         setRequest(requestData);
+        if (
+          requestData.status === "Completed" ||
+          requestData.status === "GoodsArrived"
+        ) {
+          try {
+            const qcRes = await staffReceiptApi.getQCCheck(id);
+            setQcData(qcRes.data);
+
+            // Chỉ thử fetch Incident nếu QC là Fail
+            if (qcRes.data.overallResult === "Fail") {
+              const incRes = await staffReceiptApi.getIncidentReport(id);
+              setIncidentData(incRes.data);
+            }
+          } catch (error: any) {
+            // Bỏ qua lỗi 404 vì đơn giản là chưa có dữ liệu
+            if (error.response?.status !== 404) {
+              console.error("Error fetching QC/Incident", error);
+            }
+          }
+        }
       } catch (error) {
         console.error("Error loading receipt detail", error);
         toast.error("Failed to load receipt details");
@@ -196,12 +222,11 @@ export default function StaffInboundDetailPage() {
         <Button onClick={() => router.back()}>Go Back</Button>
       </div>
     );
-
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title={`Inbound Request #${request.receiptCode}`} />
+        <Header title={`${t("Inbound Request")} #${request.receiptCode}`} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -210,7 +235,7 @@ export default function StaffInboundDetailPage() {
               onClick={() => router.push("/staff/import-request")}
               className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" /> Back to List
+              <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}
             </Button>
 
             <div className="flex gap-3">
@@ -225,15 +250,17 @@ export default function StaffInboundDetailPage() {
                 ) : (
                   <FileSpreadsheet className="w-4 h-4 mr-2" />
                 )}
-                Download Template
+                {t("Download Template")}
               </Button>
 
-              {request.status == "Approved" && (
+              {(request.status == "Approved" ||
+                request.status == "GoodsArrived") && (
                 <Button
                   className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
                   onClick={handleProcess}
                 >
-                  Start Processing <ArrowRight className="w-4 h-4 ml-2" />
+                  {qcData ? t("Continue Processing") : t("Start Processing")}{" "}
+                  <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               )}
             </div>
@@ -248,14 +275,14 @@ export default function StaffInboundDetailPage() {
                   <div className="flex items-center gap-2">
                     <Building2 className="w-5 h-5 text-indigo-600" />
                     <CardTitle className="text-base font-semibold text-slate-800">
-                      Destination & Logistics
+                      {t("Destination & Logistics")}
                     </CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-1">
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-                      Target Warehouse
+                      {t("Target Warehouse")}
                     </span>
                     <div className="flex items-start gap-2">
                       <MapPin className="w-4 h-4 text-slate-500 mt-1" />
@@ -263,24 +290,39 @@ export default function StaffInboundDetailPage() {
                         <p className="font-medium text-slate-800">
                           {request.warehouseName}
                         </p>
-                        <p className="text-xs text-slate-500">Main Facility</p>
+                        <p className="text-xs text-slate-500">
+                          {t("Main Facility")}
+                        </p>
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-1">
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-                      Receipt Status
+                      {t("Receipt Status")}
                     </span>
                     {request.status === "Completed" ? (
                       <div className="flex items-start gap-2">
                         <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-1" />
                         <div>
                           <p className="font-medium text-slate-800">
-                            Completed
+                            {t("Completed")}
                           </p>
                           <p className="text-xs text-slate-500">
-                            By Staff Team - {confirmByName}
+                            {t("By Staff Team")} - {confirmByName}
+                          </p>
+                        </div>
+                      </div>
+                    ) : request.status === "Approved" ? (
+                      <div className="flex items-start gap-2">
+                        <LoaderPinwheel className="w-4 h-4 text-emerald-500 mt-1" />
+                        <div>
+                          <p className="font-medium text-slate-800">
+                            {t("Approved - Ready for QC Check")}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {t("Date")}:{" "}
+                            {formatDate(request.receiptApprovalDate)}
                           </p>
                         </div>
                       </div>
@@ -289,10 +331,11 @@ export default function StaffInboundDetailPage() {
                         <LoaderPinwheel className="w-4 h-4 text-emerald-500 mt-1" />
                         <div>
                           <p className="font-medium text-slate-800">
-                            Approved for Inbound
+                            {t("QC Check Completed - Ready for Import")}
                           </p>
                           <p className="text-xs text-slate-500">
-                            Date: {formatDate(request.receiptApprovalDate)}
+                            {t("Date")}:{" "}
+                            {formatDate(request.receiptApprovalDate)}
                           </p>
                         </div>
                       </div>
@@ -307,61 +350,63 @@ export default function StaffInboundDetailPage() {
                   <div className="flex justify-between items-center">
                     <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
                       <Package className="w-5 h-5 text-slate-500" />
-                      Expected Items
+                      {t("Expected Items")}
                     </CardTitle>
                     <Badge
                       variant="secondary"
                       className="bg-slate-100 text-slate-700"
                     >
-                      {totalTableItems} materials
+                      {totalTableItems} {t("materials")}
                     </Badge>
                   </div>
                 </CardHeader>
 
                 <CardContent className="p-0 flex flex-col flex-1">
-                  <div className="[&>div]:max-h-[350px] [&>div]:min-h-[350px] [&>div]:overflow-y-auto">
+                  <div className="[&>div]:max-h-[300px] [&>div]:min-h-[300px] [&>div]:overflow-y-auto">
                     <Table>
                       <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                         <TableRow className="bg-slate-50/50">
                           <TableHead className="w-[5%] pl-6">#</TableHead>
-                          <TableHead className="w-[25%]">Material</TableHead>
-                          <TableHead className="w-[20%]">Supplier</TableHead>
+                          <TableHead className="w-[25%]">
+                            {t("Material")}
+                          </TableHead>
+                          <TableHead className="w-[20%]">
+                            {t("Supplier")}
+                          </TableHead>
                           <TableHead className="text-center w-[10%]">
-                            Expected Quantity
+                            {t("Expected Quantity")}
                           </TableHead>
                           {request.status === "Completed" && (
                             <TableHead className="text-center w-[10%]">
-                              Actual Quantity
+                              {t("Actual Quantity")}
                             </TableHead>
                           )}
                           {request.status === "Completed" ? (
                             <>
                               <TableHead className="text-center w-[15%]">
-                                Bin Code
+                                {t("Bin Code")}
                               </TableHead>
                               <TableHead className="text-center w-[15%]">
-                                Batch Code
+                                {t("Batch Code")}
                               </TableHead>
                               <TableHead className="text-center w-[25%] pr-6">
-                                MFG Date
+                                {t("MFG Date")}
                               </TableHead>
                             </>
                           ) : (
                             <TableHead className="text-center w-[15%] pr-6">
-                              Status
+                              {t("Status")}
                             </TableHead>
                           )}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {/* DÙNG paginatedTableItems THAY VÌ request.items */}
                         {paginatedTableItems.map((item, index) => (
                           <TableRow
                             key={item.detailId}
                             className="hover:bg-slate-50"
                           >
                             <TableCell className="text-slate-500 text-sm pl-6">
-                              {/* CỘNG startTableIndex ĐỂ HIỂN THỊ ĐÚNG SỐ THỨ TỰ */}
                               {startTableIndex + index + 1}
                             </TableCell>
                             <TableCell>
@@ -432,7 +477,7 @@ export default function StaffInboundDetailPage() {
                                       ? new Date(
                                           item.mfgDate,
                                         ).toLocaleDateString("vi-VN")
-                                      : "N/A"}
+                                      : t("N/A")}
                                   </span>
                                 </TableCell>
                               </>
@@ -442,7 +487,7 @@ export default function StaffInboundDetailPage() {
                                   variant="outline"
                                   className="border-slate-200 text-slate-500 font-normal text-xs"
                                 >
-                                  Pending Check
+                                  {t("Pending")}
                                 </Badge>
                               </TableCell>
                             )}
@@ -452,16 +497,15 @@ export default function StaffInboundDetailPage() {
                     </Table>
                   </div>
 
-                  {/* THÊM THANH PHÂN TRANG VÀO ĐÂY */}
                   {totalTablePages > 1 && (
                     <div className="px-6 py-3 flex items-center justify-between border-t border-slate-100 bg-white shrink-0 mt-auto">
                       <span className="text-xs text-slate-500">
-                        Showing {startTableIndex + 1}-
+                        {t("Showing")} {startTableIndex + 1}-
                         {Math.min(
                           startTableIndex + tableItemsPerPage,
                           totalTableItems,
                         )}{" "}
-                        of {totalTableItems}
+                        {t("of")} {totalTableItems}
                       </span>
                       <div className="flex items-center gap-2">
                         <Button
@@ -473,7 +517,7 @@ export default function StaffInboundDetailPage() {
                           }
                           disabled={tablePage === 1}
                         >
-                          <ChevronLeft className="w-3 h-3 mr-1" /> Prev
+                          <ChevronLeft className="w-3 h-3 mr-1" /> {t("Prev")}
                         </Button>
                         <span className="text-xs font-medium text-slate-600 w-10 text-center">
                           {tablePage} / {totalTablePages}
@@ -489,13 +533,155 @@ export default function StaffInboundDetailPage() {
                           }
                           disabled={tablePage === totalTablePages}
                         >
-                          Next <ChevronRight className="w-3 h-3 ml-1" />
+                          {t("Next")} <ChevronRight className="w-3 h-3 ml-1" />
                         </Button>
                       </div>
                     </div>
                   )}
                 </CardContent>
               </Card>
+              {qcData && (
+                <Card className="border-slate-200 shadow-sm mt-6 gap-0">
+                  <CardHeader className="bg-white border-b border-slate-100 py-4">
+                    <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-slate-500" />
+                      {t("Quality Control & Inspection Results")}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-6">
+                    <div>
+                      <div className="flex items-center gap-3 mb-3">
+                        <h4 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                          <ListCheck
+                            className={
+                              qcData.overallResult === "Pass"
+                                ? " text-emerald-700 w-4 h-4"
+                                : "text-red-700 w-4 h-4 "
+                            }
+                          />{" "}
+                          {t("QC Overall Result")}:
+                        </h4>
+                        <Badge
+                          className={
+                            qcData.overallResult === "Pass"
+                              ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
+                              : "bg-red-100 text-red-700 hover:bg-red-100"
+                          }
+                        >
+                          {t(qcData.overallResult)}
+                        </Badge>
+                      </div>
+
+                      {qcData.overallResult === "Fail" && (
+                        <div className="text-sm text-slate-600 bg-slate-50 p-3 rounded-md border border-slate-200">
+                          <p className="font-medium mb-1">
+                            {t("Failed Items Summary")}:
+                          </p>
+                          <ul className="list-disc pl-5 space-y-1">
+                            {qcData.details
+                              .filter((d: any) => d.result === "Fail")
+                              .map((item: any, idx: number) => (
+                                <li key={idx}>
+                                  <span className="font-semibold">
+                                    {item.materialName || item.materialCode}
+                                  </span>
+                                  <span className="text-slate-500 ml-2">
+                                    {t("Reason")}: {item.failReason}
+                                  </span>
+                                </li>
+                              ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* KHỐI TÓM TẮT INCIDENT (NẾU CÓ) */}
+                    {incidentData && (
+                      <div className="pt-4 border-t border-slate-100">
+                        <div className="flex items-center gap-3 mb-3">
+                          <h4 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                            <FileWarning className="w-4 h-4 text-amber-500" />{" "}
+                            {t("Incident Report")}
+                          </h4>
+                          <Badge
+                            variant="outline"
+                            className="text-slate-500 font-normal"
+                          >
+                            {incidentData.incidentCode}
+                          </Badge>
+                          <Badge
+                            className={
+                              incidentData.status === "Resolved"
+                                ? "bg-emerald-50 text-emerald-600"
+                                : "bg-amber-50 text-amber-600"
+                            }
+                          >
+                            {t(incidentData.status)}
+                          </Badge>
+                        </div>
+
+                        <div className="text-sm text-slate-600 space-y-2">
+                          <p>
+                            <span className="font-medium text-slate-700">
+                              {t("General Description")}:
+                            </span>{" "}
+                            {incidentData.description}
+                          </p>
+
+                          <div className="mt-3">
+                            <p className="font-medium text-slate-700 mb-1">
+                              {t("Reported Issues")}:
+                            </p>
+                            <Table>
+                              <TableHeader className="bg-slate-50">
+                                <TableRow>
+                                  <TableHead className="h-8">
+                                    {t("Material")}
+                                  </TableHead>
+                                  <TableHead className="h-8 text-center">
+                                    {t("Expected")}
+                                  </TableHead>
+                                  <TableHead className="h-8 text-center">
+                                    {t("Actual")}
+                                  </TableHead>
+                                  <TableHead className="h-8">
+                                    {t("Issue Type")}
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {incidentData.details.map(
+                                  (inc: any, idx: number) => (
+                                    <TableRow key={idx}>
+                                      <TableCell className="py-2 text-xs font-medium">
+                                        {inc.materialName}
+                                      </TableCell>
+                                      <TableCell className="py-2 text-xs text-center">
+                                        {inc.expectedQuantity}
+                                      </TableCell>
+                                      <TableCell className="py-2 text-xs text-center font-bold text-red-500">
+                                        {inc.actualQuantity}
+                                      </TableCell>
+                                      <TableCell className="py-2 text-xs">
+                                        <Badge
+                                          variant="secondary"
+                                          className="font-normal text-xs"
+                                        >
+                                          {inc.issueType}
+                                        </Badge>
+                                      </TableCell>
+                                    </TableRow>
+                                  ),
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* Right Column: Summary Stats */}
@@ -503,13 +689,13 @@ export default function StaffInboundDetailPage() {
               <Card className="border-slate-200">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-slate-500 uppercase">
-                    Receipt Summary
+                    {t("Receipt Summary")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex justify-between items-end border-b border-slate-200 pb-3">
                     <span className="text-sm text-slate-600">
-                      Total Materials
+                      {t("Total Materials")}
                     </span>
                     <span className="text-lg font-semibold text-slate-900">
                       {request.items.length}
@@ -517,7 +703,7 @@ export default function StaffInboundDetailPage() {
                   </div>
                   <div className="flex justify-between items-end">
                     <span className="text-sm text-slate-600">
-                      Total Quantity
+                      {t("Total Quantity")}
                     </span>
                     <span className="text-2xl font-bold text-indigo-600">
                       {request.totalQuantity.toLocaleString("vi-VN")}
@@ -526,14 +712,19 @@ export default function StaffInboundDetailPage() {
 
                   <div className="pt-4">
                     <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-xs text-yellow-800">
-                      <strong>Instructions:</strong>
+                      <strong>{t("Instructions")}:</strong>
                       <ul className="list-disc pl-4 mt-1 space-y-1">
-                        <li>Download the template to verify items offline.</li>
                         <li>
-                          Click "Start Processing" to input actual received
-                          quantities.
+                          {t("Download the template to verify items offline.")}
                         </li>
-                        <li>Ensure physical count matches the system.</li>
+                        <li>
+                          {t(
+                            'Click "Start Processing" to input actual received quantities.',
+                          )}
+                        </li>
+                        <li>
+                          {t("Ensure physical count matches the system.")}
+                        </li>
                       </ul>
                     </div>
                   </div>

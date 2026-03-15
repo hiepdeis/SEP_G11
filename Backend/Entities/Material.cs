@@ -23,6 +23,8 @@ public partial class Material
     [StringLength(20)]
     public string? Unit { get; set; }
 
+    public bool IsDecimalUnit { get; set; } // Cho biết đơn vị có phải là đơn vị thập phân hay không
+
     [Column(TypeName = "decimal(10, 2)")]
     public decimal? MassPerUnit { get; set; }
 
