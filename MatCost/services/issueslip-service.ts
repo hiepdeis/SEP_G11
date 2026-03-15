@@ -50,6 +50,10 @@ export interface IssueSlipDetail {
   createdBy: number;
   createdByName: string;
   description: string;
+  workItem?: string;
+  department?: string;
+  deliveryLocation?: string;
+  referenceCode?: string;
   details: IssueSlipDetailItem[];
 }
 
