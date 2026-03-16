@@ -144,12 +144,16 @@ namespace Backend.Domains.Import.Services
             .Include(r => r.CreatedByNavigation)
             .Include(r => r.ReceiptDetails)
             .ThenInclude(rd => rd.Material)
-            .Include(r => r.ReceiptDetails)      
-            .ThenInclude(rd => rd.Supplier)  
+            .Include(r => r.ReceiptDetails)
+            .ThenInclude(rd => rd.Supplier)
             .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
 
             if (receipt == null)
                 return null;
+
+            var userMap = await BuildUserNameMapAsync(
+                receipt.SubmittedBy, receipt.RejectedBy);
+
 
             return new ReceiptDetailDto
             {
@@ -164,9 +168,9 @@ namespace Backend.Domains.Import.Services
                         ? receipt.CreatedByNavigation.FullName ?? receipt.CreatedByNavigation.Email
                         : "Unknown",
                 CreatedDate = receipt.ReceiptDate,
-                SubmittedByName = null, //Sửa, hiện tại chưa có trường SubmittedByNavigation, tạm thời để null
+                SubmittedByName = ResolveUserName(userMap, receipt.SubmittedBy),
                 SubmittedDate = receipt.SubmittedAt,
-                RejectedByName = null, //Sửa, hiện tại chưa có trường RejectedByNavigation, tạm thời để null
+                RejectedByName = ResolveUserName(userMap, receipt.RejectedBy),
                 RejectedDate = receipt.RejectedAt,
                 Items = receipt.ReceiptDetails.Select(rd => new ReceiptItemDto
                 {
@@ -530,6 +534,12 @@ namespace Backend.Domains.Import.Services
                 throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
             }
 
+            var userMap = await BuildUserNameMapAsync(
+                receipt.SubmittedBy,
+                receipt.ApprovedBy,
+                receipt.RejectedBy,
+                receipt.ConfirmedBy);
+
             return new PendingReceiptDto
             {
                 ReceiptId = receipt.ReceiptId,
@@ -539,14 +549,14 @@ namespace Backend.Domains.Import.Services
                 TotalAmount = receipt.ReceiptDetails.Sum(rd => rd.Quantity * rd.UnitPrice),
                 Status = receipt.Status ?? "Unknown",
                 CreatedByName = receipt.CreatedByNavigation?.FullName,
-                SubbmittedByName = receipt.CreatedByNavigation?.FullName, //Sửa, hiện tại chưa có trường SubmittedByNavigation, tạm thời lấy CreatedByNavigation
+                SubmittedByName = ResolveUserName(userMap, receipt.SubmittedBy),
                 SubmittedDate = receipt.SubmittedAt,
-                ApprovedByName = receipt.CreatedByNavigation?.FullName, //Sửa, hiện tại chưa có trường ApprovedByNavigation, tạm thời lấy CreatedByNavigation
+                ApprovedByName = ResolveUserName(userMap, receipt.ApprovedBy),
                 ApprovedDate = receipt.ApprovedAt,
-                RejectedByName = receipt.CreatedByNavigation?.FullName, //Sửa, hiện tại chưa có trường RejectedByNavigation, tạm thời lấy CreatedByNavigation
+                RejectedByName = ResolveUserName(userMap, receipt.RejectedBy),
                 RejectedDate = receipt.RejectedAt,
-                ConfirmedByName = receipt.CreatedByNavigation?.FullName, //Sửa, hiện tại chưa có trường ConfirmedByNavigation, tạm thời lấy CreatedByNavigation
-                ConfirmDate = null, //Sửa, chưa có trường ConfirmDate, tạm thời để null
+                ConfirmedByName = ResolveUserName(userMap, receipt.ConfirmedBy),
+                ConfirmDate = receipt.ConfirmedAt, // temporary null
 
                 Details = receipt.ReceiptDetails.Select(rd => new PendingReceiptDetailDto
                 {
@@ -711,6 +721,11 @@ namespace Backend.Domains.Import.Services
                 throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
             }
 
+            var userMap = await BuildUserNameMapAsync(
+                receipt.SubmittedBy,
+                receipt.ApprovedBy,
+                receipt.ConfirmedBy);
+
             return new GetInboundRequestListDto
             {
                 ReceiptId = receipt.ReceiptId,
@@ -723,17 +738,14 @@ namespace Backend.Domains.Import.Services
                                 ? receipt.CreatedByNavigation.FullName ?? receipt.CreatedByNavigation.Email
                                 : "Unknown",
                 CreatedDate = receipt.ReceiptDate,
-                SubmittedByName = receipt.CreatedByNavigation != null
-                                ? receipt.CreatedByNavigation.FullName ?? receipt.CreatedByNavigation.Email
-                                : "Unknown",//Sửa
+                SubmittedByName = ResolveUserName(userMap, receipt.SubmittedBy),
                 SubmittedDate = receipt.SubmittedAt,
-                ApprovedByName = receipt.CreatedByNavigation != null
-                                ? receipt.CreatedByNavigation.FullName ?? receipt.CreatedByNavigation.Email
-                                : "Unknown", //Sửa
-                ConfirmedByName = receipt.CreatedByNavigation != null
-                                ? receipt.CreatedByNavigation.FullName ?? receipt.CreatedByNavigation.Email
-                                : "Unknown", //Sửa
-                ConfirmedDate = null, //Sửa, chưa có trong db
+                ApprovedByName = ResolveUserName(userMap, receipt.ApprovedBy),
+                ApprovedDate = receipt.ApprovedAt,
+                RejectedByName = ResolveUserName(userMap, receipt.RejectedBy),
+                RejectedDate = receipt.RejectedAt,
+                ConfirmedByName = ResolveUserName(userMap, receipt.ConfirmedBy),
+                ConfirmedDate = receipt.ConfirmedAt,
                 Status = receipt.Status,
                 Items = receipt.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
                 {
@@ -891,6 +903,7 @@ namespace Backend.Domains.Import.Services
                         Status = "Backorder",
                         WarehouseId = receipt.WarehouseId,
                         ConfirmedBy = receipt.ConfirmedBy,
+                        ConfirmedAt = receipt.ConfirmedAt,
                         ReceiptDate = today,
                         BackorderReason = $"Auto-generated backorder from receipt {receipt.ReceiptCode}",
                     };
@@ -920,6 +933,7 @@ namespace Backend.Domains.Import.Services
                 // STEP 4: Finalize
                 receipt.Status = "Completed";
                 receipt.ConfirmedBy = staffId;
+                receipt.ConfirmedAt = today;
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -1446,5 +1460,29 @@ namespace Backend.Domains.Import.Services
 
         #endregion
 
+        #region Helper Methods
+
+        private async Task<Dictionary<int, string>> BuildUserNameMapAsync(params int?[] userIds)
+        {
+            var id = userIds.Where(id => id.HasValue)
+                            .Select(id => id!.Value)
+                            .Distinct()
+                            .ToList();
+
+            if (!id.Any())
+                return new Dictionary<int, string>();
+
+            return await _context.Users
+                .Where(u => id.Contains(u.UserId))
+                .ToDictionaryAsync(u => u.UserId, u => u.FullName ?? u.Email ?? $"User {u.UserId}");
+        }
+
+        private static string? ResolveUserName(Dictionary<int, string> userMap, int? userId)
+        {
+            if (!userId.HasValue) return null;
+            return userMap.TryGetValue(userId.Value, out var name) ? name : null;
+        }
+
+        #endregion
     }
 }

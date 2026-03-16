@@ -421,7 +421,9 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.BackorderReason).HasColumnName("BackorderReason").HasMaxLength(500);
 
             entity.Property(e => e.ConfirmedBy).HasColumnName("ConfirmedBy");
-
+            entity.Property(e => e.ConfirmedAt)
+                .HasColumnName("ConfirmedAt")
+                .HasColumnType("datetime");
 
             entity.Property(e => e.Status)
                 .HasMaxLength(20)

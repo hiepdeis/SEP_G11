@@ -16,7 +16,8 @@
         public DateTime? ApprovedDate { get; set; }
         public string? ConfirmedByName { get; set; }
         public DateTime? ConfirmedDate { get; set; }
-
+        public string? RejectedByName { get; set; }
+        public DateTime? RejectedDate { get; set; }
         public string? Status { get; set; }
         public List<GetInboundRequestItemDto> Items { get; set; }
     }

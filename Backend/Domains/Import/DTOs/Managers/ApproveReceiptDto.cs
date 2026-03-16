@@ -19,7 +19,7 @@
         public decimal? TotalAmount { get; set; }
         public string Status { get; set; } = string.Empty;
         public string? CreatedByName { get; set; }
-        public string? SubbmittedByName { get; set; }
+        public string? SubmittedByName { get; set; }
         public DateTime? SubmittedDate { get; set; }
         public string? ApprovedByName { get; set; }
         public DateTime? ApprovedDate { get; set; }

@@ -38,15 +38,11 @@ public partial class Receipt
     public DateTime? ApprovedAt { get; set; }
     public int? RejectedBy { get; set; }
     public DateTime? RejectedAt { get; set; }
-
     public int? ConfirmedBy { get; set; }
-
+    public DateTime? ConfirmedAt { get; set; }
     public string? ImportedCompleteNote { get; set; }
-
     public string? RejectionReason { get; set; }
-
     public string? AccountantNotes { get; set; }
-
     public string? BackorderReason { get; set; }
 
     [Column("ParentRequestID")]
