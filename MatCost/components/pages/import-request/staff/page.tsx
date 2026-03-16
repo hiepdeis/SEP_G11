@@ -19,6 +19,8 @@ import {
   ChevronRight,
   FileWarning,
   ListCheck,
+  Check,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
@@ -277,10 +279,221 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
             </div>
           </div>
 
+          {/* HORIZONTAL TIMELINE DYNAMIC (STAFF vs MANAGER) */}
+          <Card className="border-slate-200 shadow-sm bg-white mb-6">
+            <CardContent className="">
+              {role === "staff" ? (
+                <div className="relative max-w-2xl mx-auto">
+                  <div className="absolute left-[25%] right-[25%] top-5 h-1 bg-slate-200 z-10 rounded-full" />
+                  <div
+                    className={`absolute left-[25%] top-5 h-1 rounded-full z-10 transition-all duration-500 ${
+                      request.confirmedDate || request.status === "Completed"
+                        ? "bg-indigo-600"
+                        : "bg-transparent"
+                    }`}
+                    style={{
+                      width:
+                        request.confirmedDate || request.status === "Completed"
+                          ? "50%"
+                          : "0%",
+                    }}
+                  />
+
+                  <div className="flex justify-between w-full">
+                    <div className="flex flex-col items-center relative z-10 w-1/2">
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
+                          request.approvedDate
+                            ? "bg-indigo-600 text-white"
+                            : "bg-slate-200 text-slate-400"
+                        }`}
+                      >
+                        <Check className="w-5 h-5" />
+                      </div>
+                      <div className="text-center mt-3 bg-white px-4">
+                        <p className="text-sm font-semibold text-slate-800">
+                          {t("Approved")}
+                        </p>
+                        {request.approvedByName && (
+                          <p className="text-xs font-medium text-slate-600 mt-0.5">
+                            {request.approvedByName}
+                          </p>
+                        )}
+                        {request.approvedDate && (
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {formatDate(request.approvedDate)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-center relative z-10 w-1/2">
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
+                          request.confirmedDate ||
+                          request.status === "Completed"
+                            ? "bg-emerald-500 text-white"
+                            : "bg-slate-200 text-slate-400"
+                        }`}
+                      >
+                        <Check className="w-5 h-5" />
+                      </div>
+                      <div className="text-center mt-3 bg-white px-4">
+                        <p className="text-sm font-semibold text-slate-800">
+                          {t("Confirmed")}
+                        </p>
+                        {request.confirmedByName ? (
+                          <p className="text-xs font-medium text-slate-600 mt-0.5">
+                            {request.confirmedByName}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-slate-400 italic mt-0.5">
+                            {t("Pending")}
+                          </p>
+                        )}
+                        {request.confirmedDate && (
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {formatDate(request.confirmedDate)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative max-w-4xl mx-auto px-4">
+                  <div className="absolute left-[12.5%] right-[12.5%] top-5 h-1 bg-slate-200 z-10 rounded-full" />
+                  <div
+                    className="absolute left-[12.5%] top-5 h-1 rounded-full z-10 transition-all duration-500 bg-indigo-600"
+                    style={{
+                      width:
+                        request.confirmedDate || request.status === "Completed"
+                          ? "75%"
+                          : request.approvedDate ||
+                              request.status === "Approved"
+                            ? "50%"
+                            : request.submittedDate
+                              ? "25%"
+                              : "0%",
+                    }}
+                  />
+
+                  <div className="flex justify-between w-full">
+                    <div className="flex flex-col items-center relative z-10 w-1/4">
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${request.createdDate ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-400"}`}
+                      >
+                        <Check className="w-5 h-5" />
+                      </div>
+                      <div className="text-center mt-3 bg-white px-2">
+                        <p className="text-sm font-semibold text-slate-800">
+                          {t("Create Receipt")}
+                        </p>
+                        {request.createdByName && (
+                          <p className="text-xs font-medium text-slate-600 mt-0.5">
+                            {request.createdByName}
+                          </p>
+                        )}
+                        {request.createdDate && (
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {formatDate(request.createdDate)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-center relative z-10 w-1/4">
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${request.submittedDate ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-400"}`}
+                      >
+                        <Check className="w-5 h-5" />
+                      </div>
+                      <div className="text-center mt-3 bg-white px-2">
+                        <p className="text-sm font-semibold text-slate-800">
+                          {t("Submit")}
+                        </p>
+                        {request.submittedByName ? (
+                          <p className="text-xs font-medium text-slate-600 mt-0.5">
+                            {request.submittedByName}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-slate-400 italic mt-0.5">
+                            {t("Pending")}
+                          </p>
+                        )}
+                        {request.submittedDate && (
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {formatDate(request.submittedDate)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-center relative z-10 w-1/4">
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${request.approvedDate || request.status === "Approved" ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-400"}`}
+                      >
+                        <Check className="w-5 h-5" />
+                      </div>
+                      <div className="text-center mt-3 bg-white px-2">
+                        <p className="text-sm font-semibold text-slate-800">
+                          {t("Approved")}
+                        </p>
+                        {request.status === "Submitted" ? (
+                          <p className="text-xs text-slate-400 italic mt-0.5">
+                            {t("Pending")}
+                          </p>
+                        ) : (
+                          <>
+                            {request.approvedByName && (
+                              <p className="text-xs font-medium text-slate-600 mt-0.5">
+                                {request.approvedByName}
+                              </p>
+                            )}
+                            {request.approvedDate && (
+                              <p className="text-[11px] text-slate-400 mt-0.5">
+                                {formatDate(request.approvedDate)}
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-center relative z-10 w-1/4">
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${request.confirmedDate || request.status === "Completed" ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-400"}`}
+                      >
+                        <Check className="w-5 h-5" />
+                      </div>
+                      <div className="text-center mt-3 bg-white px-2">
+                        <p className="text-sm font-semibold text-slate-800">
+                          {t("Confirmed")}
+                        </p>
+                        {request.confirmedByName ? (
+                          <p className="text-xs font-medium text-slate-600 mt-0.5">
+                            {request.confirmedByName}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-slate-400 italic mt-0.5">
+                            {t("Pending")}
+                          </p>
+                        )}
+                        {request.confirmedDate && (
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {formatDate(request.confirmedDate)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            {/* Left Column: General Info */}
             <div className="lg:col-span-4 space-y-6">
-              {/* Warehouse & Supplier Info Card */}
               <Card className="border-slate-200 shadow-sm gap-0">
                 <CardHeader className="border-b border-slate-100 py-4">
                   <div className="flex items-center gap-2">
@@ -320,7 +533,7 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                             {t("Completed")}
                           </p>
                           <p className="text-xs text-slate-500">
-                            {t("By Staff Team")} - Them
+                            {t("By Staff Team")} - {request.confirmedByName}
                           </p>
                         </div>
                       </div>
@@ -749,24 +962,28 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                     </span>
                   </div>
 
-                  <div className="pt-4">
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-xs text-yellow-800">
-                      <strong>{t("Instructions")}:</strong>
-                      <ul className="list-disc pl-4 mt-1 space-y-1">
-                        <li>
-                          {t("Download the template to verify items offline.")}
-                        </li>
-                        <li>
-                          {t(
-                            'Click "Start Processing" to input actual received quantities.',
-                          )}
-                        </li>
-                        <li>
-                          {t("Ensure physical count matches the system.")}
-                        </li>
-                      </ul>
+                  {role == "staff" && (
+                    <div className="pt-4">
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-xs text-yellow-800">
+                        <strong>{t("Instructions")}:</strong>
+                        <ul className="list-disc pl-4 mt-1 space-y-1">
+                          <li>
+                            {t(
+                              "Download the template to verify items offline.",
+                            )}
+                          </li>
+                          <li>
+                            {t(
+                              'Click "Start Processing" to input actual received quantities.',
+                            )}
+                          </li>
+                          <li>
+                            {t("Ensure physical count matches the system.")}
+                          </li>
+                        </ul>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

@@ -36,6 +36,12 @@ export interface ReceiptDetailDto {
   receiptDate: string | null;
   status: string | null;
   totalAmount: number | null;
+  createdByName?: string | null;
+  createdDate?: string | null;
+  submittedByName?: string | null;
+  submittedDate?: string | null;
+  rejectedByName?: string | null;
+  rejectedDate?: string | null
   items: ReceiptItemDto[];
 }
 
@@ -157,7 +163,14 @@ export interface PendingReceiptDto {
   totalAmount: number | null;
   status: string;
   createdByName: string | null;
-  submittedDate: string | null;
+  submittedByName?: string | null;
+  submittedDate?: string | null;
+  approvedByName?: string | null;
+  approvedDate?: string | null;
+  rejectedByName?: string | null;
+  rejectedDate?: string | null;
+  confirmedByName?: string | null;
+  confirmDate?: string | null;
   details: PendingReceiptDetailDto[];
 }
 
@@ -237,9 +250,16 @@ export interface GetInboundRequestListDto {
   warehouseName: string;
   receiptApprovalDate: string | null; // DateTime?
   totalQuantity: number; // decimal
-  items: GetInboundRequestItemDto[];
-  confirmedBy: number;
+  createdByName?: string | null;
+  createdDate?: string | null;
+  submittedByName?: string | null;
+  submittedDate?: string | null;
+  approvedByName?: string | null;
+  approvedDate?: string | null;
+  confirmedByName?: string | null;
+  confirmedDate?: string | null;
   status: string;
+  items: GetInboundRequestItemDto[];
 }
 
 export interface ConfirmGoodsReceiptItemDto {

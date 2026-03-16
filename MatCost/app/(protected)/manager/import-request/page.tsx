@@ -65,7 +65,13 @@ export default function ManagerImportRequestPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const [filterStatus, setFilterStatus] = useState<
-    "All" | "Submitted" | "History"
+    | "All"
+    | "Submitted"
+    | "History"
+    | "Rejected"
+    | "Approved"
+    | "GoodsArrived"
+    | "Completed"
   >("Submitted");
 
   const [dateRange, setDateRange] = useState<{
@@ -123,6 +129,8 @@ export default function ManagerImportRequestPage() {
       matchesStatus = item.status === "Submitted";
     } else if (filterStatus === "History") {
       matchesStatus = item.status !== "Submitted";
+    } else if (filterStatus !== "All") {
+      matchesStatus = item.status === filterStatus;
     }
 
     const term = searchTerm.toLowerCase();
@@ -324,19 +332,35 @@ export default function ManagerImportRequestPage() {
 
                   <Select
                     value={filterStatus}
-                    onValueChange={(value: "Submitted" | "History" | "All") =>
-                      setFilterStatus(value)
-                    }
+                    onValueChange={(
+                      value:
+                        | "All"
+                        | "Submitted"
+                        | "History"
+                        | "Rejected"
+                        | "Approved"
+                        | "GoodsArrived"
+                        | "Completed",
+                    ) => setFilterStatus(value)}
                   >
                     <SelectTrigger className="w-full md:w-[150px] bg-white border-slate-200 shadow-sm h-9">
                       <SelectValue placeholder={t("Filter by status")} />
                     </SelectTrigger>
                     <SelectContent>
+                      {/* Các bộ lọc chung */}
+                      <SelectItem value="All">{t("All")}</SelectItem>
                       <SelectItem value="Submitted">
                         {t("Submitted")}
                       </SelectItem>
+                      <SelectItem value="Approved">{t("Approved")}</SelectItem>
+                      <SelectItem value="Rejected">{t("Rejected")}</SelectItem>
+                      <SelectItem value="GoodsArrived">
+                        {t("GoodsArrived")}
+                      </SelectItem>
+                      <SelectItem value="Completed">
+                        {t("Completed")}
+                      </SelectItem>
                       <SelectItem value="History">{t("History")}</SelectItem>
-                      <SelectItem value="All">{t("All")}</SelectItem>
                     </SelectContent>
                   </Select>
 

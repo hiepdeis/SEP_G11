@@ -64,7 +64,7 @@
   "Construction Team": "Đội thi công",
   "items": "mặt hàng",
   "No reason provided": "Không có lý do",
-  "Revert to Draft": "Chuyển thành nháp",
+  "Revert to Draft": "Chuyển về nháp",
   "View": "Xem",
   "Process": "Xử lý",
   "results": "kết quả",
@@ -272,6 +272,7 @@
   "Failed to load data for incident report": "Không thể tải dữ liệu cho báo cáo sự cố",
   "Please provide an overall incident description.": "Vui lòng cung cấp mô tả tổng thể về sự cố.",
   "Enter Actual Quantity for all failed items.": "Nhập số lượng thực tế cho tất cả vật tư không đạt.",
+  "Select Certificate Image for all items.": "Chọn hình ảnh chứng nhận cho tất cả các mục.",
   "Select Issue Type for all failed items.": "Chọn loại sự cố cho tất cả vật tư không đạt.",
   "Incident Report created successfully!": "Tạo báo cáo sự cố thành công!",
   "Failed to create incident report": "Tạo báo cáo sự cố thất bại",
@@ -394,5 +395,8 @@
   "Submit Material Request?": "Gửi yêu cầu vật tư?",
   "Are you sure you want to submit this request? This action cannot be undone.": "Bạn có chắc chắn muốn gửi yêu cầu này không? Hành động này không thể hoàn tác.",
   "Created Date" : "Ngày tạo phiếu",
-  "Created By": "Người tạo"
+  "Created By": "Người tạo",
+  "Create Receipt": "Tạo phiếu",
+  "Confirmed": "Hoàn thành",
+  "Submit Receipt": "Trình phiếu"
 }
