@@ -24,7 +24,7 @@ namespace Backend.Domains.Audit.Services
                 throw new ArgumentException("WarehouseId không tồn tại.");
 
             // 2) Nếu BinLocationIds được cung cấp, validate tất cả tồn tại và thuộc warehouse
-            var binLocationIds = request.BinLocationIds ?? new List<int>();
+            var binLocationIds = request.BinLocationIds;
             if (binLocationIds.Any())
             {
                 var invalidBins = new List<int>();
@@ -42,14 +42,16 @@ namespace Backend.Domains.Audit.Services
                     throw new ArgumentException($"Các BinLocationId không tồn tại hoặc không thuộc warehouse: {string.Join(", ", invalidBins)}");
             }
 
-            // 3) Validate date theo SRS
-            var today = DateTime.UtcNow.Date;
-            if (request.PlannedStartDate.Date < today)
-                throw new ArgumentException("PlannedStartDate phải là hôm nay hoặc tương lai.");
-            if (request.PlannedEndDate.Date < request.PlannedStartDate.Date)
-                throw new ArgumentException("PlannedEndDate phải >= PlannedStartDate.");
+            // 3) Validate date/time theo SRS
+            var now = DateTime.UtcNow;
 
-            // 4) Create record StockTakes: status = Planned (đúng SRS)
+            if (request.PlannedStartDate < now)
+                throw new ArgumentException("PlannedStartDate phải là thời điểm hiện tại hoặc tương lai.");
+
+            if (request.PlannedEndDate <= request.PlannedStartDate)
+                throw new ArgumentException("PlannedEndDate phải lớn hơn PlannedStartDate.");
+
+            // 4) Create record StockTakes: status = Planned
             var entity = new StockTake
             {
                 WarehouseId = request.WarehouseId,

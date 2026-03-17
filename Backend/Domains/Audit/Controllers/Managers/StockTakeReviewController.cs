@@ -180,6 +180,29 @@ public class StockTakeReviewController : ControllerBase
         return Ok(new { message = "Variance resolved successfully." });
     }
 
+    /// PUT /api/manager/audits/{stockTakeId}/variances/{detailId}/request-recount
+    /// Manager requests recount for a discrepancy item
+    [HttpPut("{stockTakeId:int}/variances/{detailId:long}/request-recount")]
+    public async Task<IActionResult> RequestRecount(
+        int stockTakeId,
+        long detailId,
+        [FromBody] RequestRecountRequest? req,
+        CancellationToken ct = default)
+    {
+        var userId = GetUserId();
+
+        var (success, message) = await _service.RequestRecountAsync(
+            stockTakeId,
+            detailId,
+            req ?? new RequestRecountRequest(),
+            userId,
+            ct);
+
+        if (!success)
+            return BadRequest(new { message });
+
+        return Ok(new { message });
+    }
     /// PUT /api/manager/audits/{stockTakeId}/variances/{detailId}/reason
     /// Manager updates the reason for a variance (why it's missing/excess)
     [HttpPut("{stockTakeId:int}/variances/{detailId:long}/reason")]
@@ -230,37 +253,7 @@ public class StockTakeReviewController : ControllerBase
         return Ok(new { message = "Audit signed off successfully.", signature });
     }
 
-    /// POST /api/manager/audits/{stockTakeId}/lock
-    /// Lock audit scope (assigned bins or whole warehouse)
-    [HttpPost("{stockTakeId:int}/lock")]
-    public async Task<IActionResult> LockAuditScope(
-        int stockTakeId,
-        CancellationToken ct = default)
-    {
-        var userId = GetUserId();
-        var (success, message) = await _service.LockAuditScopeAsync(stockTakeId, userId, ct);
-
-        if (!success)
-            return BadRequest(new { message });
-
-        return Ok(new { message });
-    }
-
-    /// POST /api/manager/audits/{stockTakeId}/unlock
-    /// Unlock audit scope
-    [HttpPost("{stockTakeId:int}/unlock")]
-    public async Task<IActionResult> UnlockAuditScope(
-        int stockTakeId,
-        CancellationToken ct = default)
-    {
-        var userId = GetUserId();
-        var (success, message) = await _service.UnlockAuditScopeAsync(stockTakeId, userId, ct);
-
-        if (!success)
-            return BadRequest(new { message });
-
-        return Ok(new { message });
-    }
+   
 
     /// POST /api/manager/audits/{stockTakeId}/complete
     /// Manager completes the audit - final action

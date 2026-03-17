@@ -318,21 +318,33 @@ namespace Backend.Domains.Audit.Services
             if (skip < 0) skip = 0;
 
             var query = _db.StockTakeDetails
-                .AsNoTracking()
-                .Where(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy");
+    .AsNoTracking()
+    .Where(x =>
+        x.StockTakeId == stockTakeId &&
+        (
+            x.DiscrepancyStatus == "Discrepancy" ||
+            x.DiscrepancyStatus == "RecountRequested" ||
+            x.DiscrepancyStatus == "Recounted"
+        ));
 
             // Filter by resolution status if specified
             if (resolved == false)
             {
-                query = query.Where(x => x.ResolutionAction == null || x.ResolutionAction == "");
+                query = query.Where(x =>
+                    x.DiscrepancyStatus == "Discrepancy" ||
+                    x.DiscrepancyStatus == "RecountRequested" ||
+                    x.DiscrepancyStatus == "Recounted");
             }
             else if (resolved == true)
             {
-                query = query.Where(x => x.ResolutionAction != null && x.ResolutionAction != "");
+                query = query.Where(x =>
+                    x.DiscrepancyStatus == "Matched" ||
+                    (
+                        x.DiscrepancyStatus == "Discrepancy" &&
+                        x.ResolutionAction != null &&
+                        x.ResolutionAction != ""
+                    ));
             }
-
             var variances = await query
                 .Include(x => x.Material)
                 .Include(x => x.Bin)
@@ -370,17 +382,24 @@ namespace Backend.Domains.Audit.Services
                 .ToListAsync(ct);
 
             var unresolvedCount = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy" &&
-                    (x.ResolutionAction == null || x.ResolutionAction == ""), ct);
+     .AsNoTracking()
+     .CountAsync(x =>
+         x.StockTakeId == stockTakeId &&
+         (
+             x.DiscrepancyStatus == "Discrepancy" ||
+             x.DiscrepancyStatus == "RecountRequested" ||
+             x.DiscrepancyStatus == "Recounted"
+         ), ct);
 
             var totalCount = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy", ct);
+    .AsNoTracking()
+    .CountAsync(x =>
+        x.StockTakeId == stockTakeId &&
+        (
+            x.DiscrepancyStatus == "Discrepancy" ||
+            x.DiscrepancyStatus == "RecountRequested" ||
+            x.DiscrepancyStatus == "Recounted"
+        ), ct);
 
             return (variances, totalCount, unresolvedCount);
         }
@@ -398,18 +417,31 @@ namespace Backend.Domains.Audit.Services
                 throw new ArgumentException("Audit not found.");
 
             var query = _db.StockTakeDetails
-                .AsNoTracking()
-                .Where(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy");
+    .AsNoTracking()
+    .Where(x =>
+        x.StockTakeId == stockTakeId &&
+        (
+            x.DiscrepancyStatus == "Discrepancy" ||
+            x.DiscrepancyStatus == "RecountRequested" ||
+            x.DiscrepancyStatus == "Recounted"
+        ));
 
             if (resolved == false)
             {
-                query = query.Where(x => x.ResolutionAction == null || x.ResolutionAction == "");
+                query = query.Where(x =>
+                    x.DiscrepancyStatus == "Discrepancy" ||
+                    x.DiscrepancyStatus == "RecountRequested" ||
+                    x.DiscrepancyStatus == "Recounted");
             }
             else if (resolved == true)
             {
-                query = query.Where(x => x.ResolutionAction != null && x.ResolutionAction != "");
+                query = query.Where(x =>
+                    x.DiscrepancyStatus == "Matched" ||
+                    (
+                        x.DiscrepancyStatus == "Discrepancy" &&
+                        x.ResolutionAction != null &&
+                        x.ResolutionAction != ""
+                    ));
             }
 
             var variances = await query
@@ -447,17 +479,24 @@ namespace Backend.Domains.Audit.Services
                 .ToListAsync(ct);
 
             var unresolvedCount = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy" &&
-                    (x.ResolutionAction == null || x.ResolutionAction == ""), ct);
+     .AsNoTracking()
+     .CountAsync(x =>
+         x.StockTakeId == stockTakeId &&
+         (
+             x.DiscrepancyStatus == "Discrepancy" ||
+             x.DiscrepancyStatus == "RecountRequested" ||
+             x.DiscrepancyStatus == "Recounted"
+         ), ct);
 
             var totalCount = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy", ct);
+    .AsNoTracking()
+    .CountAsync(x =>
+        x.StockTakeId == stockTakeId &&
+        (
+            x.DiscrepancyStatus == "Discrepancy" ||
+            x.DiscrepancyStatus == "RecountRequested" ||
+            x.DiscrepancyStatus == "Recounted"
+        ), ct);
 
             return (variances, totalCount, unresolvedCount);
         }
@@ -598,7 +637,66 @@ namespace Backend.Domains.Audit.Services
 
             return (true, "Variance reason updated successfully.");
         }
+        public async Task<(bool success, string message)> RequestRecountAsync(
+     int stockTakeId,
+     long detailId,
+     RequestRecountRequest request,
+     int managerUserId,
+     CancellationToken ct)
+        {
+            var st = await _db.StockTakes
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
 
+            if (st == null)
+                return (false, "Audit not found.");
+
+            if (st.CompletedAt != null || string.Equals(st.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+                return (false, "Audit is already completed.");
+
+            // Chỉ cho request recount khi audit vẫn đang lock và đang kiểm kê
+            if (!string.Equals(st.Status, "InProgress", StringComparison.OrdinalIgnoreCase))
+                return (false, $"Only audits in 'InProgress' status can request recount. Current status: '{st.Status}'.");
+
+            var detail = await _db.StockTakeDetails
+                .FirstOrDefaultAsync(x => x.Id == detailId && x.StockTakeId == stockTakeId, ct);
+
+            if (detail == null)
+                return (false, "Variance detail not found.");
+
+            if (detail.CountQty == null)
+                return (false, "This item has not been counted yet.");
+
+            if ((detail.Variance ?? 0m) == 0m)
+                return (false, "Only discrepancy items can be requested for recount.");
+
+            if (string.Equals(detail.DiscrepancyStatus, "RecountRequested", StringComparison.OrdinalIgnoreCase))
+                return (false, "This item has already been requested for recount.");
+
+            if (!string.Equals(detail.DiscrepancyStatus, "Discrepancy", StringComparison.OrdinalIgnoreCase))
+                return (false, "Only items with discrepancy status can be requested for recount.");
+
+            var reason = await _db.AdjustmentReasons
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.ReasonId == request.ReasonId && x.IsActive, ct);
+
+            if (reason == null)
+                return (false, "Invalid reason.");
+
+            detail.DiscrepancyStatus = "RecountRequested";
+
+            // KHÔNG set thành Recount nữa, vì query unresolved của ông đang coi
+            // ResolutionAction != null là đã resolve
+            detail.ResolutionAction = null;
+
+            detail.AdjustmentReasonId = request.ReasonId;
+            detail.Reason = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
+            detail.ResolvedBy = managerUserId;
+            detail.ResolvedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync(ct);
+
+            return (true, "Recount requested successfully.");
+        }
         public async Task<StockTakeReviewDetailDto> GetReviewDetailAsync(int stockTakeId, CancellationToken ct)
         {
             var st = await _db.StockTakes
@@ -728,18 +826,27 @@ namespace Backend.Domains.Audit.Services
 
             // Get variance summary
             var totalVariances = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy", ct);
+    .AsNoTracking()
+    .CountAsync(x =>
+        x.StockTakeId == stockTakeId &&
+        (
+            x.DiscrepancyStatus == "Discrepancy" ||
+            x.DiscrepancyStatus == "RecountRequested" ||
+            x.DiscrepancyStatus == "Recounted"
+        ), ct);
 
             var resolvedVariances = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy" &&
-                    x.ResolutionAction != null &&
-                    x.ResolutionAction != "", ct);
+     .AsNoTracking()
+     .CountAsync(x =>
+         x.StockTakeId == stockTakeId &&
+         (
+             x.DiscrepancyStatus == "Matched" ||
+             (
+                 x.DiscrepancyStatus == "Discrepancy" &&
+                 x.ResolutionAction != null &&
+                 x.ResolutionAction != ""
+             )
+         ), ct);
 
             var unresolvedVariances = totalVariances - resolvedVariances;
             var resolutionRate = totalVariances > 0 ? (resolvedVariances * 100m / totalVariances) : 0m;
@@ -1022,11 +1129,14 @@ namespace Backend.Domains.Audit.Services
 
             // Verify all variances have been resolved
             var unresolvedVariances = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy" &&
-                    (x.ResolutionAction == null || x.ResolutionAction == ""), ct);
+     .AsNoTracking()
+     .CountAsync(x =>
+         x.StockTakeId == stockTakeId &&
+         (
+             x.DiscrepancyStatus == "Discrepancy" ||
+             x.DiscrepancyStatus == "RecountRequested" ||
+             x.DiscrepancyStatus == "Recounted"
+         ), ct);
 
             if (unresolvedVariances > 0)
                 return (false, $"{unresolvedVariances} variance(s) still need resolution.");

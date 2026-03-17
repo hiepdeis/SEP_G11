@@ -9,7 +9,7 @@
         /// Danh sách BinLocationIds kiểm kê.
         /// Nếu rỗng, kiểm kê toàn bộ kho.
         /// </summary>
-        public List<int> BinLocationIds { get; set; } = new List<int>();
+        public List<int> BinLocationIds { get; set; } = new();
         
         public string Title { get; set; } = default!;
         public DateTime PlannedStartDate { get; set; }

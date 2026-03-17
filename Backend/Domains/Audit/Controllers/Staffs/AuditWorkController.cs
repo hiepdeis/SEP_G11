@@ -16,10 +16,11 @@ public class AuditWorkController : ControllerBase
 
     private int GetUserIdOrDevFallback()
     {
-        // Dùng lại logic của bạn nếu đã có BaseController.
-        // Tạm thời ví dụ:
-        var claim = User?.Claims?.FirstOrDefault(c => c.Type == "userId")?.Value;
-        return int.TryParse(claim, out var id) ? id : 4;
+        //// Dùng lại logic của bạn nếu đã có BaseController.
+        //// Tạm thời ví dụ:
+        //var claim = User?.Claims?.FirstOrDefault(c => c.Type == "userId")?.Value;
+        //return int.TryParse(claim, out var id) ? id : 7;
+        return 7;
     }
 
     // POST api/staff/audits/{stockTakeId}/finish
