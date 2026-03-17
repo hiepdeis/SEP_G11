@@ -87,7 +87,8 @@ public sealed class ResolveVarianceRequest
 
 public sealed class UpdateVarianceReasonRequest
 {
-    public string? Reason { get; set; } // Lý do thi?u/th?a do Manager cung c?p
+    public int? AdjustmentReasonId { get; set; }
+    public string? Reason { get; set; }
 }
 
 public sealed class SignOffRequest
