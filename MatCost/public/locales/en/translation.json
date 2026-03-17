@@ -398,5 +398,9 @@
   "Created By": "Created By",
   "Create Receipt": "Create Receipt",
   "Confirmed": "Confirmed",
-  "Submit Receipt": "Submit Receipt"
+  "Submit Receipt": "Submit Receipt",
+  "Loading": "Loading",
+  "Sign out?": "Sign out?",
+  "Are you sure you want to sign out?": "Are you sure you want to sign out?",
+  "Yes, Sign out": "Yes, Sign out"
 }

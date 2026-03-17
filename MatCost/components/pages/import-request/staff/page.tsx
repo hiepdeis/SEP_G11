@@ -21,6 +21,7 @@ import {
   ListCheck,
   Check,
   X,
+  Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
@@ -492,83 +493,143 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            <div className="lg:col-span-4 space-y-6">
-              <Card className="border-slate-200 shadow-sm gap-0">
-                <CardHeader className="border-b border-slate-100 py-4">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-5 h-5 text-indigo-600" />
-                    <CardTitle className="text-base font-semibold text-slate-800">
-                      {t("Destination & Logistics")}
-                    </CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-1">
-                    <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-                      {t("Target Warehouse")}
-                    </span>
-                    <div className="flex items-start gap-2">
-                      <MapPin className="w-4 h-4 text-slate-500 mt-1" />
-                      <div>
-                        <p className="font-medium text-slate-800">
-                          {request.warehouseName}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {t("Main Facility")}
-                        </p>
+          <div className="">
+            <div className="grid grid-cols-1 lg:grid-cols-6 gap-6 mb-10">
+              <div className="lg:col-span-4 space-y-6 flex">
+                <Card className="border-slate-200 shadow-sm gap-0 flex-1">
+                  <CardHeader className="border-b border-slate-100 py-4">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-5 h-5 text-indigo-600" />
+                      <CardTitle className="text-base font-semibold text-slate-800">
+                        {t("Destination & Logistics")}
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                      <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
+                        {t("Target Warehouse")}
+                      </span>
+                      <div className="flex items-start gap-2">
+                        <MapPin className="w-4 h-4 text-slate-500 mt-1" />
+                        <div>
+                          <p className="font-medium text-slate-800">
+                            {request.warehouseName}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {t("Main Facility")}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-1">
-                    <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-                      {t("Receipt Status")}
-                    </span>
-                    {request.status === "Completed" ? (
-                      <div className="flex items-start gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-1" />
-                        <div>
-                          <p className="font-medium text-slate-800">
-                            {t("Completed")}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {t("By Staff Team")} - {request.confirmedByName}
-                          </p>
+                    <div className="space-y-1">
+                      <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
+                        {t("Receipt Status")}
+                      </span>
+                      {request.status === "Completed" ? (
+                        <div className="flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-1" />
+                          <div>
+                            <p className="font-medium text-slate-800">
+                              {t("Completed")}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {t("By Staff Team")} - {request.confirmedByName}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ) : request.status === "Approved" ? (
-                      <div className="flex items-start gap-2">
-                        <LoaderPinwheel className="w-4 h-4 text-emerald-500 mt-1" />
-                        <div>
-                          <p className="font-medium text-slate-800">
-                            {t("Approved - Ready for QC Check")}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {t("Date")}:{" "}
-                            {formatDate(request.receiptApprovalDate)}
-                          </p>
+                      ) : request.status === "Approved" ? (
+                        <div className="flex items-start gap-2">
+                          <LoaderPinwheel className="w-4 h-4 text-emerald-500 mt-1" />
+                          <div>
+                            <p className="font-medium text-slate-800">
+                              {t("Approved - Ready for QC Check")}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {t("Date")}:{" "}
+                              {formatDate(request.receiptApprovalDate)}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-start gap-2">
-                        <LoaderPinwheel className="w-4 h-4 text-emerald-500 mt-1" />
-                        <div>
-                          <p className="font-medium text-slate-800">
-                            {t("QC Check Completed - Ready for Import")}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {t("Date")}:{" "}
-                            {formatDate(request.receiptApprovalDate)}
-                          </p>
+                      ) : (
+                        <div className="flex items-start gap-2">
+                          <LoaderPinwheel className="w-4 h-4 text-emerald-500 mt-1" />
+                          <div>
+                            <p className="font-medium text-slate-800">
+                              {t("QC Check Completed - Ready for Import")}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {t("Date")}:{" "}
+                              {formatDate(request.receiptApprovalDate)}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="lg:col-span-2 space-y-6 flex">
+                <Card className="border-slate-200 flex-1">
+                  <CardHeader className="border-b border-slate-100 py-4">
+                    <div className="flex items-center gap-2">
+                      <Receipt className="w-5 h-5 text-indigo-600" />
+                      <CardTitle className="text-base font-semibold text-slate-800">
+                        {t("Receipt Summary")}
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex justify-between items-end border-b border-slate-200 pb-3">
+                      <span className="text-sm text-slate-600">
+                        {t("Total Materials")}
+                      </span>
+                      <span className="text-lg font-semibold text-slate-900">
+                        {request.items.length}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-end">
+                      <span className="text-sm text-slate-600">
+                        {t("Total Quantity")}
+                      </span>
+                      <span className="text-2xl font-bold text-indigo-600">
+                        {request.totalQuantity.toLocaleString("vi-VN")}
+                      </span>
+                    </div>
+
+                    {role == "staff" && (
+                      <div className="pt-4">
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-xs text-yellow-800">
+                          <strong>{t("Instructions")}:</strong>
+                          <ul className="list-disc pl-4 mt-1 space-y-1">
+                            <li>
+                              {t(
+                                "Download the template to verify items offline.",
+                              )}
+                            </li>
+                            <li>
+                              {t(
+                                'Click "Start Processing" to input actual received quantities.',
+                              )}
+                            </li>
+                            <li>
+                              {t("Ensure physical count matches the system.")}
+                            </li>
+                          </ul>
                         </div>
                       </div>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
 
-              {/* Items Table */}
+            {/*  */}
+
+            {/* Items Table */}
+            <div>
               <Card className="border-slate-200 shadow-sm overflow-hidden gap-0 pb-0 flex flex-col">
                 <CardHeader className="bg-white border-b border-slate-100 py-4 shrink-0">
                   <div className="flex justify-between items-center">
@@ -934,58 +995,6 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                   </CardContent>
                 </Card>
               )}
-            </div>
-
-            {/* Right Column: Summary Stats */}
-            <div className="space-y-6">
-              <Card className="border-slate-200">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-500 uppercase">
-                    {t("Receipt Summary")}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between items-end border-b border-slate-200 pb-3">
-                    <span className="text-sm text-slate-600">
-                      {t("Total Materials")}
-                    </span>
-                    <span className="text-lg font-semibold text-slate-900">
-                      {request.items.length}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-end">
-                    <span className="text-sm text-slate-600">
-                      {t("Total Quantity")}
-                    </span>
-                    <span className="text-2xl font-bold text-indigo-600">
-                      {request.totalQuantity.toLocaleString("vi-VN")}
-                    </span>
-                  </div>
-
-                  {role == "staff" && (
-                    <div className="pt-4">
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-xs text-yellow-800">
-                        <strong>{t("Instructions")}:</strong>
-                        <ul className="list-disc pl-4 mt-1 space-y-1">
-                          <li>
-                            {t(
-                              "Download the template to verify items offline.",
-                            )}
-                          </li>
-                          <li>
-                            {t(
-                              'Click "Start Processing" to input actual received quantities.',
-                            )}
-                          </li>
-                          <li>
-                            {t("Ensure physical count matches the system.")}
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
             </div>
           </div>
         </div>
