@@ -94,6 +94,7 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.Code)
                 .HasMaxLength(50)
                 .IsUnicode(false);
+
             entity.Property(e => e.Description).HasMaxLength(500);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.Name).HasMaxLength(200);
@@ -585,6 +586,8 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.DiscrepancyStatus)
                 .HasMaxLength(20)
                 .IsUnicode(false);
+            entity.Property(e => e.CountRound)
+    .HasDefaultValue(1);
             entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
             entity.Property(e => e.Reason).HasMaxLength(255);
             entity.Property(e => e.ResolutionAction)

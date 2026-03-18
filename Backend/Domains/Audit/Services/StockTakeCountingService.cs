@@ -87,11 +87,14 @@ namespace Backend.Domains.Audit.Services
                     MaterialName = x.Material != null ? x.Material.Name : null,
                     BatchCode = x.Batch != null ? x.Batch.BatchCode : null,
                     BinCode = x.Bin != null ? x.Bin.Code : null,
+                    UnitName = x.Material != null ? x.Material.Unit : null, // nếu field khác thì đổi lại
                     SystemQty = x.SystemQty,
                     CountQty = x.CountQty,
+                    CountRound = x.CountRound,
                     Variance = x.Variance,
                     CountedBy = x.CountedBy,
-                    CountedAt = x.CountedAt
+                    CountedAt = x.CountedAt,
+
                 });
 
             if (uncountedOnly)
@@ -174,8 +177,10 @@ namespace Backend.Domains.Audit.Services
                 MaterialName = x.Material != null ? x.Material.Name : null,
                 BatchCode = x.Batch != null ? x.Batch.BatchCode : null,
                 BinCode = x.Bin != null ? x.Bin.Code : null,
+                UnitName = x.Material != null ? x.Material.Unit : null, // nếu field khác thì đổi lại
                 SystemQty = x.SystemQty,
                 CountQty = x.CountQty,
+                CountRound = x.CountRound,
                 Variance = x.Variance,
                 CountedBy = x.CountedBy,
                 CountedAt = x.CountedAt
@@ -313,7 +318,8 @@ namespace Backend.Domains.Audit.Services
             {
                 MaterialId = x.MaterialId,
                 MaterialName = x.Material != null ? x.Material.Name : "",
-                BatchCode = x.Batch != null ? x.Batch.BatchCode : null
+                BatchCode = x.Batch != null ? x.Batch.BatchCode : null,
+                UnitName = x.Material != null ? x.Material.Unit : null // nếu field khác thì đổi lại
             });
 
             if (!string.IsNullOrWhiteSpace(keyword))
@@ -330,17 +336,18 @@ namespace Backend.Domains.Audit.Services
             }
 
             return await resultQuery
-                .GroupBy(x => new { x.MaterialId, x.MaterialName, x.BatchCode })
-                .Select(g => new MaterialSuggestDto
-                {
-                    MaterialId = g.Key.MaterialId,
-                    MaterialName = g.Key.MaterialName,
-                    BatchCode = g.Key.BatchCode
-                })
-                .OrderBy(x => x.MaterialName)
-                .ThenBy(x => x.BatchCode)
-                .Take(take)
-                .ToListAsync(ct);
+    .GroupBy(x => new { x.MaterialId, x.MaterialName, x.BatchCode, x.UnitName })
+    .Select(g => new MaterialSuggestDto
+    {
+        MaterialId = g.Key.MaterialId,
+        MaterialName = g.Key.MaterialName,
+        BatchCode = g.Key.BatchCode,
+        UnitName = g.Key.UnitName
+    })
+    .OrderBy(x => x.MaterialName)
+    .ThenBy(x => x.BatchCode)
+    .Take(take)
+    .ToListAsync(ct);
         }
         public async Task<(bool success, string message)> UpsertCountAsync(
             int stockTakeId,
@@ -473,6 +480,7 @@ namespace Backend.Domains.Audit.Services
                     BinId = binId,
                     SystemQty = systemQty,
                     CountQty = request.CountQty,
+                    CountRound = 1,
                     Variance = variance,
                     CountedBy = userId,
                     CountedAt = DateTime.UtcNow,
@@ -484,6 +492,7 @@ namespace Backend.Domains.Audit.Services
             {
                 detail.SystemQty = systemQty;
                 detail.CountQty = request.CountQty;
+                detail.CountRound = detail.CountRound <= 0 ? 1 : detail.CountRound;
                 detail.Variance = variance;
                 detail.CountedBy = userId;
                 detail.CountedAt = DateTime.UtcNow;
@@ -606,6 +615,7 @@ namespace Backend.Domains.Audit.Services
 
             detail.SystemQty = systemQty;
             detail.CountQty = request.CountQty;
+            detail.CountRound = detail.CountRound <= 0 ? 2 : detail.CountRound + 1;
             detail.Variance = variance;
             detail.CountedBy = userId;
             detail.CountedAt = DateTime.UtcNow;
@@ -615,7 +625,6 @@ namespace Backend.Domains.Audit.Services
             detail.Reason = null;
             detail.ResolvedBy = null;
             detail.ResolvedAt = null;
-
             await _db.SaveChangesAsync(ct);
 
             return (true, "Recount recorded successfully.");
