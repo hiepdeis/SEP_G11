@@ -71,13 +71,36 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
 
     try {
       setIsSubmitting(true);
-      // Gọi API Resolve Variance
-      await auditService.resolveVariance(stockTakeId, resolveItem.id, resolveAction, 1); 
-      toast.success("Xử lý chênh lệch thành công!");
+      
+      // Nếu Manager chọn Yêu cầu đếm lại
+      if (resolveAction === "RequestRecount") {
+         // Fix cứng reasonId = 1 giống lần trước. (Bạn có thể làm ô text để nhập note sau nếu muốn)
+         await auditService.requestRecount(stockTakeId, resolveItem.id, 1, "Manager yêu cầu đếm lại mặt hàng này");
+         toast.success("Đã gửi yêu cầu đếm lại cho Staff!");
+      } 
+      // Nếu Manager chọn các hướng xử lý khác (AdjustSystem, Accept, Investigate)
+      else {
+         await auditService.resolveVariance(stockTakeId, resolveItem.id, resolveAction, 1); 
+         toast.success("Xử lý chênh lệch thành công!");
+      }
+
       await fetchData(); // Tải lại dữ liệu mới nhất
       setResolveItem(null);
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Lỗi xử lý.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleLockAudit = async () => {
+    try {
+      setIsSubmitting(true);
+      await auditService.lockAudit(stockTakeId);
+      toast.success("Đã khóa kho! Nhân viên có thể bắt đầu đếm.");
+      await fetchData(); // Tải lại trang để cập nhật status thành InProgress
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Lỗi khóa kho.");
     } finally {
       setIsSubmitting(false);
     }
@@ -269,6 +292,29 @@ const handleFinalizeAction = async () => {
                     Audit Information
                   </CardTitle>
                 </CardHeader>
+                {/* Thẻ Action: Bắt đầu kiểm kê (Chỉ hiện khi trạng thái là Assigned) */}
+                {role === "manager" && detailData.status === "Assigned" && (
+                  <Card className="border-blue-200 shadow-sm bg-blue-50/30 gap-0">
+                    <CardHeader className="border-b border-blue-100 pt-4 pb-3">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2 text-blue-800">
+                        <Lock className="w-5 h-5" /> Start Audit
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6 space-y-4">
+                      <p className="text-sm text-blue-700/80">
+                        Lock the warehouse/bins to prevent inventory movements and allow staff to start counting.
+                      </p>
+                      <Button 
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm"
+                        onClick={handleLockAudit}
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Lock className="w-4 h-4 mr-2" />}
+                        Lock & Start Audit
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
                 <CardContent className="p-6 space-y-4">
                   <div>
                     <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Warehouse</label>
@@ -380,6 +426,7 @@ const handleFinalizeAction = async () => {
                    <SelectItem value="AdjustSystem">Adjust System (Update Inventory)</SelectItem>
                    <SelectItem value="Investigate">Investigate (Keep pending)</SelectItem>
                    <SelectItem value="Accept">Accept (Ignore variance)</SelectItem>
+                   <SelectItem value="RequestRecount">Request Recount (Yêu cầu Staff đếm lại)</SelectItem>
                  </SelectContent>
                </Select>
             </div>

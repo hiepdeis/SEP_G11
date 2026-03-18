@@ -1133,9 +1133,9 @@ namespace Backend.Domains.Audit.Services
      .CountAsync(x =>
          x.StockTakeId == stockTakeId &&
          (
-             x.DiscrepancyStatus == "Discrepancy" ||
              x.DiscrepancyStatus == "RecountRequested" ||
-             x.DiscrepancyStatus == "Recounted"
+             ((x.DiscrepancyStatus == "Discrepancy" || x.DiscrepancyStatus == "Recounted") 
+                           && (x.ResolutionAction == null || x.ResolutionAction == ""))
          ), ct);
 
             if (unresolvedVariances > 0)
@@ -1145,7 +1145,7 @@ namespace Backend.Domains.Audit.Services
             var resolvedDiscrepancies = await _db.StockTakeDetails
                 .Where(x =>
                     x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy" &&
+                    (x.DiscrepancyStatus == "Discrepancy" || x.DiscrepancyStatus == "Recounted") &&
                     x.ResolutionAction != null &&
                     x.ResolutionAction != "")
                 .ToListAsync(ct);

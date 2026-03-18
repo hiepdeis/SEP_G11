@@ -231,7 +231,7 @@ public class AuditTeamService : IAuditTeamService
         var member = await _db.StockTakeTeamMembers
             .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId
                                    && x.UserId == staffUserId
-                                   && x.IsActive, ct);
+                                   && (x.IsActive || x.MemberCompletedAt != null), ct);
 
         if (member == null)
             throw new InvalidOperationException("Bạn chưa được phân công audit này.");

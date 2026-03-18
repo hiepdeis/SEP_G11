@@ -57,10 +57,10 @@ namespace Backend.Domains.Audit.Services
         {
             return await _db.StockTakeTeamMembers
                 .AsNoTracking()
-                .AnyAsync(x => x.StockTakeId == stockTakeId && x.UserId == userId && x.IsActive, ct);
+                .AnyAsync(x => x.StockTakeId == stockTakeId && x.UserId == userId && (x.IsActive || x.MemberCompletedAt != null), ct);
         }
 
-        public async Task<List<CountingDto>> GetCountItemsAsync(
+public async Task<List<CountingDto>> GetCountItemsAsync(
             int stockTakeId,
             int userId,
             string? keyword,
@@ -79,7 +79,36 @@ namespace Backend.Domains.Audit.Services
 
             var q = _db.StockTakeDetails
                 .AsNoTracking()
-                .Where(x => x.StockTakeId == stockTakeId)
+                .Where(x => x.StockTakeId == stockTakeId);
+
+            if (uncountedOnly)
+            {
+                q = q.Where(x => x.CountQty == null);
+            }
+
+            // FIX 500 ERROR: Đưa lệnh Filter (Where) lên TRƯỚC lệnh Select
+            keyword = keyword?.Trim();
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                if (int.TryParse(keyword, out var k))
+                {
+                    q = q.Where(x => x.MaterialId == k || x.BatchId == k || x.BinId == k);
+                }
+                else
+                {
+                    var like = $"%{keyword}%";
+                    q = q.Where(x =>
+                        (x.Material != null &&
+                         EF.Functions.Like(EF.Functions.Collate(x.Material.Name, "Vietnamese_CI_AI"), like))
+                        ||
+                        (x.Batch != null &&
+                         EF.Functions.Like(EF.Functions.Collate(x.Batch.BatchCode, "Vietnamese_CI_AI"), like))
+                    );
+                }
+            }
+
+            // SAU ĐÓ MỚI SELECT
+            return await q
                 .Select(x => new CountingDto
                 {
                     MaterialId = x.MaterialId,
@@ -93,34 +122,7 @@ namespace Backend.Domains.Audit.Services
                     Variance = x.Variance,
                     CountedBy = x.CountedBy,
                     CountedAt = x.CountedAt
-                });
-
-            if (uncountedOnly)
-            {
-                q = q.Where(x => x.CountQty == null);
-            }
-
-            keyword = keyword?.Trim();
-            if (!string.IsNullOrWhiteSpace(keyword))
-            {
-                if (int.TryParse(keyword, out var k))
-                {
-                    q = q.Where(x => x.MaterialId == k || x.BatchId == k || x.BinId == k);
-                }
-                else
-                {
-                    var like = $"%{keyword}%";
-                    q = q.Where(x =>
-                        (x.MaterialName != null &&
-                         EF.Functions.Like(EF.Functions.Collate(x.MaterialName, "Vietnamese_CI_AI"), like))
-                        ||
-                        (x.BatchCode != null &&
-                         EF.Functions.Like(EF.Functions.Collate(x.BatchCode, "Vietnamese_CI_AI"), like))
-                    );
-                }
-            }
-
-            return await q
+                })
                 .OrderBy(x => x.MaterialName)
                 .ThenBy(x => x.BatchCode)
                 .Skip(skip)
@@ -128,15 +130,13 @@ namespace Backend.Domains.Audit.Services
                 .ToListAsync(ct);
         }
 
-
-
         public async Task<List<CountingDto>> GetRecountItemsAsync(
-    int stockTakeId,
-    int userId,
-    string? keyword,
-    int skip,
-    int take,
-    CancellationToken ct)
+            int stockTakeId,
+            int userId,
+            string? keyword,
+            int skip,
+            int take,
+            CancellationToken ct)
         {
             var isMember = await IsTeamMemberAsync(stockTakeId, userId, ct);
             if (!isMember)
@@ -167,45 +167,45 @@ namespace Backend.Domains.Audit.Services
                 q = q.Where(x => x.BinId.HasValue && assignedBinIds.Contains(x.BinId.Value));
             }
 
-            var result = q.Select(x => new CountingDto
-            {
-                MaterialId = x.MaterialId,
-                BinId = x.BinId ?? 0,
-                BatchId = x.BatchId ?? 0,
-                MaterialName = x.Material != null ? x.Material.Name : null,
-                BatchCode = x.Batch != null ? x.Batch.BatchCode : null,
-                BinCode = x.Bin != null ? x.Bin.Code : null,
-                SystemQty = x.SystemQty,
-                CountQty = x.CountQty,
-                Variance = x.Variance,
-                CountedBy = x.CountedBy,
-                CountedAt = x.CountedAt
-            });
-
+            // FIX 500 ERROR: Đưa lệnh Filter (Where) lên TRƯỚC lệnh Select
             keyword = keyword?.Trim();
             if (!string.IsNullOrWhiteSpace(keyword))
             {
                 if (int.TryParse(keyword, out var k))
                 {
-                    result = result.Where(x => x.MaterialId == k || x.BatchId == k || x.BinId == k);
+                    q = q.Where(x => x.MaterialId == k || x.BatchId == k || x.BinId == k);
                 }
                 else
                 {
                     var like = $"%{keyword}%";
-                    result = result.Where(x =>
-                        (x.MaterialName != null &&
-                         EF.Functions.Like(EF.Functions.Collate(x.MaterialName, "Vietnamese_CI_AI"), like))
+                    q = q.Where(x =>
+                        (x.Material != null &&
+                         EF.Functions.Like(EF.Functions.Collate(x.Material.Name, "Vietnamese_CI_AI"), like))
                         ||
-                        (x.BatchCode != null &&
-                         EF.Functions.Like(EF.Functions.Collate(x.BatchCode, "Vietnamese_CI_AI"), like))
+                        (x.Batch != null &&
+                         EF.Functions.Like(EF.Functions.Collate(x.Batch.BatchCode, "Vietnamese_CI_AI"), like))
                         ||
-                        (x.BinCode != null &&
-                         EF.Functions.Like(EF.Functions.Collate(x.BinCode, "Vietnamese_CI_AI"), like))
+                        (x.Bin != null &&
+                         EF.Functions.Like(EF.Functions.Collate(x.Bin.Code, "Vietnamese_CI_AI"), like))
                     );
                 }
             }
 
-            return await result
+            return await q
+                .Select(x => new CountingDto
+                {
+                    MaterialId = x.MaterialId,
+                    BinId = x.BinId ?? 0,
+                    BatchId = x.BatchId ?? 0,
+                    MaterialName = x.Material != null ? x.Material.Name : null,
+                    BatchCode = x.Batch != null ? x.Batch.BatchCode : null,
+                    BinCode = x.Bin != null ? x.Bin.Code : null,
+                    SystemQty = x.SystemQty,
+                    CountQty = x.CountQty,
+                    Variance = x.Variance,
+                    CountedBy = x.CountedBy,
+                    CountedAt = x.CountedAt
+                })
                 .OrderBy(x => x.MaterialName)
                 .ThenBy(x => x.BatchCode)
                 .ThenBy(x => x.BinCode)

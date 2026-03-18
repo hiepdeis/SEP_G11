@@ -80,6 +80,35 @@ namespace Backend.Domains.Audit.Services
                 await _db.SaveChangesAsync(ct);
             }
 
+            var inventoryQuery = _db.InventoryCurrents
+                .AsNoTracking()
+                .Where(x => x.WarehouseId == request.WarehouseId && x.QuantityOnHand > 0);
+
+            if (binLocationIds != null && binLocationIds.Any())
+            {
+                inventoryQuery = inventoryQuery.Where(x => binLocationIds.Contains(x.BinId));
+            }
+
+            var currentInventories = await inventoryQuery.ToListAsync(ct);
+
+            if (currentInventories.Any())
+            {
+                var details = currentInventories.Select(item => new StockTakeDetail
+                {
+                    StockTakeId = entity.StockTakeId,
+                    MaterialId = item.MaterialId,
+                    BatchId = item.BatchId,
+                    BinId = item.BinId,
+                    SystemQty = item.QuantityOnHand, 
+                    CountQty = null,                 
+                    Variance = 0 - item.QuantityOnHand,
+                    DiscrepancyStatus = "Pending"
+                }).ToList();
+
+                _db.StockTakeDetails.AddRange(details);
+                await _db.SaveChangesAsync(ct);
+            }
+
             return new AuditPlanResponse
             {
                 StockTakeId = entity.StockTakeId,

@@ -123,6 +123,12 @@ export const auditService = {
     return response.data;
   },
 
+  // Manager: Khóa kho để bắt đầu đếm
+  lockAudit: async (stockTakeId: number) => {
+    const response = await axiosClient.post(`/manager/audits/${stockTakeId}/lock`);
+    return response.data;
+  },
+
   // 6. Manager: Remove Member
   removeMember: async (stockTakeId: number, userId: number) => {
     const response = await axiosClient.delete(`/manager/audits/${stockTakeId}/team/${userId}`);
@@ -137,9 +143,23 @@ export const auditService = {
     return response.data;
   },
 
+  // 7.1. Staff: Get Items that require Recount
+  getRecountItems: async (stockTakeId: number, keyword: string = "") => {
+    const response = await axiosClient.get<CountItemDto[]>(`/staff/audits/${stockTakeId}/recount-items`, {
+      params: { keyword }
+    });
+    return response.data;
+  },
+
+  // 7.2. Staff: Submit Recount Result
+  submitRecount: async (stockTakeId: number, data: UpsertCountRequest) => {
+    const response = await axiosClient.post(`/staff/audits/${stockTakeId}/recount-items`, data);
+    return response.data;
+  },
+
   // 8. Staff: Submit Count (Upsert)
   submitCount: async (stockTakeId: number, data: UpsertCountRequest) => {
-    const response = await axiosClient.put(`/staff/audits/${stockTakeId}/count-items`, data);
+    const response = await axiosClient.post(`/staff/audits/${stockTakeId}/count-items`, data);
     return response.data;
   },
 
@@ -169,6 +189,13 @@ export const auditService = {
   resolveVariance: async (stockTakeId: number, detailId: number, resolutionAction: string, adjustmentReasonId?: number) => {
     const payload = { resolutionAction, adjustmentReasonId };
     const response = await axiosClient.put(`/manager/audits/${stockTakeId}/variances/${detailId}/resolve`, payload);
+    return response.data;
+  },
+
+  // Yêu cầu đếm lại
+  requestRecount: async (stockTakeId: number, detailId: number, reasonId: number, note: string = "") => {
+    const payload = { reasonId, note };
+    const response = await axiosClient.put(`/manager/audits/${stockTakeId}/variances/${detailId}/request-recount`, payload);
     return response.data;
   },
 
