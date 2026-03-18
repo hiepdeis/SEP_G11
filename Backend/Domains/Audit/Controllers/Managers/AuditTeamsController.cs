@@ -60,7 +60,16 @@ public class AuditTeamsController : ControllerBase
     }
     [HttpGet("{stockTakeId:int}/eligible-staff")]
     public async Task<ActionResult<List<EligibleStaffDto>>> EligibleStaff(int stockTakeId, CancellationToken ct)
-        => Ok(await _svc.GetEligibleStaffAsync(stockTakeId, ct));
+    {
+        try
+        {
+            return Ok(await _svc.GetEligibleStaffAsync(stockTakeId, ct));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
 
 
 [HttpPost("{stockTakeId:int}/team")]

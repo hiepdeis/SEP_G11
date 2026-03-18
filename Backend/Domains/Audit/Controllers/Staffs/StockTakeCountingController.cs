@@ -32,22 +32,37 @@ namespace Backend.Controllers
             return 7;
         }
 
-        [HttpGet("{stockTakeId:int}/count-items")]
-        public async Task<IActionResult> GetCountItems(
+        [HttpGet("{stockTakeId:int}/counted-items")]
+        public async Task<IActionResult> GetCountedItems(
+    int stockTakeId,
+    [FromQuery] int skip = 0,
+    [FromQuery] int take = 50,
+    CancellationToken ct = default)
+        {
+            var userId = GetCurrentUserId();
+
+            var data = await _stockTakeCountingService.GetCountedItemsAsync(
+                stockTakeId,
+                userId,
+                skip,
+                take,
+                ct);
+
+            return Ok(data);
+        }
+
+        [HttpGet("{stockTakeId:int}/uncounted-items")]
+        public async Task<IActionResult> GetUncountedItems(
             int stockTakeId,
-            [FromQuery] string? keyword,
-            [FromQuery] bool uncountedOnly = false,
             [FromQuery] int skip = 0,
             [FromQuery] int take = 50,
             CancellationToken ct = default)
         {
             var userId = GetCurrentUserId();
 
-            var data = await _stockTakeCountingService.GetCountItemsAsync(
+            var data = await _stockTakeCountingService.GetUncountedItemsAsync(
                 stockTakeId,
                 userId,
-                keyword,
-                uncountedOnly,
                 skip,
                 take,
                 ct);

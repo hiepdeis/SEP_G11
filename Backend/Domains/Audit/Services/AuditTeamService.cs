@@ -57,21 +57,32 @@ public class AuditTeamService : IAuditTeamService
     }
     public async Task<List<EligibleStaffDto>> GetEligibleStaffAsync(int stockTakeId, CancellationToken ct)
     {
+        var stockTakeExists = await _db.StockTakes
+            .AsNoTracking()
+            .AnyAsync(x => x.StockTakeId == stockTakeId, ct);
+
+        if (!stockTakeExists)
+            throw new KeyNotFoundException("StockTake/Audit không tồn tại.");
+
         var assignedIds = await _db.StockTakeTeamMembers
             .AsNoTracking()
             .Where(x => x.StockTakeId == stockTakeId && x.IsActive)
             .Select(x => x.UserId)
             .ToListAsync(ct);
 
-        // NEW: staff đang bận audit khác (active + audit đó chưa Completed)
-        var busyIds = await _db.StockTakeTeamMembers
-           .AsNoTracking()
-           .Where(tm => tm.IsActive
-                     && tm.MemberCompletedAt == null           // NEW: chưa hoàn thành phần mình
-                     && tm.StockTakeId != stockTakeId)
-           .Select(tm => tm.UserId)
-           .Distinct()
-           .ToListAsync(ct);
+        // Staff chỉ bị coi là bận nếu còn active ở audit khác và audit đó chưa completed.
+        var busyIds = await (
+            from tm in _db.StockTakeTeamMembers.AsNoTracking()
+            join st in _db.StockTakes.AsNoTracking() on tm.StockTakeId equals st.StockTakeId
+            where tm.IsActive
+                  && tm.MemberCompletedAt == null
+                  && tm.StockTakeId != stockTakeId
+                  && st.CompletedAt == null
+                  && st.Status != "Completed"
+            select tm.UserId
+        )
+        .Distinct()
+        .ToListAsync(ct);
 
         var q =
             from u in _db.Users.AsNoTracking()
