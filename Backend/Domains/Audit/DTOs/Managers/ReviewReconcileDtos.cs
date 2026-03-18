@@ -270,3 +270,11 @@ public sealed class RequestRecountRequest
     public int ReasonId { get; set; }
     public string? Note { get; set; }
 }
+public sealed class RecountCandidateDto
+{
+    public int UserId { get; set; }
+    public string? FullName { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime? AssignedAt { get; set; }
+    public DateTime? RemovedAt { get; set; }
+}

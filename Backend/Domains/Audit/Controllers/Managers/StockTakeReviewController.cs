@@ -12,11 +12,16 @@ namespace Backend.Domains.Audit.Controllers.Managers;
 public class StockTakeReviewController : ControllerBase
 {
     private readonly IStockTakeReviewService _service;
+    private readonly IStockTakeCountingService _countingService;
     private readonly IWebHostEnvironment _env;
 
-    public StockTakeReviewController(IStockTakeReviewService service, IWebHostEnvironment env)
+    public StockTakeReviewController(
+        IStockTakeReviewService service,
+        IStockTakeCountingService countingService,
+        IWebHostEnvironment env)
     {
         _service = service;
+        _countingService = countingService;
         _env = env;
     }
 
@@ -253,7 +258,52 @@ public class StockTakeReviewController : ControllerBase
         return Ok(new { message = "Audit signed off successfully.", signature });
     }
 
-   
+    /// GET /api/manager/audits/{stockTakeId}/recount-candidates
+    /// Returns users who have ever joined this audit, so manager can pick one to rejoin for recount
+    [HttpGet("{stockTakeId:int}/recount-candidates")]
+    public async Task<IActionResult> GetRecountCandidates(
+        int stockTakeId,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var result = await _countingService.GetRecountCandidatesAsync(stockTakeId, ct);
+            return Ok(new
+            {
+                total = result.Count,
+                items = result
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+    }
+    /// POST /api/manager/audits/{stockTakeId}/recount-candidates/{targetUserId}/rejoin
+    /// Manager re-activates a previous audit member so they can perform recount
+    [HttpPost("{stockTakeId:int}/recount-candidates/{targetUserId:int}/rejoin")]
+    public async Task<IActionResult> RejoinForRecount(
+        int stockTakeId,
+        int targetUserId,
+        CancellationToken ct = default)
+    {
+        var managerUserId = GetUserId();
+
+        var (success, message) = await _countingService.RejoinForRecountAsync(
+            stockTakeId,
+            targetUserId,
+            managerUserId,
+            ct);
+
+        if (!success)
+            return BadRequest(new { message });
+
+        return Ok(new { message });
+    }
 
     /// POST /api/manager/audits/{stockTakeId}/complete
     /// Manager completes the audit - final action

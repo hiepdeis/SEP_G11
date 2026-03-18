@@ -3,7 +3,7 @@ using Backend.Domains.Audit.DTOs.Staffs;
 using Backend.Domains.Audit.Interfaces;
 using Backend.Entities;
 using Microsoft.EntityFrameworkCore;
-
+using Backend.Domains.Audit.DTOs.Managers;
 namespace Backend.Domains.Audit.Services
 {
     public class StockTakeCountingService : IStockTakeCountingService
@@ -52,14 +52,13 @@ namespace Backend.Domains.Audit.Services
                             (isWarehouseScopeAudit || x.BinId == currentBinId))
                     ), ct);
         }
-
+     
         public async Task<bool> IsTeamMemberAsync(int stockTakeId, int userId, CancellationToken ct)
         {
             return await _db.StockTakeTeamMembers
                 .AsNoTracking()
                 .AnyAsync(x => x.StockTakeId == stockTakeId && x.UserId == userId && x.IsActive, ct);
         }
-
         public async Task<List<CountingDto>> GetCountItemsAsync(
             int stockTakeId,
             int userId,
@@ -140,7 +139,7 @@ namespace Backend.Domains.Audit.Services
         {
             var isMember = await IsTeamMemberAsync(stockTakeId, userId, ct);
             if (!isMember)
-                throw new UnauthorizedAccessException("User is not part of this audit team.");
+                throw new UnauthorizedAccessException("User is not currently active in this audit.");
 
             if (take <= 0) take = 50;
             if (take > 200) take = 200;
@@ -212,6 +211,68 @@ namespace Backend.Domains.Audit.Services
                 .Skip(skip)
                 .Take(take)
                 .ToListAsync(ct);
+        }
+        public async Task<List<RecountCandidateDto>> GetRecountCandidatesAsync(
+    int stockTakeId,
+    CancellationToken ct)
+        {
+            var st = await _db.StockTakes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
+
+            if (st == null)
+                throw new ArgumentException("Audit not found.");
+
+            var result = await (
+                from tm in _db.StockTakeTeamMembers.AsNoTracking()
+                join u in _db.Users.AsNoTracking() on tm.UserId equals u.UserId
+                where tm.StockTakeId == stockTakeId
+                orderby tm.IsActive descending, u.FullName
+                select new RecountCandidateDto
+                {
+                    UserId = tm.UserId,
+                    FullName = u.FullName,
+                    IsActive = tm.IsActive,
+                    AssignedAt = tm.AssignedAt,
+                    RemovedAt = tm.RemovedAt
+                }
+            ).ToListAsync(ct);
+
+            return result;
+        }
+        public async Task<(bool success, string message)> RejoinForRecountAsync(
+    int stockTakeId,
+    int targetUserId,
+    int managerUserId,
+    CancellationToken ct)
+        {
+            var st = await _db.StockTakes
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
+
+            if (st == null)
+                return (false, "Audit not found.");
+
+            if (st.CreatedBy != managerUserId)
+                return (false, "You do not have permission to update this audit.");
+
+            var member = await _db.StockTakeTeamMembers
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId && x.UserId == targetUserId, ct);
+
+            if (member == null)
+                return (false, "This user has never joined this audit.");
+
+            if (member.IsActive)
+                return (true, "User is already active in this audit.");
+
+            member.IsActive = true;
+            member.RemovedAt = null;
+
+            if (string.Equals(st.Status, "Planned", StringComparison.OrdinalIgnoreCase))
+                st.Status = "Assigned";
+
+            await _db.SaveChangesAsync(ct);
+
+            return (true, "User rejoined successfully for recount.");
         }
         public async Task<List<MaterialSuggestDto>> SuggestMaterialsAsync(
        int stockTakeId,

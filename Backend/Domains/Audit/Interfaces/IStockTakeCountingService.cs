@@ -1,3 +1,4 @@
+using Backend.Domains.Audit.DTOs.Managers;
 using Backend.Domains.Audit.DTOs.Staffs;
 
 namespace Backend.Domains.Audit.Interfaces
@@ -40,6 +41,16 @@ namespace Backend.Domains.Audit.Interfaces
             int stockTakeId,
             int userId,
             UpsertCountRequest request,
+            CancellationToken ct);
+
+        Task<List<RecountCandidateDto>> GetRecountCandidatesAsync(
+            int stockTakeId,
+            CancellationToken ct);
+
+        Task<(bool success, string message)> RejoinForRecountAsync(
+            int stockTakeId,
+            int targetUserId,
+            int managerUserId,
             CancellationToken ct);
     }
 }
