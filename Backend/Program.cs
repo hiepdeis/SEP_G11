@@ -50,6 +50,7 @@ builder.Services.AddScoped<IAuditPlanService, AuditPlanService>();
 builder.Services.AddScoped<IAuditTeamService, AuditTeamService>();
 builder.Services.AddScoped<IStockTakeReviewService, StockTakeReviewService>();
 builder.Services.AddScoped<IStockTakeCountingService, StockTakeCountingService>();
+builder.Services.AddScoped<IStockTakeLockService, StockTakeLockService>();
 
 // Configure Swagger to support file uploads
 builder.Services.AddSwaggerGen(c =>

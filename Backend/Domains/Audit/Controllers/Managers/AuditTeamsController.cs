@@ -39,8 +39,25 @@ public class AuditTeamsController : ControllerBase
 
     [HttpGet("{stockTakeId:int}/team")]
     public async Task<ActionResult<AuditTeamResponse>> GetTeam(int stockTakeId, CancellationToken ct)
-        => Ok(await _svc.GetTeamAsync(stockTakeId, ct));
-
+    {
+        try
+        {
+            var result = await _svc.GetTeamAsync(stockTakeId, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = ex.Message });
+        }
+    }
     [HttpGet("{stockTakeId:int}/eligible-staff")]
     public async Task<ActionResult<List<EligibleStaffDto>>> EligibleStaff(int stockTakeId, CancellationToken ct)
         => Ok(await _svc.GetEligibleStaffAsync(stockTakeId, ct));

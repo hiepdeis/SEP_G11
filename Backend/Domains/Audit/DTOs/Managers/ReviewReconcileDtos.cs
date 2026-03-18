@@ -264,3 +264,9 @@ public sealed class AuditActivityDto
     public string? UserName { get; set; }
     public string? Details { get; set; }
 }
+
+public sealed class RequestRecountRequest
+{
+    public int ReasonId { get; set; }
+    public string? Note { get; set; }
+}
