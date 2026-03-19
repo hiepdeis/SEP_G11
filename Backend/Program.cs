@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using NuGet.Packaging;
 using OfficeOpenXml;
 using System;
 using System.Text;
@@ -39,7 +40,9 @@ builder.Services.AddDbContext<MyDbContext>(options =>
 // Add services to the container.
 
 
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
+builder.Services.AddScoped<IAuditReportService, AuditReportService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
