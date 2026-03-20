@@ -38,4 +38,10 @@ public partial class Project
 
     [InverseProperty("Project")]
     public virtual ICollection<MaterialLossNorm> MaterialLossNorms { get; set; } = new List<MaterialLossNorm>();
+
+    [InverseProperty("Project")]
+    public virtual ICollection<PurchaseRequest> PurchaseRequests { get; set; } = new List<PurchaseRequest>();
+
+    [InverseProperty("Project")]
+    public virtual ICollection<PurchaseOrder> PurchaseOrders { get; set; } = new List<PurchaseOrder>();
 }

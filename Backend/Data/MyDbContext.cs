@@ -66,6 +66,18 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<SupplierQuotation> SupplierQuotations { get; set; }
 
+    public virtual DbSet<SupplierContract> SupplierContracts { get; set; }
+
+    public virtual DbSet<StockShortageAlert> StockShortageAlerts { get; set; }
+
+    public virtual DbSet<PurchaseRequest> PurchaseRequests { get; set; }
+
+    public virtual DbSet<PurchaseRequestItem> PurchaseRequestItems { get; set; }
+
+    public virtual DbSet<PurchaseOrder> PurchaseOrders { get; set; }
+
+    public virtual DbSet<PurchaseOrderItem> PurchaseOrderItems { get; set; }
+
     public virtual DbSet<TransferDetail> TransferDetails { get; set; }
 
     public virtual DbSet<TransferOrder> TransferOrders { get; set; }
@@ -303,6 +315,7 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.Unit).HasMaxLength(20);
             entity.Property(e => e.IsDecimalUnit).HasDefaultValue(false);
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.MaxStockLevel);
             entity.Property(e => e.TechnicalStandard).HasMaxLength(500);
             entity.Property(e => e.Specification).HasMaxLength(500);
 
@@ -360,6 +373,9 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
             entity.Property(e => e.IsRead).HasDefaultValue(false);
             entity.Property(e => e.Message).HasMaxLength(500);
+            entity.Property(e => e.RelatedEntityType)
+                .HasMaxLength(50)
+                .IsUnicode(false);
             entity.Property(e => e.UserId).HasColumnName("UserID");
 
             entity.HasOne(d => d.User).WithMany(p => p.Notifications)
@@ -421,6 +437,8 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.AccountantNotes).HasColumnName("AccountantNotes").HasMaxLength(500);
             entity.Property(e => e.BackorderReason).HasColumnName("BackorderReason").HasMaxLength(500);
 
+            entity.Property(e => e.PurchaseOrderId).HasColumnName("PurchaseOrderID");
+
             entity.Property(e => e.ConfirmedBy).HasColumnName("ConfirmedBy");
             entity.Property(e => e.ConfirmedAt)
                 .HasColumnName("ConfirmedAt")
@@ -439,6 +457,11 @@ public partial class MyDbContext : DbContext
             entity.HasOne(d => d.Warehouse).WithMany(p => p.Receipts)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Receipts_Warehouses");
+
+            entity.HasOne(d => d.PurchaseOrder)
+                .WithMany(p => p.Receipts)
+                .HasForeignKey(d => d.PurchaseOrderId)
+                .HasConstraintName("FK_Receipts_PurchaseOrders");
 
             // Self-referencing relationship for backorders
             entity.HasOne(d => d.ParentRequest)
@@ -770,6 +793,185 @@ public partial class MyDbContext : DbContext
             entity.HasOne(d => d.Supplier).WithMany(p => p.SupplierQuotations)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Quotations_Suppliers");
+        });
+
+        modelBuilder.Entity<SupplierContract>(entity =>
+        {
+            entity.HasKey(e => e.ContractId).HasName("PK_SupplierContracts");
+
+            entity.HasIndex(e => e.ContractCode, "UQ_SupplierContracts_ContractCode").IsUnique();
+
+            entity.Property(e => e.ContractId).HasColumnName("ContractID");
+            entity.Property(e => e.ContractCode)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.ContractNumber)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.SupplierId).HasColumnName("SupplierID");
+            entity.Property(e => e.EffectiveFrom).HasColumnType("datetime");
+            entity.Property(e => e.EffectiveTo).HasColumnType("datetime");
+            entity.Property(e => e.PaymentTerms)
+                .HasMaxLength(200)
+                .IsUnicode(false);
+            entity.Property(e => e.DeliveryTerms)
+                .HasMaxLength(200)
+                .IsUnicode(false);
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasDefaultValue("Active");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.Notes).HasMaxLength(500);
+
+            entity.HasOne(d => d.Supplier).WithMany(p => p.SupplierContracts)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_SupplierContracts_Suppliers");
+        });
+
+        modelBuilder.Entity<StockShortageAlert>(entity =>
+        {
+            entity.HasKey(e => e.AlertId).HasName("PK_StockShortageAlerts");
+
+            entity.Property(e => e.AlertId).HasColumnName("AlertID");
+            entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
+            entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
+            entity.Property(e => e.CurrentQuantity).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.SuggestedQuantity).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasDefaultValue("Pending");
+            entity.Property(e => e.Priority)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime");
+            entity.Property(e => e.ConfirmedAt).HasColumnType("datetime");
+            entity.Property(e => e.Notes).HasMaxLength(500);
+
+            entity.HasOne(d => d.Material).WithMany(p => p.StockShortageAlerts)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_StockShortageAlerts_Materials");
+
+            entity.HasOne(d => d.ConfirmedByUser)
+                .WithMany(p => p.StockShortageAlertsConfirmedByNavigations)
+                .HasForeignKey(d => d.ConfirmedBy)
+                .HasConstraintName("FK_StockShortageAlerts_ConfirmedBy_Users");
+
+            entity.HasOne(d => d.Warehouse).WithMany(p => p.StockShortageAlerts)
+                .HasConstraintName("FK_StockShortageAlerts_Warehouses");
+        });
+
+        modelBuilder.Entity<PurchaseRequest>(entity =>
+        {
+            entity.HasKey(e => e.RequestId).HasName("PK_PurchaseRequests");
+
+            entity.HasIndex(e => e.RequestCode, "UQ_PurchaseRequests_RequestCode").IsUnique();
+
+            entity.Property(e => e.RequestId).HasColumnName("RequestID");
+            entity.Property(e => e.RequestCode)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.ProjectId).HasColumnName("ProjectID");
+            entity.Property(e => e.AlertId).HasColumnName("AlertID");
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime");
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasDefaultValue("Submitted");
+
+            entity.HasOne(d => d.Project).WithMany(p => p.PurchaseRequests)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_PurchaseRequests_Projects");
+
+            entity.HasOne(d => d.Alert).WithMany(p => p.PurchaseRequests)
+                .HasConstraintName("FK_PurchaseRequests_StockShortageAlerts");
+        });
+
+        modelBuilder.Entity<PurchaseRequestItem>(entity =>
+        {
+            entity.HasKey(e => e.ItemId).HasName("PK_PurchaseRequestItems");
+
+            entity.Property(e => e.ItemId).HasColumnName("ItemID");
+            entity.Property(e => e.RequestId).HasColumnName("RequestID");
+            entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
+            entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
+            entity.Property(e => e.Quantity).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.Notes).HasMaxLength(500);
+
+            entity.HasOne(d => d.PurchaseRequest).WithMany(p => p.Items)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_PurchaseRequestItems_PurchaseRequests");
+
+            entity.HasOne(d => d.Material).WithMany(p => p.PurchaseRequestItems)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_PurchaseRequestItems_Materials");
+
+            entity.HasOne(d => d.Warehouse).WithMany(p => p.PurchaseRequestItems)
+                .HasConstraintName("FK_PurchaseRequestItems_Warehouses");
+        });
+
+        modelBuilder.Entity<PurchaseOrder>(entity =>
+        {
+            entity.HasKey(e => e.PurchaseOrderId).HasName("PK_PurchaseOrders");
+
+            entity.HasIndex(e => e.PurchaseOrderCode, "UQ_PurchaseOrders_PurchaseOrderCode").IsUnique();
+
+            entity.Property(e => e.PurchaseOrderId).HasColumnName("PurchaseOrderID");
+            entity.Property(e => e.PurchaseOrderCode)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.RequestId).HasColumnName("RequestID");
+            entity.Property(e => e.ProjectId).HasColumnName("ProjectID");
+            entity.Property(e => e.SupplierId).HasColumnName("SupplierID");
+            entity.Property(e => e.SupplierContractId).HasColumnName("SupplierContractID");
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime");
+            entity.Property(e => e.Status)
+                .HasMaxLength(30)
+                .IsUnicode(false)
+                .HasDefaultValue("Draft");
+            entity.Property(e => e.AccountantApprovedAt).HasColumnType("datetime");
+            entity.Property(e => e.AdminApprovedAt).HasColumnType("datetime");
+            entity.Property(e => e.SentToSupplierAt).HasColumnType("datetime");
+            entity.Property(e => e.TotalAmount).HasColumnType("decimal(18, 2)");
+
+            entity.HasOne(d => d.Project).WithMany(p => p.PurchaseOrders)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_PurchaseOrders_Projects");
+
+            entity.HasOne(d => d.Supplier).WithMany(p => p.PurchaseOrders)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_PurchaseOrders_Suppliers");
+
+            entity.HasOne(d => d.SupplierContract).WithMany(p => p.PurchaseOrders)
+                .HasConstraintName("FK_PurchaseOrders_SupplierContracts");
+
+            entity.HasOne(d => d.PurchaseRequest).WithMany(p => p.PurchaseOrders)
+                .HasConstraintName("FK_PurchaseOrders_PurchaseRequests");
+        });
+
+        modelBuilder.Entity<PurchaseOrderItem>(entity =>
+        {
+            entity.HasKey(e => e.ItemId).HasName("PK_PurchaseOrderItems");
+
+            entity.Property(e => e.ItemId).HasColumnName("ItemID");
+            entity.Property(e => e.PurchaseOrderId).HasColumnName("PurchaseOrderID");
+            entity.Property(e => e.SupplierId).HasColumnName("SupplierID");
+            entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
+            entity.Property(e => e.OrderedQuantity).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.LineTotal).HasColumnType("decimal(18, 2)");
+
+            entity.HasOne(d => d.PurchaseOrder).WithMany(p => p.Items)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_PurchaseOrderItems_PurchaseOrders");
+
+            entity.HasOne(d => d.Supplier).WithMany(p => p.PurchaseOrderItems)
+                .HasConstraintName("FK_PurchaseOrderItems_Suppliers");
+
+            entity.HasOne(d => d.Material).WithMany(p => p.PurchaseOrderItems)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_PurchaseOrderItems_Materials");
         });
 
         modelBuilder.Entity<TransferDetail>(entity =>
