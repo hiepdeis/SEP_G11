@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Domains.Import.Controllers.Staff
 {
-    [Route("api/[controller]")]
+    [Route("api/staff/receipts")]
     [ApiController]
     public class StaffReceiptsController : ControllerBase
     {
@@ -59,6 +59,33 @@ namespace Backend.Domains.Import.Controllers.Staff
 
                 await _receiptService.ConfirmGoodsReceiptAsync(receiptId, dto, staffId);
                 return Ok(new { message = "Goods receipt confirmed successfully" });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
+
+        [HttpPost("/api/staff/receipts/from-po")]
+        public async Task<IActionResult> ReceiveGoodsFromPurchaseOrder([FromBody] ReceiveGoodsFromPoDto dto)
+        {
+            try
+            {
+                var staffId = 4; // TODO: replace with JWT claims
+                var result = await _receiptService.ReceiveGoodsFromPOAsync(dto.PurchaseOrderId, dto.Items, staffId);
+                return Ok(result);
             }
             catch (KeyNotFoundException ex)
             {

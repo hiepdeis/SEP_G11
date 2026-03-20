@@ -43,4 +43,10 @@ public partial class Warehouse
     [InverseProperty("Warehouse")]
     public virtual ICollection<WarehouseCard> WarehouseCards { get; set; } = new List<WarehouseCard>();
 
+    [InverseProperty("Warehouse")]
+    public virtual ICollection<StockShortageAlert> StockShortageAlerts { get; set; } = new List<StockShortageAlert>();
+
+    [InverseProperty("Warehouse")]
+    public virtual ICollection<PurchaseRequestItem> PurchaseRequestItems { get; set; } = new List<PurchaseRequestItem>();
+
 }
