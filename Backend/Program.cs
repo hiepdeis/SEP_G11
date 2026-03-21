@@ -1,5 +1,7 @@
 
 using Backend.Data;
+using Backend.Domains.Admin.Interface;
+using Backend.Domains.Admin.Services;
 using Backend.Domains.Audit.Interfaces;
 using Backend.Domains.Audit.Services;
 using Backend.Domains.auth.Business;
@@ -101,8 +103,11 @@ builder.Services.AddScoped<GoogleLoginHandler>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IReceiptService, ReceiptService>();
 builder.Services.AddScoped<IAuthorizationHandler, ActiveUserAuthorizationHandler>();
-
-
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+builder.Services.AddScoped<IMaterialService, MaterialService>();
+builder.Services.AddScoped<IMasterDataService, MasterDataService>();
+builder.Services.AddScoped<INotificationAdminService, NotificationAdminService>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
