@@ -115,7 +115,7 @@ export function Sidebar() {
 
   return (
     <>
-      {isMobileOpen && (
+      {/* {isMobileOpen && (
         <div className="fixed top-4 left-4 z-50 lg:hidden">
           <Button
             variant="outline"
@@ -126,7 +126,7 @@ export function Sidebar() {
             <X className="h-5 w-5" />
           </Button>
         </div>
-      )}
+      )} */}
 
       <aside
         className={`relative hidden lg:flex h-screen bg-white border-r border-slate-200 flex-col flex-shrink-0 transition-all duration-300 ease-in-out shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] z-20 ${
@@ -504,8 +504,8 @@ export function Sidebar() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setIsMobileOpen(false)}
-                className="text-slate-500 hover:bg-slate-100 rounded-full"
+                onClick={() => {setIsMobileOpen(false); setIsExpanded(!isExpanded)}}
+                className="text-slate-500 hover:text-white bg-slate-100 rounded-full"
               >
                 <X className="h-5 w-5" />
               </Button>
@@ -718,17 +718,16 @@ export function Sidebar() {
           </aside>
         </>
       )}
-
       {/* Mobile Trigger */}
-      <button
-        onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="fixed top-4 left-4 z-50 p-2 lg:hidden hover:bg-slate-100 rounded-xl transition-colors text-slate-600 bg-white border border-slate-200 shadow-md"
+      {(!isExpanded || !isMobileOpen) && <button
+        onClick={() => {setIsMobileOpen(!isMobileOpen); setIsExpanded(!isExpanded)}}
+        className="fixed top-14 left-4 z-50 p-2 lg:hidden hover:bg-slate-100 rounded-xl transition-colors text-slate-600 bg-white border border-slate-200 shadow-md"
       >
         {isMobileOpen ? (
-          <X className="h-6 w-6" />
+          <X className="h-4 w-4" />
         ) : (
           <svg
-            className="h-6 w-6"
+            className="h-4 w-4"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -741,7 +740,7 @@ export function Sidebar() {
             />
           </svg>
         )}
-      </button>
+      </button>}
     </>
   );
 }

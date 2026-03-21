@@ -42,7 +42,7 @@ export default function RequestWrapperPage() {
     );
   }
 
-  if (status === "Submitted" || status === "Approved") {
+  if (status === "Submitted" || status === "Approved" || status === "Rejected") {
     return <ManagerView />;
   }
 

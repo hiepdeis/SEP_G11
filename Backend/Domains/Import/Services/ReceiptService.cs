@@ -258,6 +258,7 @@ namespace Backend.Domains.Import.Services
                         ConfirmedAt = receipt.ConfirmedAt,
                         ReceiptDate = today,
                         BackorderReason = $"Auto-generated backorder from receipt {receipt.ReceiptCode}",
+                        CreatedBy = staffId
                     };
 
                     _context.Receipts.Add(childReceipt);

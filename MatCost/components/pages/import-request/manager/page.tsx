@@ -18,6 +18,8 @@ import {
   History,
   ChevronRight,
   ChevronLeft,
+  Check,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -169,6 +171,17 @@ export default function ManagerReviewPage() {
       startTableIndex + tableItemsPerPage,
     ) || [];
 
+  const formatDate = (dateString?: string | Date | null) => {
+    if (!dateString) return null;
+    return new Date(dateString).toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
@@ -208,6 +221,140 @@ export default function ManagerReviewPage() {
               </span>
             </div>
           </div>
+
+          <Card className="border-slate-200 shadow-sm bg-white mb-6">
+            <CardContent className="">
+              <div className="relative">
+                <div className="absolute left-[16%] right-[16%] top-5 h-1 bg-slate-200 z-10 rounded-full" />
+
+                <div
+                  className={`absolute left-[16%] top-5 h-1 rounded-full z-10 transition-all duration-500 ${
+                    receipt.submittedDate ? "bg-indigo-600" : "bg-transparent"
+                  }`}
+                  style={{
+                    width:
+                      receipt.status === "Approved" || receipt.status === "Rejected"
+                        ? "68%"
+                        : receipt.submittedDate
+                          ? "35%"
+                          : "0%",
+                  }}
+                />
+
+                <div className="flex justify-between w-full">
+                  <div className="flex flex-col items-center relative z-10 w-1/3">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
+                        receipt.receiptDate
+                          ? "bg-indigo-600 text-white"
+                          : "bg-slate-200 text-slate-400"
+                      }`}
+                    >
+                      <Check className="w-5 h-5" />
+                    </div>
+                    <div className="text-center mt-3 bg-white px-2">
+                      <p className="text-sm font-semibold text-slate-800">
+                        {t("Create Receipt")}
+                      </p>
+                      {receipt.createdByName && (
+                        <p className="text-xs font-medium text-slate-600 mt-0.5">
+                          {receipt.createdByName}
+                        </p>
+                      )}
+                      {receipt.receiptDate && (
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {formatDate(receipt.receiptDate)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center relative z-10 w-1/3">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
+                        receipt.submittedDate
+                          ? "bg-indigo-600 text-white"
+                          : "bg-slate-200 text-slate-400"
+                      }`}
+                    >
+                      <Check className="w-5 h-5" />
+                    </div>
+                    <div className="text-center mt-3 bg-white px-2">
+                      <p className="text-sm font-semibold text-slate-800">
+                        {t("Submit Receipt")}
+                      </p>
+                      {receipt.submittedByName ? (
+                        <p className="text-xs font-medium text-slate-600 mt-0.5">
+                          {receipt.submittedByName}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-slate-400 italic mt-0.5">
+                          {t("Pending")}
+                        </p>
+                      )}
+                      {receipt.submittedDate && (
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {formatDate(receipt.submittedDate)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center relative z-10 w-1/3">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
+                        receipt.status === "Approved"
+                          ? "bg-indigo-500 text-white"
+                          : receipt.status === "Rejected"
+                            ? "bg-red-500 text-white"
+                            : "bg-slate-200 text-slate-400" 
+                      }`}
+                    >
+                      {receipt.status === "Rejected" ? (
+                        <X className="w-5 h-5" />
+                      ) : (
+                        <Check className="w-5 h-5" />
+                      )}
+                    </div>
+                    <div className="text-center mt-3 bg-white px-2">
+                      <p className="text-sm font-semibold text-slate-800">
+                        {receipt.status === "Rejected"
+                          ? t("Rejected")
+                          : receipt.status === "Approved"
+                            ? t("Approved")
+                            : t("Review Receipt")}
+                      </p>
+
+                      {receipt.status === "Submitted" ? (
+                        <p className="text-xs text-slate-400 italic mt-0.5">
+                          {t("Pending")}
+                        </p>
+                      ) : (
+                        <>
+                          {(receipt.rejectedByName || receipt.approvedByName) && (
+                            <p className="text-xs font-medium text-slate-600 mt-0.5">
+                              {receipt.status === "Rejected" 
+                                ? receipt.rejectedByName 
+                                : receipt.approvedByName}
+                            </p>
+                          )}
+                          {(receipt.rejectedDate || receipt.approvedDate) && (
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                              {formatDate(
+                                receipt.status === "Rejected"
+                                  ? receipt.rejectedDate
+                                  : receipt.approvedDate
+                              )}
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* LEFT COLUMN: Main Details (2/3 width) */}
@@ -254,7 +401,7 @@ export default function ManagerReviewPage() {
                   </Badge>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <div className="[&>div]:max-h-[300px] [&>div]:min-h-[300px] [&>div]:overflow-y-auto">
+                  <div className="[&>div]:max-h-[500px] [&>div]:min-h-[500px] [&>div]:overflow-y-auto">
                     <Table>
                       <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                         <TableRow className="bg-slate-50/50">
@@ -476,7 +623,7 @@ export default function ManagerReviewPage() {
                         />
                         {!isSigned && (
                           <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-40">
-                            <span className="text-slate-400 select-none italic">
+                            <span className="text-slate-400 select-none italic text-center">
                               {t("Sign here to enable decision buttons...")}
                             </span>
                           </div>

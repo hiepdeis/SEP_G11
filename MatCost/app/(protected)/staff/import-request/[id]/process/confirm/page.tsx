@@ -175,7 +175,7 @@ export default function StaffConfirmInboundPage() {
       const reader = new FileReader();
       reader.onloadend = () => {
         updateConfirmItem(index, "certificateImage", reader.result as string);
-        toast.success("Image attached");
+        toast.success(t("Image attached"));
       };
       reader.readAsDataURL(file);
     }
@@ -184,15 +184,19 @@ export default function StaffConfirmInboundPage() {
   const handleFinalConfirm = async () => {
     const invalidQty = confirmItems.filter((i) => i.actualQty === "");
     if (invalidQty.length > 0)
-      return toast.error(`Enter Actual Quantity for all items.`);
+      return toast.error(t(`Enter Actual Quantity for all items.`));
 
     const missingBin = confirmItems.filter((i) => !i.binLocationId);
     if (missingBin.length > 0)
-      return toast.error(`Select Bin Location for all items.`);
+      return toast.error(t(`Select Bin Location for all items.`));
 
     const missingBatch = confirmItems.filter((i) => !i.batchCode);
     if (missingBatch.length > 0)
-      return toast.error(`Select Batch Code for all items.`);
+      return toast.error(t(`Select Batch Code for all items.`));
+
+    const missingImage = confirmItems.filter((i) => !i.certificateImage);
+    if (missingImage.length > 0)
+      return toast.error(t(`Select Certificate Image for all items.`));
 
     showConfirmToast({
       title: t("Confirm Inbound Completion?"),
