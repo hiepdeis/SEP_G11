@@ -524,7 +524,7 @@ export default function ManagerReviewPage() {
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
                     <span className="text-lg font-semibold text-indigo-700">
-                      {receipt.status}
+                      {t(receipt.status)}
                     </span>
                   </div>
                   {receipt.status == "Submitted" ? (

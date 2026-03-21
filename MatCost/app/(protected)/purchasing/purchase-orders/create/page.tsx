@@ -1,0 +1,505 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Sidebar } from "@/components/sidebar";
+import { Header } from "@/components/ui/custom/header";
+import {
+  ArrowLeft,
+  Save,
+  Loader2,
+  Building2,
+  PackagePlus,
+  Users,
+  FileText,
+  Trash2,
+  Calculator,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  purchasingPurchaseOrderApi,
+  purchasingPurchaseRequestApi,
+  PurchaseRequestDto,
+} from "@/services/import-service";
+import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+
+interface OrderItemInput {
+  id: string;
+  materialId: number;
+  materialCode: string;
+  materialName: string;
+  prQuantity: number;
+  orderedQuantity: string;
+  unitPrice: string;
+  supplierId: string;
+}
+
+export default function CreatePurchaseOrderPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { t } = useTranslation();
+
+  const requestIdParam = searchParams.get("requestId");
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
+  const [requests, setRequests] = useState<PurchaseRequestDto[]>([]);
+  const [suppliers, setSuppliers] = useState<{ id: number; name: string }[]>(
+    [],
+  );
+
+  const [selectedRequestId, setSelectedRequestId] = useState<string>(
+    requestIdParam || "",
+  );
+  const [globalSupplierId, setGlobalSupplierId] = useState<string>("");
+  const [items, setItems] = useState<OrderItemInput[]>([]);
+
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      setIsLoadingData(true);
+      try {
+        const [prRes] = await Promise.all([
+          purchasingPurchaseRequestApi.getRequests(),
+        ]);
+
+        setRequests(prRes.data);
+
+        setSuppliers([
+          { id: 1, name: "Vinaconex Steel Provider" },
+          { id: 2, name: "Hoa Phat Group" },
+          { id: 3, name: "Ha Tien Cement Co." },
+        ]);
+      } catch (error) {
+        console.error("Failed to load initial data", error);
+        toast.error(t("Failed to load purchase requests."));
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+    fetchInitialData();
+  }, [t]);
+
+  console.log(requests);
+  
+
+  useEffect(() => {
+    if (selectedRequestId && requests.length > 0) {
+      const pr = requests.find(
+        (r) => r.requestId.toString() === selectedRequestId,
+      );
+      if (pr && pr.items) {
+        const mappedItems: OrderItemInput[] = pr.items.map((i) => ({
+          id: crypto.randomUUID(),
+          materialId: i.materialId,
+          materialCode: i.materialCode,
+          materialName: i.materialName,
+          prQuantity: i.quantity,
+          orderedQuantity: i.quantity.toString(), // Default bằng đúng số lượng yêu cầu
+          unitPrice: "",
+          supplierId: "", // Sẽ kế thừa globalSupplierId nếu để trống
+        }));
+        setItems(mappedItems);
+      }
+    } else {
+      setItems([]);
+    }
+  }, [selectedRequestId, requests]);
+
+  const handleItemChange = (
+    id: string,
+    field: keyof OrderItemInput,
+    value: string,
+  ) => {
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)),
+    );
+
+    if (field === "supplierId") {
+      setGlobalSupplierId("");
+    }
+  };
+
+  const handleRemoveRow = (idToRemove: string) => {
+    setItems((prev) => prev.filter((item) => item.id !== idToRemove));
+  };
+
+  const formatCurrency = (val: number) => {
+    return val.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedRequestId) {
+      return toast.error(t("Please select a Purchase Request."));
+    }
+
+    if (items.length === 0) {
+      return toast.error(t("Order must have at least one item."));
+    }
+
+    const invalidItem = items.find(
+      (i) => !i.orderedQuantity || Number(i.orderedQuantity) <= 0,
+    );
+    if (invalidItem) {
+      return toast.error(
+        t("Please enter a valid ordered quantity for all items."),
+      );
+    }
+
+    const missingSupplier = items.find((i) => !i.supplierId);
+    if (missingSupplier) {
+      return toast.error(t("Please assign a supplier for all items."));
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const payload = {
+        requestId: Number(selectedRequestId),
+        supplierId: globalSupplierId ? Number(globalSupplierId) : undefined,
+        items: items.map((i) => ({
+          materialId: i.materialId,
+          orderedQuantity: Number(i.orderedQuantity),
+          unitPrice: i.unitPrice ? Number(i.unitPrice) : undefined,
+          supplierId: Number(i.supplierId),
+        })),
+      };
+
+      await purchasingPurchaseOrderApi.createDraft(payload);
+      toast.success(t("Purchase Order draft created successfully!"));
+
+      router.push("/purchasing/purchase-orders");
+    } catch (error: any) {
+      console.error(error);
+      toast.error(
+        error.response?.data?.message ||
+          t("Failed to create Purchase Order draft."),
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const calculateTotal = () => {
+    return items.reduce((acc, curr) => {
+      const qty = Number(curr.orderedQuantity) || 0;
+      const price = Number(curr.unitPrice) || 0;
+      return acc + qty * price;
+    }, 0);
+  };
+
+  const handleGlobalSupplierChange = (val: string) => {
+    setGlobalSupplierId(val);
+    setItems((prev) => prev.map((item) => ({ ...item, supplierId: val })));
+  };
+
+  if (isLoadingData) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-slate-50/50">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
+      <Sidebar />
+      <main className="flex-grow flex flex-col overflow-hidden relative z-10">
+        <Header title={t("Create Purchase Order Draft")} />
+
+        <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6 mx-auto w-full">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                onClick={() => router.back()}
+                className="pl-0 hover:bg-transparent hover:text-indigo-600"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back")}
+              </Button>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+                  {t("New Purchase Order (Draft)")}
+                </h1>
+              </div>
+            </div>
+
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              {t("Save as Draft")}
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* THÔNG TIN CHUNG (HEADER) */}
+            <div className="lg:col-span-1 space-y-6">
+              <Card className="border-slate-200 shadow-sm bg-white gap-0">
+                <CardHeader className="border-b border-slate-100 pb-4">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                    <FileText className="w-5 h-5 text-indigo-600" />
+                    {t("Order Setup")}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6 space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">
+                      {t("Source Purchase Request")}{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <Select
+                      value={selectedRequestId}
+                      onValueChange={setSelectedRequestId}
+                    >
+                      <SelectTrigger className="w-full bg-slate-50 border-slate-200 min-h-[60px] py-2">
+                        <SelectValue placeholder={t("Select a PR...")} />
+                      </SelectTrigger>
+                      <SelectContent className="w-[var(--radix-select-trigger-width)]">
+                        {requests.map((r) => (
+                          <SelectItem
+                            key={r.requestId}
+                            value={r.requestId.toString()}
+                            className="group focus:bg-indigo-600 cursor-pointer"
+                          >
+                            <div className="flex flex-col text-left">
+                              <span className="font-medium text-slate-800 group-focus:text-white">
+                                {r.requestCode}
+                              </span>
+                              <span className="text-xs text-slate-500 mt-0.5 group-focus:text-indigo-100">
+                                Project: {r.projectName} | Items:{" "}
+                                {r.items?.length || 0}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                    <label className="text-sm font-medium text-slate-700">
+                      {t("Global Supplier")}
+                    </label>
+                    <Select
+                      value={globalSupplierId}
+                      onValueChange={handleGlobalSupplierChange}
+                    >
+                      <SelectTrigger className="w-full bg-slate-50 border-slate-200">
+                        <SelectValue
+                          placeholder={t("Select to apply to all items...")}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {suppliers.map((s) => (
+                          <SelectItem key={s.id} value={s.id.toString()}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {t(
+                        "Leave blank if you want to select different suppliers per item.",
+                      )}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-slate-200 shadow-sm bg-indigo-50/50">
+                <CardContent className="p-5 flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-indigo-700 font-semibold mb-1">
+                    <Calculator className="w-5 h-5" />
+                    {t("Estimated Total")}
+                  </div>
+                  <div className="text-3xl font-bold text-slate-900 truncate">
+                    {formatCurrency(calculateTotal())}
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    {t("Based on entered unit prices.")}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* DANH SÁCH VẬT TƯ & ĐƠN GIÁ (DYNAMIC TABLE) */}
+            <div className="lg:col-span-3">
+              <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] flex flex-col gap-0">
+                <CardHeader className="border-b border-slate-100 pb-4">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                    <PackagePlus className="w-5 h-5 text-indigo-600" />
+                    {t("Order Details & Pricing")}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0 flex-1 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader className="bg-slate-50 sticky top-0">
+                        <TableRow>
+                          <TableHead className="w-[30%] pl-6">
+                            {t("Material")}
+                          </TableHead>
+                          <TableHead className="w-[15%] text-center">
+                            {t("Requested")}
+                          </TableHead>
+                          <TableHead className="w-[15%] text-center">
+                            {t("Order Quantity")} *
+                          </TableHead>
+                          <TableHead className="w-[15%]">
+                            {t("Supplier")}
+                          </TableHead>
+                          <TableHead className="w-[20%] text-right pr-6">
+                            {t("Unit Price (VND)")}
+                          </TableHead>
+                          {/* <TableHead className="w-[5%] text-center pr-6"></TableHead> */}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {items.length === 0 ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={6}
+                              className="h-40 text-center text-slate-500"
+                            >
+                              {t(
+                                "Please select a Purchase Request to load materials.",
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          items.map((item) => (
+                            <TableRow
+                              key={item.id}
+                              className="hover:bg-slate-50/50 transition-colors"
+                            >
+                              <TableCell className="pl-6 align-top pt-4">
+                                <div className="flex flex-col">
+                                  <span className="font-semibold text-slate-800">
+                                    {item.materialName}
+                                  </span>
+                                  <span className="text-xs text-slate-400 font-mono mt-0.5">
+                                    {item.materialCode}
+                                  </span>
+                                </div>
+                              </TableCell>
+
+                              <TableCell className="align-top pt-6 text-center">
+                                <span className="font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded">
+                                  {item.prQuantity}
+                                </span>
+                              </TableCell>
+
+                              <TableCell className="align-top pt-4">
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  placeholder="Qty"
+                                  className="w-full text-right focus-visible:ring-indigo-600 text-center"
+                                  value={item.orderedQuantity}
+                                  onChange={(e) =>
+                                    handleItemChange(
+                                      item.id,
+                                      "orderedQuantity",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                                <span className="absolute right-3 top-2.5 text-xs font-medium text-slate-400 pointer-events-none">
+                              </span>
+                              </TableCell>
+                              <TableCell className="align-top pt-4">
+                                <Select
+                                  value={item.supplierId}
+                                  onValueChange={(val) =>
+                                    handleItemChange(item.id, "supplierId", val)
+                                  }
+                                >
+                                  <SelectTrigger
+                                    className={`w-full bg-white h-10 ${
+                                      !item.supplierId
+                                        ? "border-rose-300 ring-1 ring-rose-100"
+                                        : "border-slate-200"
+                                    }`}
+                                  >
+                                    <SelectValue placeholder={t("Select...")} />
+                                  </SelectTrigger>
+                                  <SelectContent className="w-[var(--radix-select-trigger-width)]">
+                                    {suppliers.map((s) => (
+                                      <SelectItem
+                                        key={s.id}
+                                        value={s.id.toString()}
+                                      >
+                                        {s.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell className="align-top text-right pt-4 pr-6">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  placeholder="0"
+                                  className="w-full text-right focus-visible:ring-indigo-600"
+                                  value={item.unitPrice}
+                                  onChange={(e) =>
+                                    handleItemChange(
+                                      item.id,
+                                      "unitPrice",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                              </TableCell>
+
+                              {/* <TableCell className="align-top pt-4 text-center pr-6">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                                  onClick={() => handleRemoveRow(item.id)}
+                                  title={t("Remove Item")}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </TableCell> */}
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}

@@ -457,7 +457,7 @@ export default function ReceiptReviewPage() {
           </div>
 
           <Card className="border-slate-200 shadow-sm bg-white mb-6">
-            <CardContent className="">
+            <CardContent>
               <div className="relative">
                 <div className="absolute left-[16%] right-[16%] top-5 h-1 bg-slate-200 z-10 rounded-full" />
 
