@@ -29,8 +29,10 @@ import { useEffect, useState } from "react";
 import { UserDropdown } from "@/components/user-dropdown";
 import { useAuth } from "@/components/providers/auth-provider";
 import { userApi } from "@/services/user-service";
+import { useTranslation } from "react-i18next";
 
 export function Sidebar() {
+  const { t } = useTranslation();
   const { isExpanded, setIsExpanded } = useSidebar();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const router = useRouter();
@@ -61,54 +63,49 @@ export function Sidebar() {
   }, [userDecode?.id]);
 
   const navItems = [
-    { label: "Dashboard", icon: LayoutGrid, href: "/dashboard" },
-    { label: "Inventory", icon: Package, href: "/dashboard/inventory" },
-    { label: "Import Materials", icon: Download, href: "/dashboard/import" },
-    { label: "Export Materials", icon: Upload, href: "/dashboard/export" },
+    { label: t("sidebar.dashboard"), icon: LayoutGrid, href: "/dashboard" },
+    { label: t("sidebar.inventory"), icon: Package, href: "/dashboard/inventory" },
+    { label: t("sidebar.import_materials"), icon: Download, href: "/dashboard/import" },
+    { label: t("sidebar.export_materials"), icon: Upload, href: "/dashboard/export" },
   ];
 
   const outboundTabs = [
-    { label: "Common", href: "/outbound/common/commonIssueSlip" },
-    {
-      label: "Construction",
-      href: "/outbound/contruction/MaterialRequestForm",
-    },
-    { label: "Account", href: "/outbound/account" },
-    { label: "Manager", href: "/outbound/manager" },
-    { label: "Staff", href: "/outbound/staff/InventoryIssueList" },
+    { label: t("sidebar.tabs.Common"), href: "/outbound/common/commonIssueSlip" },
+    { label: t("sidebar.roles.construction"), href: "/outbound/contruction/MaterialRequestForm" },
+    { label: t("sidebar.roles.accountant"), href: "/outbound/account" },
+    { label: t("sidebar.roles.manager"), href: "/outbound/manager" },
+    { label: t("sidebar.tabs.inventory_issue"), href: "/outbound/staff/InventoryIssueList" },
   ];
 
   const inboundTabs = [
-    { label: "Construction Team", href: "/construction/material-request" },
-    { label: "Accountant", href: "/accountant/import-request" },
-    { label: "Warehouse Manager", href: "/manager/import-request" },
-    { label: "Warehouse Staff", href: "/staff/import-request" },
+    { label: t("sidebar.roles.construction"), href: "/construction/material-request" },
+    { label: t("sidebar.roles.accountant"), href: "/accountant/import-request" },
+    { label: t("sidebar.roles.manager"), href: "/manager/import-request" },
+    { label: t("sidebar.roles.staff"), href: "/staff/import-request" },
   ];
 
   const auditTabs = [
-    { label: "Admin", href: "/admin/audit" },
-    { label: "Accountant", href: "/accountant/audit" },
-    { label: "Manager", href: "/manager/audit" },
-    { label: "Staff", href: "/staff/audit" },
+    { label: t("sidebar.roles.admin"), href: "/admin/audit" },
+    { label: t("sidebar.roles.accountant"), href: "/accountant/audit" },
+    { label: t("sidebar.roles.manager"), href: "/manager/audit" },
+    { label: t("sidebar.roles.staff"), href: "/staff/audit" },
   ];
 
   const reportRoles = [
     {
       id: "staff",
-      label: "Warehouse Staff",
+      label: t("sidebar.roles.staff"),
       href: "/staff/reports",
       categories: [
-        { label: "Import/Export", href: "/staff/reports/import-export" },
-        // Thêm các báo cáo khác của Staff vào đây sau
+        { label: t("sidebar.tabs.import_export"), href: "/staff/reports/import-export" },
       ],
     },
     {
       id: "manager",
-      label: "Warehouse Manager",
+      label: t("sidebar.roles.manager"),
       href: "/manager/reports",
       categories: [
-        { label: "Import/Export", href: "/manager/reports/import-export" },
-        // Thêm các báo cáo khác của Manager vào đây sau
+        { label: t("sidebar.tabs.import_export"), href: "/manager/reports/import-export" },
       ],
     },
   ];
@@ -157,7 +154,7 @@ export function Sidebar() {
                   MatCost
                 </h1>
                 <p className="text-xs text-slate-500 font-medium">
-                  Enterprise Warehouse
+                  {t("sidebar.enterprise_warehouse") || "Enterprise Warehouse"}
                 </p>
               </div>
             </div>
@@ -252,7 +249,7 @@ export function Sidebar() {
                 {isExpanded && (
                   <>
                     <span className="text-sm font-medium whitespace-nowrap">
-                      Inbound
+                      {t("sidebar.inbound")}
                     </span>
                     <ChevronDown className="w-4 h-4 ml-auto" />
                   </>
@@ -305,7 +302,7 @@ export function Sidebar() {
                 {isExpanded && (
                   <>
                     <span className="text-sm font-medium whitespace-nowrap">
-                      Outbound
+                      {t("sidebar.outbound")}
                     </span>
                     <ChevronDown className="w-4 h-4 ml-auto" />
                   </>
@@ -356,7 +353,7 @@ export function Sidebar() {
                 {isExpanded && (
                   <>
                     <span className="text-sm font-medium whitespace-nowrap">
-                      Reports
+                      {t("sidebar.reports")}
                     </span>
                     <ChevronDown className="w-4 h-4 ml-auto" />
                   </>
@@ -419,7 +416,7 @@ export function Sidebar() {
                 />
                 {isExpanded && (
                   <>
-                    <span className="text-sm font-medium whitespace-nowrap">Audit</span>
+                    <span className="text-sm font-medium whitespace-nowrap">{t("sidebar.audit")}</span>
                     <ChevronDown className="w-4 h-4 ml-auto" />
                   </>
                 )}

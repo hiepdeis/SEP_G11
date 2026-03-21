@@ -157,7 +157,7 @@ export interface PendingReceiptDto {
   totalAmount: number | null;
   status: string;
   createdByName: string | null;
-  createdDate: string | null;
+  submittedDate: string | null;
   details: PendingReceiptDetailDto[];
 }
 

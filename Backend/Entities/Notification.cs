@@ -18,6 +18,12 @@ public partial class Notification
     [StringLength(500)]
     public string? Message { get; set; }
 
+    [StringLength(50)]
+    [Unicode(false)]
+    public string? RelatedEntityType { get; set; }
+
+    public long? RelatedEntityId { get; set; }
+
     public bool? IsRead { get; set; }
 
     [Column(TypeName = "datetime")]

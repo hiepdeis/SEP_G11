@@ -132,10 +132,10 @@ export default function ManagerImportRequestPage() {
 
     let matchesDate = true;
     if (dateRange.from || dateRange.to) {
-      if (!item.createdDate) {
+      if (!item.submittedDate) {
         matchesDate = false;
       } else {
-        const itemDate = new Date(item.createdDate);
+        const itemDate = new Date(item.submittedDate);
 
         const fromDate = dateRange.from
           ? startOfDay(dateRange.from)
@@ -159,8 +159,8 @@ export default function ManagerImportRequestPage() {
     if (!sortConfig) return 0;
 
     if (sortConfig.key === "date") {
-      const dateA = a.receiptDate ? new Date(a.receiptDate).getTime() : 0;
-      const dateB = b.receiptDate ? new Date(b.receiptDate).getTime() : 0;
+      const dateA = a.submittedDate ? new Date(a.submittedDate).getTime() : 0;
+      const dateB = b.submittedDate ? new Date(b.submittedDate).getTime() : 0;
       return sortConfig.direction === "asc" ? dateA - dateB : dateB - dateA;
     }
 
@@ -214,16 +214,16 @@ export default function ManagerImportRequestPage() {
     .reduce((sum, item) => sum + (item.totalAmount || 0), 0);
 
   const approvedCount = requests.filter((item) => {
-    if (!item.receiptDate) return false;
+    if (!item.submittedDate) return false;
     return (
-      item.status === "Approved" && new Date(item.receiptDate) >= sevenDaysAgo
+      item.status === "Approved" && new Date(item.submittedDate) >= sevenDaysAgo
     );
   }).length;
 
   const rejectedCount = requests.filter((item) => {
-    if (!item.receiptDate) return false;
+    if (!item.submittedDate) return false;
     return (
-      item.status === "Rejected" && new Date(item.receiptDate) >= sevenDaysAgo
+      item.status === "Rejected" && new Date(item.submittedDate) >= sevenDaysAgo
     );
   }).length;
 
@@ -521,7 +521,7 @@ export default function ManagerImportRequestPage() {
                               </span>
                               <span className="text-xs text-slate-400 flex items-center gap-1">
                                 <CalendarDays className="w-3 h-3" />{" "}
-                                {formatDate(item.receiptDate)}
+                                {formatDate(item.submittedDate)}
                               </span>
                             </div>
                           </TableCell>
@@ -553,11 +553,17 @@ export default function ManagerImportRequestPage() {
                                               ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                               : item.status === "Rejected"
                                                 ? "bg-red-50 text-red-700 border-red-200"
-                                                : "bg-gray-50 text-gray-700 border-gray-200"
+                                                : item.status === "GoodsArrived"
+                                                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                                                  : item.status === "Completed"
+                                                    ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                                    : "bg-gray-50 text-gray-700 border-gray-200"
                                         }
                                       `}
                             >
-                              {t(item.status)}
+                              {item.status === "GoodsArrived"
+                                ? t("Goods Arrived")
+                                : t(item.status)}
                             </Badge>
                           </TableCell>
 
@@ -568,29 +574,26 @@ export default function ManagerImportRequestPage() {
                               onClick={() => handleReview(item.receiptId)}
                               disabled={loadingId === item.receiptId}
                               variant={
-                                item.status === "Approved" ||
-                                item.status === "Rejected"
-                                  ? "outline"
-                                  : "default"
+                                item.status === "Submitted"
+                                  ? "default"
+                                  : "outline"
                               }
                               className={`w-[100px] ${
-                                item.status === "Approved" ||
-                                item.status === "Rejected"
-                                  ? "text-indigo-600 border border-indigo-200 hover:bg-indigo-50 hover:text-primary"
-                                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                                item.status === "Submitted"
+                                  ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                                  : "text-indigo-600 border border-indigo-200 hover:bg-indigo-50 hover:text-primary"
                               }`}
                             >
                               {loadingId === item.receiptId ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : item.status === "Approved" ||
-                                item.status === "Rejected" ? (
-                                <>
-                                  {t("View")} <Eye className="w-4 h-4 ml-1.5" />
-                                </>
-                              ) : (
+                              ) : item.status === "Submitted" ? (
                                 <>
                                   {t("Process")}{" "}
                                   <ArrowRight className="w-4 h-4 ml-1.5" />
+                                </>
+                              ) : (
+                                <>
+                                  {t("View")} <Eye className="w-4 h-4 ml-1.5" />
                                 </>
                               )}
                             </Button>

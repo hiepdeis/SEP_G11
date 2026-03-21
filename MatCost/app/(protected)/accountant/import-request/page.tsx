@@ -195,11 +195,12 @@ export default function ImportApprovalListPage() {
       try {
         await receiptApi.revertToDraft(id);
         toast.success(
-          "Receipt reverted to Draft. You can now edit and resubmit.",
+          t("Receipt reverted to Draft. You can now edit and resubmit."),
         );
       } catch (error: any) {
         toast.error(
-          error.response?.data?.message || "Failed to revert receipt to draft",
+          error.response?.data?.message ||
+            t("Failed to revert receipt to draft"),
         );
         setLoadingId(null);
         return;
@@ -534,7 +535,7 @@ export default function ImportApprovalListPage() {
                                       : "bg-gray-50 text-gray-700 border-gray-200"
                               }
                             >
-                              {t(item.status)}
+                              {item.status != null && t(item.status)}
                             </Badge>
                           </TableCell>
                           {filterStatus == "Rejected" && (

@@ -28,9 +28,10 @@ import * as XLSX from "xlsx";
 import { Header } from "@/components/ui/custom/header";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { showConfirmToast } from "@/hooks/confirm-toast";
 
 export default function CreateRequestPage() {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,7 +72,7 @@ export default function CreateRequestPage() {
       } catch (error) {
         console.error("Failed to fetch materials", error);
         toast.error(
-          "Could not load material list. Please try refreshing the page.",
+          t("Could not load material list. Please try refreshing the page."),
         );
       }
     };
@@ -153,7 +154,7 @@ export default function CreateRequestPage() {
         const data = XLSX.utils.sheet_to_json(ws);
 
         if (data.length === 0) {
-          toast.error("File is empty");
+          toast.error(t("File is empty"));
           return;
         }
 
@@ -169,12 +170,12 @@ export default function CreateRequestPage() {
 
         setRequestItems(newItems);
         toast.success(
-          `Successfully imported ${newItems.length} items from Excel.`,
+          `${t("Successfully imported")} ${newItems.length} ${t("items from Excel.")}`,
         );
       } catch (error) {
         console.error("Error reading excel", error);
         toast.error(
-          "Failed to parse Excel file. Please use the correct template.",
+          t("Failed to parse Excel file. Please use the correct template."),
         );
       } finally {
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -185,40 +186,52 @@ export default function CreateRequestPage() {
   };
 
   const handleSubmit = async () => {
+    if (requestItems.length === 0) {
+      toast.error(t("Request list is empty."));
+      return;
+    }
+
     if (
       requestItems.some(
         (i) => !i.materialCode || !i.quantity || i.quantity <= 0,
       )
     ) {
       toast.error(
-        "Please ensure all items have a Material selected and Quantity larger than 0",
+        t(
+          "Please ensure all items have a Material selected and Quantity larger than 0",
+        ),
       );
       return;
     }
 
-    if (requestItems.length === 0) {
-      toast.error("Request list is empty.");
-      return;
-    }
+    showConfirmToast({
+      title: t("Submit Material Request?"),
+      description: t("Are you sure you want to submit this request? This action cannot be undone."),
+      confirmLabel: t("Yes, Submit"),
+      onConfirm: async () => {
+        setIsSubmitting(true);
+        try {
+          const payload = {
+            items: requestItems.map(({ materialCode, quantity }) => ({
+              materialCode,
+              quantity,
+              materialName: null,
+              unit: null,
+            })),
+          };
 
-    setIsSubmitting(true);
-    try {
-      const payload = {
-        items: requestItems.map(({ materialCode, quantity }) => ({
-          materialCode,
-          quantity,
-          materialName: null,
-          unit: null,
-        })),
-      };
-      await importApi.createRequest(payload);
-      toast.success("Request created successfully!");
-      router.push("/construction/material-request");
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to create request");
-    } finally {
-      setIsSubmitting(false);
-    }
+          await importApi.createRequest(payload);
+          toast.success(t("Request created successfully!"));
+          router.push("/construction/material-request");
+        } catch (error: any) {
+          toast.error(
+            error.response?.data?.message || t("Failed to create request"),
+          );
+        } finally {
+          setIsSubmitting(false);
+        }
+      },
+    });
   };
 
   return (

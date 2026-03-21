@@ -8,9 +8,18 @@
         public string WarehouseName { get; set; }
         public DateTime? ReceiptApprovalDate { get; set; }
         public decimal TotalQuantity { get; set; }
-        public List<GetInboundRequestItemDto> Items { get; set; }
-        public int? ConfirmedBy { get; set; }
+        public string? CreatedByName { get; set; }
+        public DateTime? CreatedDate { get; set; }
+        public string? SubmittedByName { get; set; }
+        public DateTime? SubmittedDate { get; set; }
+        public string? ApprovedByName { get; set; }
+        public DateTime? ApprovedDate { get; set; }
+        public string? ConfirmedByName { get; set; }
+        public DateTime? ConfirmedDate { get; set; }
+        public string? RejectedByName { get; set; }
+        public DateTime? RejectedDate { get; set; }
         public string? Status { get; set; }
+        public List<GetInboundRequestItemDto> Items { get; set; }
     }
 
     public class GetInboundRequestItemDto

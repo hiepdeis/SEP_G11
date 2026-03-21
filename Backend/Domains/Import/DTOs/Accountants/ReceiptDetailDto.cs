@@ -9,6 +9,12 @@
         public DateTime? ReceiptDate { get; set; }
         public string? Status { get; set; }
         public decimal? TotalAmount { get; set; }
+        public string? CreatedByName { get; set; }
+        public DateTime? CreatedDate { get; set; }
+        public string? SubmittedByName { get; set; }
+        public DateTime? SubmittedDate { get; set; }
+        public string? RejectedByName { get; set; }
+        public DateTime? RejectedDate { get; set; }
         public List<ReceiptItemDto> Items { get; set; } = new();
     }
 
