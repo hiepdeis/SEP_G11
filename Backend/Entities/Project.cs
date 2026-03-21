@@ -33,6 +33,14 @@ public partial class Project
     [Unicode(false)]
     public string? Status { get; set; }
 
+    [Column(TypeName = "decimal(18, 2)")]
+    public decimal? BudgetUsed { get; set; }
+
+    [NotMapped]
+    public decimal? BudgetRemaining => Budget.HasValue && BudgetUsed.HasValue
+    ? Budget - BudgetUsed
+    : null;
+
     [InverseProperty("Project")]
     public virtual ICollection<IssueSlip> IssueSlips { get; set; } = new List<IssueSlip>();
 

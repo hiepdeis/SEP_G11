@@ -235,13 +235,16 @@ export default function IssueMaterialPage() {
         quantity: m.qty,
         unitPrice: 0, 
       }));
-
+      console.log("Created IssueSlipDetails:", details);
+       
       await issueSlipApi.createIssueSlipDetails(issueSlipId, details);
 
       toast.success(t("Success"));
 
       router.push("/construction/outbound/issueSlip");
-      } catch (error: any) { toast.error(t("Error")); } finally { setIsSubmitting(false); }
+      } catch (error: any) { 
+        toast.error(t("Error")); }
+      finally { setIsSubmitting(false); }
     };
 
   const isAll = itemsPerPage === -1;

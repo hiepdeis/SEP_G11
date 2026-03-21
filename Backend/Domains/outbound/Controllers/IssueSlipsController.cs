@@ -137,40 +137,6 @@ namespace Backend.Domains.outbound.Controllers
             });
         }
 
-
-        [HttpPut("{id}/review")]
-       // [Authorize(Roles = "Manager")]
-        public async Task<IActionResult> ReviewIssue(long id, ReviewIssueRequest request)
-        {
-            var issue = await _context.IssueSlips
-                .FirstOrDefaultAsync(x => x.IssueId == id);
-
-            if (issue == null)
-                return NotFound("IssueSlip not found");
-
-            if (issue.Status != "Pending")
-                return BadRequest("Only Pending IssueSlip can be reviewed");
-
-            if (request.Action != "Approved" && request.Action != "Rejected")
-                return BadRequest("Invalid action");
-
-            issue.Status = request.Action;
-            issue.Description = request.Action == "Rejected"
-                ? request.Reason
-                : null;
-            issue.ApprovedDate = issue.Status == "Approved" ? DateTime.UtcNow : (DateTime?)null;
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new
-            {
-                issue.IssueId,
-                issue.IssueCode,
-                issue.Status
-            });
-        }
-
-
         [HttpPost("{issueId}/details")]
         public async Task<IActionResult> AddIssueDetails(long issueId, List<CreateIssueDetailDto> details)
         {
@@ -204,6 +170,133 @@ namespace Backend.Domains.outbound.Controllers
             });
 
         }
+
+        [HttpGet("{id}/details")]
+        // [Authorize(Roles = "Accountant, Admin")]
+        public async Task<IActionResult> GetIssueSlipDetail(long id)
+        {
+            // 1. Query lấy phiếu, kèm theo dự án và chi tiết vật tư
+            var issue = await _context.IssueSlips
+                .Include(x => x.Project)
+                .Include(x => x.IssueDetails)
+                    .ThenInclude(d => d.Material) // Join để lấy Đơn giá
+                .FirstOrDefaultAsync(x => x.IssueId == id);
+
+            if (issue == null)
+                return NotFound("IssueSlip not found");
+
+            // 2. Tính tổng tiền của Phiếu xin xuất này (Số lượng * Giá hiện tại)
+            decimal totalRequestCost = issue.IssueDetails
+                .Sum(d => d.Quantity * (d.Material.UnitPrice ?? 0));
+
+            // 3. Lấy thông tin Budget từ Project
+            decimal totalBudget = issue.Project.Budget ?? 0;
+            decimal budgetUsed = issue.Project.BudgetUsed ?? 0; // Cột bạn vừa add
+            decimal budgetRemaining = totalBudget - budgetUsed; // Có thể xài luôn issue.Project.BudgetRemaining nếu bạn map EF
+
+            // 4. Check xem có vượt ngân sách không
+            bool isOverBudget = totalRequestCost > budgetRemaining;
+
+            // 5. Trả về DTO cho Frontend
+            var response = new
+            {
+                issue.IssueId,
+                issue.IssueCode,
+                issue.Status,
+                issue.IssueDate,
+                issue.WorkItem,
+                ProjectInfo = new
+                {
+                    issue.Project.ProjectId,
+                    issue.Project.Name,
+                    TotalBudget = totalBudget,
+                    BudgetUsed = budgetUsed,
+                    BudgetRemaining = budgetRemaining,
+                    TotalRequestCost = totalRequestCost,
+                    RemainingAfterIssue = budgetRemaining - totalRequestCost,
+                    IsOverBudget = isOverBudget
+                },
+                Details = issue.IssueDetails.Select(d => new
+                {
+                    d.DetailId,
+                    d.Material.Code,
+                    d.Material.Name,
+                    d.Quantity,
+                    UnitPrice = d.Material.UnitPrice ?? 0,
+                    LineTotal = d.Quantity * (d.Material.UnitPrice ?? 0)
+                })
+            };
+
+            return Ok(response);
+        }
+
+
+        [HttpPut("{id}/review")]
+        // [Authorize(Roles = "Accountant")]
+        public async Task<IActionResult> ReviewIssue(long id, [FromBody] ReviewIssueRequest request)
+        {
+            var issue = await _context.IssueSlips
+                .Include(x => x.Project)
+                .Include(x => x.IssueDetails)
+                    .ThenInclude(d => d.Material)
+                .FirstOrDefaultAsync(x => x.IssueId == id);
+
+            if (issue == null)
+                return NotFound("IssueSlip not found");
+
+            // Chỉ cho phép Kế toán review phiếu đang ở trạng thái chờ
+            if (issue.Status != "Pending_Review")
+                return BadRequest("Only Pending_Review IssueSlip can be reviewed by Accountant");
+
+            if (request.Action == "Rejected")
+            {
+                // Nhánh 1: Kế toán thấy sai, đuổi về thẳng!
+                issue.Status = "Rejected";
+                issue.Description = request.Reason;
+            }
+            else if (request.Action == "Approved")
+            {
+                // Nhánh 2: Kế toán thấy số liệu ok. Bắt đầu Check Budget Tự Động!
+
+                decimal totalRequestCost = issue.IssueDetails.Sum(d => d.Quantity * (d.Material.UnitPrice ?? 0));
+                decimal budgetRemaining = (issue.Project.Budget ?? 0) - (issue.Project.BudgetUsed ?? 0);
+
+                if (totalRequestCost > budgetRemaining)
+                {
+                    // TÌNH HUỐNG A: VƯỢT NGÂN SÁCH
+                    // Tự động đá trạng thái lên cho Admin duyệt
+                    issue.Status = "Pending_Admin_Approval";
+                    issue.Description = "Hệ thống cảnh báo: Yêu cầu vượt ngân sách dự án. Chờ Giám đốc phê duyệt.";
+                }
+                else
+                {
+                    // TÌNH HUỐNG B: TRONG NGÂN SÁCH
+                    // Tự động Pass luôn, chuyển sang cho Kho soạn hàng
+                    issue.Status = "Approved";
+                    issue.ApprovedDate = DateTime.UtcNow;
+                    issue.Description = "Kế toán đã duyệt (Trong ngân sách).";
+                }
+            }
+            else
+            {
+                return BadRequest("Invalid action. Must be 'Approved' or 'Rejected'");
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                issue.IssueId,
+                issue.IssueCode,
+                NewStatus = issue.Status,
+                Message = issue.Status == "Pending_Admin_Approval"
+                          ? "Đã chuyển cho Giám đốc duyệt do vượt ngân sách."
+                          : "Đã xử lý thành công."
+            });
+        }
+
+
+        
 
 
 
