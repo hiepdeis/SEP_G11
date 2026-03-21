@@ -130,8 +130,8 @@ export interface PurchaseOrderDraftItemDto {
 export interface NotificationDto {
   notiId: number;
   message: string;
-  relatedEntityType?: string;
-  relatedEntityId?: number;
+  relatedEntityType: string;
+  relatedEntityId: number;
   createdAt: string;
 }
 

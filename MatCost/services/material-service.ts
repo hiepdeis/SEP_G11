@@ -9,6 +9,7 @@ export interface MaterialDto {
   minStockLevel?: number | null;
   categoryId?: number | null;
   unitPrice?: number | null;
+  isDecimalUnit?: boolean;
 }
 
 export interface CreateMaterialDto {

@@ -138,13 +138,10 @@ export default function AdminPurchaseManagementPage() {
     setCurrentPage(1);
   }, [searchTerm, filterStatus, sortConfig, itemsPerPage, dateRange, activeTab]);
 
-  // ==============================================================
-  // LOGIC XỬ LÝ CHO PR
-  // ==============================================================
   const filteredPRs = requests.filter((item) => {
     let matchesStatus = true;
     if (filterStatus === "Submitted") matchesStatus = item.status === "Submitted";
-    else if (filterStatus === "History") matchesStatus = item.status !== "Submitted";
+    else if (filterStatus === "DraftPO") matchesStatus = item.status === "DraftPO";
 
     const matchesSearch = item.requestCode.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -177,9 +174,6 @@ export default function AdminPurchaseManagementPage() {
     return 0;
   });
 
-  // ==============================================================
-  // LOGIC XỬ LÝ CHO ALERTS
-  // ==============================================================
   const filteredAlerts = alerts.filter((item) => {
     let matchesStatus = true;
     if (filterStatus !== "All") matchesStatus = item.status === filterStatus;
@@ -234,7 +228,7 @@ export default function AdminPurchaseManagementPage() {
   };
 
   const handleViewAlertDetail = (alertId: number) => {
-    router.push(`/warehouse-manager/alerts/${alertId}`); // Nếu Admin được quyền xem view này
+    router.push(`/admin/alerts/${alertId}`); 
   };
 
   // Formatters
@@ -280,7 +274,6 @@ export default function AdminPurchaseManagementPage() {
                 {t("Manage internal purchase requests and resolve stock shortage alerts.")}
               </p>
             </div>
-            {/* Nút Tạo PR Mới */}
             <Button
               className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
               onClick={() => router.push("/admin/purchase-requests/create")} // Vẫn cho tạo tự do, nhưng sẽ báo lỗi bên trang kia nếu không có alertId
@@ -289,9 +282,8 @@ export default function AdminPurchaseManagementPage() {
             </Button>
           </div>
 
-          {/* DYNAMIC KPI CARDS DỰA VÀO TAB */}
           {activeTab === "PR" ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in zoom-in-95 duration-300">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 duration-300">
               <Card className="bg-white border-slate-200 shadow-sm">
                 <CardContent className="p-4 flex items-center gap-4">
                   <div className="p-3 bg-yellow-100 text-yellow-600 rounded-lg">
@@ -327,7 +319,7 @@ export default function AdminPurchaseManagementPage() {
               </Card>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in zoom-in-95 duration-300">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 duration-300">
               <Card className="bg-white border-slate-200 shadow-sm">
                 <CardContent className="p-4 flex items-center gap-4">
                   <div className="p-3 bg-amber-100 text-amber-600 rounded-lg">
@@ -407,7 +399,7 @@ export default function AdminPurchaseManagementPage() {
                         <>
                           <SelectItem value="All">{t("All PRs")}</SelectItem>
                           <SelectItem value="Submitted">{t("Submitted")}</SelectItem>
-                          <SelectItem value="History">{t("History")}</SelectItem>
+                          <SelectItem value="DraftPO">{t("PO Draft")}</SelectItem>
                         </>
                       ) : (
                         <>
@@ -584,15 +576,14 @@ export default function AdminPurchaseManagementPage() {
                                   onClick={() => handleReviewPR(item.requestId)}
                                   disabled={loadingId === item.requestId}
                                   variant={item.status === "Submitted" ? "default" : "outline"}
-                                  className={item.status === "Submitted" ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[120px]" : "text-indigo-600 border-indigo-200 hover:bg-indigo-50 w-[100px]"}
+                                  className={item.status === "Submitted" ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[100px]" : "text-indigo-600 border-indigo-200 hover:bg-indigo-50 w-[100px]"}
                                 >
-                                  {loadingId === item.requestId ? <Loader2 className="w-4 h-4 animate-spin" /> : item.status === "Submitted" ? <>{t("Process")} <ArrowRight className="w-4 h-4 ml-1.5" /></> : <>{t("View")} <Eye className="w-4 h-4 ml-1.5" /></>}
+                                  {loadingId === item.requestId ? <Loader2 className="w-4 h-4 animate-spin" /> : <>{t("View")} <Eye className="w-4 h-4 ml-1.5" /></>}
                                 </Button>
                               </TableCell>
                             </TableRow>
                           );
                         } else {
-                          // BẢNG ALERTS
                           return (
                             <TableRow key={item.alertId} className="group hover:bg-slate-50/50 transition-colors">
                               <TableCell className="pl-6">
@@ -632,7 +623,6 @@ export default function AdminPurchaseManagementPage() {
                               </TableCell>
                               
                               <TableCell className="text-right pr-6">
-                                {/* ACTION MENU CHO ALERT */}
                                 <div className="flex justify-end items-center gap-2">
                                   {item.status === "ManagerConfirmed" ? (
                                     <>

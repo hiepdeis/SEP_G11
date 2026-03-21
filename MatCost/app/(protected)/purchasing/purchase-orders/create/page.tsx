@@ -418,6 +418,7 @@ export default function CreatePurchaseOrderPage() {
                                 <Input
                                   type="number"
                                   min="1"
+                                  maxLength={5}
                                   placeholder="Qty"
                                   className="w-full text-right focus-visible:ring-indigo-600 text-center"
                                   value={item.orderedQuantity}
@@ -425,7 +426,7 @@ export default function CreatePurchaseOrderPage() {
                                     handleItemChange(
                                       item.id,
                                       "orderedQuantity",
-                                      e.target.value,
+                                      e.target.value.slice(0, 9),
                                     )
                                   }
                                 />

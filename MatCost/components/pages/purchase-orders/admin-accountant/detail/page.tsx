@@ -482,10 +482,10 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                             {t("PO Price")}
                           </TableHead>
                           <TableHead className="w-[20%] text-right">
-                            {t("Variance (VND)")}
+                            {t("Variance")} (VND)
                           </TableHead>
                           <TableHead className="w-[20%] text-right pr-6">
-                            {t("Variance %")}
+                            {t("Variance")} %
                           </TableHead>
                         </TableRow>
                       </TableHeader>
@@ -537,7 +537,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                                   `}
                                   >
                                     {item.variancePercent > 0 ? "+" : ""}
-                                    {item.variancePercent}%
+                                    ~ {item.variancePercent.toFixed(3)}%
                                   </Badge>
                                 ) : (
                                   <span className="text-slate-400">-</span>
