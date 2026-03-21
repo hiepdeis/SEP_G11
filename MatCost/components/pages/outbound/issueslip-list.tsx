@@ -16,7 +16,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { issueSlipApi, IssueSlip } from "@/services/issueslip-service";
 import { useTranslation } from "react-i18next"; // Thêm dòng này
-
+import { Plus } from "lucide-react";
+import { se } from "date-fns/locale";
 type UserRole = "admin" | "manager" | "accountant" | "staff" | "construction";
 
 interface IssueSlipListProps {
@@ -42,6 +43,8 @@ export default function SharedIssueSlipList({ role }: IssueSlipListProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(5);
 
+  const rolename = sessionStorage.getItem("role");
+  
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -176,7 +179,16 @@ export default function SharedIssueSlipList({ role }: IssueSlipListProps) {
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("Issue Slips")}</h1>
             <p className="text-sm text-slate-500">{t("Manage all material release requests and outbound slips.")}</p>
           </div>
-
+          {(rolename === "Construction" || rolename === "Admin") && (
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+              onClick={() =>
+                router.push("/outbound/contruction/materialExport")
+              }
+            >
+              {t("Tạo phiếu xuất vật tư")}
+            </Button>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
@@ -302,6 +314,9 @@ export default function SharedIssueSlipList({ role }: IssueSlipListProps) {
                       <TableHead className="cursor-pointer select-none group" onClick={() => handleSort("project")}>
                         <div className="flex items-center gap-1.5 hover:text-slate-800">{t("Project ID")} {getSortIcon("project")}</div>
                       </TableHead>
+                      <TableHead className="cursor-pointer select-none group" onClick={() => handleSort("projectName")}>
+                        <div className="flex items-center gap-1.5 hover:text-slate-800">{t("Project Name")} {getSortIcon("projectName")}</div>
+                      </TableHead>
                       <TableHead className="cursor-pointer select-none group" onClick={() => handleSort("date")}>
                         <div className="flex items-center gap-1.5 hover:text-slate-800">{t("Issue Date")} {getSortIcon("date")}</div>
                       </TableHead>
@@ -322,6 +337,7 @@ export default function SharedIssueSlipList({ role }: IssueSlipListProps) {
                         <TableRow key={slip.issueId} className="group hover:bg-slate-50/50 transition-colors">
                           <TableCell className="pl-6 font-semibold text-slate-700">{slip.issueCode}</TableCell>
                           <TableCell className="text-slate-600">{slip.projectId || t("N/A")}</TableCell>
+                          <TableCell className="text-slate-600">{slip.projectName || t("N/A")}</TableCell>
                           <TableCell><span className="text-sm text-slate-500 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {new Date(slip.issueDate).toLocaleDateString("vi-VN")}</span></TableCell>
                           <TableCell>{getStatusBadge(slip.status)}</TableCell>
                           <TableCell className="text-sm text-slate-500 max-w-[200px] truncate" title={slip.description}>{slip.description || "—"}</TableCell>

@@ -36,8 +36,28 @@ namespace Backend.Domains.outbound.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAllIssueSlips()
         {
-            var issueSlips = await _context.IssueSlips.ToListAsync();
-            return Ok(issueSlips);
+            var issueSlips = await _context.IssueSlips
+                .Include(x => x.Project) 
+                .Select(x => new
+                {
+                    x.IssueId,
+                    x.IssueCode,
+                    x.ProjectId,
+                    ProjectName = x.Project.Name, 
+                    x.WarehouseId,
+                    x.ParentIssueId,
+                    x.CreatedBy,
+                    x.IssueDate,
+                    x.Status,
+                    x.Description,
+                    x.ApprovedDate,
+                    x.WorkItem,
+                    x.Department,
+                    x.DeliveryLocation,
+                    x.ReferenceCode
+                })
+                .ToListAsync();
+                return Ok(issueSlips);
         }
 
         [HttpPost]
@@ -60,7 +80,7 @@ namespace Backend.Domains.outbound.Controllers
                 ProjectId = dto.ProjectId,
                 CreatedBy = dto.UserId,
                 IssueDate = DateTime.UtcNow,
-                Status = "Pending",
+                Status = "Pending_Review",
                 Description = dto.Description,
                 WorkItem = dto.WorkItem,
                 Department = dto.Department,
@@ -70,8 +90,51 @@ namespace Backend.Domains.outbound.Controllers
 
             _context.IssueSlips.Add(issueSlip);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetIssueSlipById), new { id = issueSlip.IssueId }, issueSlip);
-            // Implementation for creating an issue slip goes here
+
+            var approvalSteps = new List<IssueSlipApproval>
+            {
+                new IssueSlipApproval
+                {
+                    IssueId = issueSlip.IssueId,
+                    Step = "Accountant",
+                    StepOrder = 1,
+                    Status = "Pending",
+                    IsActive = true
+                },
+                new IssueSlipApproval
+                {
+                    IssueId = issueSlip.IssueId,
+                    Step = "Admin",
+                    StepOrder = 2,
+                    Status = "Pending",
+                    IsActive = false // ❗ mặc định tắt
+                },
+                new IssueSlipApproval
+                {
+                    IssueId = issueSlip.IssueId,
+                    Step = "WarehouseManager",
+                    StepOrder = 3,
+                    Status = "Pending",
+                    IsActive = true
+                },
+                new IssueSlipApproval
+                {
+                    IssueId = issueSlip.IssueId,
+                    Step = "WarehouseStaff",
+                    StepOrder = 4,
+                    Status = "Pending",
+                    IsActive = true
+                }
+            };
+
+            _context.IssueSlipApprovals.AddRange(approvalSteps);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                issueId = issueSlip.IssueId,
+                issueCode = issueSlip.IssueCode
+            });
         }
 
 

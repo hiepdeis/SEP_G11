@@ -68,7 +68,7 @@ export function Sidebar() {
   ];
 
   const outboundTabs = [
-    { label: "Issue Slips", href: "/outbound/common/IssueSlipList" },
+    { label: "Common", href: "/outbound/common/commonIssueSlip" },
     {
       label: "Construction",
       href: "/outbound/contruction/MaterialRequestForm",

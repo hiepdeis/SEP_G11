@@ -73,5 +73,8 @@ public partial class IssueSlip
     [StringLength(100)]
     public string? ReferenceCode { get; set; } // Mã tham chiếu
 
+    [InverseProperty("Issue")]
+    public virtual ICollection<IssueSlipApproval> Approvals { get; set; } = new List<IssueSlipApproval>();
+
 
 }

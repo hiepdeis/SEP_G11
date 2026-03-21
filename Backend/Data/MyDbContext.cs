@@ -33,6 +33,8 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<LossDetail> LossDetails { get; set; }
 
+    public virtual DbSet<IssueSlipApproval> IssueSlipApprovals { get; set; }
+
     public virtual DbSet<LossReport> LossReports { get; set; }
 
     public virtual DbSet<Material> Materials { get; set; }
@@ -1088,6 +1090,22 @@ public partial class MyDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_IncidentReportDetails_Materials");
         });
+
+        modelBuilder.Entity<IssueSlipApproval>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne(d => d.Issue)
+                .WithMany(p => p.Approvals)
+                .HasForeignKey(d => d.IssueId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(d => d.User)
+                .WithMany()
+                .HasForeignKey(d => d.ApprovedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
 
         OnModelCreatingPartial(modelBuilder);
     }

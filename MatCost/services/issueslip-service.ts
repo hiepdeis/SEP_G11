@@ -24,6 +24,7 @@ export interface IssueSlip {
   issueDate: string;
   status: string;
   description: string;
+  projectName: string;
 }
 
 
