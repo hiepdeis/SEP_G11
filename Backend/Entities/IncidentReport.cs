@@ -34,7 +34,7 @@ public partial class IncidentReport
 
     /// <summary>"Open" | "PendingManagerReview" | "PendingPurchasingAction" | "PendingManagerApproval" | "AwaitingSupplementaryGoods" | "Resolved"</summary>
     [Required]
-    [StringLength(20)]
+    [StringLength(50)]
     [Unicode(false)]
     public string Status { get; set; } = "Open";
 
