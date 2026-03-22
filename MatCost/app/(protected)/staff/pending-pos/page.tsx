@@ -5,23 +5,22 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
 import {
-  Clock,
   Search,
   ArrowRight,
-  FileCheck,
   Loader2,
   CalendarDays,
-  MapPin,
-  DollarSign,
-  FileText,
-  FileMinus,
+  Package,
   ChevronLeft,
   ChevronRight,
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
-  Eye,
   Delete,
+  Truck,
+  AlertCircle,
+  Clock,
+  Building2,
+  ListOrdered,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,9 +35,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  managerReceiptApi,
-  PendingReceiptDto,
-} from "@/services/receipt-service";
+  staffReceiptsApi,
+  PendingPurchaseOrderDto,
+} from "@/services/import-service"; // Đảm bảo đúng đường dẫn file api
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -46,7 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { endOfDay, format, isWithinInterval, startOfDay } from "date-fns";
+import { endOfDay, format, isWithinInterval, startOfDay, isBefore, isToday, isAfter } from "date-fns";
 import {
   Popover,
   PopoverContent,
@@ -56,23 +56,18 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 
-export default function ManagerImportRequestPage() {
-  const { t } = useTranslation();
+export default function PendingDeliveriesPage() {
   const router = useRouter();
-  const [requests, setRequests] = useState<PendingReceiptDto[]>([]);
+  const { t } = useTranslation();
+
+  const [orders, setOrders] = useState<PendingPurchaseOrderDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [filterStatus, setFilterStatus] = useState<
-    | "All"
-    | "Submitted"
-    | "History"
-    | "Rejected"
-    | "Approved"
-    | "GoodsArrived"
-    | "Completed"
-  >("Submitted");
+  const [filterTimeframe, setFilterTimeframe] = useState<
+    "All" | "Overdue" | "Today" | "Upcoming"
+  >("All");
 
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
@@ -83,14 +78,14 @@ export default function ManagerImportRequestPage() {
   });
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number>(5);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
 
   const [sortConfig, setSortConfig] = useState<{
-    key: "date" | "total";
+    key: "date" | "items";
     direction: "asc" | "desc";
   } | null>(null);
 
-  const handleSort = (key: "date" | "total") => {
+  const handleSort = (key: "date" | "items") => {
     let direction: "asc" | "desc" = "asc";
     if (
       sortConfig &&
@@ -106,76 +101,69 @@ export default function ManagerImportRequestPage() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const res = await managerReceiptApi.getPendingApprovals();
-        setRequests(res.data);
+        const res = await staffReceiptsApi.getPendingPurchaseOrders();
+        setOrders(res.data);
       } catch (error) {
-        console.error("Failed to fetch manager pending receipts", error);
+        console.error("Failed to fetch pending deliveries", error);
+        toast.error(t("Failed to fetch pending deliveries"));
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterStatus, sortConfig, itemsPerPage, dateRange]);
+  }, [searchTerm, filterTimeframe, sortConfig, itemsPerPage, dateRange]);
 
-  const filteredData = requests.filter((item) => {
-    let matchesStatus = true;
-
-    if (filterStatus === "Submitted") {
-      matchesStatus = item.status === "Submitted";
-    } else if (filterStatus === "History") {
-      matchesStatus = item.status !== "Submitted";
-    } else if (filterStatus !== "All") {
-      matchesStatus = item.status === filterStatus;
-    }
-
-    const term = searchTerm.toLowerCase();
+  const filteredData = orders.filter((item) => {
+    const searchLower = searchTerm.toLowerCase();
     const matchesSearch =
-      item.receiptCode.toString().includes(term) ||
-      (item.warehouseName && item.warehouseName.toLowerCase().includes(term));
+      item.poCode?.toLowerCase().includes(searchLower) ||
+      item.supplierName?.toLowerCase().includes(searchLower);
 
-    let matchesDate = true;
-    if (dateRange.from || dateRange.to) {
-      if (!item.submittedDate) {
-        matchesDate = false;
-      } else {
-        const itemDate = new Date(item.submittedDate);
+    let matchesTimeframe = true;
+    const itemDate = new Date(item.expectedDeliveryDate);
+    const todayStart = startOfDay(new Date());
+    const todayEnd = endOfDay(new Date());
 
-        const fromDate = dateRange.from
-          ? startOfDay(dateRange.from)
-          : new Date(2000, 0, 1);
-
-        const toDate = dateRange.to
-          ? endOfDay(dateRange.to)
-          : new Date(2100, 0, 1);
-
-        matchesDate = isWithinInterval(itemDate, {
-          start: fromDate,
-          end: toDate,
-        });
-      }
+    if (filterTimeframe === "Overdue") {
+      matchesTimeframe = isBefore(itemDate, todayStart);
+    } else if (filterTimeframe === "Today") {
+      matchesTimeframe = isToday(itemDate);
+    } else if (filterTimeframe === "Upcoming") {
+      matchesTimeframe = isAfter(itemDate, todayEnd);
     }
 
-    return matchesStatus && matchesSearch && matchesDate;
+    let matchesDateRange = true;
+    if (dateRange.from || dateRange.to) {
+      const fromDate = dateRange.from ? startOfDay(dateRange.from) : new Date(2000, 0, 1);
+      const toDate = dateRange.to ? endOfDay(dateRange.to) : new Date(2100, 0, 1);
+
+      matchesDateRange = isWithinInterval(itemDate, {
+        start: fromDate,
+        end: toDate,
+      });
+    }
+
+    return matchesSearch && matchesTimeframe && matchesDateRange;
   });
 
   const sortedData = [...filteredData].sort((a, b) => {
     if (!sortConfig) return 0;
 
     if (sortConfig.key === "date") {
-      const dateA = a.submittedDate ? new Date(a.submittedDate).getTime() : 0;
-      const dateB = b.submittedDate ? new Date(b.submittedDate).getTime() : 0;
+      const dateA = new Date(a.expectedDeliveryDate).getTime();
+      const dateB = new Date(b.expectedDeliveryDate).getTime();
       return sortConfig.direction === "asc" ? dateA - dateB : dateB - dateA;
     }
 
-    if (sortConfig.key === "total") {
-      const itemsA = a.totalAmount || 0;
-      const itemsB = b.totalAmount || 0;
-      return sortConfig.direction === "asc" ? itemsA - itemsB : itemsB - itemsA;
+    if (sortConfig.key === "items") {
+      const qtyA = a.items?.length || 0;
+      const qtyB = b.items?.length || 0;
+      return sortConfig.direction === "asc" ? qtyA - qtyB : qtyB - qtyA;
     }
 
     return 0;
@@ -185,89 +173,57 @@ export default function ManagerImportRequestPage() {
   const totalPages = isAll
     ? 1
     : Math.ceil(sortedData.length / itemsPerPage) || 1;
-  const startIndex =
-    (currentPage - 1) * (isAll ? sortedData.length : itemsPerPage);
+  const startIndex = (currentPage - 1) * (isAll ? sortedData.length : itemsPerPage);
   const endIndex = isAll ? sortedData.length : startIndex + itemsPerPage;
   const paginatedData = sortedData.slice(startIndex, endIndex);
 
-  const handleReview = (id: number) => {
+  const handleReceiveGoods = (id: number) => {
     setLoadingId(id);
-
-    router.push(`import-request/${id}`);
+    router.push(`/staff/pending-pos/create?poId=${id}`); 
   };
 
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
+  const formatDateTime = (dateString: string) => {
+    return format(new Date(dateString), "dd/MM/yyyy HH:mm");
   };
 
-  const formatCurrency = (val: number | null) => {
-    if (val === null || val === undefined) return "0 ₫";
-    return val.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
-  };
-
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-  const waitingCount = requests.filter(
-    (item) => item.status === "Submitted",
-  ).length;
-
-  const pendingValue = requests
-    .filter((item) => item.status === "Submitted")
-    .reduce((sum, item) => sum + (item.totalAmount || 0), 0);
-
-  const approvedCount = requests.filter((item) => {
-    if (!item.submittedDate) return false;
-    return (
-      item.status === "Approved" && new Date(item.submittedDate) >= sevenDaysAgo
-    );
-  }).length;
-
-  const rejectedCount = requests.filter((item) => {
-    if (!item.submittedDate) return false;
-    return (
-      item.status === "Rejected" && new Date(item.submittedDate) >= sevenDaysAgo
-    );
-  }).length;
-
-  const formatPlus = (num: number) => (num > 999 ? "999+" : num);
+  const todayStart = startOfDay(new Date());
+  const todayEnd = endOfDay(new Date());
+  
+  const totalPending = orders.length;
+  const todayCount = orders.filter(o => isToday(new Date(o.expectedDeliveryDate))).length;
+  const overdueCount = orders.filter(o => isBefore(new Date(o.expectedDeliveryDate), todayStart)).length;
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title={t("Manager Dashboard")} />
+        <Header title={t("Inbound Management")} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              {t("Approval Queue")}
-            </h1>
-            <p className="text-sm text-slate-500">
-              {t(
-                "Review receipts processed by Accountants and make final approval.",
-              )}
-            </p>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                {t("Pending Deliveries")}
+              </h1>
+              <p className="text-sm text-slate-500">
+                {t("Track incoming supplier deliveries and initiate receiving processes.")}
+              </p>
+            </div>
           </div>
 
-          {/* KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* CARDS THỐNG KÊ */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-amber-100 text-amber-600 rounded-lg">
-                  <Clock className="w-6 h-6" />
+                <div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg">
+                  <Truck className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    {t("Waiting for Approval")}
+                    {t("Total Inbound POs")}
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {formatPlus(waitingCount)}
+                    {totalPending}
                   </h3>
                 </div>
               </CardContent>
@@ -275,15 +231,15 @@ export default function ManagerImportRequestPage() {
 
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
-                  <DollarSign className="w-6 h-6" />
+                <div className="p-3 bg-emerald-100 text-emerald-600 rounded-lg">
+                  <CalendarDays className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    {t("Total Pending Value")}
+                    {t("Expected Today")}
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {formatCurrency(pendingValue)}
+                    {todayCount}
                   </h3>
                 </div>
               </CardContent>
@@ -291,38 +247,22 @@ export default function ManagerImportRequestPage() {
 
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-green-100 text-green-600 rounded-lg">
-                  <FileCheck className="w-6 h-6" />
+                <div className="p-3 bg-rose-100 text-rose-600 rounded-lg">
+                  <AlertCircle className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    {t("Approved last 7 days")}
+                    {t("Overdue Deliveries")}
                   </p>
-                  <h3 className="text-2xl font-bold text-slate-900">
-                    {formatPlus(approvedCount)}
-                  </h3>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white border-slate-200 shadow-sm">
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-red-100 text-red-600 rounded-lg">
-                  <FileMinus className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 font-medium">
-                    {t("Rejected last 7 days")}
-                  </p>
-                  <h3 className="text-2xl font-bold text-slate-900">
-                    {formatPlus(rejectedCount)}
+                  <h3 className="text-2xl font-bold text-rose-600">
+                    {overdueCount}
                   </h3>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] gap-0 pb-0">
+          <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] gap-0 pb-0 flex flex-col">
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
                 <div className="flex flex-wrap items-center gap-3">
@@ -331,36 +271,19 @@ export default function ManagerImportRequestPage() {
                   </span>
 
                   <Select
-                    value={filterStatus}
+                    value={filterTimeframe}
                     onValueChange={(
-                      value:
-                        | "All"
-                        | "Submitted"
-                        | "History"
-                        | "Rejected"
-                        | "Approved"
-                        | "GoodsArrived"
-                        | "Completed",
-                    ) => setFilterStatus(value)}
+                      value: "All" | "Overdue" | "Today" | "Upcoming"
+                    ) => setFilterTimeframe(value)}
                   >
-                    <SelectTrigger className="w-full md:w-[150px] bg-white border-slate-200 shadow-sm h-9">
-                      <SelectValue placeholder={t("Filter by status")} />
+                    <SelectTrigger className="w-[170px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
+                      <SelectValue placeholder={t("Filter by timeframe")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {/* Các bộ lọc chung */}
-                      <SelectItem value="All">{t("All")}</SelectItem>
-                      <SelectItem value="Submitted">
-                        {t("Submitted")}
-                      </SelectItem>
-                      <SelectItem value="Approved">{t("Approved")}</SelectItem>
-                      <SelectItem value="Rejected">{t("Rejected")}</SelectItem>
-                      <SelectItem value="GoodsArrived">
-                        {t("GoodsArrived")}
-                      </SelectItem>
-                      <SelectItem value="Completed">
-                        {t("Completed")}
-                      </SelectItem>
-                      <SelectItem value="History">{t("History")}</SelectItem>
+                      <SelectItem value="All">{t("All Deliveries")}</SelectItem>
+                      <SelectItem value="Overdue" className="text-rose-600 font-medium">{t("Overdue")}</SelectItem>
+                      <SelectItem value="Today" className="text-emerald-600 font-medium">{t("Expected Today")}</SelectItem>
+                      <SelectItem value="Upcoming">{t("Upcoming")}</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -432,7 +355,7 @@ export default function ManagerImportRequestPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 text-xs text-slate-500  px-2"
+                        className="h-8 text-xs text-slate-500 px-2"
                         onClick={() =>
                           setDateRange({ from: undefined, to: undefined })
                         }
@@ -443,12 +366,11 @@ export default function ManagerImportRequestPage() {
                   </div>
                 </div>
 
-                {/* NHÓM BÊN PHẢI: KHỐI SEARCH BAR */}
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                   <Input
-                    placeholder={t("Search Receipt Code...")}
-                    className="pl-9 bg-white shadow-sm h-9"
+                    placeholder={t("Search PO Code, Supplier...")}
+                    className="pl-9 h-9"
                     maxLength={50}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -457,17 +379,16 @@ export default function ManagerImportRequestPage() {
               </div>
             </CardHeader>
             <CardContent className="p-0 flex flex-col justify-between flex-1">
-              <div className="[&>div]:max-h-[350px] [&>div]:min-h-[350px] [&>div]:overflow-y-auto">
+              <div className="[&>div]:max-h-[450px] [&>div]:min-h-[450px] [&>div]:overflow-y-auto">
                 <Table>
                   <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                     <TableRow className="bg-slate-50">
-                      {/* Cột Receipt Code & Date: Click để sort theo date */}
                       <TableHead
-                        className="pl-6 cursor-pointer transition-colors"
+                        className="pl-6 cursor-pointer transition-colors w-[25%]"
                         onClick={() => handleSort("date")}
                       >
                         <div className="flex items-center gap-1.5 select-none">
-                          {t("Receipt Code")}
+                          {t("Expected Delivery")}
                           {sortConfig?.key === "date" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
@@ -480,16 +401,17 @@ export default function ManagerImportRequestPage() {
                         </div>
                       </TableHead>
 
-                      <TableHead>{t("Warehouse")}</TableHead>
+                      <TableHead className="w-[30%]">
+                        {t("Purchase Order & Supplier")}
+                      </TableHead>
 
-                      {/* Cột Total Amount: Click để sort theo total */}
                       <TableHead
-                        className="text-right cursor-pointer transition-colors"
-                        onClick={() => handleSort("total")}
+                        className="cursor-pointer transition-colors w-[25%]"
+                        onClick={() => handleSort("items")}
                       >
-                        <div className="flex items-center justify-end gap-1.5 select-none">
-                          {t("Total Amount")}
-                          {sortConfig?.key === "total" ? (
+                        <div className="flex items-center gap-1.5 select-none">
+                          {t("Materials to Receive")}
+                          {sortConfig?.key === "items" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
                             ) : (
@@ -501,10 +423,7 @@ export default function ManagerImportRequestPage() {
                         </div>
                       </TableHead>
 
-                      <TableHead className="text-center">
-                        {t("Status")}
-                      </TableHead>
-                      <TableHead className="text-right pr-6">
+                      <TableHead className="text-right pr-6 w-[20%]">
                         {t("Action")}
                       </TableHead>
                     </TableRow>
@@ -512,124 +431,119 @@ export default function ManagerImportRequestPage() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-32 text-center">
+                        <TableCell colSpan={4} className="h-32 text-center">
                           <div className="flex justify-center items-center gap-2 text-indigo-600">
                             <Loader2 className="w-6 h-6 animate-spin" />{" "}
-                            {t("Loading requests...")}
+                            {t("Loading inbound deliveries...")}
                           </div>
                         </TableCell>
                       </TableRow>
                     ) : paginatedData.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={6}
-                          className="h-32 text-center text-slate-500 hover:slate-50"
+                          colSpan={4}
+                          className="h-32 text-center text-slate-500"
                         >
-                          <div className="flex flex-col items-center justify-center gap-2">
-                            <FileText className="w-8 h-8 text-slate-300" />
-                            <p>{t("No pending approvals found.")}</p>
-                          </div>
+                          {t("No pending deliveries found.")}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      paginatedData.map((item) => (
-                        <TableRow
-                          key={item.receiptCode}
-                          className="group hover:bg-slate-50/50 transition-colors"
-                        >
-                          {/* ID & Date */}
-                          <TableCell className="pl-6">
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-slate-700">
-                                {item.receiptCode}
-                              </span>
-                              <span className="text-xs text-slate-400 flex items-center gap-1">
-                                <CalendarDays className="w-3 h-3" />{" "}
-                                {formatDate(item.submittedDate)}
-                              </span>
-                            </div>
-                          </TableCell>
+                      paginatedData.map((item) => {
+                        const expectedDate = new Date(item.expectedDeliveryDate);
+                        const isLate = isBefore(expectedDate, todayStart);
+                        const isTdy = isToday(expectedDate);
 
-                          {/* Warehouse */}
-                          <TableCell>
-                            <div className="flex items-center gap-2 text-slate-600">
-                              <MapPin className="w-4 h-4 text-slate-400" />
-                              {item.warehouseName || t("N/A")}
-                            </div>
-                          </TableCell>
+                        return (
+                          <TableRow
+                            key={item.purchaseOrderId}
+                            className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
+                            onClick={() => {
+                              const selection = window.getSelection();
+                              if (selection && selection.toString().length > 0) return;
+                              handleReceiveGoods(item.purchaseOrderId);
+                            }}
+                          >
+                            <TableCell className="pl-6">
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className={`font-semibold ${isLate ? "text-rose-600" : isTdy ? "text-emerald-600" : "text-slate-800"}`}>
+                                    {formatDateTime(item.expectedDeliveryDate)}
+                                  </span>
+                                  {isLate && (
+                                    <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200 px-1 py-0 uppercase text-[9px]">
+                                      {t("Overdue")}
+                                    </Badge>
+                                  )}
+                                  {isTdy && (
+                                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 px-1 py-0 uppercase text-[9px]">
+                                      {t("Today")}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  {t("Estimated Time of Arrival")}
+                                </span>
+                              </div>
+                            </TableCell>
 
-                          {/* Total Amount */}
-                          <TableCell className="text-right">
-                            <span className="font-bold text-slate-800">
-                              {formatCurrency(item.totalAmount)}
-                            </span>
-                          </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col text-left">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-slate-700">
+                                    {item.poCode}
+                                  </span>
+                                </div>
+                                <span className="text-sm text-slate-600 flex items-center gap-1.5 mt-1 font-medium">
+                                  <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                                  {item.supplierName}
+                                </span>
+                              </div>
+                            </TableCell>
 
-                          {/* Status */}
-                          <TableCell className="text-center">
-                            <Badge
-                              variant="outline"
-                              className={`
-                                        ${
-                                          item.status === "Submitted"
-                                            ? "bg-blue-50 text-blue-700 border-blue-200"
-                                            : item.status === "Approved"
-                                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                              : item.status === "Rejected"
-                                                ? "bg-red-50 text-red-700 border-red-200"
-                                                : item.status === "GoodsArrived"
-                                                  ? "bg-amber-50 text-amber-700 border-amber-200"
-                                                  : item.status === "Completed"
-                                                    ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                                    : "bg-gray-50 text-gray-700 border-gray-200"
-                                        }
-                                      `}
-                            >
-                              {item.status === "GoodsArrived"
-                                ? t("Goods Arrived")
-                                : t(item.status)}
-                            </Badge>
-                          </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col items-start">
+                                <span className="font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100 flex items-center gap-1.5">
+                                  <ListOrdered className="w-3.5 h-3.5" />
+                                  {item.items?.length || 0} {t("Items")}
+                                </span>
+                                <span className="text-xs text-slate-500 mt-1.5 line-clamp-1 max-w-[200px] italic">
+                                  {item.items?.map(i => i.materialName).join(", ")}
+                                </span>
+                              </div>
+                            </TableCell>
 
-                          {/* Action */}
-                          <TableCell className="text-right pr-6">
-                            <Button
-                              size="sm"
-                              onClick={() => handleReview(item.receiptId)}
-                              disabled={loadingId === item.receiptId}
-                              variant={
-                                item.status === "Submitted"
-                                  ? "default"
-                                  : "outline"
-                              }
-                              className={`w-[100px] ${
-                                item.status === "Submitted"
-                                  ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-                                  : "text-indigo-600 border border-indigo-200 hover:bg-indigo-50 hover:text-primary"
-                              }`}
-                            >
-                              {loadingId === item.receiptId ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : item.status === "Submitted" ? (
-                                <>
-                                  {t("Process")}{" "}
-                                  <ArrowRight className="w-4 h-4 ml-1.5" />
-                                </>
-                              ) : (
-                                <>
-                                  {t("View")} <Eye className="w-4 h-4 ml-1.5" />
-                                </>
-                              )}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                            <TableCell className="text-right pr-6">
+                              <Button
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Tránh gọi click của TableRow 2 lần
+                                  handleReceiveGoods(item.purchaseOrderId);
+                                }}
+                                disabled={loadingId === item.purchaseOrderId}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-32"
+                              >
+                                {loadingId === item.purchaseOrderId ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <Package className="w-4 h-4 mr-2" />
+                                    {t("Receive")}
+                                  </>
+                                )}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
               </div>
+
+              {/* PAGINATION */}
               {!isLoading && filteredData.length > 0 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 gap-4">
+                <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 gap-4 mt-auto">
                   <div className="text-sm text-slate-500">
                     {t("Showing")}{" "}
                     <span className="font-medium text-slate-900">
@@ -649,7 +563,7 @@ export default function ManagerImportRequestPage() {
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-slate-500 whitespace-nowrap">
-                        {t("Rows per page")}:
+                        {t("Rows per page:")}
                       </span>
                       <Select
                         value={itemsPerPage.toString()}
@@ -663,13 +577,11 @@ export default function ManagerImportRequestPage() {
                           <SelectItem value="10">10</SelectItem>
                           <SelectItem value="20">20</SelectItem>
                           <SelectItem value="50">50</SelectItem>
-                          <SelectItem value="100">100</SelectItem>
                           <SelectItem value="-1">{t("All")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
-                    {/* Các nút chuyển trang */}
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
@@ -690,7 +602,7 @@ export default function ManagerImportRequestPage() {
                         size="sm"
                         onClick={() =>
                           setCurrentPage((prev) =>
-                            Math.min(prev + 1, totalPages),
+                            Math.max(prev + 1, totalPages),
                           )
                         }
                         disabled={currentPage === totalPages}

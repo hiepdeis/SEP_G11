@@ -29,7 +29,7 @@ namespace Backend.Domains.Import.Services
                                         .Include(r => r.CreatedByNavigation)
                                         .Include(r => r.ReceiptDetails)
                                         .ThenInclude(rd => rd.Supplier)
-                            .Where(r => r.Status == "Approved" || r.Status == "GoodsArrived" || r.Status == "Completed")
+                            .Where(r => r.Status == "Approved" || r.Status == "GoodsArrived" || r.Status == "Completed" || r.Status == "PendingQC" || r.Status == "PendingIncident" || r.Status == "PendingManagerReview")
                             .OrderByDescending(r => r.ApprovedAt)
                             .Select(r => new GetInboundRequestListDto
                             {
@@ -1168,7 +1168,7 @@ namespace Backend.Domains.Import.Services
             return await _context.Receipts
                 .Include(r => r.PurchaseOrder)
                 .Include(r => r.Warehouse)
-                .Where(r => r.Status == "Completed")
+                .Where(r => r.Status == "Completed" || r.Status == "Closed")
                 .OrderByDescending(r => r.ReceiptDate ?? r.ConfirmedAt ?? r.ApprovedAt)
                 .Select(r => new AccountantReceiptSummaryDto
                 {

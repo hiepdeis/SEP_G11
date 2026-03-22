@@ -6,7 +6,6 @@ import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
 import {
   ArrowLeft,
-  FileSpreadsheet,
   MapPin,
   Package,
   Truck,
@@ -20,7 +19,7 @@ import {
   FileWarning,
   ListCheck,
   Check,
-  X,
+  Send,
   Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -35,18 +34,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  staffReceiptApi,
+  staffReceiptsApi,
+  staffIncidentApi, // Thêm API gọi Submit Incident
   GetInboundRequestListDto,
-} from "@/services/receipt-service";
+} from "@/services/import-service";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
+import { showConfirmToast } from "@/hooks/confirm-toast";
 import { useTranslation } from "react-i18next";
 
-interface Props {
-  role?: "staff" | "manager";
-}
-
-export default function StaffInboundDetailPage({ role = "staff" }) {
+export default function StaffInboundDetailPage() {
   const { t } = useTranslation();
   const params = useParams();
   const router = useRouter();
@@ -54,136 +50,79 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
 
   const [request, setRequest] = useState<GetInboundRequestListDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [isSubmittingToManager, setIsSubmittingToManager] = useState(false);
   const [qcData, setQcData] = useState<any | null>(null);
   const [incidentData, setIncidentData] = useState<any | null>(null);
 
   const [tablePage, setTablePage] = useState(1);
   const tableItemsPerPage = 5;
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await staffReceiptApi.getInboundRequestDetail(id);
-        const requestData = res.data;
+  const fetchData = async () => {
+    try {
+      const res = await staffReceiptsApi.getReceiptDetails(id);
+      const requestData = res.data;
 
-        setRequest(requestData);
-        if (
-          requestData.status === "Completed" ||
-          requestData.status === "GoodsArrived"
-        ) {
-          try {
-            const qcRes = await staffReceiptApi.getQCCheck(id);
-            setQcData(qcRes.data);
+      setRequest(requestData);
+      
+      // Load QC/Incident if status is beyond GoodsArrived or if it's explicitly PendingManagerReview
+      if (
+        requestData.status === "Completed" ||
+        requestData.status === "GoodsArrived" ||
+        requestData.status === "PendingManagerReview"
+      ) {
+        try {
+          const qcRes = await staffReceiptsApi.getQCCheck(id);
+          setQcData(qcRes.data);
 
-            // Chỉ thử fetch Incident nếu QC là Fail
-            if (qcRes.data.overallResult === "Fail") {
-              const incRes = await staffReceiptApi.getIncidentReport(id);
-              setIncidentData(incRes.data);
-            }
-          } catch (error: any) {
-            // Bỏ qua lỗi 404 vì đơn giản là chưa có dữ liệu
-            if (error.response?.status !== 404) {
-              console.error("Error fetching QC/Incident", error);
-            }
+          if (qcRes.data.overallResult === "Fail") {
+            const incRes = await staffReceiptsApi.getIncidentReport(id);
+            setIncidentData(incRes.data);
+          }
+        } catch (error: any) {
+          if (error.response?.status !== 404) {
+            console.error("Error fetching QC/Incident", error);
           }
         }
-      } catch (error) {
-        console.error("Error loading receipt detail", error);
-        toast.error(t("Failed to load receipt details"));
-      } finally {
-        setIsLoading(false);
       }
-    };
-
-    if (id) fetchData();
-  }, [id]);
-
-  const handleDownloadTemplate = async () => {
-    if (!request) return;
-    setIsDownloading(true);
-
-    try {
-      // 1. Định nghĩa Header
-      const headers = [
-        "No.", // A
-        "Material Code", // B
-        "Material Name", // C
-        "Unit", // D
-        "Warehouse Name", // E
-        "Required Quantity", // E
-        "Actual Quantity", // F (Nhập liệu)
-        "Bin Code", // G (Nhập liệu)
-        "Batch Code", // H (Nhập liệu)
-        "MFG Date", // I (Nhập liệu - Format: YYYY-MM-DD)
-      ];
-
-      // 2. Map dữ liệu (Lưu ý: Phải đủ số lượng phần tử tương ứng với Header)
-      const dataRows = request.items.map((item, index) => [
-        index + 1, // No.
-        item.materialCode, // Material Code
-        item.materialName, // Material Name
-        item.unit || "Unit", // Unit (fallback nếu null)
-        request.warehouseName || "N/A", // Unit (fallback nếu null)
-        item.quantity, // Required Quantity
-        "", // Actual Quantity (Empty)
-        "", // Bin Code (Empty)
-        "", // Batch Code (Empty)
-        "dd/mm/yyyy", // MFG Date (Empty)
-      ]);
-
-      // 3. Tạo Sheet
-      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
-
-      const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1");
-
-      for (let row = 1; row <= range.e.r; row++) {
-        const colIndex = 8;
-
-        const cellRef = XLSX.utils.encode_cell({ r: row, c: colIndex });
-
-        if (!worksheet[cellRef]) {
-          worksheet[cellRef] = { t: "s", v: "" };
-        }
-
-        worksheet[cellRef].z = "dd/mm/yyyy";
-      }
-
-      // 4. Cấu hình độ rộng cột
-      worksheet["!cols"] = [
-        { wch: 5 }, // A: No.
-        { wch: 15 }, // B: Mat Code
-        { wch: 30 }, // C: Mat Name
-        { wch: 10 }, // D: Unit
-        { wch: 30 },
-        { wch: 15 }, // E: Req Qty
-        { wch: 15 }, // F: Act Qty
-        { wch: 30 }, // G: Bin Code
-        { wch: 20 }, // H: Batch Code
-        { wch: 15 }, // I: MFG Date
-      ];
-
-      // 5. Xuất file
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "INBOUND_CHECK");
-      XLSX.writeFile(workbook, `Inbound_${request.receiptCode}.xlsx`);
-
-      toast.success(t("Template downloaded successfully!"), {
-        description: t(
-          "Please fill in Actual Qantity, Bin Code, and Batch info.",
-        ),
-      });
     } catch (error) {
-      console.error("Download error:", error);
-      toast.error(t("Failed to download template"));
+      console.error("Error loading receipt detail", error);
+      toast.error(t("Failed to load receipt details"));
     } finally {
-      setIsDownloading(false);
+      setIsLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (id) fetchData();
+  }, [id, t]);
+
   const handleProcess = () => {
     toast.info(t("Proceeding to QC check"));
-    router.push(`${id}/process`);
+    router.push(`/staff/receipts/${id}/qc-check`);
+  };
+
+  // --- HÀM MỚI: Submit Incident to Manager (Bước 16) ---
+  const handleSubmitToManager = () => {
+    if (!incidentData?.incidentId) return;
+
+    showConfirmToast({
+      title: t("Submit Incident to Manager?"),
+      description: t("Are you sure you want to submit this incident report? The manager will be notified for review."),
+      confirmLabel: t("Yes, Submit"),
+      onConfirm: async () => {
+        setIsSubmittingToManager(true);
+        try {
+          await staffIncidentApi.submitToManager(incidentData.incidentId);
+          toast.success(t("Incident submitted to Manager successfully!"));
+          await fetchData(); // Tải lại trang để cập nhật status mới nhất
+        } catch (error: any) {
+          console.error(error);
+          toast.error(error.response?.data?.message || t("Failed to submit incident."));
+        } finally {
+          setIsSubmittingToManager(false);
+        }
+      },
+    });
   };
 
   const formatDate = (dateString: string | null | undefined) => {
@@ -206,11 +145,6 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
       startTableIndex + tableItemsPerPage,
     ) || [];
 
-  const formatCurrency = (val: number | null | undefined) => {
-    if (val === null || val === undefined) return "0 ₫";
-    return val.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
-  };
-
   if (isLoading)
     return (
       <div className="h-screen flex items-center justify-center bg-slate-50">
@@ -227,6 +161,7 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
         <Button onClick={() => router.back()}>Go Back</Button>
       </div>
     );
+    
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
@@ -237,264 +172,110 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <Button
               variant="ghost"
-              onClick={() =>
-                router.push(
-                  role === "manager"
-                    ? "/manager/import-request"
-                    : "/staff/import-request",
-                )
-              }
+              onClick={() => router.push("/staff/inbound-requests")}
               className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit"
             >
               <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}
             </Button>
 
             <div className="flex gap-3">
-              {role == "staff" && (
+              {request.status == "PendingQC" && (
                 <Button
-                  variant="outline"
-                  className="bg-white border-green-600 text-green-700 hover:bg-green-50 hover:text-green-700"
-                  onClick={handleDownloadTemplate}
-                  disabled={isDownloading}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
+                  onClick={handleProcess}
                 >
-                  {isDownloading ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  )}
-                  {t("Download Template")}
+                  {qcData ? t("Continue Processing") : t("Start Processing")}{" "}
+                  <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               )}
-
-              {(request.status == "Approved" ||
-                request.status == "GoodsArrived") &&
-                role == "staff" && (
-                  <Button
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
-                    onClick={handleProcess}
-                  >
-                    {qcData ? t("Continue Processing") : t("Start Processing")}{" "}
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                )}
             </div>
           </div>
 
-          {/* HORIZONTAL TIMELINE DYNAMIC (STAFF vs MANAGER) */}
+          {/* HORIZONTAL TIMELINE */}
           <Card className="border-slate-200 shadow-sm bg-white mb-6">
-            <CardContent className="">
-              {role === "staff" ? (
-                <div className="relative max-w-2xl mx-auto">
-                  <div className="absolute left-[25%] right-[25%] top-5 h-1 bg-slate-200 z-10 rounded-full" />
-                  <div
-                    className={`absolute left-[25%] top-5 h-1 rounded-full z-10 transition-all duration-500 ${
+            <CardContent>
+              <div className="relative max-w-2xl mx-auto pt-5 pb-2">
+                <div className="absolute left-[25%] right-[25%] top-10 h-1 bg-slate-200 z-10 rounded-full" />
+                <div
+                  className={`absolute left-[25%] top-10 h-1 rounded-full z-10 transition-all duration-500 ${
+                    request.confirmedDate || request.status === "Completed"
+                      ? "bg-indigo-600"
+                      : "bg-transparent"
+                  }`}
+                  style={{
+                    width:
                       request.confirmedDate || request.status === "Completed"
-                        ? "bg-indigo-600"
-                        : "bg-transparent"
-                    }`}
-                    style={{
-                      width:
-                        request.confirmedDate || request.status === "Completed"
-                          ? "50%"
-                          : "0%",
-                    }}
-                  />
+                        ? "50%"
+                        : "0%",
+                  }}
+                />
 
-                  <div className="flex justify-between w-full">
-                    <div className="flex flex-col items-center relative z-10 w-1/2">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
-                          request.approvedDate
-                            ? "bg-indigo-600 text-white"
-                            : "bg-slate-200 text-slate-400"
-                        }`}
-                      >
-                        <Check className="w-5 h-5" />
-                      </div>
-                      <div className="text-center mt-3 bg-white px-4">
-                        <p className="text-sm font-semibold text-slate-800">
-                          {t("Approved")}
-                        </p>
-                        {request.approvedByName && (
-                          <p className="text-xs font-medium text-slate-600 mt-0.5">
-                            {request.approvedByName}
-                          </p>
-                        )}
-                        {request.approvedDate && (
-                          <p className="text-[11px] text-slate-400 mt-0.5">
-                            {formatDate(request.approvedDate)}
-                          </p>
-                        )}
-                      </div>
+                <div className="flex justify-between w-full">
+                  <div className="flex flex-col items-center relative z-10 w-1/2">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
+                        request.approvedDate || request.status === "PendingManagerReview"
+                          ? "bg-indigo-600 text-white"
+                          : "bg-slate-200 text-slate-400"
+                      }`}
+                    >
+                      <Check className="w-5 h-5" />
                     </div>
-
-                    <div className="flex flex-col items-center relative z-10 w-1/2">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
-                          request.confirmedDate ||
-                          request.status === "Completed"
-                            ? "bg-emerald-500 text-white"
-                            : "bg-slate-200 text-slate-400"
-                        }`}
-                      >
-                        <Check className="w-5 h-5" />
-                      </div>
-                      <div className="text-center mt-3 bg-white px-4">
-                        <p className="text-sm font-semibold text-slate-800">
-                          {t("Confirmed")}
+                    <div className="text-center mt-3 bg-white px-4">
+                      <p className="text-sm font-semibold text-slate-800">
+                        {t("Approved")}
+                      </p>
+                      {request.approvedByName && (
+                        <p className="text-xs font-medium text-slate-600 mt-0.5">
+                          {request.approvedByName}
                         </p>
-                        {request.confirmedByName ? (
-                          <p className="text-xs font-medium text-slate-600 mt-0.5">
-                            {request.confirmedByName}
-                          </p>
-                        ) : (
-                          <p className="text-xs text-slate-400 italic mt-0.5">
-                            {t("Pending")}
-                          </p>
-                        )}
-                        {request.confirmedDate && (
-                          <p className="text-[11px] text-slate-400 mt-0.5">
-                            {formatDate(request.confirmedDate)}
-                          </p>
-                        )}
-                      </div>
+                      )}
+                      {request.approvedDate && (
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {formatDate(request.approvedDate)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center relative z-10 w-1/2">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
+                        request.confirmedDate ||
+                        request.status === "Completed"
+                          ? "bg-emerald-500 text-white"
+                          : "bg-slate-200 text-slate-400"
+                      }`}
+                    >
+                      <Check className="w-5 h-5" />
+                    </div>
+                    <div className="text-center mt-3 bg-white px-4">
+                      <p className="text-sm font-semibold text-slate-800">
+                        {t("Confirmed")}
+                      </p>
+                      {request.confirmedByName ? (
+                        <p className="text-xs font-medium text-slate-600 mt-0.5">
+                          {request.confirmedByName}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-slate-400 italic mt-0.5">
+                          {t("Pending")}
+                        </p>
+                      )}
+                      {request.confirmedDate && (
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {formatDate(request.confirmedDate)}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
-              ) : (
-                <div className="relative max-w-4xl mx-auto px-4">
-                  <div className="absolute left-[12.5%] right-[12.5%] top-5 h-1 bg-slate-200 z-10 rounded-full" />
-                  <div
-                    className="absolute left-[12.5%] top-5 h-1 rounded-full z-10 transition-all duration-500 bg-indigo-600"
-                    style={{
-                      width:
-                        request.confirmedDate || request.status === "Completed"
-                          ? "75%"
-                          : request.approvedDate ||
-                              request.status === "Approved"
-                            ? "50%"
-                            : request.submittedDate
-                              ? "25%"
-                              : "0%",
-                    }}
-                  />
-
-                  <div className="flex justify-between w-full">
-                    <div className="flex flex-col items-center relative z-10 w-1/4">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${request.createdDate ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-400"}`}
-                      >
-                        <Check className="w-5 h-5" />
-                      </div>
-                      <div className="text-center mt-3 bg-white px-2">
-                        <p className="text-sm font-semibold text-slate-800">
-                          {t("Create Receipt")}
-                        </p>
-                        {request.createdByName && (
-                          <p className="text-xs font-medium text-slate-600 mt-0.5">
-                            {request.createdByName}
-                          </p>
-                        )}
-                        {request.createdDate && (
-                          <p className="text-[11px] text-slate-400 mt-0.5">
-                            {formatDate(request.createdDate)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col items-center relative z-10 w-1/4">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${request.submittedDate ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-400"}`}
-                      >
-                        <Check className="w-5 h-5" />
-                      </div>
-                      <div className="text-center mt-3 bg-white px-2">
-                        <p className="text-sm font-semibold text-slate-800">
-                          {t("Submit")}
-                        </p>
-                        {request.submittedByName ? (
-                          <p className="text-xs font-medium text-slate-600 mt-0.5">
-                            {request.submittedByName}
-                          </p>
-                        ) : (
-                          <p className="text-xs text-slate-400 italic mt-0.5">
-                            {t("Pending")}
-                          </p>
-                        )}
-                        {request.submittedDate && (
-                          <p className="text-[11px] text-slate-400 mt-0.5">
-                            {formatDate(request.submittedDate)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col items-center relative z-10 w-1/4">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${request.approvedDate || request.status === "Approved" ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-400"}`}
-                      >
-                        <Check className="w-5 h-5" />
-                      </div>
-                      <div className="text-center mt-3 bg-white px-2">
-                        <p className="text-sm font-semibold text-slate-800">
-                          {t("Approved")}
-                        </p>
-                        {request.status === "Submitted" ? (
-                          <p className="text-xs text-slate-400 italic mt-0.5">
-                            {t("Pending")}
-                          </p>
-                        ) : (
-                          <>
-                            {request.approvedByName && (
-                              <p className="text-xs font-medium text-slate-600 mt-0.5">
-                                {request.approvedByName}
-                              </p>
-                            )}
-                            {request.approvedDate && (
-                              <p className="text-[11px] text-slate-400 mt-0.5">
-                                {formatDate(request.approvedDate)}
-                              </p>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col items-center relative z-10 w-1/4">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${request.confirmedDate || request.status === "Completed" ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-400"}`}
-                      >
-                        <Check className="w-5 h-5" />
-                      </div>
-                      <div className="text-center mt-3 bg-white px-2">
-                        <p className="text-sm font-semibold text-slate-800">
-                          {t("Confirmed")}
-                        </p>
-                        {request.confirmedByName ? (
-                          <p className="text-xs font-medium text-slate-600 mt-0.5">
-                            {request.confirmedByName}
-                          </p>
-                        ) : (
-                          <p className="text-xs text-slate-400 italic mt-0.5">
-                            {t("Pending")}
-                          </p>
-                        )}
-                        {request.confirmedDate && (
-                          <p className="text-[11px] text-slate-400 mt-0.5">
-                            {formatDate(request.confirmedDate)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              </div>
             </CardContent>
           </Card>
 
           <div className="">
-            <div className="grid grid-cols-1 lg:grid-cols-6 gap-6 mb-10">
+            <div className="grid grid-cols-1 lg:grid-cols-6 gap-6 mb-6">
               <div className="lg:col-span-4 space-y-6 flex">
                 <Card className="border-slate-200 shadow-sm gap-0 flex-1">
                   <CardHeader className="border-b border-slate-100 py-4">
@@ -536,6 +317,18 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                             </p>
                             <p className="text-xs text-slate-500">
                               {t("By Staff Team")} - {request.confirmedByName}
+                            </p>
+                          </div>
+                        </div>
+                      ) : request.status === "PendingManagerReview" ? (
+                        <div className="flex items-start gap-2">
+                          <FileWarning className="w-4 h-4 text-amber-500 mt-1" />
+                          <div>
+                            <p className="font-medium text-slate-800">
+                              {t("Incident Under Review")}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {t("Awaiting Manager Approval")}
                             </p>
                           </div>
                         </div>
@@ -582,7 +375,7 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex justify-between items-end border-b border-slate-200 pb-3">
+                    <div className="flex justify-between items-end border-b border-slate-200 pt-4 pb-3">
                       <span className="text-sm text-slate-600">
                         {t("Total Materials")}
                       </span>
@@ -599,34 +392,10 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                       </span>
                     </div>
 
-                    {role == "staff" && (
-                      <div className="pt-4">
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-xs text-yellow-800">
-                          <strong>{t("Instructions")}:</strong>
-                          <ul className="list-disc pl-4 mt-1 space-y-1">
-                            <li>
-                              {t(
-                                "Download the template to verify items offline.",
-                              )}
-                            </li>
-                            <li>
-                              {t(
-                                'Click "Start Processing" to input actual received quantities.',
-                              )}
-                            </li>
-                            <li>
-                              {t("Ensure physical count matches the system.")}
-                            </li>
-                          </ul>
-                        </div>
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
               </div>
             </div>
-
-            {/*  */}
 
             {/* Items Table */}
             <div>
@@ -652,22 +421,12 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                       <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                         <TableRow className="bg-slate-50/50">
                           <TableHead className="w-[5%] pl-6">#</TableHead>
-                          <TableHead className="w-[25%]">
+                          <TableHead className="w-[30%]">
                             {t("Material")}
                           </TableHead>
-                          <TableHead className="w-[20%]">
+                          <TableHead className="w-[25%]">
                             {t("Supplier")}
                           </TableHead>
-                          {role == "manager" && (
-                            <>
-                              <TableHead className="w-[20%]">
-                                {t("Unit Price")}
-                              </TableHead>
-                              <TableHead className="w-[20%]">
-                                {t("Subtotal")}
-                              </TableHead>
-                            </>
-                          )}
                           <TableHead className="text-center w-[10%]">
                             {t("Expected")}
                           </TableHead>
@@ -684,7 +443,7 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                               <TableHead className="text-center w-[15%]">
                                 {t("Batch Code")}
                               </TableHead>
-                              <TableHead className="text-center w-[25%] pr-6">
+                              <TableHead className="text-center w-[20%] pr-6">
                                 {t("MFG Date")}
                               </TableHead>
                             </>
@@ -727,24 +486,6 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                                 </span>
                               </div>
                             </TableCell>
-                            {role == "manager" && (
-                              <>
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-right font-medium text-slate-600">
-                                      {formatCurrency(item.unitPrice)}
-                                    </span>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-semiboldtext-right pr-6 font-bold text-slate-800">
-                                      {formatCurrency(item.lineTotal)}
-                                    </span>
-                                  </div>
-                                </TableCell>
-                              </>
-                            )}
                             <TableCell className="text-center">
                               <span className="font-medium">
                                 {item.quantity}
@@ -754,12 +495,12 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                               </span>
                             </TableCell>
                             {request.status === "Completed" && (
-                              <TableCell className="text-center w-[15%]">
+                              <TableCell className="text-center">
                                 <span
                                   className={`font-bold ${
                                     item.actualQuantity === item.quantity
-                                      ? "text-green-600"
-                                      : "text-yellow-500"
+                                      ? "text-emerald-600"
+                                      : "text-amber-500"
                                   }`}
                                 >
                                   {item.actualQuantity?.toLocaleString("vi-VN")}
@@ -768,20 +509,20 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                             )}
                             {request.status === "Completed" ? (
                               <>
-                                <TableCell className="text-center pr-6">
+                                <TableCell className="text-center">
                                   <Badge
                                     variant="outline"
                                     className="border-slate-200 text-slate-500 font-normal text-xs"
                                   >
-                                    {item.binCode}
+                                    {item.binCode || t("N/A")}
                                   </Badge>
                                 </TableCell>
-                                <TableCell className="text-center pr-6">
+                                <TableCell className="text-center">
                                   <Badge
                                     variant="outline"
                                     className="border-slate-200 text-slate-500 font-normal text-xs"
                                   >
-                                    {item.batchCode}
+                                    {item.batchCode || t("N/A")}
                                   </Badge>
                                 </TableCell>
                                 <TableCell className="text-center pr-6">
@@ -853,15 +594,16 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                   )}
                 </CardContent>
               </Card>
+
               {qcData && (
-                <Card className="border-slate-200 shadow-sm mt-6 gap-0">
+                <Card className="border-slate-200 shadow-sm mt-6 gap-0 flex flex-col">
                   <CardHeader className="bg-white border-b border-slate-100 py-4">
                     <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
                       <CheckCircle2 className="w-5 h-5 text-slate-500" />
                       {t("Quality Control & Inspection Results")}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="p-6 space-y-6">
+                  <CardContent className="p-6 space-y-6 flex-1 flex flex-col">
                     <div>
                       <div className="flex items-center gap-3 mb-3">
                         <h4 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
@@ -908,32 +650,46 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                       )}
                     </div>
 
-                    {/* KHỐI TÓM TẮT INCIDENT (NẾU CÓ) */}
+                    {/* KHỐI INCIDENT REPORT */}
                     {incidentData && (
-                      <div className="pt-4 border-t border-slate-100">
-                        <div className="flex items-center gap-3 mb-3">
-                          <h4 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
-                            <FileWarning className="w-4 h-4 text-amber-500" />{" "}
-                            {t("Incident Report")}
-                          </h4>
-                          <Badge
-                            variant="outline"
-                            className="text-slate-500 font-normal"
-                          >
-                            {incidentData.incidentCode}
-                          </Badge>
-                          <Badge
-                            className={
-                              incidentData.status === "Resolved"
-                                ? "bg-emerald-50 text-emerald-600"
-                                : "bg-amber-50 text-amber-600"
-                            }
-                          >
-                            {t(incidentData.status)}
-                          </Badge>
+                      <div className="pt-4 border-t border-slate-100 flex-1 flex flex-col">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <h4 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                              <FileWarning className="w-4 h-4 text-amber-500" />{" "}
+                              {t("Incident Report")}
+                            </h4>
+                            <Badge
+                              variant="outline"
+                              className="text-slate-500 font-normal"
+                            >
+                              {incidentData.incidentCode}
+                            </Badge>
+                            <Badge
+                              className={
+                                incidentData.status === "Resolved"
+                                  ? "bg-emerald-50 text-emerald-600"
+                                  : "bg-amber-50 text-amber-600"
+                              }
+                            >
+                              {t(incidentData.status)}
+                            </Badge>
+                          </div>
+                          
+                          {/* NÚT SUBMIT TO MANAGER (HIỂN THỊ NẾU ĐANG PENDING) */}
+                          {request.status === "PendingManagerReview" && incidentData.status === "Open" && (
+                             <Button 
+                               onClick={handleSubmitToManager}
+                               disabled={isSubmittingToManager}
+                               className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                             >
+                               {isSubmittingToManager ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                               {t("Submit to Manager")}
+                             </Button>
+                          )}
                         </div>
 
-                        <div className="text-sm text-slate-600 space-y-2">
+                        <div className="text-sm text-slate-600 space-y-2 flex-1 flex flex-col">
                           <p>
                             <span className="font-medium text-slate-700">
                               {t("General Description")}:
@@ -941,14 +697,14 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                             {incidentData.description}
                           </p>
 
-                          <div className="mt-3">
+                          <div className="mt-3 flex-1">
                             <p className="font-medium text-slate-700 mb-1">
                               {t("Reported Issues")}:
                             </p>
-                            <Table>
+                            <Table className="border border-slate-100 rounded-md">
                               <TableHeader className="bg-slate-50">
                                 <TableRow>
-                                  <TableHead className="h-8">
+                                  <TableHead className="h-8 pl-4">
                                     {t("Material")}
                                   </TableHead>
                                   <TableHead className="h-8 text-center">
@@ -957,7 +713,7 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                                   <TableHead className="h-8 text-center">
                                     {t("Actual")}
                                   </TableHead>
-                                  <TableHead className="h-8">
+                                  <TableHead className="h-8 text-center">
                                     {t("Issue Type")}
                                   </TableHead>
                                 </TableRow>
@@ -966,7 +722,7 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                                 {incidentData.details.map(
                                   (inc: any, idx: number) => (
                                     <TableRow key={idx}>
-                                      <TableCell className="py-2 text-xs font-medium">
+                                      <TableCell className="py-2 text-xs font-medium pl-4">
                                         {inc.materialName}
                                       </TableCell>
                                       <TableCell className="py-2 text-xs text-center">
@@ -975,7 +731,7 @@ export default function StaffInboundDetailPage({ role = "staff" }) {
                                       <TableCell className="py-2 text-xs text-center font-bold text-red-500">
                                         {inc.actualQuantity}
                                       </TableCell>
-                                      <TableCell className="py-2 text-xs">
+                                      <TableCell className="py-2 text-xs text-center pr-4">
                                         <Badge
                                           variant="secondary"
                                           className="font-normal text-xs"

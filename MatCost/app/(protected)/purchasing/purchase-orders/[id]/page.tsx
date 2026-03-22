@@ -18,7 +18,13 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -35,6 +41,9 @@ import {
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { showConfirmToast } from "@/hooks/confirm-toast";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { DateTimePicker } from "@/components/ui/custom/date-time-picker";
 
 export default function PurchaseOrderDetailPage() {
   const params = useParams();
@@ -46,6 +55,14 @@ export default function PurchaseOrderDetailPage() {
   const [order, setOrder] = useState<PurchaseOrderDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+
+  const [isConfirmDeliveryModalOpen, setIsConfirmDeliveryModalOpen] =
+    useState(false);
+  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState<
+    Date | undefined
+  >(undefined);
+  const [supplierNote, setSupplierNote] = useState("");
+  const [isConfirmingDelivery, setIsConfirmingDelivery] = useState(false);
 
   useEffect(() => {
     const fetchOrderDetail = async () => {
@@ -94,6 +111,42 @@ export default function PurchaseOrderDetailPage() {
         }
       },
     });
+  };
+
+  const handleConfirmDelivery = async () => {
+    if (!expectedDeliveryDate) {
+      toast.error(t("Please select an expected delivery date."));
+      return;
+    }
+
+    const now = new Date();
+    if (expectedDeliveryDate <= now) {
+      toast.error(t("Expected delivery date and time must be in the future."));
+      return;
+    }
+
+    setIsConfirmingDelivery(true);
+    try {
+      const isoDate = expectedDeliveryDate.toISOString();
+
+      await purchasingPurchaseOrderApi.confirmDelivery(id, {
+        expectedDeliveryDate: isoDate,
+        supplierNote: supplierNote.trim() || undefined,
+      });
+
+      toast.success(t("Delivery confirmed successfully!"));
+      setIsConfirmDeliveryModalOpen(false);
+
+      const res = await purchasingPurchaseOrderApi.getOrder(id);
+      setOrder(res.data);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(
+        error.response?.data?.message || t("Failed to confirm delivery."),
+      );
+    } finally {
+      setIsConfirmingDelivery(false);
+    }
   };
 
   const formatDate = (dateString?: string | null) => {
@@ -189,6 +242,15 @@ export default function PurchaseOrderDetailPage() {
                     <Send className="w-4 h-4 mr-2" />
                   )}
                   {t("Send to Supplier")}
+                </Button>
+              )}
+              {(order.status === "SentToSupplier" && order.expectedDeliveryDate === null) && (
+                <Button
+                  onClick={() => setIsConfirmDeliveryModalOpen(true)}
+                  className="bg-indigo-600 hover:bg-blue-700 text-white shadow-sm ml-2"
+                >
+                  <CalendarDays className="w-4 h-4 mr-2" />
+                  {t("Confirm Delivery")}
                 </Button>
               )}
             </div>
@@ -389,6 +451,29 @@ export default function PurchaseOrderDetailPage() {
                       </div>
                     </div>
                   )}
+
+                  {order.expectedDeliveryDate && (
+                    <div className="space-y-1 pt-3 border-t border-slate-100">
+                      <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
+                        {t("Expected Delivery")}
+                      </span>
+                      <div className="flex items-center gap-2 text-emerald-600 font-medium">
+                        <CalendarDays className="w-4 h-4 text-emerald-500" />
+                        {formatDate(order.expectedDeliveryDate)}
+                      </div>
+                    </div>
+                  )}
+
+                  {order.supplierNote && (
+                    <div className="space-y-1">
+                      <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
+                        {t("Supplier Note")}
+                      </span>
+                      <div className="text-sm text-slate-700 bg-slate-50 p-2 rounded-md italic">
+                        "{order.supplierNote}"
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -480,6 +565,68 @@ export default function PurchaseOrderDetailPage() {
           </div>
         </div>
       </main>
+      {/* MODAL NHẬP THÔNG TIN GIAO HÀNG */}
+      {isConfirmDeliveryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
+          <Card className="w-full max-w-md shadow-lg border-0 animate-in zoom-in-95 duration-200 gap-0">
+            <CardHeader className="rounded-t-xl pt-4 border-b border-slate-100">
+              <CardTitle className="text-slate-800 flex items-center gap-2 text-lg">
+                <CalendarDays className="w-5 h-5 text-indigo-600" />
+                {t("Confirm Supplier Delivery")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">
+                  {t("Expected Delivery Date")}{" "}
+                  <span className="text-red-500">*</span>
+                </label>
+                <DateTimePicker
+                  value={expectedDeliveryDate}
+                  onChange={setExpectedDeliveryDate}
+                  placeholder={t("Select date and time...")}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">
+                  {t("Supplier Note (Optional)")}
+                </label>
+                <Textarea
+                  placeholder={t(
+                    "Enter any notes or conditions from the supplier...",
+                  )}
+                  className="min-h-[100px] resize-none focus-visible:ring-indigo-600"
+                  value={supplierNote}
+                  onChange={(e) => setSupplierNote(e.target.value)}
+                />
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-end gap-3 p-4 pb-0">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setIsConfirmDeliveryModalOpen(false);
+                  setExpectedDeliveryDate(undefined); 
+                  setSupplierNote("");
+                }}
+                className="text-slate-600"
+              >
+                {t("Cancel")}
+              </Button>
+              <Button
+                onClick={handleConfirmDelivery}
+                disabled={isConfirmingDelivery}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              >
+                {isConfirmingDelivery && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
+                {t("Confirm")}
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

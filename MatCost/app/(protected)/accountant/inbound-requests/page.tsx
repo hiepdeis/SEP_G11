@@ -5,22 +5,22 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
 import {
-  Clock,
   Search,
-  ArrowRight,
   Loader2,
   CalendarDays,
-  Package,
-  File,
-  BadgeX,
   ChevronLeft,
   ChevronRight,
-  RotateCcw,
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
-  Eye,
   Delete,
+  FileText,
+  Receipt,
+  Building2,
+  CheckCircle2,
+  Lock,
+  Eye,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +34,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { receiptApi, ReceiptSummaryDto } from "@/services/receipt-service";
+import {
+  accountantReceiptsApi,
+  AccountantReceiptSummaryDto,
+} from "@/services/import-service";
 import { toast } from "sonner";
 import {
   Select,
@@ -52,19 +55,18 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { formatPascalCase } from "@/lib/format-pascal-case";
 
-export default function ImportApprovalListPage() {
+export default function AccountantReceiptsListPage() {
   const router = useRouter();
   const { t } = useTranslation();
 
-  const [requests, setRequests] = useState<ReceiptSummaryDto[]>([]);
+  const [receipts, setReceipts] = useState<AccountantReceiptSummaryDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [filterStatus, setFilterStatus] = useState<
-    "All" | "Requested" | "Rejected" | "History" | "Draft"
-  >("Requested");
+  const [filterStatus, setFilterStatus] = useState<string>("All");
 
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
@@ -75,14 +77,14 @@ export default function ImportApprovalListPage() {
   });
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number>(5);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
 
   const [sortConfig, setSortConfig] = useState<{
-    key: "date" | "items";
+    key: "date" | "receiptCode";
     direction: "asc" | "desc";
   } | null>(null);
 
-  const handleSort = (key: "date" | "items") => {
+  const handleSort = (key: "date" | "receiptCode") => {
     let direction: "asc" | "desc" = "asc";
     if (
       sortConfig &&
@@ -98,43 +100,35 @@ export default function ImportApprovalListPage() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const res = await receiptApi.getPendingAccountant();
-        setRequests(res.data);
+        const res = await accountantReceiptsApi.getReceipts();
+        setReceipts(res.data);
       } catch (error) {
-        console.error("Failed to fetch pending receipts", error);
+        console.error("Failed to fetch accountant receipts", error);
+        toast.error(t("Failed to fetch receipts list"));
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [t]);
 
-  // Khi người dùng gõ search hoặc đổi tab filter, tự động quay về trang 1
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filterStatus, sortConfig, itemsPerPage, dateRange]);
 
-  // 1. Lọc dữ liệu ban đầu
-  const filteredData = requests.filter((item) => {
+  // 1. Lọc dữ liệu
+  const filteredData = receipts.filter((item) => {
     let matchesStatus = true;
-
-    if (filterStatus === "Requested") {
-      matchesStatus = item.status === "Requested";
-    } else if (filterStatus === "Draft") {
-      matchesStatus = item.status === "Draft";
-    } else if (filterStatus === "Rejected") {
-      matchesStatus = item.status === "Rejected";
-    } else if (filterStatus === "History") {
-      matchesStatus =
-        item.status !== "Requested" &&
-        item.status !== "Draft" &&
-        item.status !== "Rejected";
+    if (filterStatus !== "All") {
+      matchesStatus = item.status === filterStatus;
     }
 
-    const matchesSearch = item.receiptCode
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch =
+      item.receiptCode?.toLowerCase().includes(searchLower) ||
+      item.purchaseOrderCode?.toLowerCase().includes(searchLower) ||
+      item.warehouseName?.toLowerCase().includes(searchLower);
 
     let matchesDate = true;
     if (dateRange.from || dateRange.to) {
@@ -142,11 +136,9 @@ export default function ImportApprovalListPage() {
         matchesDate = false;
       } else {
         const itemDate = new Date(item.receiptDate);
-
         const fromDate = dateRange.from
           ? startOfDay(dateRange.from)
           : new Date(2000, 0, 1);
-
         const toDate = dateRange.to
           ? endOfDay(dateRange.to)
           : new Date(2100, 0, 1);
@@ -161,6 +153,7 @@ export default function ImportApprovalListPage() {
     return matchesStatus && matchesSearch && matchesDate;
   });
 
+  // 2. Sắp xếp dữ liệu
   const sortedData = [...filteredData].sort((a, b) => {
     if (!sortConfig) return 0;
 
@@ -170,15 +163,18 @@ export default function ImportApprovalListPage() {
       return sortConfig.direction === "asc" ? dateA - dateB : dateB - dateA;
     }
 
-    if (sortConfig.key === "items") {
-      const itemsA = a.itemCount || 0;
-      const itemsB = b.itemCount || 0;
-      return sortConfig.direction === "asc" ? itemsA - itemsB : itemsB - itemsA;
+    if (sortConfig.key === "receiptCode") {
+      const codeA = a.receiptCode || "";
+      const codeB = b.receiptCode || "";
+      return sortConfig.direction === "asc" 
+        ? codeA.localeCompare(codeB) 
+        : codeB.localeCompare(codeA);
     }
 
     return 0;
   });
 
+  // 3. Phân trang
   const isAll = itemsPerPage === -1;
   const totalPages = isAll
     ? 1
@@ -188,58 +184,52 @@ export default function ImportApprovalListPage() {
   const endIndex = isAll ? sortedData.length : startIndex + itemsPerPage;
   const paginatedData = sortedData.slice(startIndex, endIndex);
 
-  const handleReview = async (id: number, status: string) => {
+  // Xử lý nút xem chi tiết
+  const handleReview = (id: number) => {
     setLoadingId(id);
-
-    if (status === "Rejected") {
-      try {
-        await receiptApi.revertToDraft(id);
-        toast.success(
-          t("Receipt reverted to Draft. You can now edit and resubmit."),
-        );
-      } catch (error: any) {
-        toast.error(
-          error.response?.data?.message ||
-            t("Failed to revert receipt to draft"),
-        );
-        setLoadingId(null);
-        return;
-      }
-    }
-
-    // Chuyển sang trang detail
-    router.push(`import-request/${id}`);
+    router.push(`/accountant/inbound-requests/${id}`);
   };
 
-  const formatDate = (dateString: string | null) => {
+  const formatDateTime = (dateString: string | null | undefined) => {
     if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("vi-VN");
+    return format(new Date(dateString), "dd/MM/yyyy HH:mm");
   };
 
-  const formatPlus = (num: number) => (num > 999 ? "999+" : num);
+  // Thống kê
+  const pendingCloseCount = receipts.filter(
+    (item) => item.status === "Completed",
+  ).length;
+  const closedCount = receipts.filter(
+    (item) => item.status === "Closed",
+  ).length;
 
-  const pendingCount = requests.filter(
-    (item) => item.status === "Requested",
-  ).length;
-  const draftCount = requests.filter((item) => item.status === "Draft").length;
-  const rejectCount = requests.filter(
-    (item) => item.status === "Rejected",
-  ).length;
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "Completed":
+        return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      case "Closed":
+        return "bg-slate-100 text-slate-700 border-slate-200";
+      default:
+        return "bg-indigo-50 text-indigo-700 border-indigo-200";
+    }
+  };
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title={t("Accountant Dashboard")}></Header>
+        <Header title={t("Accounting Dashboard")} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                {t("Inbound Approvals")}
+                {t("Inbound Receipts Book")}
               </h1>
               <p className="text-sm text-slate-500">
-                {t("Select a supplier and pricing for requested materials.")}
+                {t(
+                  "Review completed warehouse receipts and finalize accounting records to close them.",
+                )}
               </p>
             </div>
           </div>
@@ -247,15 +237,31 @@ export default function ImportApprovalListPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-yellow-100 text-yellow-600 rounded-lg">
-                  <Clock className="w-6 h-6" />
+                <div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg">
+                  <FileText className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    {t("Pending Requests")}
+                    {t("Total Receipts")}
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {formatPlus(pendingCount)}
+                    {receipts.length}
+                  </h3>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="p-3 bg-emerald-100 text-emerald-600 rounded-lg">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500 font-medium">
+                    {t("Pending Accounting Review")}
+                  </p>
+                  <h3 className="text-2xl font-bold text-emerald-600">
+                    {pendingCloseCount}
                   </h3>
                 </div>
               </CardContent>
@@ -264,37 +270,21 @@ export default function ImportApprovalListPage() {
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 bg-slate-100 text-slate-600 rounded-lg">
-                  <File className="w-6 h-6" />
+                  <Lock className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    {t("Drafts")}
+                    {t("Closed Receipts")}
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {formatPlus(draftCount)}
-                  </h3>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white border-slate-200 shadow-sm">
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-red-100 text-red-600 rounded-lg">
-                  <BadgeX className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 font-medium">
-                    {t("Rejects")}
-                  </p>
-                  <h3 className="text-2xl font-bold text-slate-900">
-                    {formatPlus(rejectCount)}
+                    {closedCount}
                   </h3>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] gap-0 pb-0">
+          <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] gap-0 pb-0 flex flex-col">
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
                 <div className="flex flex-wrap items-center gap-3">
@@ -304,26 +294,15 @@ export default function ImportApprovalListPage() {
 
                   <Select
                     value={filterStatus}
-                    onValueChange={(
-                      value:
-                        | "All"
-                        | "Requested"
-                        | "Rejected"
-                        | "History"
-                        | "Draft",
-                    ) => setFilterStatus(value)}
+                    onValueChange={(value) => setFilterStatus(value)}
                   >
-                    <SelectTrigger className="w-[150px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
+                    <SelectTrigger className="w-[170px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
                       <SelectValue placeholder={t("Filter by status")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Requested">
-                        {t("Requested")}
-                      </SelectItem>
-                      <SelectItem value="Draft">{t("Draft")}</SelectItem>
-                      <SelectItem value="Rejected">{t("Rejected")}</SelectItem>
-                      <SelectItem value="History">{t("History")}</SelectItem>
                       <SelectItem value="All">{t("All")}</SelectItem>
+                      <SelectItem value="Completed" className="text-emerald-600 font-medium">{t("Pending Closure")}</SelectItem>
+                      <SelectItem value="Closed">{t("Closed")}</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -333,11 +312,11 @@ export default function ImportApprovalListPage() {
                         <Button
                           variant="outline"
                           className={cn(
-                            "justify-start text-left font-normal h-9 bg-white shadow-sm",
+                            "justify-start text-left font-normal h-9 bg-white shadow-sm w-[130px]",
                             !dateRange.from && "text-slate-500",
                           )}
                         >
-                          <CalendarDays className="mr-2 h-4 w-4" />
+                          <CalendarDays className="mr-2 h-4 w-4 shrink-0" />
                           {dateRange.from ? (
                             format(dateRange.from, "dd/MM/yyyy")
                           ) : (
@@ -364,11 +343,11 @@ export default function ImportApprovalListPage() {
                         <Button
                           variant="outline"
                           className={cn(
-                            "justify-start text-left font-normal h-9 bg-white shadow-sm",
+                            "justify-start text-left font-normal h-9 bg-white shadow-sm w-[130px]",
                             !dateRange.to && "text-slate-500",
                           )}
                         >
-                          <CalendarDays className="mr-2 h-4 w-4" />
+                          <CalendarDays className="mr-2 h-4 w-4 shrink-0" />
                           {dateRange.to ? (
                             format(dateRange.to, "dd/MM/yyyy")
                           ) : (
@@ -409,7 +388,7 @@ export default function ImportApprovalListPage() {
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                   <Input
-                    placeholder={t("Search Receipt Code...")}
+                    placeholder={t("Search Receipt, PO...")}
                     className="pl-9 h-9"
                     maxLength={50}
                     value={searchTerm}
@@ -418,17 +397,18 @@ export default function ImportApprovalListPage() {
                 </div>
               </div>
             </CardHeader>
+            
             <CardContent className="p-0 flex flex-col justify-between flex-1">
-              <div className="[&>div]:max-h-[350px] [&>div]:min-h-[350px] [&>div]:overflow-y-auto">
+              <div className="[&>div]:max-h-[450px] [&>div]:min-h-[450px] [&>div]:overflow-y-auto">
                 <Table>
                   <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                     <TableRow className="bg-slate-50">
                       <TableHead
-                        className="pl-6 cursor-pointer transition-colors"
+                        className="pl-6 cursor-pointer transition-colors w-[25%]"
                         onClick={() => handleSort("date")}
                       >
                         <div className="flex items-center gap-1.5 select-none">
-                          {t("Receipt & Date")}
+                          {t("Receipt Date")}
                           {sortConfig?.key === "date" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
@@ -441,15 +421,13 @@ export default function ImportApprovalListPage() {
                         </div>
                       </TableHead>
 
-                      <TableHead>{t("Requester")}</TableHead>
-
                       <TableHead
-                        className="cursor-pointer transition-colors"
-                        onClick={() => handleSort("items")}
+                        className="cursor-pointer transition-colors w-[25%]"
+                        onClick={() => handleSort("receiptCode")}
                       >
                         <div className="flex items-center gap-1.5 select-none">
-                          {t("Items")}
-                          {sortConfig?.key === "items" ? (
+                          {t("Receipt & PO Code")}
+                          {sortConfig?.key === "receiptCode" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
                             ) : (
@@ -461,11 +439,14 @@ export default function ImportApprovalListPage() {
                         </div>
                       </TableHead>
 
-                      <TableHead>{t("Status")}</TableHead>
-                      {filterStatus == "Rejected" && (
-                        <TableHead>{t("Reject Reasons")}</TableHead>
-                      )}
-                      <TableHead className="text-right pr-6">
+                      <TableHead className="w-[20%]">
+                        {t("Warehouse")}
+                      </TableHead>
+
+                      <TableHead className="w-[15%] text-center">
+                        {t("Status")}
+                      </TableHead>
+                      <TableHead className="text-right pr-6 w-[15%]">
                         {t("Action")}
                       </TableHead>
                     </TableRow>
@@ -473,115 +454,102 @@ export default function ImportApprovalListPage() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-32 text-center">
+                        <TableCell colSpan={5} className="h-32 text-center">
                           <div className="flex justify-center items-center gap-2 text-indigo-600">
                             <Loader2 className="w-6 h-6 animate-spin" />{" "}
-                            {t("Loading data...")}
+                            {t("Loading receipts...")}
                           </div>
                         </TableCell>
                       </TableRow>
                     ) : paginatedData.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={6}
+                          colSpan={5}
                           className="h-32 text-center text-slate-500"
                         >
-                          {t("No pending requests found.")}
+                          {t("No receipts found.")}
                         </TableCell>
                       </TableRow>
                     ) : (
                       paginatedData.map((item) => (
                         <TableRow
                           key={item.receiptId}
-                          className="group hover:bg-slate-50/50 transition-colors"
+                          className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
+                          onClick={() => {
+                            const selection = window.getSelection();
+                            if (selection && selection.toString().length > 0) return;
+                            handleReview(item.receiptId);
+                          }}
                         >
                           <TableCell className="pl-6">
                             <div className="flex flex-col">
-                              <span className="font-semibold text-slate-700">
-                                {item.receiptCode}
+                              <span className="font-semibold text-slate-800">
+                                {formatDateTime(item.receiptDate)}
                               </span>
-                              <span className="text-xs text-slate-400 flex items-center gap-1">
-                                <CalendarDays className="w-3 h-3" />{" "}
-                                {formatDate(item.receiptDate)}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="text-slate-700 font-medium">
-                                {item.createdByName}
-                              </span>
-                              <span className="text-xs text-slate-400">
-                                {t("Construction Team")}
+                              <span className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+                                <CalendarDays className="w-3.5 h-3.5" />
+                                {t("System Date")}
                               </span>
                             </div>
                           </TableCell>
+
                           <TableCell>
-                            <div className="flex items-center gap-2 text-slate-600">
-                              <Package className="w-4 h-4 text-slate-400" />
-                              {item.itemCount} {t("items")}
+                            <div className="flex flex-col text-left">
+                              <div className="flex items-center gap-2">
+                                <Receipt className="w-4 h-4 text-slate-400" />
+                                <span className="font-bold text-slate-800">
+                                  {item.receiptCode}
+                                </span>
+                              </div>
+                              <span className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                                PO: <span className="font-mono bg-slate-100 px-1 rounded">{item.purchaseOrderCode || "N/A"}</span>
+                              </span>
                             </div>
                           </TableCell>
+
                           <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Building2 className="w-4 h-4 text-slate-400" />
+                              <span className="text-sm font-medium text-slate-700">
+                                {item.warehouseName || t("Main Warehouse")}
+                              </span>
+                            </div>
+                          </TableCell>
+
+                          <TableCell className="text-center">
                             <Badge
                               variant="outline"
-                              className={
-                                item.status === "Requested"
-                                  ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                                  : item.status === "Submitted"
-                                    ? "bg-green-50 text-green-700 border-green-200"
-                                    : item.status === "Rejected"
-                                      ? "bg-red-50 text-red-700 border-red-200"
-                                      : "bg-gray-50 text-gray-700 border-gray-200"
-                              }
+                              className={getStatusBadge(item.status)}
                             >
-                              {item.status != null && t(item.status)}
+                              {item.status === "Completed" ? t("Pending Closure") : t(formatPascalCase(item.status))}
                             </Badge>
                           </TableCell>
-                          {filterStatus == "Rejected" && (
-                            <TableCell>
-                              <div className="flex items-center gap-2 text-slate-600 max-w-xs truncate">
-                                {item.rejectionReason ||
-                                  t("No reason provided")}
-                              </div>
-                            </TableCell>
-                          )}
+
                           <TableCell className="text-right pr-6">
                             <Button
                               size="sm"
-                              onClick={() =>
-                                handleReview(item.receiptId, item.status!)
-                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReview(item.receiptId);
+                              }}
                               disabled={loadingId === item.receiptId}
-                              variant={
-                                item.status === "Rejected" ||
-                                item.status === "Submitted"
-                                  ? "outline"
-                                  : "default"
-                              }
+                              variant={item.status === "Completed" ? "default" : "outline"}
                               className={
-                                item.status === "Rejected"
-                                  ? "text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-primary w-[150px]"
-                                  : item.status === "Submitted"
-                                    ? "text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-primary w-[100px]"
-                                    : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[120px]"
+                                item.status === "Completed"
+                                  ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm min-w-[100px]"
+                                  : "text-slate-600 border-slate-200 hover:text-indigo-600 hover:bg-indigo-50 min-w-[100px]"
                               }
                             >
                               {loadingId === item.receiptId ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : item.status === "Rejected" ? (
+                              ) : item.status === "Completed" ? (
                                 <>
-                                  {t("Revert to Draft")}{" "}
-                                  <RotateCcw className="w-4 h-4 ml-1.5" />
-                                </>
-                              ) : item.status === "Submitted" ? (
-                                <>
-                                  {t("View")} <Eye className="w-4 h-4 ml-1.5" />
+                                  {t("Review")}{" "}
+                                  <ArrowRight className="w-4 h-4 ml-1.5" />
                                 </>
                               ) : (
                                 <>
-                                  {t("Process")}{" "}
-                                  <ArrowRight className="w-4 h-4 ml-1.5" />
+                                  {t("View")} <Eye className="w-4 h-4 ml-1.5" />
                                 </>
                               )}
                             </Button>
@@ -593,8 +561,9 @@ export default function ImportApprovalListPage() {
                 </Table>
               </div>
 
+              {/* PAGINATION */}
               {!isLoading && filteredData.length > 0 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 gap-4">
+                <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 gap-4 mt-auto">
                   <div className="text-sm text-slate-500">
                     {t("Showing")}{" "}
                     <span className="font-medium text-slate-900">
@@ -628,7 +597,6 @@ export default function ImportApprovalListPage() {
                           <SelectItem value="10">10</SelectItem>
                           <SelectItem value="20">20</SelectItem>
                           <SelectItem value="50">50</SelectItem>
-                          <SelectItem value="100">100</SelectItem>
                           <SelectItem value="-1">{t("All")}</SelectItem>
                         </SelectContent>
                       </Select>
@@ -654,7 +622,7 @@ export default function ImportApprovalListPage() {
                         size="sm"
                         onClick={() =>
                           setCurrentPage((prev) =>
-                            Math.min(prev + 1, totalPages),
+                            Math.max(prev + 1, totalPages),
                           )
                         }
                         disabled={currentPage === totalPages}

@@ -124,6 +124,10 @@ export function Sidebar() {
           label: t("sidebar.tabs.purchase_orders"),
           href: "/purchasing/purchase-orders",
         },
+        {
+          label: t("sidebar.tabs.incident_reports"),
+          href: "/purchasing/incident-reports",
+        },
       ],
     },
     {
@@ -133,6 +137,10 @@ export function Sidebar() {
         {
           label: t("sidebar.tabs.purchase_orders"),
           href: "/accountant/purchase-orders",
+        },
+        {
+          label: t("sidebar.tabs.inbound_requests"),
+          href: "/accountant/inbound-requests",
         },
       ],
     },
@@ -144,9 +152,26 @@ export function Sidebar() {
           label: t("sidebar.tabs.alerts"),
           href: "/manager/alerts",
         },
+        {
+          label: t("sidebar.tabs.incident_reports"),
+          href: "/manager/incident-reports",
+        },
       ],
     },
-    { label: t("sidebar.roles.staff"), href: "/staff/import-request" },
+    {
+      label: t("sidebar.roles.staff"),
+      href: "/manager",
+      subItems: [
+        {
+          label: t("sidebar.tabs.pending_pos"),
+          href: "/manager/pending-pos",
+        },
+        {
+          label: t("sidebar.tabs.inbound-requests"),
+          href: "/manager/inbound-requests",
+        },
+      ],
+    }
   ];
 
   const auditTabs = [
