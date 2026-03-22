@@ -51,6 +51,12 @@ public class PurchaseOrder
     [Column(TypeName = "datetime")]
     public DateTime? SentToSupplierAt { get; set; }
 
+    [Column(TypeName = "datetime")]
+    public DateTime? ExpectedDeliveryDate { get; set; }
+
+    [StringLength(500)]
+    public string? SupplierNote { get; set; }
+
     [Column(TypeName = "decimal(18, 2)")]
     public decimal? TotalAmount { get; set; }
 
@@ -75,4 +81,7 @@ public class PurchaseOrder
 
     [InverseProperty("PurchaseOrder")]
     public virtual ICollection<Receipt> Receipts { get; set; } = new List<Receipt>();
+
+    [InverseProperty("PurchaseOrder")]
+    public virtual ICollection<SupplementaryReceipt> SupplementaryReceipts { get; set; } = new List<SupplementaryReceipt>();
 }

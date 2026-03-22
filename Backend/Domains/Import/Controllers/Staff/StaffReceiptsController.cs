@@ -55,7 +55,6 @@ namespace Backend.Domains.Import.Controllers.Staff
             try
             {
                 var staffId = 4;
-                var staffName = "Staff";
 
                 await _receiptService.ConfirmGoodsReceiptAsync(receiptId, dto, staffId);
                 return Ok(new { message = "Goods receipt confirmed successfully" });
@@ -84,7 +83,11 @@ namespace Backend.Domains.Import.Controllers.Staff
             try
             {
                 var staffId = 4; // TODO: replace with JWT claims
-                var result = await _receiptService.ReceiveGoodsFromPOAsync(dto.PurchaseOrderId, dto.Items, staffId);
+                var result = await _receiptService.ReceiveGoodsFromPOAsync(
+                    dto.PurchaseOrderId,
+                    dto.SupplementaryReceiptId,
+                    dto.Items,
+                    staffId);
                 return Ok(result);
             }
             catch (KeyNotFoundException ex)
@@ -98,6 +101,20 @@ namespace Backend.Domains.Import.Controllers.Staff
             catch (ArgumentException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
+
+        [HttpGet("pending-pos")]
+        public async Task<IActionResult> GetPendingPurchaseOrders()
+        {
+            try
+            {
+                var result = await _receiptService.GetPendingPurchaseOrdersAsync();
+                return Ok(result);
             }
             catch (Exception ex)
             {
@@ -157,12 +174,12 @@ namespace Backend.Domains.Import.Controllers.Staff
         }
 
         /// <summary>
-        /// POST /api/staffreceipts/inbound-requests/{receiptId}/qc-check
+        /// POST /api/staff/receipts/{receiptId}/qc-check
         /// Nộp kết quả kiểm tra QC cho một phiếu nhập kho.
         /// OverallResult: "Pass" | "Fail"
         /// Status transition: Approved or GoodsArrived → GoodsArrived
         /// </summary>
-        [HttpPost("inbound-requests/{receiptId}/qc-check")]
+        [HttpPost("{receiptId}/qc-check")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -193,10 +210,10 @@ namespace Backend.Domains.Import.Controllers.Staff
         }
 
         /// <summary>
-        /// GET /api/staffreceipts/inbound-requests/{receiptId}/qc-check
+        /// GET /api/staff/receipts/{receiptId}/qc-check
         /// Lấy kết quả QC check của một phiếu nhập kho.
         /// </summary>
-        [HttpGet("inbound-requests/{receiptId}/qc-check")]
+        [HttpGet("{receiptId}/qc-check")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetQCCheck(long receiptId)
@@ -217,11 +234,11 @@ namespace Backend.Domains.Import.Controllers.Staff
         }
 
         /// <summary>
-        /// POST /api/staffreceipts/inbound-requests/{receiptId}/incident-report
+        /// POST /api/staff/receipts/{receiptId}/incident-report
         /// Lập biên bản bất thường khi nhận hàng có sự cố.
         /// Status receipt: Approved or GoodsArrived
         /// </summary>
-        [HttpPost("inbound-requests/{receiptId}/incident-report")]
+        [HttpPost("{receiptId}/incident-report")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -254,7 +271,7 @@ namespace Backend.Domains.Import.Controllers.Staff
         /// <summary>
         /// Lấy biên bản bất thường của một phiếu nhập kho.
         /// </summary>
-        [HttpGet("inbound-requests/{receiptId}/incident-report")]
+        [HttpGet("{receiptId}/incident-report")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetIncidentReport(long receiptId)

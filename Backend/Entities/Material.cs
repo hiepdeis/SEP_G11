@@ -80,4 +80,7 @@ public partial class Material
     [InverseProperty("Material")]
     public virtual ICollection<IncidentReportDetail> IncidentReportDetails { get; set; } = new List<IncidentReportDetail>();
 
+    [InverseProperty("Material")]
+    public virtual ICollection<SupplementaryReceiptItem> SupplementaryReceiptItems { get; set; } = new List<SupplementaryReceiptItem>();
+
 }

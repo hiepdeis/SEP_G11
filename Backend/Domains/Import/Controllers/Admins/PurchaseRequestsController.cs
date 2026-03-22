@@ -61,7 +61,7 @@ namespace Backend.Domains.Import.Controllers.Admins
                     Notes = i.Notes
                 }).ToList();
 
-                var request = await _service.CreateRequestFromAlertAsync(alertId, adminId, dto.ProjectId, items, dto.FinalQuantity);
+                var request = await _service.CreateRequestFromAlertAsync(alertId, adminId, dto.ProjectId, items);
                 return CreatedAtAction(nameof(GetRequest), new { requestId = request.RequestId }, ToDto(request));
             }
             catch (KeyNotFoundException ex)

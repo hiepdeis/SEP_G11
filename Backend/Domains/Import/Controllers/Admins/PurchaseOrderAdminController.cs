@@ -15,6 +15,25 @@ namespace Backend.Domains.Import.Controllers.Admins
             _service = service;
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetPendingOrders()
+        {
+            try
+            {
+                var orders = await _service.GetOrdersAsync();
+                var result = orders
+                    .Where(o => o.Status == "AccountantApproved")
+                    .Select(PurchaseOrderMapper.ToDto)
+                    .ToList();
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
+
         [HttpPost("{purchaseOrderId:long}/approve")]
         public async Task<IActionResult> Approve(long purchaseOrderId)
         {

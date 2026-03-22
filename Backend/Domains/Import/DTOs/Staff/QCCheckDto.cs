@@ -4,9 +4,6 @@ namespace Backend.Domains.Import.DTOs.Staff
 
     public class SubmitQCCheckDto
     {
-        /// <summary>"Pass" | "Fail"</summary>
-        public string OverallResult { get; set; } = string.Empty;
-
         public string? Notes { get; set; }
 
         public List<QCCheckDetailInputDto> Details { get; set; } = new();
@@ -14,11 +11,32 @@ namespace Backend.Domains.Import.DTOs.Staff
 
     public class QCCheckDetailInputDto
     {
-        public long ReceiptDetailId { get; set; }
+        public int MaterialId { get; set; }
+
+        public decimal ActualQuantity { get; set; }
+
+        public decimal PassQuantity { get; set; }
+
+        public decimal FailQuantity { get; set; }
 
         /// <summary>"Pass" | "Fail"</summary>
         public string Result { get; set; } = string.Empty;
 
+        public string? FailReason { get; set; }
+    }
+
+    public class QCSubmitResultDto
+    {
+        public string Status { get; set; } = string.Empty;
+        public string? PoStatus { get; set; }
+        public List<QCFailedItemDto> FailedItems { get; set; } = new();
+        public string? NextStep { get; set; }
+    }
+
+    public class QCFailedItemDto
+    {
+        public int MaterialId { get; set; }
+        public decimal FailQuantity { get; set; }
         public string? FailReason { get; set; }
     }
 
@@ -58,5 +76,9 @@ namespace Backend.Domains.Import.DTOs.Staff
         public string Result { get; set; } = string.Empty;
 
         public string? FailReason { get; set; }
+
+        public decimal PassQuantity { get; set; }
+
+        public decimal FailQuantity { get; set; }
     }
 }

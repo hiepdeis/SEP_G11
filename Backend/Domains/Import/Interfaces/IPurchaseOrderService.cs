@@ -14,6 +14,7 @@ namespace Backend.Domains.Import.Interfaces
         Task<PurchaseOrder> AdminApproveAsync(long purchaseOrderId, int adminId);
         Task<PurchaseOrder> AdminRejectAsync(long purchaseOrderId, int adminId, string reason);
         Task<PurchaseOrder> SendToSupplierAsync(long purchaseOrderId, int purchasingId);
+        Task<PurchaseOrder> ConfirmDeliveryAsync(long purchaseOrderId, DateTime expectedDeliveryDate, string? supplierNote);
         Task<List<PurchaseOrder>> GetOrdersAsync();
         Task<PurchaseOrder?> GetOrderAsync(long purchaseOrderId);
     }

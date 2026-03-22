@@ -7,22 +7,18 @@ namespace Backend.Domains.Import.DTOs.Staff
         /// <summary>Mô tả tổng quát sự cố</summary>
         public string Description { get; set; } = string.Empty;
 
-        /// <summary>
-        /// ID của QCCheck liên quan (tuỳ chọn — tự động gán nếu receipt đã có QC fail).
-        /// Nếu null và receipt có QCCheck với OverallResult = "Fail", hệ thống tự liên kết.
-        /// </summary>
-        public long? QCCheckId { get; set; }
-
         public List<CreateIncidentReportDetailDto> Details { get; set; } = new();
     }
 
     public class CreateIncidentReportDetailDto
     {
-        public long ReceiptDetailId { get; set; }
+        public int MaterialId { get; set; }
 
-        public decimal ExpectedQuantity { get; set; }
+        public decimal OrderedQuantity { get; set; }
 
-        public decimal ActualQuantity { get; set; }
+        public decimal PassQuantity { get; set; }
+
+        public decimal FailQuantity { get; set; }
 
         /// <summary>"Quantity" | "Quality" | "Damage"</summary>
         public string IssueType { get; set; } = string.Empty;
@@ -52,7 +48,7 @@ namespace Backend.Domains.Import.DTOs.Staff
 
         public string Description { get; set; } = string.Empty;
 
-        /// <summary>"Open" | "Resolved"</summary>
+        /// <summary>"Open" | "PendingManagerReview" | "PendingPurchasingAction" | "PendingManagerApproval" | "AwaitingSupplementaryGoods" | "Resolved"</summary>
         public string Status { get; set; } = string.Empty;
 
         public string? Resolution { get; set; }

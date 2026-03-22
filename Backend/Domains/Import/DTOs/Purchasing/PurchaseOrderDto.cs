@@ -32,6 +32,8 @@ namespace Backend.Domains.Import.DTOs.Purchasing
         public int? AdminApprovedBy { get; set; }
         public DateTime? AdminApprovedAt { get; set; }
         public DateTime? SentToSupplierAt { get; set; }
+        public DateTime? ExpectedDeliveryDate { get; set; }
+        public string? SupplierNote { get; set; }
         public decimal? TotalAmount { get; set; }
         public List<PurchaseOrderItemDto> Items { get; set; } = new();
     }

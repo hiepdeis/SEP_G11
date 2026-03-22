@@ -23,6 +23,8 @@ namespace Backend.Domains.Import.DTOs.Purchasing
                 AdminApprovedBy = order.AdminApprovedBy,
                 AdminApprovedAt = order.AdminApprovedAt,
                 SentToSupplierAt = order.SentToSupplierAt,
+                ExpectedDeliveryDate = order.ExpectedDeliveryDate,
+                SupplierNote = order.SupplierNote,
                 TotalAmount = order.TotalAmount,
                 Items = order.Items.Select(i => new PurchaseOrderItemDto
                 {

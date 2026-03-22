@@ -10,10 +10,31 @@ namespace Backend.Domains.Import.Controllers.Purchasing
     public class PurchaseOrdersController : ControllerBase
     {
         private readonly IPurchaseOrderService _service;
+        private readonly ISupplierService _supplierService;
 
-        public PurchaseOrdersController(IPurchaseOrderService service)
+        public PurchaseOrdersController(IPurchaseOrderService service, ISupplierService supplierService)
         {
             _service = service;
+            _supplierService = supplierService;
+        }
+
+        [HttpGet("suppliers")]
+        public async Task<IActionResult> GetSuppliers()
+        {
+            try
+            {
+                var suppliers = await _supplierService.GetSuppliersAsync();
+                var result = suppliers.Select(s => new
+                {
+                    supplierId = s.SupplierId,
+                    name = s.Name
+                }).ToList();
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
         }
 
         [HttpGet]
@@ -96,6 +117,42 @@ namespace Backend.Domains.Import.Controllers.Purchasing
                     purchaseOrderId = updated.PurchaseOrderId,
                     status = updated.Status,
                     sentAt = updated.SentToSupplierAt
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
+
+        [HttpPatch("{purchaseOrderId:long}/confirm-delivery")]
+        public async Task<IActionResult> ConfirmDelivery(long purchaseOrderId, [FromBody] ConfirmDeliveryDto dto)
+        {
+            try
+            {
+                var order = await _service.ConfirmDeliveryAsync(
+                    purchaseOrderId,
+                    dto.ExpectedDeliveryDate,
+                    dto.SupplierNote);
+
+                return Ok(new
+                {
+                    purchaseOrderId = order.PurchaseOrderId,
+                    status = order.Status,
+                    expectedDeliveryDate = order.ExpectedDeliveryDate,
+                    supplierNote = order.SupplierNote
                 });
             }
             catch (KeyNotFoundException ex)

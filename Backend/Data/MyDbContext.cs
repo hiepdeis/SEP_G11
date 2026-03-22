@@ -99,6 +99,10 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<IncidentReportDetail> IncidentReportDetails { get; set; }
 
+    public virtual DbSet<SupplementaryReceipt> SupplementaryReceipts { get; set; }
+
+    public virtual DbSet<SupplementaryReceiptItem> SupplementaryReceiptItems { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AdjustmentReason>(entity =>
