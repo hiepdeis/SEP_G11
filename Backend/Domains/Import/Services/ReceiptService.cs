@@ -729,7 +729,7 @@ namespace Backend.Domains.Import.Services
             if (overallResult == "Pass")
             {
                 var cardPrefix = $"WC-{today:yyyyMMdd}-";
-                var nextSeq = await GetNextWarehouseCardSequenceAsync(today);
+                var cardSeq = await GetNextWarehouseCardSequenceAsync(today);
 
                 // Apply pass quantities to inventory and warehouse cards
                 foreach (var d in dto.Details)
@@ -767,8 +767,8 @@ namespace Backend.Domains.Import.Services
                         inventory.LastUpdated = today;
                     }
 
-                    var cardCode = $"{cardPrefix}{nextSeq:D4}";
-                    nextSeq++;
+                    var cardCode = $"{cardPrefix}{cardSeq:D4}";
+                    cardSeq++;
                     var warehouseCard = new WarehouseCard
                     {
                         CardCode = cardCode,
@@ -1277,7 +1277,9 @@ namespace Backend.Domains.Import.Services
                     QuantityBefore = w.QuantityBefore,
                     QuantityAfter = w.QuantityAfter,
                     CreatedBy = w.CreatedBy,
-                    CreatedByName = w.CreatedByNavigation.FullName ?? w.CreatedByNavigation.Email,
+                    CreatedByName = w.CreatedByNavigation != null
+                        ? w.CreatedByNavigation.FullName ?? w.CreatedByNavigation.Email
+                        : null,
                     Notes = w.Notes
                 })
                 .ToListAsync();
