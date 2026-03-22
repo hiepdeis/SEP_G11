@@ -728,6 +728,9 @@ namespace Backend.Domains.Import.Services
             // STEP 6: finalize based on QC result
             if (overallResult == "Pass")
             {
+                var cardPrefix = $"WC-{today:yyyyMMdd}-";
+                var nextSeq = await GetNextWarehouseCardSequenceAsync(today);
+
                 // Apply pass quantities to inventory and warehouse cards
                 foreach (var d in dto.Details)
                 {
@@ -764,7 +767,8 @@ namespace Backend.Domains.Import.Services
                         inventory.LastUpdated = today;
                     }
 
-                    var cardCode = await GenerateWarehouseCardCodeAsync(today);
+                    var cardCode = $"{cardPrefix}{nextSeq:D4}";
+                    nextSeq++;
                     var warehouseCard = new WarehouseCard
                     {
                         CardCode = cardCode,
@@ -1347,7 +1351,7 @@ namespace Backend.Domains.Import.Services
             return $"{prefix}-{(count + 1):D4}";
         }
 
-        private async Task<string> GenerateWarehouseCardCodeAsync(DateTime today)
+        private async Task<int> GetNextWarehouseCardSequenceAsync(DateTime today)
         {
             var prefix = $"WC-{today:yyyyMMdd}-";
             var lastCard = await _context.WarehouseCards
@@ -1363,7 +1367,7 @@ namespace Backend.Domains.Import.Services
                     nextSeq = lastSeq + 1;
             }
 
-            return $"{prefix}{nextSeq:D4}";
+            return nextSeq;
         }
 
         private static string? ResolveUserName(Dictionary<int, string> userMap, int? userId)

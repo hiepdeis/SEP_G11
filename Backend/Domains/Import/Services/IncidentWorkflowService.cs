@@ -372,6 +372,8 @@ namespace Backend.Domains.Import.Services
 
             var today = DateTime.UtcNow;
             decimal totalPassQuantity = 0;
+            var cardPrefix = $"WC-{today:yyyyMMdd}-";
+            var nextSeq = await GetNextWarehouseCardSequenceAsync(today);
 
             foreach (var detail in incident.QCCheck.QCCheckDetails)
             {
@@ -408,7 +410,8 @@ namespace Backend.Domains.Import.Services
                     inventory.LastUpdated = today;
                 }
 
-                var cardCode = await GenerateWarehouseCardCodeAsync(today);
+                var cardCode = $"{cardPrefix}{nextSeq:D4}";
+                nextSeq++;
                 var warehouseCard = new WarehouseCard
                 {
                     CardCode = cardCode,
@@ -569,7 +572,7 @@ namespace Backend.Domains.Import.Services
             await _context.SaveChangesAsync();
         }
 
-        private async Task<string> GenerateWarehouseCardCodeAsync(DateTime today)
+        private async Task<int> GetNextWarehouseCardSequenceAsync(DateTime today)
         {
             var prefix = $"WC-{today:yyyyMMdd}-";
             var lastCard = await _context.WarehouseCards
@@ -585,7 +588,7 @@ namespace Backend.Domains.Import.Services
                     nextSeq = lastSeq + 1;
             }
 
-            return $"{prefix}{nextSeq:D4}";
+            return nextSeq;
         }
 
         private static List<ManagerIncidentItemSummaryDto> MapIncidentItems(IncidentReport incident)

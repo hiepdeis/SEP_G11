@@ -101,7 +101,7 @@ namespace Backend.Domains.Import.Services
 
         public async Task<List<PurchaseRequest>> GetPendingRequestsAsync()
         {
-            var rejectedStatuses = new[] { "AdminRejected", "AccountantRejected" };
+            // var rejectedStatuses = new[] { "AdminRejected", "AccountantRejected" };
 
             return await _context.PurchaseRequests
                 .Include(r => r.PurchaseOrders)
@@ -109,8 +109,7 @@ namespace Backend.Domains.Import.Services
                 .Include(r => r.Alert)
                 .Include(r => r.Items)
                     .ThenInclude(i => i.Material)
-                .Where(r => r.Status == "Submitted"
-                            || r.PurchaseOrders.Any(o => rejectedStatuses.Contains(o.Status)))
+                .Where(r => r.Status == "Submitted")
                 .OrderByDescending(r => r.CreatedAt)
                 .AsNoTracking()
                 .ToListAsync();
