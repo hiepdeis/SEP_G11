@@ -115,4 +115,13 @@
         public decimal QuantityOnHand { get; set; }
         public decimal QuantityAllocated { get; set; }
     }
+    public sealed class MaterialInventoryByWarehouseDto
+    {
+        public int WarehouseId { get; set; }
+        public string WarehouseName { get; set; } = null!;
+        public decimal TotalOnHand { get; set; }
+        public decimal TotalAllocated { get; set; }
+        public decimal Available => TotalOnHand - TotalAllocated;
+        public List<MaterialInventoryItemDto> Rows { get; set; } = new();
+    }
 }

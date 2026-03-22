@@ -1,16 +1,10 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Search, Filter, ArrowUpDown, Trash2, Plus, Edit2, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { getRoles, getUsers, RoleItem,updateUserRole,updateUser,deleteUser as deleteUserApi } from "@/services/admin-users";
 
-// Matches DB: Roles table
-const ROLES = [
-  { roleId: 1, roleName: "Admin" },
-  { roleId: 2, roleName: "WarehouseManager" },
-  { roleId: 3, roleName: "WarehouseStaff" },
-  { roleId: 4, roleName: "Accountant" },
-  { roleId: 5, roleName: "Viewer" },
-];
+
 
 // Matches DB: Users table
 interface UserItem {
@@ -23,23 +17,18 @@ interface UserItem {
   status: boolean; // bit: true=active, false=inactive
 }
 
-const initialUsers: UserItem[] = [
-  { userId: 1, username: "admin", roleId: 1, fullName: "Nguyen Van An", email: "an.nv@company.vn", phoneNumber: "0901234567", status: true },
-  { userId: 2, username: "bich.tt", roleId: 2, fullName: "Tran Thi Bich", email: "bich.tt@company.vn", phoneNumber: "0912345678", status: true },
-  { userId: 3, username: "cuong.lh", roleId: 3, fullName: "Le Hoang Cuong", email: "cuong.lh@company.vn", phoneNumber: "0923456789", status: false },
-  { userId: 4, username: "dung.pd", roleId: 3, fullName: "Pham Duc Dung", email: "dung.pd@company.vn", phoneNumber: "0934567890", status: true },
-  { userId: 5, username: "em.vt", roleId: 5, fullName: "Vo Thi Em", email: "em.vt@company.vn", phoneNumber: "0945678901", status: true },
-  { userId: 6, username: "phuc.hv", roleId: 4, fullName: "Hoang Van Phuc", email: "phuc.hv@company.vn", phoneNumber: "0956789012", status: true },
-  { userId: 7, username: "giang.dt", roleId: 3, fullName: "Dang Thi Giang", email: "giang.dt@company.vn", phoneNumber: "0967890123", status: false },
-  { userId: 8, username: "hieu.bm", roleId: 3, fullName: "Bui Minh Hieu", email: "hieu.bm@company.vn", phoneNumber: "0978901234", status: true },
-];
 
-const getRoleName = (roleId: number) => ROLES.find((r) => r.roleId === roleId)?.roleName || "Unknown";
+
+const getRoleName = (roleId: number, roles: RoleItem[]) =>
+  roles.find((r) => r.roleId === roleId)?.roleName || "Unknown";
 
 const emptyForm: Omit<UserItem, "userId"> = { username: "", roleId: 3, fullName: "", email: "", phoneNumber: "", status: true };
 
 export default function UsersPage() {
-  const [users, setUsers] = useState(initialUsers);
+const [roles, setRoles] = useState<RoleItem[]>([]);
+const [loadingRoles, setLoadingRoles] = useState(false);
+const [users, setUsers] = useState<UserItem[]>([]);
+const [loadingUsers, setLoadingUsers] = useState(false);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterRole, setFilterRole] = useState("all");
@@ -50,7 +39,54 @@ export default function UsersPage() {
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyForm);
   const perPage = 6;
+// load roles
+useEffect(() => {
+  const loadRoles = async () => {
+    try {
+      setLoadingRoles(true);
+      const data = await getRoles();
+      setRoles(data);
+    } catch (err) {
+      console.error("Load roles failed", err);
+      toast.error("Không load được danh sách vai trò");
+    } finally {
+      setLoadingRoles(false);
+    }
+  };
 
+  loadRoles();
+}, []);
+
+
+// load users
+useEffect(() => {
+  const loadUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const res = await getUsers({
+        page: 1,
+        pageSize: 100,
+      });
+      setUsers(res.items);
+    } catch (err) {
+      console.error("Load users failed", err);
+      toast.error("Không load được danh sách người dùng");
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  loadUsers();
+}, []);
+//set defau role
+useEffect(() => {
+  if (roles.length > 0) {
+    setForm((prev) => ({
+      ...prev,
+      roleId: roles[0].roleId,
+    }));
+  }
+}, [roles]);
   const filtered = useMemo(() => {
     let res = users.filter((u) => {
       const matchSearch = u.fullName.toLowerCase().includes(search.toLowerCase()) || u.username.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
@@ -77,23 +113,61 @@ export default function UsersPage() {
   const openEdit = (u: UserItem) => { setForm({ username: u.username, roleId: u.roleId, fullName: u.fullName, email: u.email, phoneNumber: u.phoneNumber, status: u.status }); setEditId(u.userId); setModalOpen(true); };
   const closeModal = () => { setModalOpen(false); setEditId(null); };
 
-  const save = () => {
-    if (!form.username || !form.fullName) { toast.error("Username và Họ tên là bắt buộc"); return; }
+  const save = async () => {
+  if (!form.username || !form.fullName) {
+    toast.error("Username và Họ tên là bắt buộc");
+    return;
+  }
+
+  try {
     if (editId !== null) {
-      setUsers((prev) => prev.map((u) => u.userId === editId ? { ...u, ...form } : u));
+      await updateUser(editId, {
+        fullName: form.fullName,
+        email: form.email,
+        phoneNumber: form.phoneNumber,
+        roleId: form.roleId,
+        status: form.status,
+      });
+
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.userId === editId ? { ...u, ...form } : u
+        )
+      );
+
       toast.success("Cập nhật người dùng thành công");
     } else {
-      setUsers((prev) => [...prev, { ...form, userId: Date.now() }]);
-      toast.success("Thêm người dùng thành công");
+      toast.error("Hiện chưa có API thêm người dùng");
+      return;
     }
+
     closeModal();
-  };
+  } catch (err) {
+    console.error("Update user failed", err);
+    toast.error("Cập nhật người dùng thất bại");
+  }
+};
 
-  const deleteUser = (id: number) => {
-    setUsers((prev) => prev.filter((u) => u.userId !== id));
+  const handleDeleteUser = async (user: UserItem) => {
+  const roleName = getRoleName(user.roleId, roles);
+
+  if (roleName === "Admin") {
+    toast.error("Không được xóa tài khoản Admin");
+    return;
+  }
+
+  const ok = window.confirm(`Bạn có chắc muốn xóa người dùng "${user.fullName}" không?`);
+  if (!ok) return;
+
+  try {
+    await deleteUserApi(user.userId);
+    setUsers((prev) => prev.filter((u) => u.userId !== user.userId));
     toast.success("Xóa người dùng thành công");
-  };
-
+  } catch (err) {
+    console.error("Delete user failed", err);
+    toast.error("Xóa người dùng thất bại");
+  }
+};
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -117,10 +191,14 @@ export default function UsersPage() {
               <option value="active">Hoạt động</option>
               <option value="inactive">Ngừng hoạt động</option>
             </select>
-            <select value={filterRole} onChange={(e) => { setFilterRole(e.target.value); setPage(1); }} className="border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-sm outline-none">
-              <option value="all">Tất cả vai trò</option>
-              {ROLES.map((r) => <option key={r.roleId} value={r.roleId}>{r.roleName}</option>)}
-            </select>
+            <select value={filterRole} onChange={(e) => { setFilterRole(e.target.value); setPage(1); }}>
+  <option value="all">Tất cả vai trò</option>
+  {roles.map((r) => (
+    <option key={r.roleId} value={r.roleId}>
+      {r.roleName}
+    </option>
+  ))}
+</select>
           </div>
         </div>
       </div>
@@ -157,17 +235,34 @@ export default function UsersPage() {
                   <td className="px-5 py-3 text-sm text-gray-600">{u.email}</td>
                   <td className="px-5 py-3 text-sm text-gray-600">{u.phoneNumber}</td>
                   <td className="px-5 py-3">
-                    <select
-                      value={u.roleId}
-                      onChange={(e) => {
-                        const newRoleId = Number(e.target.value);
-                        setUsers((prev) => prev.map((x) => x.userId === u.userId ? { ...x, roleId: newRoleId } : x));
-                        toast.success(`Role updated to ${getRoleName(newRoleId)}`);
-                      }}
-                      className="border border-gray-200 rounded-lg px-2 py-1 bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    >
-                      {ROLES.map((r) => <option key={r.roleId} value={r.roleId}>{r.roleName}</option>)}
-                    </select>
+                   <select
+  value={u.roleId}
+  onChange={async (e) => {
+    const newRoleId = Number(e.target.value);
+
+    try {
+      await updateUserRole(u.userId, newRoleId);
+
+      setUsers((prev) =>
+        prev.map((x) =>
+          x.userId === u.userId ? { ...x, roleId: newRoleId } : x
+        )
+      );
+
+      toast.success(`Đã cập nhật vai trò thành ${getRoleName(newRoleId, roles)}`);
+    } catch (err) {
+      console.error("Update role failed", err);
+      toast.error("Cập nhật vai trò thất bại");
+    }
+  }}
+  className="border border-gray-200 rounded-lg px-2 py-1 bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+>
+  {roles.map((r) => (
+    <option key={r.roleId} value={r.roleId}>
+      {r.roleName}
+    </option>
+  ))}
+</select>
                   </td>
                   <td className="px-5 py-3">
                     <button
@@ -185,9 +280,14 @@ export default function UsersPage() {
                       <button onClick={() => openEdit(u)} className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-600 transition-colors" title="Chỉnh sửa">
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      <button onClick={() => deleteUser(u.userId)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-500 transition-colors" title="Xóa">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {/* <button
+  onClick={() => handleDeleteUser(u)}
+  disabled={getRoleName(u.roleId, roles) === "Admin"}
+  className="p-1.5 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+  title={getRoleName(u.roleId, roles) === "Admin" ? "Không thể xóa Admin" : "Xóa"}
+>
+  <Trash2 className="w-4 h-4" />
+</button> */}
                     </div>
                   </td>
                 </tr>
@@ -234,9 +334,18 @@ export default function UsersPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Vai trò</label>
-                  <select value={form.roleId} onChange={(e) => setForm({ ...form, roleId: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 outline-none text-sm">
-                    {ROLES.map((r) => <option key={r.roleId} value={r.roleId}>{r.roleName}</option>)}
-                  </select>
+                 <select
+  value={form.roleId}
+  onChange={(e) =>
+    setForm({ ...form, roleId: Number(e.target.value) })
+  }
+>
+  {roles.map((r) => (
+    <option key={r.roleId} value={r.roleId}>
+      {r.roleName}
+    </option>
+  ))}
+</select>
                 </div>
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Trạng thái</label>

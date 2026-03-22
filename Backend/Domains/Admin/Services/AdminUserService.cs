@@ -10,12 +10,12 @@ namespace Backend.Domains.Admin.Services
     public sealed class AdminUserService : IAdminUserService
     {
         private readonly MyDbContext _db;
-        
+
 
         public AdminUserService(MyDbContext db)
         {
             _db = db;
-            
+
         }
 
         public async Task<PagedResult<UserListItemDto>> GetUsersAsync(GetUsersQuery query, CancellationToken ct)

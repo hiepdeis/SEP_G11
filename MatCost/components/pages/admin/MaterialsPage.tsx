@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, Fragment } from "react";
+import { useEffect, useState, useMemo, Fragment } from "react";
 import {
   Search, Plus, Edit2, Trash2, X, Package,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
@@ -7,31 +7,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { getCategories, type CategoryItem } from "@/services/material-categories";
+import { getWarehouses, type WarehouseItem } from "@/services/admin-warehouses";
+import { getBins, type BinItem } from "@/services/admin-bins";
+import { getMaterials, MaterialItem } from "@/services/admin-materials";
+import { getInventoryByMaterial, type InventoryGroup } from "@/services/admin-inventory";
 // ─── Reference Data (matches DB) ───
-const CATEGORIES = [
-  { categoryId: 1, code: "RAW", name: "Nguyên vật liệu" },
-  { categoryId: 2, code: "PKG", name: "Vật tư đóng gói" },
-  { categoryId: 3, code: "CHM", name: "Hóa chất" },
-  { categoryId: 4, code: "SPR", name: "Phụ tùng thay thế" },
-  { categoryId: 5, code: "ELC", name: "Linh kiện điện tử" },
-];
 
-const WAREHOUSES_LIST = [
-  { warehouseId: 1, name: "Kho chính Biên Hòa" },
-  { warehouseId: 2, name: "Kho lạnh Q.9" },
-  { warehouseId: 3, name: "Kho trung chuyển BD" },
-  { warehouseId: 4, name: "Kho lưu trữ Long An" },
-];
-
-const BINS_LIST = [
-  { binId: 1, code: "A-01-01", warehouseId: 1, type: "rack" },
-  { binId: 2, code: "A-01-02", warehouseId: 1, type: "rack" },
-  { binId: 3, code: "B-02-01", warehouseId: 1, type: "shelf" },
-  { binId: 4, code: "COLD-01", warehouseId: 2, type: "cold" },
-  { binId: 5, code: "FLOOR-01", warehouseId: 3, type: "floor" },
-  { binId: 6, code: "A-02-01", warehouseId: 1, type: "rack" },
-  { binId: 7, code: "STORE-01", warehouseId: 4, type: "shelf" },
-];
 
 // ─── DB: Materials ───
 interface Material {
@@ -58,38 +40,7 @@ interface InvItem {
   quantityAllocated: number;
 }
 
-const initialMaterials: Material[] = [
-  { materialId: 1, code: "STL-001", name: "Thép thanh A1", unit: "kg", massPerUnit: 1.0, minStockLevel: 500, categoryId: 1, unitPrice: 25000, technicalStandard: "TCVN 1651:2018", specification: "D16, dài 11.7m" },
-  { materialId: 2, code: "COP-002", name: "Dây đồng B2", unit: "m", massPerUnit: 0.5, minStockLevel: 300, categoryId: 1, unitPrice: 45000, technicalStandard: "IEC 60228", specification: "2.5mm², cách điện PVC" },
-  { materialId: 3, code: "PKG-001", name: "Thùng carton L", unit: "pcs", massPerUnit: 0.3, minStockLevel: 1000, categoryId: 2, unitPrice: 8000, technicalStandard: "", specification: "60x40x40cm, 5 lớp" },
-  { materialId: 4, code: "RAW-003", name: "Hạt nhựa PP", unit: "kg", massPerUnit: 1.0, minStockLevel: 800, categoryId: 1, unitPrice: 12000, technicalStandard: "ASTM D4101", specification: "MFI 12g/10min" },
-  { materialId: 5, code: "RAW-004", name: "Tấm nhôm", unit: "sheet", massPerUnit: 2.7, minStockLevel: 200, categoryId: 1, unitPrice: 180000, technicalStandard: "AA6061-T6", specification: "1220x2440x2mm" },
-  { materialId: 6, code: "CHM-001", name: "Sơn xanh công nghiệp", unit: "L", massPerUnit: 1.2, minStockLevel: 100, categoryId: 3, unitPrice: 95000, technicalStandard: "ISO 12944", specification: "Epoxy 2 thành phần" },
-  { materialId: 7, code: "ELC-001", name: "IC điều khiển STM32", unit: "pcs", massPerUnit: 0.01, minStockLevel: 50, categoryId: 5, unitPrice: 85000, technicalStandard: "", specification: "STM32F103C8T6, LQFP48" },
-  { materialId: 8, code: "SPR-001", name: "Vòng bi 6205", unit: "pcs", massPerUnit: 0.15, minStockLevel: 100, categoryId: 4, unitPrice: 65000, technicalStandard: "ISO 15", specification: "25x52x15mm, SKF" },
-];
 
-const initialInventory: InvItem[] = [
-  { id: 1,  warehouseId: 1, binId: 1, materialId: 1, batchCode: "B-2026-001", quantityOnHand: 500, quantityAllocated: 100 },
-  { id: 2,  warehouseId: 1, binId: 2, materialId: 1, batchCode: "B-2026-001", quantityOnHand: 300, quantityAllocated: 0 },
-  { id: 3,  warehouseId: 3, binId: 5, materialId: 1, batchCode: "B-2026-002", quantityOnHand: 400, quantityAllocated: 50 },
-  { id: 4,  warehouseId: 1, binId: 3, materialId: 2, batchCode: "B-2026-003", quantityOnHand: 500, quantityAllocated: 80 },
-  { id: 5,  warehouseId: 2, binId: 4, materialId: 2, batchCode: "B-2026-010", quantityOnHand: 300, quantityAllocated: 0 },
-  { id: 6,  warehouseId: 1, binId: 1, materialId: 3, batchCode: "B-2026-004", quantityOnHand: 3000, quantityAllocated: 500 },
-  { id: 7,  warehouseId: 3, binId: 5, materialId: 3, batchCode: "B-2026-004", quantityOnHand: 2000, quantityAllocated: 200 },
-  { id: 8,  warehouseId: 1, binId: 6, materialId: 4, batchCode: "B-2026-005", quantityOnHand: 1800, quantityAllocated: 300 },
-  { id: 9,  warehouseId: 4, binId: 7, materialId: 4, batchCode: "B-2026-005", quantityOnHand: 1200, quantityAllocated: 0 },
-  { id: 10, warehouseId: 1, binId: 2, materialId: 5, batchCode: "B-2026-006", quantityOnHand: 250, quantityAllocated: 30 },
-  { id: 11, warehouseId: 3, binId: 5, materialId: 5, batchCode: "B-2026-006", quantityOnHand: 150, quantityAllocated: 0 },
-  { id: 12, warehouseId: 2, binId: 4, materialId: 6, batchCode: "B-2026-007", quantityOnHand: 250, quantityAllocated: 40 },
-  { id: 13, warehouseId: 1, binId: 3, materialId: 7, batchCode: "B-2026-008", quantityOnHand: 120, quantityAllocated: 20 },
-  { id: 14, warehouseId: 1, binId: 6, materialId: 8, batchCode: "B-2026-009", quantityOnHand: 200, quantityAllocated: 0 },
-  { id: 15, warehouseId: 4, binId: 7, materialId: 8, batchCode: "B-2026-009", quantityOnHand: 80, quantityAllocated: 10 },
-];
-
-const getCategoryName = (id: number | null) => CATEGORIES.find((c) => c.categoryId === id)?.name || "—";
-const getWhName = (id: number) => WAREHOUSES_LIST.find((w) => w.warehouseId === id)?.name || `Kho#${id}`;
-const getBin = (id: number) => BINS_LIST.find((b) => b.binId === id);
 
 const typeBadgeCls: Record<string, string> = {
   rack: "bg-blue-50 text-blue-600",
@@ -100,8 +51,17 @@ const typeBadgeCls: Record<string, string> = {
 const typeLabel: Record<string, string> = { rack: "Giá kệ", shelf: "Kệ đơn", floor: "Sàn", cold: "Kho lạnh" };
 
 type MatForm = Omit<Material, "materialId">;
-const emptyMatForm: MatForm = { code: "", name: "", unit: "kg", massPerUnit: null, minStockLevel: null, categoryId: 1, unitPrice: null, technicalStandard: "", specification: "" };
-
+const emptyMatForm: MatForm = {
+  code: "",
+  name: "",
+  unit: "kg",
+  massPerUnit: null,
+  minStockLevel: null,
+  categoryId: null,
+  unitPrice: null,
+  technicalStandard: "",
+  specification: ""
+};
 interface InvForm {
   warehouseId: number;
   binId: number;
@@ -113,8 +73,155 @@ const emptyInvForm: InvForm = { warehouseId: 1, binId: 1, batchCode: "", quantit
 
 // ─────────────────────────────────────────
 export default function MaterialsPage() {
+  //fixx
+const [categories, setCategories] = useState<CategoryItem[]>([]);
+const [categoriesLoading, setCategoriesLoading] = useState(true);
+useEffect(() => {
+  const loadCategories = async () => {
+    try {
+      setCategoriesLoading(true);
+      const res = await getCategories();
+      setCategories(res.items ?? []);
+    } catch (error) {
+      console.error("Load categories failed:", error);
+      toast.error("Không tải được danh mục vật tư");
+      setCategories([]);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
+  loadCategories();
+}, []);
+const getCategoryName = (id: number | null) =>
+  categories.find((c) => c.categoryId === id)?.name || "—";
+const getWhName = (warehouseId: number) =>
+  warehouses.find((w) => w.warehouseId === warehouseId)?.name || `Kho #${warehouseId}`;
+//warehouses
+const [warehouses, setWarehouses] = useState<WarehouseItem[]>([]);
+const [warehousesLoading, setWarehousesLoading] = useState(true);
+useEffect(() => {
+  const loadWarehouses = async () => {
+    try {
+      setWarehousesLoading(true);
+      const data = await getWarehouses();
+      setWarehouses(Array.isArray(data) ? data : data.items ?? []);
+    } catch (error) {
+      console.error("Load warehouses failed:", error);
+      toast.error("Không tải được danh sách kho");
+      setWarehouses([]);
+    } finally {
+      setWarehousesLoading(false);
+    }
+  };
+
+  loadWarehouses();
+}, []);
+//bins
+const [bins, setBins] = useState<BinItem[]>([]);
+const [binsLoading, setBinsLoading] = useState(true);
+const getBin = (binId: number) => bins.find((b) => b.binId === binId);
+const getBinsByWarehouse = (warehouseId: number) =>
+  bins.filter((b) => b.warehouseId === warehouseId);
+useEffect(() => {
+  const loadBins = async () => {
+    try {
+      setBinsLoading(true);
+      const data = await getBins();
+      setBins(Array.isArray(data) ? data : data.items ?? []);
+    } catch (error) {
+      console.error("Load bins failed:", error);
+      toast.error("Không tải được danh sách vị trí lưu trữ");
+      setBins([]);
+    } finally {
+      setBinsLoading(false);
+    }
+  };
+
+  loadBins();
+}, []);
+
   // ── Material state ──
-  const [materials, setMaterials] = useState(initialMaterials);
+  // const [materials, setMaterials] = useState(initialMaterials);
+const [materials, setMaterials] = useState<Material[]>([]);
+const [loading, setLoading] = useState(false);
+const [error, setError] = useState<string | null>(null);
+async function loadMaterials() {
+  try {
+    setLoading(true);
+    setError(null);
+
+    const res = await getMaterials({
+      page: 1,
+      pageSize: 100,
+    });
+
+    const mapped: Material[] = res.items.map((item: MaterialItem) => ({
+      materialId: item.materialId,
+      code: item.code,
+      name: item.name,
+      unit: item.unit ?? "",
+      massPerUnit: item.massPerUnit ?? null,
+      minStockLevel: item.minStockLevel ?? null,
+      categoryId: item.categoryId ?? null,
+      unitPrice: item.unitPrice ?? null,
+      technicalStandard: item.technicalStandard ?? "",
+      specification: item.specification ?? "",
+    }));
+
+    setMaterials(mapped);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : "Không tải được vật tư");
+  } finally {
+    setLoading(false);
+  }
+}
+
+useEffect(() => {
+  loadMaterials();
+}, []);
+useEffect(() => {
+  const loadInventory = async () => {
+    if (materials.length === 0) {
+      setInventory([]);
+      return;
+    }
+
+    try {
+      setInventoryLoading(true);
+
+      const results = await Promise.allSettled(
+        materials.map(async (m) => {
+          const groups = await getInventoryByMaterial(m.materialId);
+          return mapInventoryGroupsToItems(m.materialId, groups ?? []);
+        })
+      );
+
+      const merged: InvItem[] = results
+        .filter(
+          (r): r is PromiseFulfilledResult<InvItem[]> => r.status === "fulfilled"
+        )
+        .flatMap((r) => r.value);
+
+      setInventory(merged);
+
+      const failedCount = results.filter((r) => r.status === "rejected").length;
+      if (failedCount > 0) {
+        console.error("Some inventory requests failed:", results);
+        toast.error(`Không tải được tồn kho của ${failedCount} vật tư`);
+      }
+    } catch (error) {
+      console.error("Load inventory failed:", error);
+      toast.error("Không tải được dữ liệu tồn kho");
+      setInventory([]);
+    } finally {
+      setInventoryLoading(false);
+    }
+  };
+
+  loadInventory();
+}, [materials]);
+// Load materials from API
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
   const [matModal, setMatModal] = useState(false);
@@ -125,7 +232,10 @@ export default function MaterialsPage() {
   const perPage = 6;
 
   // ── Inventory state ──
-  const [inventory, setInventory] = useState<InvItem[]>(initialInventory);
+
+
+const [inventory, setInventory] = useState<InvItem[]>([]);
+const [inventoryLoading, setInventoryLoading] = useState(false);
   const [invModal, setInvModal] = useState(false);
   const [editInvId, setEditInvId] = useState<number | null>(null);
   const [invMaterialId, setInvMaterialId] = useState<number | null>(null); // which material's inv we're editing
@@ -133,7 +243,7 @@ export default function MaterialsPage() {
 
   // ── Filtered bins by selected warehouse ──
   const availableBins = useMemo(
-    () => BINS_LIST.filter((b) => b.warehouseId === invForm.warehouseId),
+    () => bins.filter((b) => b.warehouseId === invForm.warehouseId),
     [invForm.warehouseId]
   );
 
@@ -173,7 +283,14 @@ export default function MaterialsPage() {
   };
 
   // ── Material CRUD ──
-  const openAddMat = () => { setMatForm({ ...emptyMatForm }); setEditMatId(null); setMatModal(true); };
+  const openAddMat = () => {
+  setMatForm({
+    ...emptyMatForm,
+    categoryId: categories[0]?.categoryId ?? null,
+  });
+  setEditMatId(null);
+  setMatModal(true);
+};
   const openEditMat = (m: Material) => {
     setMatForm({ code: m.code, name: m.name, unit: m.unit, massPerUnit: m.massPerUnit, minStockLevel: m.minStockLevel, categoryId: m.categoryId, unitPrice: m.unitPrice, technicalStandard: m.technicalStandard, specification: m.specification });
     setEditMatId(m.materialId);
@@ -199,7 +316,7 @@ export default function MaterialsPage() {
 
   // ── Inventory CRUD ──
   const openAddInv = (materialId: number) => {
-    const firstBin = BINS_LIST[0];
+    const firstBin = bins[0];
     setInvForm({ ...emptyInvForm, warehouseId: firstBin.warehouseId, binId: firstBin.binId });
     setEditInvId(null);
     setInvMaterialId(materialId);
@@ -217,6 +334,22 @@ export default function MaterialsPage() {
     setInvMaterialId(inv.materialId);
     setInvModal(true);
   };
+    const mapInventoryGroupsToItems = (
+  materialId: number,
+  groups: InventoryGroup[]
+): InvItem[] => {
+  return groups.flatMap((group) =>
+    (group.rows ?? []).map((row) => ({
+      id: row.id,
+      warehouseId: row.warehouseId ?? group.warehouseId,
+      binId: row.binId,
+      materialId,
+      batchCode: row.batchCode,
+      quantityOnHand: Number(row.quantityOnHand ?? 0),
+      quantityAllocated: Number(row.quantityAllocated ?? 0),
+    }))
+  );
+};
   const saveInv = () => {
     if (!invForm.batchCode.trim()) { toast.error("Mã lô hàng là bắt buộc"); return; }
     if (invForm.quantityAllocated > invForm.quantityOnHand) { toast.error("Số lượng phân bổ không được vượt quá tồn kho"); return; }
@@ -251,7 +384,7 @@ export default function MaterialsPage() {
 
   // Handle warehouse change in inv form → reset bin to first available
   const handleInvWarehouseChange = (warehouseId: number) => {
-    const firstBin = BINS_LIST.find((b) => b.warehouseId === warehouseId);
+    const firstBin = bins.find((b) => b.warehouseId === warehouseId);
     setInvForm((f) => ({ ...f, warehouseId, binId: firstBin?.binId ?? 0 }));
   };
 
@@ -291,7 +424,7 @@ export default function MaterialsPage() {
         </div>
         <select value={catFilter} onChange={(e) => { setCatFilter(e.target.value); setPage(1); }} className="border border-gray-200 rounded-lg px-3 py-2 bg-white text-sm outline-none">
           <option value="all">Tất cả danh mục</option>
-          {CATEGORIES.map((c) => <option key={c.categoryId} value={c.categoryId}>{c.name}</option>)}
+          {categories.map((c) => <option key={c.categoryId} value={c.categoryId}>{c.name}</option>)}
         </select>
       </div>
 
@@ -518,7 +651,7 @@ export default function MaterialsPage() {
                   <label className="block text-sm text-gray-600 mb-1">Danh mục</label>
                   <select value={matForm.categoryId ?? ""} onChange={(e) => setMatForm({ ...matForm, categoryId: e.target.value ? Number(e.target.value) : null })} className={inputCls}>
                     <option value="">Không có</option>
-                    {CATEGORIES.map((c) => <option key={c.categoryId} value={c.categoryId}>{c.name}</option>)}
+                    {categories.map((c) => <option key={c.categoryId} value={c.categoryId}>{c.name}</option>)}
                   </select>
                 </div>
               </div>
@@ -584,7 +717,7 @@ export default function MaterialsPage() {
                   onChange={(e) => handleInvWarehouseChange(Number(e.target.value))}
                   className={inputCls}
                 >
-                  {WAREHOUSES_LIST.map((w) => (
+                  {warehouses.map((w) => (
                     <option key={w.warehouseId} value={w.warehouseId}>{w.name}</option>
                   ))}
                 </select>

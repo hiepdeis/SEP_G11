@@ -10,5 +10,6 @@ namespace Backend.Domains.Admin.Interface
         Task<bool> UpdateAsync(int userId, UpdateUserRequest request, CancellationToken ct);
         Task<bool> ChangeStatusAsync(int userId, bool status, int currentUserId, CancellationToken ct);
         Task<bool> ChangeRoleAsync(int userId, int roleId, CancellationToken ct);
+        
     }
 }

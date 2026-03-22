@@ -212,10 +212,10 @@ namespace Backend.Domains.Admin.Services
             return (true, "Xóa vật tư thành công.");
         }
 
-        public async Task<List<MaterialListItemDto>> GetInventoryByMaterialAsync(int materialId, CancellationToken ct)
+        public async Task<List<MaterialInventoryByWarehouseDto>> GetInventoryByMaterialAsync(int materialId, CancellationToken ct)
         {
             var exists = await _db.Materials.AnyAsync(x => x.MaterialId == materialId, ct);
-            if (!exists) return new List<MaterialListItemDto>();
+            if (!exists) return new List<MaterialInventoryByWarehouseDto>();
 
             var rows = await (
                 from i in _db.InventoryCurrents.AsNoTracking()
@@ -241,7 +241,7 @@ namespace Backend.Domains.Admin.Services
 
             return rows
                 .GroupBy(x => new { x.WarehouseId, x.WarehouseName })
-                .Select(g => new MaterialListItemDto
+                .Select(g => new MaterialInventoryByWarehouseDto
                 {
                     WarehouseId = g.Key.WarehouseId,
                     WarehouseName = g.Key.WarehouseName,
