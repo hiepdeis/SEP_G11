@@ -10,6 +10,8 @@ namespace Backend.Domains.Admin.Interface
         Task<bool> UpdateAsync(int userId, UpdateUserRequest request, CancellationToken ct);
         Task<bool> ChangeStatusAsync(int userId, bool status, int currentUserId, CancellationToken ct);
         Task<bool> ChangeRoleAsync(int userId, int roleId, CancellationToken ct);
-        
+        Task<bool> UpdateRoleAsync(int roleId, UpdateRoleRequest request, CancellationToken ct);
+        Task<bool> DeleteRoleAsync(int roleId, CancellationToken ct);
+        Task<RoleDto> CreateRoleAsync(CreateRoleRequest request, CancellationToken ct);
     }
 }

@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPut, apiDelete } from "@/lib/api";
+import { apiGet, apiPatch, apiPut, apiDelete, apiPost } from "@/lib/api";
 
 export type UserItem = {
   userId: number;
@@ -70,4 +70,21 @@ export function getUsers(params: GetUsersParams = {}) {
 }
 export function updateUserRole(userId: number, roleId: number) {
   return apiPatch(`/admin/users/${userId}/role`, { roleId });
+}
+export type UpdateRolePayload = {
+  roleName: string;
+};
+
+export function updateRole(roleId: number, payload: { roleName: string }) {
+  return apiPut(`/admin/users/roles/${roleId}`, payload);
+}
+
+export function deleteRole(roleId: number) {
+  return apiDelete(`/admin/users/roles/${roleId}`);
+}
+export type CreateRolePayload = {
+  roleName: string;
+};
+export function createRole(payload: CreateRolePayload) {
+  return apiPost<RoleItem>("/admin/users/roles", payload);
 }

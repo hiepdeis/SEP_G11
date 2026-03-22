@@ -102,7 +102,8 @@
     {
         public int WarehouseId { get; set; }
         public int BinId { get; set; }
-        public int BatchId { get; set; }
+        public int? BatchId { get; set; }
+        public string? BatchCode { get; set; }
         public decimal QuantityOnHand { get; set; }
         public decimal QuantityAllocated { get; set; }
     }
@@ -111,7 +112,8 @@
     {
         public int WarehouseId { get; set; }
         public int BinId { get; set; }
-        public int BatchId { get; set; }
+        public int? BatchId { get; set; }
+        public string? BatchCode { get; set; }
         public decimal QuantityOnHand { get; set; }
         public decimal QuantityAllocated { get; set; }
     }

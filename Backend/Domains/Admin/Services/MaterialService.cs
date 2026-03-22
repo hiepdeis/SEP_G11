@@ -200,18 +200,34 @@ namespace Backend.Domains.Admin.Services
 
         public async Task<(bool success, string message)> DeleteAsync(int materialId, CancellationToken ct)
         {
-            var entity = await _db.Materials.FirstOrDefaultAsync(x => x.MaterialId == materialId, ct);
-            if (entity == null) return (false, "Material not found.");
+            var entity = await _db.Materials
+                .FirstOrDefaultAsync(x => x.MaterialId == materialId, ct);
 
-            var hasInventory = await _db.InventoryCurrents.AnyAsync(x => x.MaterialId == materialId, ct);
-            if (hasInventory)
-                return (false, "Không thể xóa vật tư vì đang có dữ liệu tồn kho.");
+            if (entity == null)
+                return (false, "Material not found.");
+
+            var inventoryRows = await _db.InventoryCurrents
+                .Where(x => x.MaterialId == materialId)
+                .ToListAsync(ct);
+
+            if (inventoryRows.Any(x => x.QuantityAllocated > 0))
+                return (false, "Không thể xóa vật tư vì còn số lượng đang được cấp phát.");
+
+            if (inventoryRows.Count > 0)
+                _db.InventoryCurrents.RemoveRange(inventoryRows);
+
+            var batches = await _db.Batches
+                .Where(x => x.MaterialId == materialId)
+                .ToListAsync(ct);
+
+            if (batches.Count > 0)
+                _db.Batches.RemoveRange(batches);
 
             _db.Materials.Remove(entity);
             await _db.SaveChangesAsync(ct);
+
             return (true, "Xóa vật tư thành công.");
         }
-
         public async Task<List<MaterialInventoryByWarehouseDto>> GetInventoryByMaterialAsync(int materialId, CancellationToken ct)
         {
             var exists = await _db.Materials.AnyAsync(x => x.MaterialId == materialId, ct);
@@ -254,14 +270,23 @@ namespace Backend.Domains.Admin.Services
 
         public async Task<int> CreateInventoryAsync(int materialId, CreateMaterialInventoryRequest request, CancellationToken ct)
         {
-            await ValidateInventoryRequestAsync(materialId, request.WarehouseId, request.BinId, request.BatchId, request.QuantityOnHand, request.QuantityAllocated, ct);
+            var resolvedBatchId = await ResolveBatchIdAsync(materialId, request.BatchId, request.BatchCode, ct);
+
+            await ValidateInventoryRequestAsync(
+                materialId,
+                request.WarehouseId,
+                request.BinId,
+                resolvedBatchId,
+                request.QuantityOnHand,
+                request.QuantityAllocated,
+                ct);
 
             var entity = new InventoryCurrent
             {
                 MaterialId = materialId,
                 WarehouseId = request.WarehouseId,
                 BinId = request.BinId,
-                BatchId = request.BatchId,
+                BatchId = resolvedBatchId,
                 QuantityOnHand = request.QuantityOnHand,
                 QuantityAllocated = request.QuantityAllocated
             };
@@ -278,18 +303,26 @@ namespace Backend.Domains.Admin.Services
 
             if (entity == null) return false;
 
-            await ValidateInventoryRequestAsync(materialId, request.WarehouseId, request.BinId, request.BatchId, request.QuantityOnHand, request.QuantityAllocated, ct);
+            var resolvedBatchId = await ResolveBatchIdAsync(materialId, request.BatchId, request.BatchCode, ct);
+
+            await ValidateInventoryRequestAsync(
+                materialId,
+                request.WarehouseId,
+                request.BinId,
+                resolvedBatchId,
+                request.QuantityOnHand,
+                request.QuantityAllocated,
+                ct);
 
             entity.WarehouseId = request.WarehouseId;
             entity.BinId = request.BinId;
-            entity.BatchId = request.BatchId;
+            entity.BatchId = resolvedBatchId;
             entity.QuantityOnHand = request.QuantityOnHand;
             entity.QuantityAllocated = request.QuantityAllocated;
 
             await _db.SaveChangesAsync(ct);
             return true;
         }
-
         public async Task<(bool success, string message)> DeleteInventoryAsync(int materialId, int inventoryId, CancellationToken ct)
         {
             var entity = await _db.InventoryCurrents
@@ -325,13 +358,13 @@ namespace Backend.Domains.Admin.Services
         }
 
         private async Task ValidateInventoryRequestAsync(
-            int materialId,
-            int warehouseId,
-            int binId,
-            int batchId,
-            decimal quantityOnHand,
-            decimal quantityAllocated,
-            CancellationToken ct)
+     int materialId,
+     int warehouseId,
+     int binId,
+     int batchId,
+     decimal quantityOnHand,
+     decimal quantityAllocated,
+     CancellationToken ct)
         {
             var materialExists = await _db.Materials.AnyAsync(x => x.MaterialId == materialId, ct);
             if (!materialExists)
@@ -369,6 +402,46 @@ namespace Backend.Domains.Admin.Services
 
             if (quantityAllocated > quantityOnHand)
                 throw new ArgumentException("Số lượng phân bổ không được vượt quá tồn kho.");
+        }
+        private async Task<int> ResolveBatchIdAsync(int materialId, int? batchId, string? batchCode, CancellationToken ct)
+        {
+            if (batchId.HasValue)
+            {
+                var batchById = await _db.Batches
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.BatchId == batchId.Value, ct);
+
+                if (batchById == null)
+                    throw new ArgumentException("Batch không tồn tại.");
+
+                if (batchById.MaterialId != materialId)
+                    throw new ArgumentException("Batch không thuộc vật tư này.");
+
+                return batchById.BatchId;
+            }
+
+            if (string.IsNullOrWhiteSpace(batchCode))
+                throw new ArgumentException("BatchId hoặc BatchCode là bắt buộc.");
+
+            var normalized = batchCode.Trim().ToUpper();
+
+            var batchByCode = await _db.Batches
+                .FirstOrDefaultAsync(x => x.MaterialId == materialId && x.BatchCode == normalized, ct);
+
+            if (batchByCode != null)
+                return batchByCode.BatchId;
+
+            var newBatch = new Batch
+            {
+                MaterialId = materialId,
+                BatchCode = normalized,
+                CreatedDate = DateTime.UtcNow
+            };
+
+            _db.Batches.Add(newBatch);
+            await _db.SaveChangesAsync(ct);
+
+            return newBatch.BatchId;
         }
     }
 }

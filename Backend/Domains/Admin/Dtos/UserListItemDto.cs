@@ -66,4 +66,12 @@ namespace Backend.Domains.Admin.Dtos
         public int RoleId { get; set; }
         public string RoleName { get; set; } = null!;
     }
+    public class UpdateRoleRequest
+    {
+        public string RoleName { get; set; } = string.Empty;
+    }
+    public sealed class CreateRoleRequest
+    {
+        public string RoleName { get; set; } = string.Empty;
+    }
 }

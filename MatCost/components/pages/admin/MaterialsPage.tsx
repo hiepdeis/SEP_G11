@@ -10,8 +10,15 @@ import { toast } from "sonner";
 import { getCategories, type CategoryItem } from "@/services/material-categories";
 import { getWarehouses, type WarehouseItem } from "@/services/admin-warehouses";
 import { getBins, type BinItem } from "@/services/admin-bins";
-import { getMaterials, MaterialItem } from "@/services/admin-materials";
-import { getInventoryByMaterial, type InventoryGroup } from "@/services/admin-inventory";
+import {
+  getMaterials,
+  createMaterial,
+  updateMaterial,
+  removeMaterial,
+  type MaterialItem,
+  type UpsertMaterialPayload,
+} from "@/services/admin-materials";
+import { createInventory, getInventoryByMaterial, removeInventory, updateInventory, UpsertInventoryPayload, type InventoryGroup } from "@/services/admin-inventory";
 // ─── Reference Data (matches DB) ───
 
 
@@ -30,15 +37,28 @@ interface Material {
 }
 
 // ─── DB: InventoryCurrent ───
+// MaterialsPage.tsx
+
 interface InvItem {
   id: number;
   warehouseId: number;
   binId: number;
   materialId: number;
-  batchCode: string; // lưu thẳng mã lô cho đơn giản
+  batchId: number;
+  batchCode: string;
   quantityOnHand: number;
   quantityAllocated: number;
 }
+interface InvForm {
+  warehouseId: number;
+  binId: number;
+  batchId: number | null;       // thêm
+  batchCode: string;
+  quantityOnHand: number;
+  quantityAllocated: number;
+}
+
+
 
 
 
@@ -65,11 +85,20 @@ const emptyMatForm: MatForm = {
 interface InvForm {
   warehouseId: number;
   binId: number;
+  batchId: number | null;       // thêm
   batchCode: string;
   quantityOnHand: number;
   quantityAllocated: number;
 }
-const emptyInvForm: InvForm = { warehouseId: 1, binId: 1, batchCode: "", quantityOnHand: 0, quantityAllocated: 0 };
+
+const emptyInvForm: InvForm = {
+  warehouseId: 1,
+  binId: 1,
+  batchId: null,
+  batchCode: "",
+  quantityOnHand: 0,
+  quantityAllocated: 0,
+};
 
 // ─────────────────────────────────────────
 export default function MaterialsPage() {
@@ -296,91 +325,175 @@ const [inventoryLoading, setInventoryLoading] = useState(false);
     setEditMatId(m.materialId);
     setMatModal(true);
   };
-  const saveMat = () => {
-    if (!matForm.code || !matForm.name) { toast.error("Mã và Tên vật tư là bắt buộc"); return; }
+ const toMaterialPayload = (): UpsertMaterialPayload => ({
+  code: matForm.code.trim().toUpperCase(),
+  name: matForm.name.trim(),
+  unit: matForm.unit.trim(),
+  massPerUnit: matForm.massPerUnit,
+  minStockLevel: matForm.minStockLevel,
+  categoryId: matForm.categoryId,
+  unitPrice: matForm.unitPrice,
+  technicalStandard: matForm.technicalStandard.trim(),
+  specification: matForm.specification.trim(),
+});
+
+const saveMat = async () => {
+  if (!matForm.code.trim() || !matForm.name.trim()) {
+    toast.error("Mã và Tên vật tư là bắt buộc");
+    return;
+  }
+
+  try {
+    const payload = toMaterialPayload();
+
     if (editMatId !== null) {
-      setMaterials((prev) => prev.map((m) => m.materialId === editMatId ? { ...m, ...matForm } : m));
+      await updateMaterial(editMatId, payload);
       toast.success("Cập nhật vật tư thành công");
     } else {
-      setMaterials((prev) => [...prev, { ...matForm, materialId: Date.now() }]);
+      await createMaterial(payload);
       toast.success("Thêm vật tư thành công");
     }
+
     setMatModal(false);
-  };
-  const deleteMat = (id: number) => {
-    setMaterials((prev) => prev.filter((m) => m.materialId !== id));
-    setInventory((prev) => prev.filter((i) => i.materialId !== id));
-    if (expandedId === id) setExpandedId(null);
+    setEditMatId(null);
+    setMatForm(emptyMatForm);
+    await loadMaterials();
+  } catch (error) {
+    console.error("Save material failed:", error);
+    toast.error(error instanceof Error ? error.message : "Lưu vật tư thất bại");
+  }
+};
+const deleteMat = async (id: number) => {
+  try {
+    await removeMaterial(id);
     toast.success("Xóa vật tư thành công");
-  };
+
+    if (expandedId === id) setExpandedId(null);
+    await loadMaterials();
+  } catch (error) {
+    console.error("Delete material failed:", error);
+    toast.error(error instanceof Error ? error.message : "Xóa vật tư thất bại");
+  }
+};
 
   // ── Inventory CRUD ──
-  const openAddInv = (materialId: number) => {
-    const firstBin = bins[0];
-    setInvForm({ ...emptyInvForm, warehouseId: firstBin.warehouseId, binId: firstBin.binId });
-    setEditInvId(null);
-    setInvMaterialId(materialId);
-    setInvModal(true);
-  };
-  const openEditInv = (inv: InvItem) => {
-    setInvForm({
-      warehouseId: inv.warehouseId,
-      binId: inv.binId,
-      batchCode: inv.batchCode,
-      quantityOnHand: inv.quantityOnHand,
-      quantityAllocated: inv.quantityAllocated,
-    });
-    setEditInvId(inv.id);
-    setInvMaterialId(inv.materialId);
-    setInvModal(true);
-  };
-    const mapInventoryGroupsToItems = (
+const openAddInv = (materialId: number) => {
+  const firstBin = bins[0];
+
+  setInvForm({
+    ...emptyInvForm,
+    warehouseId: firstBin?.warehouseId ?? 0,
+    binId: firstBin?.binId ?? 0,
+    batchId: null,
+    batchCode: "",
+  });
+
+  setEditInvId(null);
+  setInvMaterialId(materialId);
+  setInvModal(true);
+};
+
+const openEditInv = (inv: InvItem) => {
+  setInvForm({
+    warehouseId: inv.warehouseId,
+    binId: inv.binId,
+    batchId: inv.batchId,
+    batchCode: inv.batchCode,
+    quantityOnHand: inv.quantityOnHand,
+    quantityAllocated: inv.quantityAllocated,
+  });
+  setEditInvId(inv.id);
+  setInvMaterialId(inv.materialId);
+  setInvModal(true);
+};
+const mapInventoryGroupsToItems = (
   materialId: number,
   groups: InventoryGroup[]
 ): InvItem[] => {
   return groups.flatMap((group) =>
     (group.rows ?? []).map((row) => ({
       id: row.id,
-      warehouseId: row.warehouseId ?? group.warehouseId,
+      warehouseId: row.warehouseId,
       binId: row.binId,
       materialId,
+      batchId: row.batchId,
       batchCode: row.batchCode,
       quantityOnHand: Number(row.quantityOnHand ?? 0),
       quantityAllocated: Number(row.quantityAllocated ?? 0),
     }))
   );
 };
-  const saveInv = () => {
-    if (!invForm.batchCode.trim()) { toast.error("Mã lô hàng là bắt buộc"); return; }
-    if (invForm.quantityAllocated > invForm.quantityOnHand) { toast.error("Số lượng phân bổ không được vượt quá tồn kho"); return; }
+const refreshInventoryForMaterial = async (materialId: number) => {
+  const groups = await getInventoryByMaterial(materialId);
+  const items = mapInventoryGroupsToItems(materialId, groups ?? []);
+
+  setInventory((prev) => [
+    ...prev.filter((i) => i.materialId !== materialId),
+    ...items,
+  ]);
+};
+const saveInv = async () => {
+  if (invMaterialId === null) {
+    toast.error("Không xác định được vật tư");
+    return;
+  }
+
+  if (!invForm.batchCode.trim()) {
+    toast.error("Mã lô hàng là bắt buộc");
+    return;
+  }
+
+  if (invForm.quantityAllocated > invForm.quantityOnHand) {
+    toast.error("Số lượng phân bổ không được vượt quá tồn kho");
+    return;
+  }
+
+  try {
+    const payload: UpsertInventoryPayload = {
+      warehouseId: invForm.warehouseId,
+      binId: invForm.binId,
+      batchCode: invForm.batchCode.trim().toUpperCase(),
+      quantityOnHand: invForm.quantityOnHand,
+      quantityAllocated: invForm.quantityAllocated,
+      ...(editInvId !== null && invForm.batchId != null
+        ? { batchId: invForm.batchId }
+        : {}),
+    };
+
     if (editInvId !== null) {
-      setInventory((prev) => prev.map((i) => i.id === editInvId ? {
-        ...i,
-        warehouseId: invForm.warehouseId,
-        binId: invForm.binId,
-        batchCode: invForm.batchCode.trim().toUpperCase(),
-        quantityOnHand: invForm.quantityOnHand,
-        quantityAllocated: invForm.quantityAllocated,
-      } : i));
+      await updateInventory(invMaterialId, editInvId, payload);
       toast.success("Cập nhật vị trí tồn kho thành công");
     } else {
-      setInventory((prev) => [...prev, {
-        id: Date.now(),
-        materialId: invMaterialId!,
-        warehouseId: invForm.warehouseId,
-        binId: invForm.binId,
-        batchCode: invForm.batchCode.trim().toUpperCase(),
-        quantityOnHand: invForm.quantityOnHand,
-        quantityAllocated: invForm.quantityAllocated,
-      }]);
+      await createInventory(invMaterialId, payload);
       toast.success("Thêm vị trí tồn kho thành công");
     }
+
+    await refreshInventoryForMaterial(invMaterialId);
     setInvModal(false);
-  };
-  const deleteInv = (id: number) => {
-    setInventory((prev) => prev.filter((i) => i.id !== id));
+    setEditInvId(null);
+    setInvMaterialId(null);
+    setInvForm(emptyInvForm);
+  } catch (error) {
+    console.error("Save inventory failed:", error);
+    toast.error(error instanceof Error ? error.message : "Lưu vị trí tồn kho thất bại");
+  }
+};
+  const deleteInv = async (id: number) => {
+  const item = inventory.find((i) => i.id === id);
+  if (!item) {
+    toast.error("Không tìm thấy bản ghi tồn kho");
+    return;
+  }
+
+  try {
+    await removeInventory(item.materialId, id);
+    await refreshInventoryForMaterial(item.materialId);
     toast.success("Xóa vị trí tồn kho thành công");
-  };
+  } catch (error) {
+    console.error("Delete inventory failed:", error);
+    toast.error(error instanceof Error ? error.message : "Xóa vị trí tồn kho thất bại");
+  }
+};
 
   // Handle warehouse change in inv form → reset bin to first available
   const handleInvWarehouseChange = (warehouseId: number) => {
@@ -486,12 +599,29 @@ const [inventoryLoading, setInventoryLoading] = useState(false);
                       <td className="px-4 py-3 text-sm text-gray-500">{m.minStockLevel?.toLocaleString() ?? "—"}</td>
                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1">
-                          <button onClick={() => openEditMat(m)} className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-600" title="Sửa vật tư">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => deleteMat(m.materialId)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-500" title="Xóa vật tư">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                         <button
+  type="button"
+  onClick={(e) => {
+    e.stopPropagation();
+    openEditMat(m);
+  }}
+  className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-600"
+  title="Sửa vật tư"
+>
+  <Edit2 className="w-4 h-4" />
+</button>
+
+<button
+  type="button"
+  onClick={(e) => {
+    e.stopPropagation();
+    deleteMat(m.materialId);
+  }}
+  className="p-1.5 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-500"
+  title="Xóa vật tư"
+>
+  <Trash2 className="w-4 h-4" />
+</button>
                         </div>
                       </td>
                     </tr>
@@ -503,16 +633,21 @@ const [inventoryLoading, setInventoryLoading] = useState(false);
                           <div className="bg-blue-50/20 border-t border-b border-blue-100">
 
                             {/* Nút thêm vị trí */}
-                            <div className="flex items-center justify-between px-6 pt-3 pb-1">
-                              <span className="text-xs text-blue-600 uppercase tracking-wider">Vị trí tồn kho</span>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); openAddInv(m.materialId); }}
-                                className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                              >
-                                <Plus className="w-3.5 h-3.5" /> Thêm vị trí
-                              </button>
-                            </div>
-
+                          <div className="flex items-center justify-between px-6 pt-3 pb-1">
+  <span className="text-xs text-blue-600 uppercase tracking-wider">Vị trí tồn kho</span>
+  <button
+    type="button"
+    onClick={(e) => {
+      e.stopPropagation();
+      openAddInv(m.materialId);
+    }}
+    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+    title="Thêm vị trí"
+  >
+    <Plus className="w-3.5 h-3.5" />
+    Thêm vị trí
+  </button>
+</div>
                             {warehouseData.length === 0 ? (
                               <div className="px-8 py-4 text-sm text-gray-400 italic">Chưa có dữ liệu tồn kho cho vật tư này</div>
                             ) : (
@@ -545,47 +680,78 @@ const [inventoryLoading, setInventoryLoading] = useState(false);
                                           </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-50">
-                                          {wh.rows.map((row) => (
-                                            <tr key={row.invId} className="hover:bg-gray-50/60 group">
-                                              <td className="px-4 py-2">
-                                                <div className="flex items-center gap-1.5">
-                                                  <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                                                  <span className="text-sm text-gray-700">{row.binCode}</span>
-                                                </div>
-                                              </td>
-                                              <td className="px-4 py-2">
-                                                <span className={`text-xs px-2 py-0.5 rounded ${typeBadgeCls[row.binType] || "bg-gray-100 text-gray-600"}`}>
-                                                  {typeLabel[row.binType] || row.binType}
-                                                </span>
-                                              </td>
-                                              <td className="px-4 py-2 text-sm text-gray-600 font-mono">{row.batchCode}</td>
-                                              <td className="px-4 py-2 text-sm text-gray-900 text-right">{row.qtyOnHand.toLocaleString()}</td>
-                                              <td className="px-4 py-2 text-sm text-orange-600 text-right">{row.qtyAllocated.toLocaleString()}</td>
-                                              <td className="px-4 py-2 text-sm text-emerald-600 text-right">{row.available.toLocaleString()}</td>
-                                              <td className="px-4 py-2">
-                                                <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                  <button
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      const invItem = inventory.find((i) => i.id === row.invId)!;
-                                                      openEditInv(invItem);
-                                                    }}
-                                                    className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
-                                                    title="Sửa vị trí"
-                                                  >
-                                                    <Edit2 className="w-3.5 h-3.5" />
-                                                  </button>
-                                                  <button
-                                                    onClick={(e) => { e.stopPropagation(); deleteInv(row.invId); }}
-                                                    className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-                                                    title="Xóa vị trí"
-                                                  >
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                  </button>
-                                                </div>
-                                              </td>
-                                            </tr>
-                                          ))}
+                                         {wh.rows.map((row) => {
+  const invId = row.invId;
+
+  return (
+    <tr key={invId} className="hover:bg-gray-50/60 group">
+      <td className="px-4 py-2">
+        <div className="flex items-center gap-1.5">
+          <MapPin className="w-3.5 h-3.5 text-gray-400" />
+          <span className="text-sm text-gray-700">{row.binCode}</span>
+        </div>
+      </td>
+
+      <td className="px-4 py-2">
+        <span
+          className={`text-xs px-2 py-0.5 rounded ${
+            typeBadgeCls[row.binType] || "bg-gray-100 text-gray-600"
+          }`}
+        >
+          {typeLabel[row.binType] || row.binType}
+        </span>
+      </td>
+
+      <td className="px-4 py-2 text-sm text-gray-600 font-mono">{row.batchCode}</td>
+      <td className="px-4 py-2 text-sm text-gray-900 text-right">
+        {row.qtyOnHand.toLocaleString()}
+      </td>
+      <td className="px-4 py-2 text-sm text-orange-600 text-right">
+        {row.qtyAllocated.toLocaleString()}
+      </td>
+      <td className="px-4 py-2 text-sm text-emerald-600 text-right">
+        {row.available.toLocaleString()}
+      </td>
+
+     <td className="px-4 py-2">
+  <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+
+        const invId = row.invId;
+        const invItem = inventory.find((i) => i.id === invId);
+
+        if (!invItem) {
+          toast.error("Không tìm thấy bản ghi tồn kho");
+          return;
+        }
+
+        openEditInv(invItem);
+      }}
+      className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
+      title="Sửa vị trí"
+    >
+      <Edit2 className="w-3.5 h-3.5" />
+    </button>
+
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        deleteInv(row.invId);
+      }}
+      className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+      title="Xóa vị trí"
+    >
+      <Trash2 className="w-3.5 h-3.5" />
+    </button>
+  </div>
+</td>
+    </tr>
+  );
+})}
                                         </tbody>
                                       </table>
                                     </div>

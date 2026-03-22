@@ -71,7 +71,27 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(roles);
         }
 
+        [HttpPut("roles/{roleId:int}")]
+        public async Task<IActionResult> UpdateRole(int roleId, UpdateRoleRequest request, CancellationToken ct)
+        {
+            var ok = await _svc.UpdateRoleAsync(roleId, request, ct);
+            if (!ok) return NotFound();
+            return NoContent();
+        }
 
+        [HttpDelete("roles/{roleId:int}")]
+        public async Task<IActionResult> DeleteRole(int roleId, CancellationToken ct)
+        {
+            var ok = await _svc.DeleteRoleAsync(roleId, ct);
+            if (!ok) return NotFound();
+            return NoContent();
+        }
+        [HttpPost("roles")]
+        public async Task<IActionResult> CreateRole(CreateRoleRequest request, CancellationToken ct)
+        {
+            var result = await _svc.CreateRoleAsync(request, ct);
+            return Ok(result);
+        }
 
     }
 }

@@ -167,6 +167,64 @@ namespace Backend.Domains.Admin.Services
                 })
                 .ToListAsync(ct);
         }
-    }
 
+        public async Task<bool> UpdateRoleAsync(int roleId, UpdateRoleRequest request, CancellationToken ct)
+        {
+            var role = await _db.Roles.FirstOrDefaultAsync(x => x.RoleId == roleId, ct);
+            if (role == null) return false;
+
+            var roleName = request.RoleName?.Trim();
+            if (string.IsNullOrWhiteSpace(roleName))
+                throw new ArgumentException("Tên role không được để trống.");
+
+            var exists = await _db.Roles.AnyAsync(
+                x => x.RoleName == roleName && x.RoleId != roleId, ct);
+
+            if (exists)
+                throw new ArgumentException("Tên role đã tồn tại.");
+
+            role.RoleName = roleName;
+            await _db.SaveChangesAsync(ct);
+            return true;
+        }
+
+        public async Task<bool> DeleteRoleAsync(int roleId, CancellationToken ct)
+        {
+            var role = await _db.Roles.FirstOrDefaultAsync(x => x.RoleId == roleId, ct);
+            if (role == null) return false;
+
+            var isUsed = await _db.Users.AnyAsync(x => x.RoleId == roleId, ct);
+            if (isUsed)
+                throw new ArgumentException("Không thể xóa role vì đang có user sử dụng.");
+
+            _db.Roles.Remove(role);
+            await _db.SaveChangesAsync(ct);
+            return true;
+        }
+
+        public async Task<RoleDto> CreateRoleAsync(CreateRoleRequest request, CancellationToken ct)
+        {
+            var roleName = request.RoleName?.Trim();
+            if (string.IsNullOrWhiteSpace(roleName))
+                throw new ArgumentException("Tên role không được để trống.");
+
+            var exists = await _db.Roles.AnyAsync(x => x.RoleName == roleName, ct);
+            if (exists)
+                throw new ArgumentException("Tên role đã tồn tại.");
+
+            var role = new Role
+            {
+                RoleName = roleName
+            };
+
+            _db.Roles.Add(role);
+            await _db.SaveChangesAsync(ct);
+
+            return new RoleDto
+            {
+                RoleId = role.RoleId,
+                RoleName = role.RoleName
+            };
+        }
+    }
 }
