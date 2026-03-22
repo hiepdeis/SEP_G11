@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bell, Plus, Trash2, CheckCheck, Search, Filter,
   Send, Users, Mail, MailOpen, X, ChevronLeft, ChevronRight,
@@ -7,22 +7,22 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNotifications } from "./NotificationsContext";
-import { useRouter } from "next/navigation";
+import { getUsers, UserItem } from "@/services/admin-users";
 
 // Danh sách user mock – khớp với Users table
-const ALL_USERS = [
-  { userId: 1, fullName: "Nguyen Van An",    username: "admin",    roleId: 1, roleName: "Admin" },
-  { userId: 2, fullName: "Tran Thi Bich",   username: "bich.tt",  roleId: 2, roleName: "WarehouseManager" },
-  { userId: 3, fullName: "Le Hoang Cuong",  username: "cuong.lh", roleId: 3, roleName: "WarehouseStaff" },
-  { userId: 4, fullName: "Pham Duc Dung",   username: "dung.pd",  roleId: 3, roleName: "WarehouseStaff" },
-  { userId: 5, fullName: "Vo Thi Em",       username: "em.vt",    roleId: 5, roleName: "Viewer" },
-  { userId: 6, fullName: "Hoang Van Phuc",  username: "phuc.hv",  roleId: 4, roleName: "Accountant" },
-  { userId: 7, fullName: "Dang Thi Giang",  username: "giang.dt", roleId: 3, roleName: "WarehouseStaff" },
-  { userId: 8, fullName: "Bui Minh Hieu",   username: "hieu.bm",  roleId: 3, roleName: "WarehouseStaff" },
-];
+// const ALL_USERS = [
+//   { userId: 1, fullName: "Nguyen Van An",    username: "admin",    roleId: 1, roleName: "Admin" },
+//   { userId: 2, fullName: "Tran Thi Bich",   username: "bich.tt",  roleId: 2, roleName: "WarehouseManager" },
+//   { userId: 3, fullName: "Le Hoang Cuong",  username: "cuong.lh", roleId: 3, roleName: "WarehouseStaff" },
+//   { userId: 4, fullName: "Pham Duc Dung",   username: "dung.pd",  roleId: 3, roleName: "WarehouseStaff" },
+//   { userId: 5, fullName: "Vo Thi Em",       username: "em.vt",    roleId: 5, roleName: "Viewer" },
+//   { userId: 6, fullName: "Hoang Van Phuc",  username: "phuc.hv",  roleId: 4, roleName: "Accountant" },
+//   { userId: 7, fullName: "Dang Thi Giang",  username: "giang.dt", roleId: 3, roleName: "WarehouseStaff" },
+//   { userId: 8, fullName: "Bui Minh Hieu",   username: "hieu.bm",  roleId: 3, roleName: "WarehouseStaff" },
+// ];
 
-const getUserName = (userId: number) =>
-  ALL_USERS.find((u) => u.userId === userId)?.fullName ?? `User #${userId}`;
+// const getUserName = (userId: number) =>
+//   ALL_USERS.find((u) => u.userId === userId)?.fullName ?? `User #${userId}`;
 
 const formatTime = (iso: string) => {
   const d = new Date(iso);
@@ -54,25 +54,79 @@ const TEMPLATES = [
   "Có tài liệu mới cần ký xác nhận. Vui lòng kiểm tra ngay.",
 ];
 
-export default function NotificationsPage() {
-  const { notifications, addNotification, markAsRead, markAllAsRead, deleteNotification } =
-    useNotifications();
-  const router = useRouter();
 
-  // ── Filters ──────────────────────────────────────
-  const [search, setSearch]         = useState("");
+export default function NotificationsPage() {
+  const {
+    notifications,
+    loading,
+    error,
+    addNotification,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+  } = useNotifications();
+
+  const [users, setUsers] = useState<UserItem[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+
+  const [search, setSearch] = useState("");
   const [filterUser, setFilterUser] = useState("all");
-  const [filterRead, setFilterRead] = useState("all"); // all | unread | read
-  const [page, setPage]             = useState(1);
+  const [filterRead, setFilterRead] = useState("all");
+  const [page, setPage] = useState(1);
   const perPage = 8;
 
-  // ── Create modal ─────────────────────────────────
-  const [modalOpen, setModalOpen]       = useState(false);
-  const [targetMode, setTargetMode]     = useState<"single" | "all">("single");
-  const [selectedUser, setSelectedUser] = useState<number>(1);
-  const [message, setMessage]           = useState("");
-  const [charCount, setCharCount]       = useState(0);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [targetMode, setTargetMode] = useState<"single" | "all">("single");
+  const [selectedUser, setSelectedUser] = useState<number>(0);
+  const [message, setMessage] = useState("");
+  const [charCount, setCharCount] = useState(0);
 
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        setUsersLoading(true);
+        const res = await getUsers({ page: 1, pageSize: 1000, status: true });
+        setUsers(res.items ?? []);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Không tải được danh sách người dùng");
+      } finally {
+        setUsersLoading(false);
+      }
+    };
+
+    loadUsers();
+  }, []);
+
+  const activeUsers = useMemo(
+    () => users.filter((u) => u.status),
+    [users]
+  );
+
+  const getUserName = (userId: number) =>
+    activeUsers.find((u) => u.userId === userId)?.fullName ??
+    users.find((u) => u.userId === userId)?.fullName ??
+    `User #${userId}`;
+
+  useEffect(() => {
+    if (!selectedUser && activeUsers.length > 0) {
+      setSelectedUser(activeUsers[0].userId);
+      return;
+    }
+
+    if (
+      selectedUser &&
+      activeUsers.length > 0 &&
+      !activeUsers.some((u) => u.userId === selectedUser)
+    ) {
+      setSelectedUser(activeUsers[0].userId);
+    }
+  }, [activeUsers, selectedUser]);
+
+  // ── Filters ──────────────────────────────────────
+ 
+
+  // ── Create modal ─────────────────────────────────
+ 
   // ── Stats ─────────────────────────────────────────
   const totalCount  = notifications.length;
   const unreadCount = notifications.filter((n) => !n.isRead).length;
@@ -101,65 +155,108 @@ export default function NotificationsPage() {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [notifications, filterUser, filterRead, search]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const paginated  = filtered.slice((page - 1) * perPage, page * perPage);
+
 
   const resetPage = () => setPage(1);
 
   // ── Handlers ─────────────────────────────────────
-  const openModal = () => {
+   const openModal = () => {
     setTargetMode("single");
-    setSelectedUser(1);
+    setSelectedUser(activeUsers[0]?.userId ?? 0);
     setMessage("");
     setCharCount(0);
     setModalOpen(true);
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!message.trim()) {
       toast.error("Vui lòng nhập nội dung thông báo");
       return;
     }
+
     if (message.trim().length < 10) {
       toast.error("Nội dung thông báo quá ngắn (tối thiểu 10 ký tự)");
       return;
     }
-    const allIds = ALL_USERS.map((u) => u.userId);
-    addNotification(
-      targetMode === "all" ? "all" : selectedUser,
-      message.trim(),
-      allIds
-    );
-    const target =
-      targetMode === "all"
-        ? "Tất cả người dùng"
-        : getUserName(selectedUser);
-    toast.success(`Đã gửi thông báo tới: ${target}`);
-    setModalOpen(false);
-  };
 
-  const handleMarkRead = (notiId: number) => {
-    markAsRead(notiId);
-    toast.success("Đã đánh dấu đã đọc");
-  };
+    if (targetMode === "single" && !selectedUser) {
+      toast.error("Vui lòng chọn người nhận");
+      return;
+    }
 
-  const handleDelete = (notiId: number) => {
-    deleteNotification(notiId);
-    toast.success("Đã xoá thông báo");
-  };
+    try {
+      const allIds = activeUsers.map((u) => u.userId);
 
-  const handleMarkAllRead = () => {
-    const userId = filterUser !== "all" ? Number(filterUser) : undefined;
-    if (userId) {
-      markAllAsRead(userId);
-      toast.success(`Đã đánh dấu tất cả đã đọc cho ${getUserName(userId)}`);
-    } else {
-      // mark all for everyone
-      ALL_USERS.forEach((u) => markAllAsRead(u.userId));
-      toast.success("Đã đánh dấu tất cả thông báo là đã đọc");
+      await addNotification(
+        targetMode === "all" ? "all" : selectedUser,
+        message.trim(),
+        allIds
+      );
+
+      const target =
+        targetMode === "all" ? "Tất cả người dùng" : getUserName(selectedUser);
+
+      toast.success(`Đã gửi thông báo tới: ${target}`);
+      setModalOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Gửi thông báo thất bại");
     }
   };
 
+  const handleMarkRead = async (notiId: number) => {
+    try {
+      await markAsRead(notiId);
+      toast.success("Đã đánh dấu đã đọc");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Cập nhật thất bại");
+    }
+  };
+
+  const handleDelete = async (notiId: number) => {
+    try {
+      await deleteNotification(notiId);
+      toast.success("Đã xoá thông báo");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Xoá thông báo thất bại");
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      const userId = filterUser !== "all" ? Number(filterUser) : undefined;
+      await markAllAsRead(userId);
+
+      if (userId) {
+        toast.success(`Đã đánh dấu tất cả đã đọc cho ${getUserName(userId)}`);
+      } else {
+        toast.success("Đã đánh dấu tất cả thông báo là đã đọc");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Đánh dấu tất cả thất bại");
+    }
+  };
+    const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const paginated = filtered.slice((page - 1) * perPage, page * perPage);
+
+  useEffect(() => {
+    setPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
+
+  if (loading || usersLoading) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 p-10 text-center text-gray-500">
+        Đang tải dữ liệu thông báo...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-xl border border-red-200 p-10 text-center text-red-500">
+        {error}
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
       {/* ── Page Header ── */}
@@ -243,7 +340,7 @@ export default function NotificationsPage() {
               className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
               <option value="all">Tất cả người dùng</option>
-              {ALL_USERS.map((u) => (
+              {activeUsers.map((u) => (
                 <option key={u.userId} value={u.userId}>
                   {u.fullName}
                 </option>
@@ -460,7 +557,7 @@ export default function NotificationsPage() {
                     }`}
                   >
                     <Bell className="w-4 h-4" />
-                    Tất cả ({ALL_USERS.length} người)
+                    Tất cả ({activeUsers.length} người)
                   </button>
                 </div>
 
@@ -470,9 +567,9 @@ export default function NotificationsPage() {
                     onChange={(e) => setSelectedUser(Number(e.target.value))}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   >
-                    {ALL_USERS.map((u) => (
+                    {activeUsers.map((u) => (
                       <option key={u.userId} value={u.userId}>
-                        {u.fullName} — {u.roleName}
+                       {u.fullName}
                       </option>
                     ))}
                   </select>
@@ -482,7 +579,7 @@ export default function NotificationsPage() {
                   <div className="flex items-center gap-2 p-3 bg-orange-50 rounded-lg border border-orange-200">
                     <AlertCircle className="w-4 h-4 text-orange-500 shrink-0" />
                     <p className="text-xs text-orange-700">
-                      Thông báo sẽ được gửi tới toàn bộ {ALL_USERS.length} người dùng trong hệ thống.
+                      Thông báo sẽ được gửi tới toàn bộ {activeUsers.length} người dùng trong hệ thống.
                     </p>
                   </div>
                 )}
@@ -565,7 +662,12 @@ export default function NotificationsPage() {
               </button>
               <button
                 onClick={handleSend}
-                disabled={!message.trim() || message.trim().length < 10}
+                disabled={
+  !message.trim() ||
+  message.trim().length < 10 ||
+  (targetMode === "single" && !selectedUser) ||
+  (targetMode === "all" && activeUsers.length === 0)
+}
                 className="flex items-center gap-2 px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-4 h-4" />
