@@ -1101,10 +1101,10 @@ namespace Backend.Domains.Audit.Services
             return (true, "Audit scope unlocked.");
         }
         public async Task<(bool success, string message)> CompleteAuditAsync(
-            int stockTakeId,
-            int managerId,
-            CompleteAuditRequest request,
-            CancellationToken ct)
+      int stockTakeId,
+      int managerId,
+      CompleteAuditRequest request,
+      CancellationToken ct)
         {
             var st = await _db.StockTakes
                 .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
@@ -1115,8 +1115,6 @@ namespace Backend.Domains.Audit.Services
             if (st.CompletedAt != null || string.Equals(st.Status, "Completed", StringComparison.OrdinalIgnoreCase))
                 return (false, "Audit is already completed.");
 
-            // Only manager can complete
-            // Verify manager has signed off
             var managerSignature = await _db.StockTakeSignatures
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x =>
@@ -1127,27 +1125,27 @@ namespace Backend.Domains.Audit.Services
             if (managerSignature == null)
                 return (false, "Manager must sign off before completing audit.");
 
-            // Verify all variances have been resolved
             var unresolvedVariances = await _db.StockTakeDetails
-     .AsNoTracking()
-     .CountAsync(x =>
-         x.StockTakeId == stockTakeId &&
-         (
-             x.DiscrepancyStatus == "RecountRequested" ||
-             ((x.DiscrepancyStatus == "Discrepancy" || x.DiscrepancyStatus == "Recounted") 
-                           && (x.ResolutionAction == null || x.ResolutionAction == ""))
-         ), ct);
+                .AsNoTracking()
+                .CountAsync(x =>
+                    x.StockTakeId == stockTakeId &&
+                    (x.SystemQty ?? 0m) != (x.CountQty ?? 0m) &&
+                    (
+                        x.ResolutionAction == null ||
+                        x.ResolvedBy == null ||
+                        x.ResolvedAt == null
+                    ), ct);
 
             if (unresolvedVariances > 0)
                 return (false, $"{unresolvedVariances} variance(s) still need resolution.");
 
-            // Post inventory adjustments for resolved discrepancies marked as AdjustSystem
             var resolvedDiscrepancies = await _db.StockTakeDetails
                 .Where(x =>
                     x.StockTakeId == stockTakeId &&
-                    (x.DiscrepancyStatus == "Discrepancy" || x.DiscrepancyStatus == "Recounted") &&
+                    (x.SystemQty ?? 0m) != (x.CountQty ?? 0m) &&
                     x.ResolutionAction != null &&
-                    x.ResolutionAction != "")
+                    x.ResolvedBy != null &&
+                    x.ResolvedAt != null)
                 .ToListAsync(ct);
 
             var detailsToAdjust = resolvedDiscrepancies
@@ -1164,7 +1162,6 @@ namespace Backend.Domains.Audit.Services
                 if (!detail.BinId.HasValue || !detail.BatchId.HasValue)
                     return (false, $"Invalid bin/batch data for variance detail {detail.Id}.");
 
-                // If already posted before, skip to avoid double-apply.
                 var alreadyPosted = await _db.InventoryAdjustmentEntries
                     .AsNoTracking()
                     .AnyAsync(x =>
@@ -1198,59 +1195,34 @@ namespace Backend.Domains.Audit.Services
                 inventory.QuantityOnHand = (inventory.QuantityOnHand ?? 0m) + delta;
                 inventory.LastUpdated = postedAt;
 
-                var latestEntry = await _db.InventoryAdjustmentEntries
-                    .Where(x =>
-                        x.StockTakeId == stockTakeId &&
-                        x.StockTakeDetailId == detail.Id)
-                    .OrderByDescending(x => x.EntryId)
-                    .FirstOrDefaultAsync(ct);
-
-                if (latestEntry == null)
+                var entry = new Backend.Entities.InventoryAdjustmentEntry
                 {
-                    latestEntry = new Backend.Entities.InventoryAdjustmentEntry
-                    {
-                        StockTakeId = stockTakeId,
-                        StockTakeDetailId = detail.Id,
-                        WarehouseId = st.WarehouseId,
-                        BinId = detail.BinId,
-                        MaterialId = detail.MaterialId,
-                        BatchId = detail.BatchId,
-                        QtyDelta = delta,
-                        ReasonId = detail.AdjustmentReasonId,
-                        Status = "Posted",
-                        CreatedAt = postedAt,
-                        CreatedBy = detail.ResolvedBy ?? managerId,
-                        ApprovedAt = postedAt,
-                        ApprovedBy = managerId,
-                        PostedAt = postedAt
-                    };
-                    _db.InventoryAdjustmentEntries.Add(latestEntry);
-                }
-                else
-                {
-                    latestEntry.WarehouseId = st.WarehouseId;
-                    latestEntry.BinId = detail.BinId;
-                    latestEntry.MaterialId = detail.MaterialId;
-                    latestEntry.BatchId = detail.BatchId;
-                    latestEntry.QtyDelta = delta;
-                    latestEntry.ReasonId = detail.AdjustmentReasonId;
-                    latestEntry.Status = "Posted";
-                    latestEntry.ApprovedAt = postedAt;
-                    latestEntry.ApprovedBy = managerId;
-                    latestEntry.PostedAt = postedAt;
-                }
+                    StockTakeId = stockTakeId,
+                    StockTakeDetailId = detail.Id,
+                    WarehouseId = st.WarehouseId,
+                    BinId = detail.BinId,
+                    MaterialId = detail.MaterialId,
+                    BatchId = detail.BatchId,
+                    QtyDelta = delta,
+                    ReasonId = detail.AdjustmentReasonId,
+                    Status = "Posted",
+                    CreatedAt = postedAt,
+                    CreatedBy = detail.ResolvedBy ?? managerId,
+                    ApprovedAt = postedAt,
+                    ApprovedBy = managerId,
+                    PostedAt = postedAt
+                };
 
+                _db.InventoryAdjustmentEntries.Add(entry);
                 postedCount++;
             }
 
-            // Update audit completion
             st.Status = "Completed";
             st.CompletedAt = postedAt;
             st.CompletedBy = managerId;
             st.Notes = request.Notes?.Trim();
 
             await UnlockActiveLocksAsync(stockTakeId, managerId, ct);
-
             await _db.SaveChangesAsync(ct);
 
             return (true, $"Audit completed successfully. AdjustSystem candidates: {detailsToAdjust.Count}, posted: {postedCount}, already posted: {skippedAlreadyPostedCount}, zero-delta: {skippedZeroDeltaCount}.");

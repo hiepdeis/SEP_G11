@@ -1,3 +1,4 @@
+using Backend.Domains.Audit.DTOs.Managers;
 using Backend.Domains.Audit.DTOs.Staffs;
 
 namespace Backend.Domains.Audit.Interfaces
@@ -6,11 +7,16 @@ namespace Backend.Domains.Audit.Interfaces
     {
         Task<bool> IsTeamMemberAsync(int stockTakeId, int userId, CancellationToken ct);
 
-        Task<List<CountingDto>> GetCountItemsAsync(
+        Task<List<MaterialBatchDto>> GetCountedItemsAsync(
+          int stockTakeId,
+          int userId,
+          int skip,
+          int take,
+          CancellationToken ct);
+
+        Task<List<MaterialBatchDto>> GetUncountedItemsAsync(
             int stockTakeId,
             int userId,
-            string? keyword,
-            bool uncountedOnly,
             int skip,
             int take,
             CancellationToken ct);
@@ -40,6 +46,16 @@ namespace Backend.Domains.Audit.Interfaces
             int stockTakeId,
             int userId,
             UpsertCountRequest request,
+            CancellationToken ct);
+
+        Task<List<RecountCandidateDto>> GetRecountCandidatesAsync(
+            int stockTakeId,
+            CancellationToken ct);
+
+        Task<(bool success, string message)> RejoinForRecountAsync(
+            int stockTakeId,
+            int targetUserId,
+            int managerUserId,
             CancellationToken ct);
     }
 }

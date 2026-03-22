@@ -3,7 +3,7 @@ using Backend.Domains.Audit.DTOs.Staffs;
 using Backend.Domains.Audit.Interfaces;
 using Backend.Entities;
 using Microsoft.EntityFrameworkCore;
-
+using Backend.Domains.Audit.DTOs.Managers;
 namespace Backend.Domains.Audit.Services
 {
     public class StockTakeCountingService : IStockTakeCountingService
@@ -52,81 +52,201 @@ namespace Backend.Domains.Audit.Services
                             (isWarehouseScopeAudit || x.BinId == currentBinId))
                     ), ct);
         }
-
+     
         public async Task<bool> IsTeamMemberAsync(int stockTakeId, int userId, CancellationToken ct)
         {
             return await _db.StockTakeTeamMembers
                 .AsNoTracking()
                 .AnyAsync(x => x.StockTakeId == stockTakeId && x.UserId == userId && (x.IsActive || x.MemberCompletedAt != null), ct);
         }
-
-public async Task<List<CountingDto>> GetCountItemsAsync(
-            int stockTakeId,
-            int userId,
-            string? keyword,
-            bool uncountedOnly,
-            int skip,
-            int take,
-            CancellationToken ct)
+        private async Task EnsureAssignedAsync(int stockTakeId, int userId, CancellationToken ct)
         {
-            var isMember = await IsTeamMemberAsync(stockTakeId, userId, ct);
-            if (!isMember)
-                throw new UnauthorizedAccessException("User is not part of this audit team.");
+            var isAssigned = await _db.StockTakeTeamMembers
+                .AsNoTracking()
+                .AnyAsync(x =>
+                    x.StockTakeId == stockTakeId &&
+                    x.UserId == userId &&
+                    x.IsActive,
+                    ct);
+
+            if (!isAssigned)
+                throw new UnauthorizedAccessException("Bạn không được phân công audit này.");
+        }
+
+        private IQueryable<(int MaterialId, string MaterialName, bool IsCounted)> BuildMaterialQuery(int stockTakeId)
+        {
+            var detailQuery = _db.StockTakeDetails
+                .AsNoTracking()
+                .Where(x => x.StockTakeId == stockTakeId);
+
+            var query =
+                from stBin in _db.StockTakeBinLocations.AsNoTracking()
+                where stBin.StockTakeId == stockTakeId
+
+                join inv in _db.InventoryCurrents.AsNoTracking()
+                    on stBin.BinId equals inv.BinId
+
+                join m in _db.Materials.AsNoTracking()
+                    on inv.MaterialId equals m.MaterialId
+
+                join d in detailQuery
+                    on new
+                    {
+                        MaterialId = inv.MaterialId,
+                        BinId = inv.BinId,
+                        BatchId = inv.BatchId
+                    }
+                    equals new
+                    {
+                        d.MaterialId,
+                        BinId = d.BinId ?? 0,
+                        BatchId = d.BatchId ?? 0
+                    }
+                    into detailJoin
+                from d in detailJoin.DefaultIfEmpty()
+
+                select new ValueTuple<int, string, bool>(
+                    inv.MaterialId,
+                    m.Name,
+                    d != null && d.CountQty != null
+                );
+
+            return query;
+        }
+
+        public async Task<List<MaterialBatchDto>> GetCountedItemsAsync(
+     int stockTakeId,
+     int userId,
+     int skip,
+     int take,
+     CancellationToken ct)
+        {
+            await EnsureAssignedAsync(stockTakeId, userId, ct);
 
             if (take <= 0) take = 50;
             if (take > 200) take = 200;
             if (skip < 0) skip = 0;
 
-            var q = _db.StockTakeDetails
-                .AsNoTracking()
-                .Where(x => x.StockTakeId == stockTakeId);
+            var q =
+                from stBin in _db.StockTakeBinLocations.AsNoTracking()
+                where stBin.StockTakeId == stockTakeId
 
-            if (uncountedOnly)
-            {
-                q = q.Where(x => x.CountQty == null);
-            }
+                join inv in _db.InventoryCurrents.AsNoTracking()
+                    on stBin.BinId equals inv.BinId
 
-            // FIX 500 ERROR: Đưa lệnh Filter (Where) lên TRƯỚC lệnh Select
-            keyword = keyword?.Trim();
-            if (!string.IsNullOrWhiteSpace(keyword))
-            {
-                if (int.TryParse(keyword, out var k))
+                join m in _db.Materials.AsNoTracking()
+                    on inv.MaterialId equals m.MaterialId
+
+                join b in _db.Batches.AsNoTracking()
+                    on inv.BatchId equals b.BatchId
+
+                join d in _db.StockTakeDetails.AsNoTracking().Where(x => x.StockTakeId == stockTakeId)
+                    on new
+                    {
+                        MaterialId = inv.MaterialId,
+                        BinId = inv.BinId,
+                        BatchId = inv.BatchId
+                    }
+                    equals new
+                    {
+                        d.MaterialId,
+                        BinId = d.BinId ?? 0,
+                        BatchId = d.BatchId ?? 0
+                    }
+                    into detailJoin
+                from d in detailJoin.DefaultIfEmpty()
+
+                where d != null && d.CountQty != null
+
+                select new
                 {
-                    q = q.Where(x => x.MaterialId == k || x.BatchId == k || x.BinId == k);
-                }
-                else
-                {
-                    var like = $"%{keyword}%";
-                    q = q.Where(x =>
-                        (x.Material != null &&
-                         EF.Functions.Like(EF.Functions.Collate(x.Material.Name, "Vietnamese_CI_AI"), like))
-                        ||
-                        (x.Batch != null &&
-                         EF.Functions.Like(EF.Functions.Collate(x.Batch.BatchCode, "Vietnamese_CI_AI"), like))
-                    );
-                }
-            }
+                    inv.MaterialId,
+                    MaterialName = m.Name,
+                    BatchId = inv.BatchId,
+                    BatchCode = b.BatchCode
+                };
 
-            // SAU ĐÓ MỚI SELECT
             return await q
-                .Select(x => new CountingDto
-                {
-                    MaterialId = x.MaterialId,
-                    BinId = x.BinId ?? 0,
-                    BatchId = x.BatchId ?? 0,
-                    MaterialName = x.Material != null ? x.Material.Name : null,
-                    BatchCode = x.Batch != null ? x.Batch.BatchCode : null,
-                    BinCode = x.Bin != null ? x.Bin.Code : null,
-                    SystemQty = x.SystemQty,
-                    CountQty = x.CountQty,
-                    Variance = x.Variance,
-                    CountedBy = x.CountedBy,
-                    CountedAt = x.CountedAt
-                })
+                .Distinct()
                 .OrderBy(x => x.MaterialName)
                 .ThenBy(x => x.BatchCode)
                 .Skip(skip)
                 .Take(take)
+                .Select(x => new MaterialBatchDto
+                {
+                    MaterialId = x.MaterialId,
+                    MaterialName = x.MaterialName,
+                    BatchId = x.BatchId,
+                    BatchCode = x.BatchCode
+                })
+                .ToListAsync(ct);
+        }
+        public async Task<List<MaterialBatchDto>> GetUncountedItemsAsync(
+     int stockTakeId,
+     int userId,
+     int skip,
+     int take,
+     CancellationToken ct)
+        {
+            await EnsureAssignedAsync(stockTakeId, userId, ct);
+
+            if (take <= 0) take = 50;
+            if (take > 200) take = 200;
+            if (skip < 0) skip = 0;
+
+            var q =
+                from stBin in _db.StockTakeBinLocations.AsNoTracking()
+                where stBin.StockTakeId == stockTakeId
+
+                join inv in _db.InventoryCurrents.AsNoTracking()
+                    on stBin.BinId equals inv.BinId
+
+                join m in _db.Materials.AsNoTracking()
+                    on inv.MaterialId equals m.MaterialId
+
+                join b in _db.Batches.AsNoTracking()
+                    on inv.BatchId equals b.BatchId
+
+                join d in _db.StockTakeDetails.AsNoTracking().Where(x => x.StockTakeId == stockTakeId)
+                    on new
+                    {
+                        MaterialId = inv.MaterialId,
+                        BinId = inv.BinId,
+                        BatchId = inv.BatchId
+                    }
+                    equals new
+                    {
+                        d.MaterialId,
+                        BinId = d.BinId ?? 0,
+                        BatchId = d.BatchId ?? 0
+                    }
+                    into detailJoin
+                from d in detailJoin.DefaultIfEmpty()
+
+                where d == null || d.CountQty == null
+
+                select new
+                {
+                    inv.MaterialId,
+                    MaterialName = m.Name,
+                    BatchId = inv.BatchId,
+                    BatchCode = b.BatchCode
+                };
+
+            // SAU ĐÓ MỚI SELECT
+            return await q
+                .Distinct()
+                .OrderBy(x => x.MaterialName)
+                .ThenBy(x => x.BatchCode)
+                .Skip(skip)
+                .Take(take)
+                .Select(x => new MaterialBatchDto
+                {
+                    MaterialId = x.MaterialId,
+                    MaterialName = x.MaterialName,
+                    BatchId = x.BatchId,
+                    BatchCode = x.BatchCode
+                })
                 .ToListAsync(ct);
         }
 
@@ -140,7 +260,7 @@ public async Task<List<CountingDto>> GetCountItemsAsync(
         {
             var isMember = await IsTeamMemberAsync(stockTakeId, userId, ct);
             if (!isMember)
-                throw new UnauthorizedAccessException("User is not part of this audit team.");
+                throw new UnauthorizedAccessException("User is not currently active in this audit.");
 
             if (take <= 0) take = 50;
             if (take > 200) take = 200;
@@ -167,7 +287,23 @@ public async Task<List<CountingDto>> GetCountItemsAsync(
                 q = q.Where(x => x.BinId.HasValue && assignedBinIds.Contains(x.BinId.Value));
             }
 
-            // FIX 500 ERROR: Đưa lệnh Filter (Where) lên TRƯỚC lệnh Select
+            var result = q.Select(x => new CountingDto
+            {
+                MaterialId = x.MaterialId,
+                BinId = x.BinId ?? 0,
+                BatchId = x.BatchId ?? 0,
+                MaterialName = x.Material != null ? x.Material.Name : null,
+                BatchCode = x.Batch != null ? x.Batch.BatchCode : null,
+                BinCode = x.Bin != null ? x.Bin.Code : null,
+                UnitName = x.Material != null ? x.Material.Unit : null, // nếu field khác thì đổi lại
+                SystemQty = x.SystemQty,
+                CountQty = x.CountQty,
+                CountRound = x.CountRound,
+                Variance = x.Variance,
+                CountedBy = x.CountedBy,
+                CountedAt = x.CountedAt
+            });
+
             keyword = keyword?.Trim();
             if (!string.IsNullOrWhiteSpace(keyword))
             {
@@ -213,6 +349,68 @@ public async Task<List<CountingDto>> GetCountItemsAsync(
                 .Take(take)
                 .ToListAsync(ct);
         }
+        public async Task<List<RecountCandidateDto>> GetRecountCandidatesAsync(
+    int stockTakeId,
+    CancellationToken ct)
+        {
+            var st = await _db.StockTakes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
+
+            if (st == null)
+                throw new ArgumentException("Audit not found.");
+
+            var result = await (
+                from tm in _db.StockTakeTeamMembers.AsNoTracking()
+                join u in _db.Users.AsNoTracking() on tm.UserId equals u.UserId
+                where tm.StockTakeId == stockTakeId
+                orderby tm.IsActive descending, u.FullName
+                select new RecountCandidateDto
+                {
+                    UserId = tm.UserId,
+                    FullName = u.FullName,
+                    IsActive = tm.IsActive,
+                    AssignedAt = tm.AssignedAt,
+                    RemovedAt = tm.RemovedAt
+                }
+            ).ToListAsync(ct);
+
+            return result;
+        }
+        public async Task<(bool success, string message)> RejoinForRecountAsync(
+    int stockTakeId,
+    int targetUserId,
+    int managerUserId,
+    CancellationToken ct)
+        {
+            var st = await _db.StockTakes
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
+
+            if (st == null)
+                return (false, "Audit not found.");
+
+            if (st.CreatedBy != managerUserId)
+                return (false, "You do not have permission to update this audit.");
+
+            var member = await _db.StockTakeTeamMembers
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId && x.UserId == targetUserId, ct);
+
+            if (member == null)
+                return (false, "This user has never joined this audit.");
+
+            if (member.IsActive)
+                return (true, "User is already active in this audit.");
+
+            member.IsActive = true;
+            member.RemovedAt = null;
+
+            if (string.Equals(st.Status, "Planned", StringComparison.OrdinalIgnoreCase))
+                st.Status = "Assigned";
+
+            await _db.SaveChangesAsync(ct);
+
+            return (true, "User rejoined successfully for recount.");
+        }
         public async Task<List<MaterialSuggestDto>> SuggestMaterialsAsync(
        int stockTakeId,
        int userId,
@@ -252,7 +450,8 @@ public async Task<List<CountingDto>> GetCountItemsAsync(
             {
                 MaterialId = x.MaterialId,
                 MaterialName = x.Material != null ? x.Material.Name : "",
-                BatchCode = x.Batch != null ? x.Batch.BatchCode : null
+                BatchCode = x.Batch != null ? x.Batch.BatchCode : null,
+                UnitName = x.Material != null ? x.Material.Unit : null // nếu field khác thì đổi lại
             });
 
             if (!string.IsNullOrWhiteSpace(keyword))
@@ -269,17 +468,18 @@ public async Task<List<CountingDto>> GetCountItemsAsync(
             }
 
             return await resultQuery
-                .GroupBy(x => new { x.MaterialId, x.MaterialName, x.BatchCode })
-                .Select(g => new MaterialSuggestDto
-                {
-                    MaterialId = g.Key.MaterialId,
-                    MaterialName = g.Key.MaterialName,
-                    BatchCode = g.Key.BatchCode
-                })
-                .OrderBy(x => x.MaterialName)
-                .ThenBy(x => x.BatchCode)
-                .Take(take)
-                .ToListAsync(ct);
+    .GroupBy(x => new { x.MaterialId, x.MaterialName, x.BatchCode, x.UnitName })
+    .Select(g => new MaterialSuggestDto
+    {
+        MaterialId = g.Key.MaterialId,
+        MaterialName = g.Key.MaterialName,
+        BatchCode = g.Key.BatchCode,
+        UnitName = g.Key.UnitName
+    })
+    .OrderBy(x => x.MaterialName)
+    .ThenBy(x => x.BatchCode)
+    .Take(take)
+    .ToListAsync(ct);
         }
         public async Task<(bool success, string message)> UpsertCountAsync(
             int stockTakeId,
@@ -412,6 +612,7 @@ public async Task<List<CountingDto>> GetCountItemsAsync(
                     BinId = binId,
                     SystemQty = systemQty,
                     CountQty = request.CountQty,
+                    CountRound = 1,
                     Variance = variance,
                     CountedBy = userId,
                     CountedAt = DateTime.UtcNow,
@@ -423,6 +624,7 @@ public async Task<List<CountingDto>> GetCountItemsAsync(
             {
                 detail.SystemQty = systemQty;
                 detail.CountQty = request.CountQty;
+                detail.CountRound = detail.CountRound <= 0 ? 1 : detail.CountRound;
                 detail.Variance = variance;
                 detail.CountedBy = userId;
                 detail.CountedAt = DateTime.UtcNow;
@@ -545,6 +747,7 @@ public async Task<List<CountingDto>> GetCountItemsAsync(
 
             detail.SystemQty = systemQty;
             detail.CountQty = request.CountQty;
+            detail.CountRound = detail.CountRound <= 0 ? 2 : detail.CountRound + 1;
             detail.Variance = variance;
             detail.CountedBy = userId;
             detail.CountedAt = DateTime.UtcNow;
@@ -554,7 +757,6 @@ public async Task<List<CountingDto>> GetCountItemsAsync(
             detail.Reason = null;
             detail.ResolvedBy = null;
             detail.ResolvedAt = null;
-
             await _db.SaveChangesAsync(ct);
 
             return (true, "Recount recorded successfully.");

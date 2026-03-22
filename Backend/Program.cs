@@ -1,5 +1,7 @@
 
 using Backend.Data;
+using Backend.Domains.Admin.Interface;
+using Backend.Domains.Admin.Services;
 using Backend.Domains.Audit.Interfaces;
 using Backend.Domains.Audit.Services;
 using Backend.Domains.auth.Business;
@@ -16,6 +18,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using NuGet.Packaging;
 using OfficeOpenXml;
 using System;
 using System.Text;
@@ -39,7 +42,9 @@ builder.Services.AddDbContext<MyDbContext>(options =>
 // Add services to the container.
 
 
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
+builder.Services.AddScoped<IAuditReportService, AuditReportService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -51,7 +56,7 @@ builder.Services.AddScoped<IAuditTeamService, AuditTeamService>();
 builder.Services.AddScoped<IStockTakeReviewService, StockTakeReviewService>();
 builder.Services.AddScoped<IStockTakeCountingService, StockTakeCountingService>();
 builder.Services.AddScoped<IStockTakeLockService, StockTakeLockService>();
-
+builder.Services.AddScoped<IStockTakeCountingService, StockTakeCountingService>();
 // Configure Swagger to support file uploads
 builder.Services.AddSwaggerGen(c =>
 {
@@ -98,8 +103,11 @@ builder.Services.AddScoped<GoogleLoginHandler>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IReceiptService, ReceiptService>();
 builder.Services.AddScoped<IAuthorizationHandler, ActiveUserAuthorizationHandler>();
-
-
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+builder.Services.AddScoped<IMaterialService, MaterialService>();
+builder.Services.AddScoped<IMasterDataService, MasterDataService>();
+builder.Services.AddScoped<INotificationAdminService, NotificationAdminService>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {

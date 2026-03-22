@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { auditService, StockTakeReviewDetailDto, VarianceItemDto } from "@/services/audit-service";
+import { auditService, RecountCandidateDto, StockTakeReviewDetailDto, VarianceItemDto } from "@/services/audit-service";
 import { toast } from "sonner";
 
 type UserRole = "admin" | "manager" | "accountant" | "staff";
@@ -36,6 +36,9 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
 
   const [resolveItem, setResolveItem] = useState<VarianceItemDto | null>(null);
   const [resolveAction, setResolveAction] = useState("");
+
+  const [candidates, setCandidates] = useState<RecountCandidateDto[]>([]);
+  const [showCandidates, setShowCandidates] = useState(false);
 
   // FIX LỖI: Thêm lại biến canExport
   const canExport = ["accountant", "admin", "manager"].includes(role);
@@ -133,6 +136,39 @@ const handleFinalizeAction = async () => {
     }
   };
 
+  const fetchCandidates = async () => {
+    try {
+      const data = await auditService.getRecountCandidates(stockTakeId);
+      setCandidates(data);
+      setShowCandidates(true);
+    } catch (e) { toast.error("Lỗi lấy danh sách team"); }
+  };
+
+  const handleRejoin = async (userId: number) => {
+    try {
+      await auditService.rejoinForRecount(stockTakeId, userId);
+      toast.success("Đã triệu tập nhân viên thành công!");
+      fetchCandidates(); // Refresh danh sách popup
+    } catch (e: any) { toast.error(e.response?.data?.message || "Lỗi"); }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      toast.info("Đang tạo báo cáo PDF...");
+      const pdfBlob = await auditService.exportPdf(stockTakeId);
+      const url = window.URL.createObjectURL(new Blob([pdfBlob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Stocktake-Report-${stockTakeId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("Tải báo cáo thành công!");
+    } catch (error) {
+      toast.error("Lỗi khi xuất file PDF.");
+    }
+  };
+
   if (loading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
@@ -210,9 +246,10 @@ const handleFinalizeAction = async () => {
                     <ClipboardList className="w-4 h-4 text-indigo-600" /> Discrepancies Details
                   </CardTitle>
                   <div className="flex gap-2">
-                    {canExport && (
-                      <Button variant="outline" size="sm" className="h-8 text-xs">
-                        <Download className="w-3.5 h-3.5 mr-1.5" /> Export
+                    {/* CHỈ HIỆN NÚT PDF NẾU STATUS ĐÃ COMPLETED */}
+                    {canExport && detailData.status === "Completed" && (
+                      <Button variant="outline" size="sm" className="h-8 text-xs border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100" onClick={handleExportPdf}>
+                        <Download className="w-3.5 h-3.5 mr-1.5" /> Tải PDF
                       </Button>
                     )}
                   </div>
@@ -315,6 +352,24 @@ const handleFinalizeAction = async () => {
                     </CardContent>
                   </Card>
                 )}
+                {/* Thẻ Action: Triệu tập đếm lại (Hiện khi Audit đang InProgress/ReadyForReview) */}
+                {role === "manager" && (detailData.status === "InProgress" || detailData.status === "ReadyForReview") && (
+                  <Card className="border-orange-200 shadow-sm bg-orange-50/30 gap-0 mt-4">
+                    <CardHeader className="border-b border-orange-100 pt-4 pb-3">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2 text-orange-800">
+                        <AlertTriangle className="w-5 h-5" /> Manage Recount Team
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6 space-y-4">
+                      <p className="text-sm text-orange-700/80">
+                        Nếu bạn đã yêu cầu Recount nhưng nhân viên đã hoàn thành nhiệm vụ, hãy triệu tập họ quay lại đây.
+                      </p>
+                      <Button variant="outline" className="w-full border-orange-300 text-orange-700 hover:bg-orange-100" onClick={fetchCandidates}>
+                        Mở danh sách Team
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
                 <CardContent className="p-6 space-y-4">
                   <div>
                     <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Warehouse</label>
@@ -396,6 +451,25 @@ const handleFinalizeAction = async () => {
             </div>
           </div>
         </div>
+        {/* Dialog Triệu tập nhân viên */}
+        <Dialog open={showCandidates} onOpenChange={setShowCandidates}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader><DialogTitle>Triệu tập nhân viên đếm lại</DialogTitle></DialogHeader>
+            <div className="py-4 space-y-3">
+              {candidates.map(c => (
+                <div key={c.userId} className="flex items-center justify-between p-3 bg-slate-50 border rounded-lg">
+                  <div>
+                    <p className="font-bold text-slate-800">{c.fullName}</p>
+                    <p className="text-xs text-slate-500">Trạng thái: {c.isActive ? <span className="text-emerald-500 font-bold">Đang làm việc</span> : <span className="text-red-500">Đã nghỉ tay</span>}</p>
+                  </div>
+                  {!c.isActive && (
+                    <Button size="sm" onClick={() => handleRejoin(c.userId)} className="bg-indigo-600">Triệu tập lại</Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
 
       {/* Dialog Resolve */}
