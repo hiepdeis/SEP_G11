@@ -34,7 +34,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { managerStockShortageAlertApi, StockShortageAlertDto } from "@/services/import-service"; // Cập nhật đường dẫn service
+import {
+  managerStockShortageAlertApi,
+  StockShortageAlertDto,
+} from "@/services/import-service"; // Cập nhật đường dẫn service
 import { toast } from "sonner";
 import {
   Select,
@@ -62,7 +65,9 @@ export default function StockShortageAlertListPage() {
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [filterStatus, setFilterStatus] = useState<"All" | "Pending" | "ManagerConfirmed" | "PRCreated">("Pending");
+  const [filterStatus, setFilterStatus] = useState<
+    "All" | "Pending" | "ManagerConfirmed" | "PRCreated"
+  >("Pending");
 
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
@@ -82,7 +87,11 @@ export default function StockShortageAlertListPage() {
 
   const handleSort = (key: "date" | "quantity") => {
     let direction: "asc" | "desc" = "asc";
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === "asc") {
+    if (
+      sortConfig &&
+      sortConfig.key === key &&
+      sortConfig.direction === "asc"
+    ) {
       direction = "desc";
     }
     setSortConfig({ key, direction });
@@ -118,7 +127,7 @@ export default function StockShortageAlertListPage() {
     }
 
     const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = 
+    const matchesSearch =
       item.materialName?.toLowerCase().includes(searchLower) ||
       item.materialCode?.toLowerCase().includes(searchLower);
 
@@ -128,10 +137,17 @@ export default function StockShortageAlertListPage() {
         matchesDate = false;
       } else {
         const itemDate = new Date(item.createdAt);
-        const fromDate = dateRange.from ? startOfDay(dateRange.from) : new Date(2000, 0, 1);
-        const toDate = dateRange.to ? endOfDay(dateRange.to) : new Date(2100, 0, 1);
+        const fromDate = dateRange.from
+          ? startOfDay(dateRange.from)
+          : new Date(2000, 0, 1);
+        const toDate = dateRange.to
+          ? endOfDay(dateRange.to)
+          : new Date(2100, 0, 1);
 
-        matchesDate = isWithinInterval(itemDate, { start: fromDate, end: toDate });
+        matchesDate = isWithinInterval(itemDate, {
+          start: fromDate,
+          end: toDate,
+        });
       }
     }
 
@@ -159,8 +175,11 @@ export default function StockShortageAlertListPage() {
 
   // 3. Phân trang
   const isAll = itemsPerPage === -1;
-  const totalPages = isAll ? 1 : Math.ceil(sortedData.length / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * (isAll ? sortedData.length : itemsPerPage);
+  const totalPages = isAll
+    ? 1
+    : Math.ceil(sortedData.length / itemsPerPage) || 1;
+  const startIndex =
+    (currentPage - 1) * (isAll ? sortedData.length : itemsPerPage);
   const endIndex = isAll ? sortedData.length : startIndex + itemsPerPage;
   const paginatedData = sortedData.slice(startIndex, endIndex);
 
@@ -177,9 +196,15 @@ export default function StockShortageAlertListPage() {
   const formatPlus = (num: number) => (num > 999 ? "999+" : num);
 
   // Thống kê
-  const pendingCount = alerts.filter((item) => item.status === "Pending").length;
-  const highPriorityCount = alerts.filter((item) => item.priority === "High" && item.status === "Pending").length;
-  const confirmedCount = alerts.filter((item) => item.status === "ManagerConfirmed" || item.status === "PRCreated").length;
+  const pendingCount = alerts.filter(
+    (item) => item.status === "Pending",
+  ).length;
+  const highPriorityCount = alerts.filter(
+    (item) => item.priority === "High" && item.status === "Pending",
+  ).length;
+  const confirmedCount = alerts.filter(
+    (item) => item.status === "ManagerConfirmed" || item.status === "PRCreated",
+  ).length;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -198,11 +223,32 @@ export default function StockShortageAlertListPage() {
     if (!priority) return null;
     switch (priority.toLowerCase()) {
       case "high":
-        return <Badge variant="secondary" className="bg-red-100 text-red-700 px-1.5 text-[10px]">High</Badge>;
+        return (
+          <Badge
+            variant="secondary"
+            className="bg-red-100 text-red-700 px-1.5 text-[10px]"
+          >
+            High
+          </Badge>
+        );
       case "medium":
-        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 px-1.5 text-[10px]">Medium</Badge>;
+        return (
+          <Badge
+            variant="secondary"
+            className="bg-yellow-100 text-yellow-700 px-1.5 text-[10px]"
+          >
+            Medium
+          </Badge>
+        );
       case "low":
-        return <Badge variant="secondary" className="bg-blue-100 text-blue-700 px-1.5 text-[10px]">Low</Badge>;
+        return (
+          <Badge
+            variant="secondary"
+            className="bg-blue-100 text-blue-700 px-1.5 text-[10px]"
+          >
+            Low
+          </Badge>
+        );
       default:
         return null;
     }
@@ -221,7 +267,9 @@ export default function StockShortageAlertListPage() {
                 {t("Stock Shortage Alerts")}
               </h1>
               <p className="text-sm text-slate-500">
-                {t("Review system-generated alerts and confirm requested restock quantities.")}
+                {t(
+                  "Review system-generated alerts and confirm requested restock quantities.",
+                )}
               </p>
             </div>
           </div>
@@ -286,7 +334,13 @@ export default function StockShortageAlertListPage() {
 
                   <Select
                     value={filterStatus}
-                    onValueChange={(value: "All" | "Pending" | "ManagerConfirmed" | "PRCreated") => setFilterStatus(value)}
+                    onValueChange={(
+                      value:
+                        | "All"
+                        | "Pending"
+                        | "ManagerConfirmed"
+                        | "PRCreated",
+                    ) => setFilterStatus(value)}
                   >
                     <SelectTrigger className="w-[170px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
                       <SelectValue placeholder={t("Filter by status")} />
@@ -294,8 +348,12 @@ export default function StockShortageAlertListPage() {
                     <SelectContent>
                       <SelectItem value="All">{t("All")}</SelectItem>
                       <SelectItem value="Pending">{t("Pending")}</SelectItem>
-                      <SelectItem value="ManagerConfirmed">{t("Confirmed")}</SelectItem>
-                      <SelectItem value="PRCreated">{t("PR Created")}</SelectItem>
+                      <SelectItem value="ManagerConfirmed">
+                        {t("Confirmed")}
+                      </SelectItem>
+                      <SelectItem value="PRCreated">
+                        {t("PR Created")}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -306,18 +364,24 @@ export default function StockShortageAlertListPage() {
                           variant="outline"
                           className={cn(
                             "justify-start text-left font-normal h-9 bg-white shadow-sm",
-                            !dateRange.from && "text-slate-500"
+                            !dateRange.from && "text-slate-500",
                           )}
                         >
                           <CalendarDays className="mr-2 h-4 w-4" />
-                          {dateRange.from ? format(dateRange.from, "dd/MM/yyyy") : <span>{t("From Date")}</span>}
+                          {dateRange.from ? (
+                            format(dateRange.from, "dd/MM/yyyy")
+                          ) : (
+                            <span>{t("From Date")}</span>
+                          )}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
                           selected={dateRange.from}
-                          onSelect={(date) => setDateRange((prev) => ({ ...prev, from: date }))}
+                          onSelect={(date) =>
+                            setDateRange((prev) => ({ ...prev, from: date }))
+                          }
                           initialFocus
                         />
                       </PopoverContent>
@@ -331,20 +395,28 @@ export default function StockShortageAlertListPage() {
                           variant="outline"
                           className={cn(
                             "justify-start text-left font-normal h-9 bg-white shadow-sm",
-                            !dateRange.to && "text-slate-500"
+                            !dateRange.to && "text-slate-500",
                           )}
                         >
                           <CalendarDays className="mr-2 h-4 w-4" />
-                          {dateRange.to ? format(dateRange.to, "dd/MM/yyyy") : <span>{t("To Date")}</span>}
+                          {dateRange.to ? (
+                            format(dateRange.to, "dd/MM/yyyy")
+                          ) : (
+                            <span>{t("To Date")}</span>
+                          )}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
                           selected={dateRange.to}
-                          onSelect={(date) => setDateRange((prev) => ({ ...prev, to: date }))}
+                          onSelect={(date) =>
+                            setDateRange((prev) => ({ ...prev, to: date }))
+                          }
                           initialFocus
-                          disabled={(date) => (dateRange.from ? date < dateRange.from : false)}
+                          disabled={(date) =>
+                            dateRange.from ? date < dateRange.from : false
+                          }
                         />
                       </PopoverContent>
                     </Popover>
@@ -354,7 +426,9 @@ export default function StockShortageAlertListPage() {
                         variant="ghost"
                         size="sm"
                         className="h-8 text-xs text-slate-500 px-2"
-                        onClick={() => setDateRange({ from: undefined, to: undefined })}
+                        onClick={() =>
+                          setDateRange({ from: undefined, to: undefined })
+                        }
                       >
                         <Delete className="h-4 w-4" />
                       </Button>
@@ -386,15 +460,21 @@ export default function StockShortageAlertListPage() {
                         <div className="flex items-center gap-1.5 select-none">
                           {t("Date & Alert ID")}
                           {sortConfig?.key === "date" ? (
-                            sortConfig.direction === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-indigo-600" /> : <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+                            sortConfig.direction === "asc" ? (
+                              <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
+                            ) : (
+                              <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+                            )
                           ) : (
                             <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50 hover:text-indigo-600" />
                           )}
                         </div>
                       </TableHead>
 
-                      <TableHead className="w-[30%]">{t("Material Info")}</TableHead>
-                      
+                      <TableHead className="w-[30%]">
+                        {t("Material Info")}
+                      </TableHead>
+
                       <TableHead
                         className="cursor-pointer transition-colors w-[15%] text-right"
                         onClick={() => handleSort("quantity")}
@@ -402,16 +482,26 @@ export default function StockShortageAlertListPage() {
                         <div className="flex items-center justify-end gap-1.5 select-none">
                           {t("Current Stock")}
                           {sortConfig?.key === "quantity" ? (
-                            sortConfig.direction === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-indigo-600" /> : <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+                            sortConfig.direction === "asc" ? (
+                              <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
+                            ) : (
+                              <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+                            )
                           ) : (
                             <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50 hover:text-indigo-600" />
                           )}
                         </div>
                       </TableHead>
 
-                      <TableHead className="w-[15%] text-center">{t("Suggested Quantity")}</TableHead>
-                      <TableHead className="w-[15%] text-center">{t("Status")}</TableHead>
-                      <TableHead className="text-right pr-6 w-[10%]">{t("Action")}</TableHead>
+                      <TableHead className="w-[15%] text-center">
+                        {t("Suggested Quantity")}
+                      </TableHead>
+                      <TableHead className="w-[15%] text-center">
+                        {t("Status")}
+                      </TableHead>
+                      <TableHead className="text-right pr-6 w-[10%]">
+                        {t("Action")}
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -419,48 +509,68 @@ export default function StockShortageAlertListPage() {
                       <TableRow>
                         <TableCell colSpan={6} className="h-32 text-center">
                           <div className="flex justify-center items-center gap-2 text-indigo-600">
-                            <Loader2 className="w-6 h-6 animate-spin" /> {t("Loading alerts...")}
+                            <Loader2 className="w-6 h-6 animate-spin" />{" "}
+                            {t("Loading alerts...")}
                           </div>
                         </TableCell>
                       </TableRow>
                     ) : paginatedData.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-32 text-center text-slate-500">
+                        <TableCell
+                          colSpan={6}
+                          className="h-32 text-center text-slate-500"
+                        >
                           {t("No alerts found.")}
                         </TableCell>
                       </TableRow>
                     ) : (
                       paginatedData.map((item) => (
-                        <TableRow key={item.alertId} className="group hover:bg-slate-50/50 transition-colors">
+                        <TableRow
+                          key={item.alertId}
+                          className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
+                          onClick={() => {
+                            const selection = window.getSelection();
+                            if (selection && selection.toString().length > 0) {
+                              return;
+                            }
+                            handleReview(item.alertId);
+                          }}
+                        >
                           <TableCell className="pl-6">
                             <div className="flex flex-col">
                               <div className="flex items-center gap-2">
-                                <span className="font-semibold text-slate-700">#{item.alertId}</span>
+                                <span className="font-semibold text-slate-700">
+                                  #{item.alertId}
+                                </span>
                                 {item.status === "Pending" && (
                                   <span className="flex h-2 w-2 rounded-full bg-rose-500" />
                                 )}
                               </div>
                               <span className="text-xs text-slate-400 flex items-center gap-1 mt-1">
-                                <CalendarDays className="w-3 h-3" /> {formatDate(item.createdAt)}
+                                <CalendarDays className="w-3 h-3" />{" "}
+                                {formatDate(item.createdAt)}
                               </span>
                             </div>
                           </TableCell>
-                          
+
                           <TableCell>
                             <div className="flex flex-col text-left">
                               <div className="flex items-center gap-2">
-                                <span className="font-semibold text-slate-800">{item.materialName}</span>
+                                <span className="font-semibold text-slate-800">
+                                  {item.materialName}
+                                </span>
                                 {getPriorityBadge(item.priority)}
                               </div>
                               <span className="text-xs text-slate-500 font-mono mt-0.5">
                                 {item.materialCode}
                               </span>
                               <span className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                                <Package className="w-3 h-3" /> {item.warehouseName || t("Main Warehouse")}
+                                <Package className="w-3 h-3" />{" "}
+                                {item.warehouseName || t("Main Warehouse")}
                               </span>
                             </div>
                           </TableCell>
-                          
+
                           <TableCell className="text-right">
                             <div className="flex flex-col items-end">
                               <span className="font-bold text-rose-600">
@@ -474,7 +584,10 @@ export default function StockShortageAlertListPage() {
 
                           <TableCell className="text-center">
                             <span className="font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100">
-                              +{item.suggestedQuantity?.toLocaleString("vi-VN") || 0}
+                              +
+                              {item.suggestedQuantity?.toLocaleString(
+                                "vi-VN",
+                              ) || 0}
                             </span>
                           </TableCell>
 
@@ -483,16 +596,24 @@ export default function StockShortageAlertListPage() {
                               variant="outline"
                               className={getStatusBadge(item.status)}
                             >
-                              {item.status == "PRCreated" ? "PR Created" : item.status == "ManagerConfirmed" ? "Manager Confirmed" : t(item.status)}
+                              {item.status == "PRCreated"
+                                ? "PR Created"
+                                : item.status == "ManagerConfirmed"
+                                  ? "Manager Confirmed"
+                                  : t(item.status)}
                             </Badge>
                           </TableCell>
-                          
+
                           <TableCell className="text-right pr-6">
                             <Button
                               size="sm"
                               onClick={() => handleReview(item.alertId)}
                               disabled={loadingId === item.alertId}
-                              variant={item.status === "Pending" ? "default" : "outline"}
+                              variant={
+                                item.status === "Pending"
+                                  ? "default"
+                                  : "outline"
+                              }
                               className={
                                 item.status === "Pending"
                                   ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[90px]"
@@ -503,7 +624,8 @@ export default function StockShortageAlertListPage() {
                                 <Loader2 className="w-4 h-4 animate-spin" />
                               ) : item.status === "Pending" ? (
                                 <>
-                                  {t("Review")} <ArrowRight className="w-4 h-4 ml-1.5" />
+                                  {t("Review")}{" "}
+                                  <ArrowRight className="w-4 h-4 ml-1.5" />
                                 </>
                               ) : (
                                 <>
@@ -522,15 +644,30 @@ export default function StockShortageAlertListPage() {
               {!isLoading && filteredData.length > 0 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 gap-4 mt-auto">
                   <div className="text-sm text-slate-500">
-                    {t("Showing")} <span className="font-medium text-slate-900">{startIndex + 1}</span> {t("to")}{" "}
-                    <span className="font-medium text-slate-900">{Math.min(endIndex, filteredData.length)}</span> {t("of")}{" "}
-                    <span className="font-medium text-slate-900">{filteredData.length}</span> {t("results")}
+                    {t("Showing")}{" "}
+                    <span className="font-medium text-slate-900">
+                      {startIndex + 1}
+                    </span>{" "}
+                    {t("to")}{" "}
+                    <span className="font-medium text-slate-900">
+                      {Math.min(endIndex, filteredData.length)}
+                    </span>{" "}
+                    {t("of")}{" "}
+                    <span className="font-medium text-slate-900">
+                      {filteredData.length}
+                    </span>{" "}
+                    {t("results")}
                   </div>
 
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-slate-500 whitespace-nowrap">{t("Rows per page:")}</span>
-                      <Select value={itemsPerPage.toString()} onValueChange={(val) => setItemsPerPage(Number(val))}>
+                      <span className="text-sm text-slate-500 whitespace-nowrap">
+                        {t("Rows per page:")}
+                      </span>
+                      <Select
+                        value={itemsPerPage.toString()}
+                        onValueChange={(val) => setItemsPerPage(Number(val))}
+                      >
                         <SelectTrigger className="h-8 w-[75px] bg-white border-slate-200">
                           <SelectValue />
                         </SelectTrigger>
@@ -548,7 +685,9 @@ export default function StockShortageAlertListPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                        onClick={() =>
+                          setCurrentPage((prev) => Math.max(prev - 1, 1))
+                        }
                         disabled={currentPage === 1}
                         className="h-8"
                       >
@@ -560,7 +699,11 @@ export default function StockShortageAlertListPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setCurrentPage((prev) => Math.max(prev + 1, totalPages))}
+                        onClick={() =>
+                          setCurrentPage((prev) =>
+                            Math.max(prev + 1, totalPages),
+                          )
+                        }
                         disabled={currentPage === totalPages}
                         className="h-8"
                       >

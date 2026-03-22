@@ -131,10 +131,6 @@ export function Sidebar() {
       href: "/accountant",
       subItems: [
         {
-          label: t("sidebar.tabs.import_requests"),
-          href: "/accountant/import-request",
-        },
-        {
           label: t("sidebar.tabs.purchase_orders"),
           href: "/accountant/purchase-orders",
         },
@@ -144,10 +140,6 @@ export function Sidebar() {
       label: t("sidebar.roles.manager"),
       href: "/manager",
       subItems: [
-        {
-          label: t("sidebar.tabs.import_requests"),
-          href: "/manager/import-request",
-        },
         {
           label: t("sidebar.tabs.alerts"),
           href: "/manager/alerts",

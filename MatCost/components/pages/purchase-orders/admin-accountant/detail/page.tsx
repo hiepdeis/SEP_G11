@@ -15,6 +15,8 @@ import {
   AlertCircle,
   Building2,
   FileText,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +44,7 @@ import {
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { formatPascalCase } from "@/lib/format-pascal-case";
+import { showConfirmToast } from "@/hooks/confirm-toast";
 
 export default function PurchaseOrderReviewPage({ role = "accountant" }) {
   const params = useParams();
@@ -58,6 +61,9 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
 
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const fetchReviewDetail = async () => {
     setIsLoading(true);
@@ -79,24 +85,37 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
     if (id) fetchReviewDetail();
   }, [id, router, t]);
 
-  const handleApprove = async () => {
-    setIsApproving(true);
-    try {
-      if (role === "accountant") {
-        await accountantPurchaseOrderApi.approve(id);
-        toast.success(t("Pricing approved successfully by Accountant."));
-      } else {
-        await adminPurchaseOrderApi.approve(id);
-        toast.success(t("Purchase Order finally approved by Admin."));
-      }
+  const handleApprove = () => {
+    const isAccountant = role === "accountant";
 
-      await fetchReviewDetail();
-    } catch (error: any) {
-      console.error(error);
-      toast.error(error.response?.data?.message || t("Failed to approve."));
-    } finally {
-      setIsApproving(false);
-    }
+    showConfirmToast({
+      title: isAccountant
+        ? t("Approve Pricing?")
+        : t("Approve Purchase Order?"),
+      description: isAccountant
+        ? t("Are you sure you want to approve the pricing for this order?")
+        : t("Are you sure you want to approve this purchase order?"),
+      confirmLabel: t("Yes, Approve"),
+      onConfirm: async () => {
+        setIsApproving(true);
+        try {
+          if (isAccountant) {
+            await accountantPurchaseOrderApi.approve(id);
+            toast.success(t("Pricing approved successfully by Accountant."));
+          } else {
+            await adminPurchaseOrderApi.approve(id);
+            toast.success(t("Purchase Order approved successfully by Admin."));
+          }
+
+          await fetchReviewDetail();
+        } catch (error: any) {
+          console.error(error);
+          toast.error(error.response?.data?.message || t("Failed to approve."));
+        } finally {
+          setIsApproving(false);
+        }
+      },
+    });
   };
 
   const handleReject = async () => {
@@ -115,7 +134,6 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
       setRejectModalOpen(false);
       setRejectReason("");
 
-      // Load lại data
       await fetchReviewDetail();
     } catch (error: any) {
       console.error(error);
@@ -185,6 +203,11 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
     role === "admin" &&
     (order.status === "AccountantApproved" || order.status === "AdminPending");
 
+  const totalPages = Math.ceil(review.length / itemsPerPage) || 1;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedItems = review.slice(startIndex, endIndex);
+
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
@@ -251,7 +274,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                 <div className="absolute left-[12.5%] right-[12.5%] top-5 h-1 bg-slate-200 z-10 rounded-full" />
 
                 <div
-                  className={`absolute left-[12.5%] top-5 h-1 rounded-full z-10 transition-all duration-500 ${
+                  className={`absolute left-[12.5%] top-5 h-1 rounded-full z-10 transition-all duration-500 overflow-hidden ${
                     order.status === "Rejected" ? "bg-red-500" : "bg-indigo-600"
                   }`}
                   style={{
@@ -263,7 +286,11 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                           ? "25%"
                           : "0%",
                   }}
-                />
+                >
+                  {order.status !== "Rejected" && (
+                    <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/70 to-transparent animate-shimmer-slide" />
+                  )}
+                </div>
 
                 <div className="flex justify-between w-full">
                   <div className="flex flex-col items-center relative z-10 w-1/4">
@@ -490,7 +517,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {review.map((item, index) => {
+                        {paginatedItems.map((item, index) => {
                           const isOver = item.variance > 0;
                           const isUnder = item.variance < 0;
 
@@ -536,8 +563,8 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                                     }
                                   `}
                                   >
-                                    {item.variancePercent > 0 ? "+" : ""}
-                                    ~ {item.variancePercent.toFixed(3)}%
+                                    {item.variancePercent > 0 ? "+" : ""}~{" "}
+                                    {item.variancePercent.toFixed(3)}%
                                   </Badge>
                                 ) : (
                                   <span className="text-slate-400">-</span>
@@ -549,6 +576,50 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                       </TableBody>
                     </Table>
                   </div>
+                  {review.length > itemsPerPage && (
+                    <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 bg-white mt-auto rounded-b-xl">
+                      <div className="text-sm text-slate-500">
+                        {t("Showing")}{" "}
+                        <span className="font-medium text-slate-900">
+                          {startIndex + 1}
+                        </span>{" "}
+                        {t("to")}{" "}
+                        <span className="font-medium text-slate-900">
+                          {Math.min(endIndex, review.length)}
+                        </span>{" "}
+                        {t("of")}{" "}
+                        <span className="font-medium text-slate-900">
+                          {review.length}
+                        </span>{" "}
+                        {t("items")}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setCurrentPage((p) => Math.max(1, p - 1))
+                          }
+                          disabled={currentPage === 1}
+                        >
+                          <ChevronLeft className="w-4 h-4 mr-1" /> {t("Prev")}
+                        </Button>
+                        <div className="text-sm font-medium text-slate-600 px-2">
+                          {t("Page")} {currentPage} {t("of")} {totalPages}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setCurrentPage((p) => Math.min(totalPages, p + 1))
+                          }
+                          disabled={currentPage === totalPages}
+                        >
+                          {t("Next")} <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -559,7 +630,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
       {/* MODAL NHẬP LÝ DO REJECT */}
       {rejectModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
-          <Card className="w-full max-w-md shadow-lg border-0 animate-in zoom-in-95 duration-200">
+          <Card className="w-full max-w-md shadow-lg border-0 animate-in zoom-in-95 duration-200 gap-0">
             <CardHeader className="rounded-t-xl pt-2">
               <CardTitle className="text-rose-700 flex items-center gap-2">
                 <AlertCircle className="w-5 h-5" />
@@ -580,7 +651,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                 autoFocus
               />
             </CardContent>
-            <CardFooter className="flex justify-end gap-3 pt-2 pb-6 px-6">
+            <CardFooter className="flex justify-end gap-3 pt-2 p-6">
               <Button
                 variant="ghost"
                 onClick={() => {

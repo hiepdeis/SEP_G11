@@ -22,6 +22,7 @@ import {
   Delete,
   Building2,
   AlertTriangle,
+  MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +60,12 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { formatPascalCase } from "@/lib/format-pascal-case";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function PurchasingDashboardPage() {
   const router = useRouter();
@@ -260,6 +267,10 @@ export default function PurchasingDashboardPage() {
     setLoadingId(id);
     // Chuyển sang trang tạo PO và truyền requestId lên URL để xử lý PR này
     router.push(`/purchasing/purchase-orders/create?requestId=${id}`);
+  };
+
+  const handleViewPRDetail = (PRId: number) => {
+    router.push(`/purchasing/purchase-request/${PRId}`);
   };
 
   // Formatters
@@ -711,6 +722,16 @@ export default function PurchasingDashboardPage() {
                             <TableRow
                               key={item.purchaseOrderId}
                               className="group hover:bg-slate-50/50 transition-colors"
+                              onClick={() => {
+                                const selection = window.getSelection();
+                                if (
+                                  selection &&
+                                  selection.toString().length > 0
+                                ) {
+                                  return; 
+                                }
+                                handleReviewPO(item.purchaseOrderId);
+                              }}
                             >
                               <TableCell className="pl-6">
                                 <div className="flex flex-col">
@@ -805,6 +826,16 @@ export default function PurchasingDashboardPage() {
                             <TableRow
                               key={item.requestId}
                               className="group hover:bg-slate-50/50 transition-colors"
+                              onClick={() => {
+                                const selection = window.getSelection();
+                                if (
+                                  selection &&
+                                  selection.toString().length > 0
+                                ) {
+                                  return; 
+                                }
+                                handleReviewPR(item.requestId)
+                              }}
                             >
                               <TableCell className="pl-6">
                                 <div className="flex flex-col">
@@ -854,22 +885,47 @@ export default function PurchasingDashboardPage() {
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right pr-6">
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleReviewPR(item.requestId)}
-                                  disabled={loadingId === item.requestId}
-                                  variant="default"
-                                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[130px]"
-                                >
-                                  {loadingId === item.requestId ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : (
-                                    <>
-                                      {t("Create PO")}{" "}
-                                      <ArrowRight className="w-4 h-4 ml-1.5" />
-                                    </>
-                                  )}
-                                </Button>
+                                <div className="flex justify-end items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() =>
+                                      handleReviewPR(item.requestId)
+                                    }
+                                    disabled={loadingId === item.requestId}
+                                    variant="default"
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[150px]"
+                                  >
+                                    {loadingId === item.requestId ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <>
+                                        {t("Create PO Draft")}{" "}
+                                        <ArrowRight className="w-4 h-4 ml-1.5" />
+                                      </>
+                                    )}
+                                  </Button>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-8 w-8 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-indigo-800"
+                                      >
+                                        <MoreHorizontal className="w-4 h-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem
+                                        onClick={() =>
+                                          handleViewPRDetail(item.requestId)
+                                        }
+                                      >
+                                        <Eye className="w-4 h-4 mr-2 focus:text-primary" />{" "}
+                                        {t("View Alert Details")}
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
                               </TableCell>
                             </TableRow>
                           );

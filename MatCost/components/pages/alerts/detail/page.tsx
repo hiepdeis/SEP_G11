@@ -34,6 +34,7 @@ import {
 } from "@/services/import-service"; // Cập nhật đúng đường dẫn
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { showConfirmToast } from "@/hooks/confirm-toast";
 
 export default function AlertDetailPage({ role = "manager" }) {
   const params = useParams();
@@ -82,32 +83,40 @@ export default function AlertDetailPage({ role = "manager" }) {
     router.push(`/admin/purchase-requests/create?alertId=${id}`);
   };
 
-  const handleConfirm = async () => {
+  const handleConfirm = () => {
     if (!adjustedQuantity || Number(adjustedQuantity) <= 0) {
       toast.error(t("Please enter a valid quantity greater than 0."));
       return;
     }
 
-    setIsConfirming(true);
-    try {
-      await managerStockShortageAlertApi.confirmAlert(id, {
-        adjustedQuantity: Number(adjustedQuantity),
-        notes: notes.trim() || undefined,
-      });
+    showConfirmToast({
+      title: t("Confirm Restock Alert?"),
+      description: t(
+        "Are you sure you want to confirm this shortage alert with the adjusted quantity?",
+      ),
+      confirmLabel: t("Yes, Confirm"),
+      onConfirm: async () => {
+        setIsConfirming(true);
+        try {
+          await managerStockShortageAlertApi.confirmAlert(id, {
+            adjustedQuantity: Number(adjustedQuantity),
+            notes: notes.trim() || undefined,
+          });
 
-      toast.success(t("Stock shortage alert confirmed successfully."));
+          toast.success(t("Stock shortage alert confirmed successfully."));
 
-      // Load lại data
-      const res = await managerStockShortageAlertApi.getAlert(id);
-      setAlert(res.data);
-    } catch (error: any) {
-      console.error(error);
-      toast.error(
-        error.response?.data?.message || t("Failed to confirm alert."),
-      );
-    } finally {
-      setIsConfirming(false);
-    }
+          const res = await managerStockShortageAlertApi.getAlert(id);
+          setAlert(res.data);
+        } catch (error: any) {
+          console.error(error);
+          toast.error(
+            error.response?.data?.message || t("Failed to confirm alert."),
+          );
+        } finally {
+          setIsConfirming(false);
+        }
+      },
+    });
   };
 
   const formatDate = (dateString?: string | null) => {

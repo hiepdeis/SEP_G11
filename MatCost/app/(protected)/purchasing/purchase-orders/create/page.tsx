@@ -14,6 +14,8 @@ import {
   FileText,
   Trash2,
   Calculator,
+  ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +42,7 @@ import {
 } from "@/services/import-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { showConfirmToast } from "@/hooks/confirm-toast";
 
 interface OrderItemInput {
   id: string;
@@ -73,6 +76,14 @@ export default function CreatePurchaseOrderPage() {
   const [globalSupplierId, setGlobalSupplierId] = useState<string>("");
   const [items, setItems] = useState<OrderItemInput[]>([]);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  const totalPages = Math.ceil(items.length / itemsPerPage) || 1;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedItems = items.slice(startIndex, endIndex);
+
   useEffect(() => {
     const fetchInitialData = async () => {
       setIsLoadingData(true);
@@ -99,7 +110,6 @@ export default function CreatePurchaseOrderPage() {
   }, [t]);
 
   console.log(requests);
-  
 
   useEffect(() => {
     if (selectedRequestId && requests.length > 0) {
@@ -113,11 +123,12 @@ export default function CreatePurchaseOrderPage() {
           materialCode: i.materialCode,
           materialName: i.materialName,
           prQuantity: i.quantity,
-          orderedQuantity: i.quantity.toString(), // Default bằng đúng số lượng yêu cầu
+          orderedQuantity: i.quantity.toString(),
           unitPrice: "",
-          supplierId: "", // Sẽ kế thừa globalSupplierId nếu để trống
+          supplierId: "",
         }));
         setItems(mappedItems);
+        setCurrentPage(1);
       }
     } else {
       setItems([]);
@@ -146,7 +157,7 @@ export default function CreatePurchaseOrderPage() {
     return val.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!selectedRequestId) {
       return toast.error(t("Please select a Purchase Request."));
     }
@@ -169,33 +180,47 @@ export default function CreatePurchaseOrderPage() {
       return toast.error(t("Please assign a supplier for all items."));
     }
 
-    setIsSubmitting(true);
-
-    try {
-      const payload = {
-        requestId: Number(selectedRequestId),
-        supplierId: globalSupplierId ? Number(globalSupplierId) : undefined,
-        items: items.map((i) => ({
-          materialId: i.materialId,
-          orderedQuantity: Number(i.orderedQuantity),
-          unitPrice: i.unitPrice ? Number(i.unitPrice) : undefined,
-          supplierId: Number(i.supplierId),
-        })),
-      };
-
-      await purchasingPurchaseOrderApi.createDraft(payload);
-      toast.success(t("Purchase Order draft created successfully!"));
-
-      router.push("/purchasing/purchase-orders");
-    } catch (error: any) {
-      console.error(error);
-      toast.error(
-        error.response?.data?.message ||
-          t("Failed to create Purchase Order draft."),
-      );
-    } finally {
-      setIsSubmitting(false);
+    const missingUnitPrice = items.find((i) => !i.unitPrice);
+    if (missingUnitPrice) {
+      return toast.error(t("Please assign a unit price for all items."));
     }
+
+    showConfirmToast({
+      title: t("Create Purchase Order Draft?"),
+      description: t(
+        "Are you sure you want to create a Purchase Order draft with these details?",
+      ),
+      confirmLabel: t("Yes, Create Draft"),
+      onConfirm: async () => {
+        setIsSubmitting(true);
+
+        try {
+          const payload = {
+            requestId: Number(selectedRequestId),
+            supplierId: globalSupplierId ? Number(globalSupplierId) : undefined,
+            items: items.map((i) => ({
+              materialId: i.materialId,
+              orderedQuantity: Number(i.orderedQuantity),
+              unitPrice: i.unitPrice ? Number(i.unitPrice) : undefined,
+              supplierId: Number(i.supplierId),
+            })),
+          };
+
+          await purchasingPurchaseOrderApi.createDraft(payload);
+          toast.success(t("Purchase Order draft created successfully!"));
+
+          router.push("/purchasing/purchase-orders");
+        } catch (error: any) {
+          console.error(error);
+          toast.error(
+            error.response?.data?.message ||
+              t("Failed to create Purchase Order draft."),
+          );
+        } finally {
+          setIsSubmitting(false);
+        }
+      },
+    });
   };
 
   const calculateTotal = () => {
@@ -237,7 +262,7 @@ export default function CreatePurchaseOrderPage() {
               </Button>
               <div>
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                  {t("New Purchase Order (Draft)")}
+                  {t("New Purchase Order Draft")}
                 </h1>
               </div>
             </div>
@@ -252,7 +277,7 @@ export default function CreatePurchaseOrderPage() {
               ) : (
                 <Save className="w-4 h-4 mr-2" />
               )}
-              {t("Save as Draft")}
+              {t("Confirm Purchase Order")}
             </Button>
           </div>
 
@@ -261,7 +286,7 @@ export default function CreatePurchaseOrderPage() {
             <div className="lg:col-span-1 space-y-6">
               <Card className="border-slate-200 shadow-sm bg-white gap-0">
                 <CardHeader className="border-b border-slate-100 pb-4">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pt-2">
                     <FileText className="w-5 h-5 text-indigo-600" />
                     {t("Order Setup")}
                   </CardTitle>
@@ -351,7 +376,7 @@ export default function CreatePurchaseOrderPage() {
             <div className="lg:col-span-3">
               <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] flex flex-col gap-0">
                 <CardHeader className="border-b border-slate-100 pb-4">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pt-2">
                     <PackagePlus className="w-5 h-5 text-indigo-600" />
                     {t("Order Details & Pricing")}
                   </CardTitle>
@@ -392,7 +417,7 @@ export default function CreatePurchaseOrderPage() {
                             </TableCell>
                           </TableRow>
                         ) : (
-                          items.map((item) => (
+                          paginatedItems.map((item) => (
                             <TableRow
                               key={item.id}
                               className="hover:bg-slate-50/50 transition-colors"
@@ -430,8 +455,7 @@ export default function CreatePurchaseOrderPage() {
                                     )
                                   }
                                 />
-                                <span className="absolute right-3 top-2.5 text-xs font-medium text-slate-400 pointer-events-none">
-                              </span>
+                                <span className="absolute right-3 top-2.5 text-xs font-medium text-slate-400 pointer-events-none"></span>
                               </TableCell>
                               <TableCell className="align-top pt-4">
                                 <Select
@@ -495,6 +519,50 @@ export default function CreatePurchaseOrderPage() {
                       </TableBody>
                     </Table>
                   </div>
+                  {items.length > itemsPerPage && (
+                    <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 bg-white mt-auto">
+                      <div className="text-sm text-slate-500">
+                        {t("Showing")}{" "}
+                        <span className="font-medium text-slate-900">
+                          {startIndex + 1}
+                        </span>{" "}
+                        {t("to")}{" "}
+                        <span className="font-medium text-slate-900">
+                          {Math.min(endIndex, items.length)}
+                        </span>{" "}
+                        {t("of")}{" "}
+                        <span className="font-medium text-slate-900">
+                          {items.length}
+                        </span>{" "}
+                        {t("items")}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setCurrentPage((p) => Math.max(1, p - 1))
+                          }
+                          disabled={currentPage === 1}
+                        >
+                          <ChevronLeft className="w-4 h-4 mr-1" /> {t("Prev")}
+                        </Button>
+                        <div className="text-sm font-medium text-slate-600 px-2">
+                          {t("Page")} {currentPage} {t("of")} {totalPages}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setCurrentPage((p) => Math.min(totalPages, p + 1))
+                          }
+                          disabled={currentPage === totalPages}
+                        >
+                          {t("Next")} <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

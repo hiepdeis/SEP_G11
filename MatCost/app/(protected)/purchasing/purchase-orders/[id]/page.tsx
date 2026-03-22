@@ -34,6 +34,7 @@ import {
 } from "@/services/import-service"; // Cập nhật đúng đường dẫn file service
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { showConfirmToast } from "@/hooks/confirm-toast";
 
 export default function PurchaseOrderDetailPage() {
   const params = useParams();
@@ -68,22 +69,31 @@ export default function PurchaseOrderDetailPage() {
     }
   }, [id, router, t]);
 
-  const handleSendToSupplier = async () => {
-    setIsSending(true);
-    try {
-      await purchasingPurchaseOrderApi.sendToSupplier(id);
-      toast.success(t("Purchase Order sent to supplier successfully!"));
+  const handleSendToSupplier = () => {
+    showConfirmToast({
+      title: t("Send to Supplier?"),
+      description: t(
+        "Are you sure you want to send this Purchase Order to the supplier? This action cannot be undone.",
+      ),
+      confirmLabel: t("Yes, Send"),
+      onConfirm: async () => {
+        setIsSending(true);
+        try {
+          await purchasingPurchaseOrderApi.sendToSupplier(id);
+          toast.success(t("Purchase Order sent to supplier successfully!"));
 
-      const res = await purchasingPurchaseOrderApi.getOrder(id);
-      setOrder(res.data);
-    } catch (error: any) {
-      console.error(error);
-      toast.error(
-        error.response?.data?.message || t("Failed to send to supplier"),
-      );
-    } finally {
-      setIsSending(false);
-    }
+          const res = await purchasingPurchaseOrderApi.getOrder(id);
+          setOrder(res.data);
+        } catch (error: any) {
+          console.error(error);
+          toast.error(
+            error.response?.data?.message || t("Failed to send to supplier"),
+          );
+        } finally {
+          setIsSending(false);
+        }
+      },
+    });
   };
 
   const formatDate = (dateString?: string | null) => {
@@ -188,9 +198,8 @@ export default function PurchaseOrderDetailPage() {
             <CardContent>
               <div className="relative mx-auto px-4">
                 <div className="absolute left-[12.5%] right-[12.5%] top-5 h-1 bg-slate-200 z-10 rounded-full" />
-
                 <div
-                  className={`absolute left-[12.5%] top-5 h-1 rounded-full z-10 transition-all duration-500 ${
+                  className={`absolute left-[12.5%] top-5 h-1 rounded-full z-10 transition-all duration-500 overflow-hidden ${
                     order.status === "Rejected" ? "bg-red-500" : "bg-indigo-600"
                   }`}
                   style={{
@@ -202,7 +211,11 @@ export default function PurchaseOrderDetailPage() {
                           ? "25%"
                           : "0%",
                   }}
-                />
+                >
+                  {order.status !== "Rejected" && (
+                    <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/70 to-transparent animate-shimmer-slide" />
+                  )}
+                </div>
 
                 <div className="flex justify-between w-full">
                   <div className="flex flex-col items-center relative z-10 w-1/4">

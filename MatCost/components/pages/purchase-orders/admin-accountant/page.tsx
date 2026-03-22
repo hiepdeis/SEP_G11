@@ -6,7 +6,6 @@ import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
 import {
   Search,
-  ArrowRight,
   Loader2,
   CalendarDays,
   FileText,
@@ -201,7 +200,9 @@ export default function AccountantPurchaseOrderListPage({
   const formatPlus = (num: number) => (num > 999 ? "999+" : num);
 
   const targetStatus = role === "admin" ? "AccountantApproved" : "Draft";
-  const pendingCount = orders.filter((item) => item.status === targetStatus).length;
+  const pendingCount = orders.filter(
+    (item) => item.status === targetStatus,
+  ).length;
   const totalAmountPending = orders
     .filter((item) => item.status === targetStatus)
     .reduce((sum, item) => sum + (item.totalAmount || 0), 0);
@@ -215,7 +216,7 @@ export default function AccountantPurchaseOrderListPage({
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                {t("Price Review (Purchase Orders)")}
+                {t("Purchase Orders")}
               </h1>
               <p className="text-sm text-slate-500">
                 {t("Review and approve pricing for requested purchase orders.")}
@@ -399,11 +400,8 @@ export default function AccountantPurchaseOrderListPage({
                           )}
                         </div>
                       </TableHead>
-
                       <TableHead className="w-[20%]">{t("Supplier")}</TableHead>
-
                       <TableHead className="w-[15%]">{t("Project")}</TableHead>
-
                       <TableHead
                         className="cursor-pointer transition-colors w-[15%]"
                         onClick={() => handleSort("amount")}
@@ -421,7 +419,6 @@ export default function AccountantPurchaseOrderListPage({
                           )}
                         </div>
                       </TableHead>
-
                       <TableHead className="w-[15%]">{t("Status")}</TableHead>
                       <TableHead className="text-right pr-6 w-[15%]">
                         {t("Action")}
@@ -451,7 +448,14 @@ export default function AccountantPurchaseOrderListPage({
                       paginatedData.map((item) => (
                         <TableRow
                           key={item.purchaseOrderId}
-                          className="group hover:bg-slate-50/50 transition-colors"
+                          className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
+                          onClick={() => {
+                            const selection = window.getSelection();
+                            if (selection && selection.toString().length > 0) {
+                              return;
+                            }
+                            handleReview(item.purchaseOrderId);
+                          }}
                         >
                           <TableCell className="pl-6">
                             <div className="flex flex-col">

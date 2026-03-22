@@ -44,6 +44,7 @@ import { projectApi, ProjectDto } from "@/services/project-services";
 import { materialApi, MaterialDto } from "@/services/material-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { showConfirmToast } from "@/hooks/confirm-toast";
 
 interface RequestItemInput {
   id: string;
@@ -187,7 +188,7 @@ export default function CreatePurchaseRequestPage() {
     });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!projectId) {
       return toast.error(t("Please select a project."));
     }
@@ -205,38 +206,47 @@ export default function CreatePurchaseRequestPage() {
       );
     }
 
-    setIsSubmitting(true);
+    showConfirmToast({
+      title: t("Submit Purchase Request?"),
+      description: t(
+        "Are you sure you want to create a purchase request from this alert?",
+      ),
+      confirmLabel: t("Yes, Submit"),
+      onConfirm: async () => {
+        setIsSubmitting(true);
+        try {
+          const alertOriginalItem = items.find((i) => i.isFromAlert);
 
-    try {
-      const alertOriginalItem = items.find((i) => i.isFromAlert);
+          const payload = {
+            projectId: Number(projectId),
+            finalQuantity: alertOriginalItem
+              ? Number(alertOriginalItem.quantity)
+              : undefined,
+            items: items.map((i) => ({
+              materialId: Number(i.materialId),
+              quantity: Number(i.quantity),
+              notes: i.notes,
+            })),
+          };
 
-      const payload = {
-        projectId: Number(projectId),
-        finalQuantity: alertOriginalItem
-          ? Number(alertOriginalItem.quantity)
-          : undefined,
-        items: items.map((i) => ({
-          materialId: Number(i.materialId),
-          quantity: Number(i.quantity),
-          notes: i.notes,
-        })),
-      };
+          await adminPurchaseRequestApi.createFromAlert(
+            Number(selectedAlertId),
+            payload,
+          );
+          toast.success(t("Purchase request created successfully from alert!"));
 
-      await adminPurchaseRequestApi.createFromAlert(
-        Number(selectedAlertId),
-        payload,
-      );
-      toast.success(t("Purchase request created successfully from alert!"));
-
-      router.push("/admin/purchase-requests");
-    } catch (error: any) {
-      console.error(error);
-      toast.error(
-        error.response?.data?.message || t("Failed to create purchase request"),
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+          router.push("/admin/purchase-requests");
+        } catch (error: any) {
+          console.error(error);
+          toast.error(
+            error.response?.data?.message ||
+              t("Failed to create purchase request"),
+          );
+        } finally {
+          setIsSubmitting(false);
+        }
+      },
+    });
   };
 
   const totalPages = Math.ceil(items.length / itemsPerPage) || 1;
