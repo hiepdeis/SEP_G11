@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
 import {
   ArrowLeft, Lock, AlertTriangle, CheckCircle, FileSignature, 
-  Download, Loader2, Search, ClipboardList, MapPin, LayoutGrid, Unlock, AlertCircle, Users, CheckCircle2, ChevronLeft, ChevronRight, Check, RefreshCcw, Eraser, Package, ClipboardCheck
+  Download, Loader2, Search, ClipboardList, MapPin, LayoutGrid, Unlock, AlertCircle, Users, CheckCircle2, ChevronLeft, ChevronRight, Check, RefreshCcw, Eraser, Package, ClipboardCheck, Calculator
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle, CardFooter } from "@/components/ui/card";
@@ -14,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea"; 
 import { auditService, RecountCandidateDto, StockTakeReviewDetailDto, VarianceItemDto } from "@/services/audit-service";
 import { toast } from "sonner";
 import ReactSignatureCanvas, { SignatureCanvas } from "react-signature-canvas";
@@ -34,8 +33,9 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   const [detailData, setDetailData] = useState<StockTakeReviewDetailDto | null>(null);
   const [variances, setVariances] = useState<VarianceItemDto[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isFinalizing, setIsFinalizing] = useState(false); 
-  const [signatureNote, setSignatureNote] = useState("");
+  
+  const [isManagerSigning, setIsManagerSigning] = useState(false); 
+  const [isAccountantFinalizing, setIsAccountantFinalizing] = useState(false); 
 
   const sigCanvas = useRef<ReactSignatureCanvas>(null);
   const [isSigned, setIsSigned] = useState(false);
@@ -51,7 +51,8 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
 
   const canExport = ["accountant", "admin", "manager"].includes(role);
   const canResolve = ["manager"].includes(role);
-  const canFinalize = ["manager"].includes(role);
+
+  const isManagerSigned = detailData?.signatures?.some(s => s.role?.toLowerCase() === "manager");
 
   const fetchData = async () => {
     if (!stockTakeId) return;
@@ -140,31 +141,41 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
     }
   };
 
-  const handleFinalizeAction = async () => {
+  const handleManagerSubmit = async () => {
     try {
       setIsSubmitting(true);
-      const signatureText = "Đã ký duyệt bằng e-signature"; 
+      await auditService.signOff(stockTakeId, "Manager đã ký duyệt hướng xử lý");
+      toast.success("Đã ký xác nhận! Phiếu kiểm kê đang chờ Kế toán chốt sổ.");
+      setIsManagerSigning(false);
+      await fetchData(); 
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Lỗi ký duyệt.");
+    } finally {
+      setIsSubmitting(false);
+      clearSignature();
+    }
+  };
 
+  const handleAccountantFinalize = async () => {
+    try {
+      setIsSubmitting(true);
       try {
-        await auditService.signOff(stockTakeId, signatureText);
+        await auditService.signOff(stockTakeId, "Accountant đã kiểm tra và chốt sổ");
       } catch (signError: any) {
         if (signError.response?.data?.message !== "You have already signed off on this audit.") {
           throw signError;
         }
       }
       
-      await auditService.finalizeAudit(stockTakeId, "Đã kiểm tra và khớp sổ");
-      toast.success("Đã chốt sổ kiểm kê thành công!");
+      await auditService.finalizeAudit(stockTakeId, "Cập nhật tồn kho theo kết quả kiểm kê");
+      toast.success("Đã chốt sổ và cập nhật tồn kho thành công!");
       router.push(`/${role}/audit`);
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Lỗi chốt sổ.");
     } finally {
       setIsSubmitting(false);
-      setIsFinalizing(false);
-      if (sigCanvas.current) {
-        sigCanvas.current.clear();
-        setIsSigned(false);
-      }
+      setIsAccountantFinalizing(false);
+      clearSignature();
     }
   };
 
@@ -218,7 +229,14 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
     return <Badge variant="secondary" className="bg-slate-100 text-slate-700 border-none gap-1"><Unlock className="w-3 h-3" /> Planned</Badge>;
   };
 
+  // BIẾN QUAN TRỌNG ĐỂ KIỂM SOÁT LOGIC MANAGER SIGN OFF
   const hasRecountRequested = variances.some(v => v.discrepancyStatus === "RecountRequested");
+  const hasUnresolvedVariances = variances.some(v => !v.resolutionAction);
+  const metrics = detailData?.metrics;
+  const isCountComplete = (metrics?.totalItems ?? 0) > 0 && (metrics?.countedItems === metrics?.totalItems);
+  
+  // Manager chỉ được ký khi: Đã đếm xong 100% VÀ Không còn chênh lệch chưa xử lý VÀ Không có món nào đang bắt đếm lại
+  const canManagerSignOff = isCountComplete && !hasUnresolvedVariances && !hasRecountRequested;
 
   const isAll = itemsPerPage === -1;
   const totalPages = isAll ? 1 : Math.ceil(variances.length / itemsPerPage) || 1;
@@ -239,8 +257,6 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
 
   if (!detailData) return <div className="p-10 text-center">Audit not found</div>;
 
-  const metrics = detailData.metrics;
-
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
@@ -259,7 +275,6 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              {/* BẢN VÁ UI: Cập nhật Card giống Audit List */}
               <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
                 <Card className="bg-white border-slate-200 shadow-sm">
                   <CardContent className="p-4 flex items-center gap-4">
@@ -321,7 +336,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                   </div>
                 </CardHeader>
                 <CardContent className="p-0 flex flex-col flex-1">
-                  <div className="w-full [&>div]:max-h-[480px] [&>div]:overflow-y-auto">
+                  <div className="w-full [&>div]:max-h-[500px] [&>div]:overflow-y-auto">
                     <Table className="w-full min-w-[700px] table-fixed">
                       <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                         <TableRow className="bg-slate-50 hover:bg-slate-50">
@@ -381,7 +396,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                                 )}
                               </TableCell>
                               <TableCell className="text-right pr-6">
-                                {canResolve && !row.resolutionAction && row.discrepancyStatus !== "RecountRequested" && (
+                                {canResolve && !row.resolutionAction && row.discrepancyStatus !== "RecountRequested" && !isManagerSigned && (
                                   row.discrepancyStatus === "Discrepancy" ? (
                                     <Button size="sm" variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-50" onClick={() => handleQuickRecount(row)} disabled={isSubmitting}>
                                       <RefreshCcw className="w-3.5 h-3.5 mr-1.5" /> Recount
@@ -509,20 +524,21 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                 </CardContent>
               </Card>
 
-              {canFinalize && detailData.status !== "Completed" && (
+              {/* CARD 1: MANAGER SIGN OFF */}
+              {role === "manager" && detailData.status !== "Completed" && !isManagerSigned && (
                 <Card className="border-indigo-200 shadow-sm bg-indigo-50/30 gap-0 overflow-hidden">
                   <CardHeader className="border-b border-indigo-100 pt-4 pb-3 bg-indigo-50">
                     <CardTitle className="text-base font-semibold flex items-center gap-2 text-indigo-800">
-                      <FileSignature className="w-5 h-5" /> Manager Decision
+                      <FileSignature className="w-5 h-5" /> Manager Sign Off
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-6">
-                    <p className="text-sm text-indigo-700/80 mb-6">
-                      Ensure all discrepancies are resolved. This action will apply adjustments and lock this audit permanently.
+                    <p className="text-sm text-indigo-700/80 mb-4">
+                      Hãy đảm bảo tất cả chênh lệch đã được xử lý. Ký tên để gửi kết quả cho Kế toán chốt sổ cập nhật tồn kho.
                     </p>
                     
-                    <Dialog open={isFinalizing} onOpenChange={(open) => {
-                       setIsFinalizing(open);
+                    <Dialog open={isManagerSigning} onOpenChange={(open) => {
+                       setIsManagerSigning(open);
                        if (!open && sigCanvas.current) {
                           sigCanvas.current.clear();
                           setIsSigned(false);
@@ -531,18 +547,18 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                       <DialogTrigger asChild>
                         <Button 
                           className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-sm h-11"
-                          disabled={isSubmitting || variances.some(v => !v.resolutionAction)}
+                          disabled={isSubmitting || !canManagerSignOff}
                         >
-                          <CheckCircle className="w-5 h-5 mr-2" /> Complete & Unlock
+                          <CheckCircle className="w-5 h-5 mr-2" /> Sign & Send to Accountant
                         </Button>
                       </DialogTrigger>
                       <DialogContent className="sm:max-w-[450px]">
                         <DialogHeader>
                           <DialogTitle className="flex items-center gap-2 text-indigo-700">
-                            <FileSignature className="w-5 h-5" /> Sign Off & Finalize
+                            <FileSignature className="w-5 h-5" /> Manager Signature
                           </DialogTitle>
                           <DialogDescription>
-                            Bạn đang chuẩn bị chốt sổ kiểm kê này. Hành động này không thể hoàn tác. Vui lòng ký tên xác nhận.
+                            Ký tên xác nhận các hướng xử lý chênh lệch để chuyển tiếp cho Kế toán.
                           </DialogDescription>
                         </DialogHeader>
                         
@@ -561,43 +577,115 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                                 ref={sigCanvas}
                                 onEnd={handleSignatureEnd}
                                 penColor="black"
-                                canvasProps={{
-                                  className: "w-full h-32 cursor-crosshair bg-white",
-                                }}
+                                canvasProps={{ className: "w-full h-32 cursor-crosshair bg-white" }}
                               />
                               {!isSigned && (
                                 <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-40">
-                                  <span className="text-slate-400 select-none italic text-sm">
-                                    Sign here to enable complete button...
-                                  </span>
+                                  <span className="text-slate-400 select-none italic text-sm">Sign here to enable button...</span>
                                 </div>
                               )}
                            </div>
                         </div>
 
-                        <DialogFooter className="gap-2 mt-4">
-                          <Button variant="outline" onClick={() => setIsFinalizing(false)}>Cancel</Button>
-                          <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleFinalizeAction} disabled={isSubmitting || !isSigned}>
-                            {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Check className="w-4 h-4 mr-2"/>}
-                            Sign & Complete
+                        <DialogFooter className="gap-2 sm:gap-0 mt-4">
+                          <Button variant="outline" onClick={() => setIsManagerSigning(false)}>Cancel</Button>
+                          <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleManagerSubmit} disabled={isSubmitting || !isSigned}>
+                            {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Check className="w-4 h-4 mr-2"/>} Confirm Signature
                           </Button>
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
                     
-                    {variances.some(v => !v.resolutionAction) && (
+                    {/* BẢN VÁ UI: Hiện cảnh báo nếu Manager chưa đủ điều kiện ký */}
+                    {!canManagerSignOff && (
                        <div className="mt-4 p-3 bg-rose-50 border border-rose-100 rounded-md flex items-start gap-2">
                           <AlertTriangle className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
-                          <p className="text-xs text-rose-600 leading-relaxed">
-                            {hasRecountRequested 
-                              ? "Có mặt hàng đang chờ đếm lại (Recount). Vui lòng đợi nhân viên hoàn thành trước khi chốt sổ." 
-                              : "You must resolve all discrepancies before completing the audit."}
-                          </p>
+                          <div className="text-xs text-rose-600 leading-relaxed flex flex-col gap-1">
+                             {!isCountComplete && <p>• Nhân viên chưa đếm xong ({metrics?.countedItems}/{metrics?.totalItems} mặt hàng).</p>}
+                             {hasRecountRequested && <p>• Có mặt hàng đang chờ đếm lại (Recount).</p>}
+                             {isCountComplete && !hasRecountRequested && hasUnresolvedVariances && <p>• Vui lòng xử lý tất cả chênh lệch (Resolve) trước khi ký duyệt.</p>}
+                          </div>
                        </div>
                     )}
                   </CardContent>
                 </Card>
               )}
+
+              {/* CARD 2: ACCOUNTANT FINALIZE */}
+              {role === "accountant" && detailData.status !== "Completed" && isManagerSigned && (
+                <Card className="border-emerald-200 shadow-sm bg-emerald-50/30 gap-0 overflow-hidden">
+                  <CardHeader className="border-b border-emerald-100 pt-4 pb-3 bg-emerald-50">
+                    <CardTitle className="text-base font-semibold flex items-center gap-2 text-emerald-800">
+                      <Calculator className="w-5 h-5" /> Accountant Finalization
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <p className="text-sm text-emerald-700/80 mb-6">
+                      Quản lý đã ký duyệt. Vui lòng kiểm tra lại số liệu và ký xác nhận để hệ thống cập nhật Tồn kho thực tế.
+                    </p>
+                    
+                    <Dialog open={isAccountantFinalizing} onOpenChange={(open) => {
+                       setIsAccountantFinalizing(open);
+                       if (!open && sigCanvas.current) {
+                          sigCanvas.current.clear();
+                          setIsSigned(false);
+                       }
+                    }}>
+                      <DialogTrigger asChild>
+                        <Button 
+                          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm h-11"
+                          disabled={isSubmitting}
+                        >
+                          <CheckCircle className="w-5 h-5 mr-2" /> Confirm & Update Inventory
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[450px]">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2 text-emerald-700">
+                            <Calculator className="w-5 h-5" /> Confirm Inventory Update
+                          </DialogTitle>
+                          <DialogDescription>
+                            Bạn chuẩn bị cập nhật tồn kho theo số liệu kiểm kê. Hành động này không thể hoàn tác.
+                          </DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="py-2">
+                           <div className="flex justify-between items-end mb-2">
+                              <label className="text-sm font-semibold text-slate-700">Accountant Signature <span className="text-red-500">*</span></label>
+                              {isSigned && (
+                                <button onClick={clearSignature} className="text-xs text-slate-500 hover:text-red-600 flex items-center gap-1 transition-colors">
+                                  <Eraser className="w-3 h-3" /> Clear
+                                </button>
+                              )}
+                           </div>
+                           
+                           <div className="border-2 border-dashed border-slate-300 rounded-lg bg-slate-50 overflow-hidden relative group">
+                              <SignatureCanvas
+                                ref={sigCanvas}
+                                onEnd={handleSignatureEnd}
+                                penColor="black"
+                                canvasProps={{ className: "w-full h-32 cursor-crosshair bg-white" }}
+                              />
+                              {!isSigned && (
+                                <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-40">
+                                  <span className="text-slate-400 select-none italic text-sm">Sign here to enable update...</span>
+                                </div>
+                              )}
+                           </div>
+                        </div>
+
+                        <DialogFooter className="gap-2 sm:gap-0 mt-4">
+                          <Button variant="outline" onClick={() => setIsAccountantFinalizing(false)}>Cancel</Button>
+                          <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleAccountantFinalize} disabled={isSubmitting || !isSigned}>
+                            {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Check className="w-4 h-4 mr-2"/>} Update Inventory
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </CardContent>
+                </Card>
+              )}
+
             </div>
           </div>
         </div>
