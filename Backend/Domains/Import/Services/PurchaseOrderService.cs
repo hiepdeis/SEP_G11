@@ -230,6 +230,9 @@ namespace Backend.Domains.Import.Services
 
             await _context.SaveChangesAsync();
 
+            var message = $"PO {purchaseOrder.PurchaseOrderCode} bi ke toan tu choi: {reason}";
+            await CreateRoleNotificationsAsync("Purchasing", message, "PurchaseOrder", purchaseOrder.PurchaseOrderId);
+
             return purchaseOrder;
         }
 
@@ -266,6 +269,9 @@ namespace Backend.Domains.Import.Services
             purchaseOrder.AdminApprovedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+
+            var message = $"PO {purchaseOrder.PurchaseOrderCode} bi admin tu choi: {reason}";
+            await CreateRoleNotificationsAsync("Purchasing", message, "PurchaseOrder", purchaseOrder.PurchaseOrderId);
 
             return purchaseOrder;
         }
@@ -331,6 +337,49 @@ namespace Backend.Domains.Import.Services
             return purchaseOrder;
         }
 
+        public async Task<PurchaseOrder> ConfirmDeliveryAsync(long purchaseOrderId, DateTime expectedDeliveryDate, string? supplierNote)
+        {
+            if (expectedDeliveryDate == default)
+                throw new ArgumentException("ExpectedDeliveryDate is required", nameof(expectedDeliveryDate));
+
+            var purchaseOrder = await _context.PurchaseOrders
+                .Include(o => o.Supplier)
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.Material)
+                .FirstOrDefaultAsync(o => o.PurchaseOrderId == purchaseOrderId);
+
+            if (purchaseOrder == null)
+                throw new KeyNotFoundException($"PurchaseOrder with ID {purchaseOrderId} not found");
+
+            if (purchaseOrder.Status != "SentToSupplier")
+                throw new InvalidOperationException(
+                    $"Cannot confirm delivery for PO {purchaseOrderId}. Current status: {purchaseOrder.Status}");
+
+            purchaseOrder.ExpectedDeliveryDate = expectedDeliveryDate;
+            purchaseOrder.SupplierNote = supplierNote;
+
+            await _context.SaveChangesAsync();
+
+            var supplierName = purchaseOrder.Supplier?.Name ?? "N/A";
+            var itemSummary = string.Join(
+                "; ",
+                purchaseOrder.Items.Select(i =>
+                {
+                    var materialName = i.Material?.Name ?? $"Material {i.MaterialId}";
+                    var unit = i.Material?.Unit ?? string.Empty;
+                    return $"{materialName} — {i.OrderedQuantity} {unit}".Trim();
+                }));
+
+            var message =
+                $"PO {purchaseOrder.PurchaseOrderCode} du kien ve luc {expectedDeliveryDate:yyyy-MM-dd HH:mm}. " +
+                $"NCC: {supplierName}. Mat hang: {itemSummary}";
+
+            await CreateRoleNotificationsAsync("Staff", message, "PurchaseOrder", purchaseOrder.PurchaseOrderId);
+            await CreateRoleNotificationsAsync("Manager", message, "PurchaseOrder", purchaseOrder.PurchaseOrderId);
+
+            return purchaseOrder;
+        }
+
         private async Task<string> GeneratePurchaseOrderCodeAsync()
         {
             var today = DateTime.UtcNow;
@@ -346,6 +395,7 @@ namespace Backend.Domains.Import.Services
         {
             var purchaseOrder = await _context.PurchaseOrders
                 .Include(o => o.Items)
+                .Include(o => o.PurchaseRequest)
                 .FirstOrDefaultAsync(o => o.PurchaseOrderId == purchaseOrderId);
 
             if (purchaseOrder == null)
@@ -404,6 +454,37 @@ namespace Backend.Domains.Import.Services
             if (currentPoAmount > remaining)
                 throw new InvalidOperationException(
                     $"Project budget exceeded. Remaining: {remaining}, current PO: {currentPoAmount}");
+        }
+
+        private async Task<List<int>> GetUserIdsByRoleAsync(string roleName)
+        {
+            return await _context.Users
+                .Where(u => u.Role.RoleName == roleName)
+                .Select(u => u.UserId)
+                .ToListAsync();
+        }
+
+        private async Task CreateRoleNotificationsAsync(string roleName, string message, string entityType, long? entityId)
+        {
+            var userIds = await GetUserIdsByRoleAsync(roleName);
+            if (userIds.Count == 0)
+                return;
+
+            var now = DateTime.UtcNow;
+            foreach (var userId in userIds)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    UserId = userId,
+                    Message = message,
+                    RelatedEntityType = entityType,
+                    RelatedEntityId = entityId,
+                    IsRead = false,
+                    CreatedAt = now
+                });
+            }
+
+            await _context.SaveChangesAsync();
         }
     }
 }

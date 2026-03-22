@@ -26,6 +26,12 @@ public partial class QCCheckDetail
     [StringLength(500)]
     public string? FailReason { get; set; }
 
+    [Column(TypeName = "decimal(18, 4)")]
+    public decimal PassQuantity { get; set; }
+
+    [Column(TypeName = "decimal(18, 4)")]
+    public decimal FailQuantity { get; set; }
+
     // Navigation properties
     [ForeignKey("QCCheckId")]
     [InverseProperty("QCCheckDetails")]

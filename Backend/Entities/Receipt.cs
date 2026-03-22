@@ -45,8 +45,16 @@ public partial class Receipt
     public string? AccountantNotes { get; set; }
     public string? BackorderReason { get; set; }
 
+    public int? ClosedBy { get; set; }
+
+    [Column(TypeName = "datetime")]
+    public DateTime? ClosedAt { get; set; }
+
     [Column("PurchaseOrderID")]
     public long? PurchaseOrderId { get; set; }
+
+    [Column("SupplementaryReceiptID")]
+    public long? SupplementaryReceiptId { get; set; }
 
     [Column("ParentRequestID")]
     public long? ParentRequestId { get; set; }
@@ -62,6 +70,10 @@ public partial class Receipt
     [ForeignKey("PurchaseOrderId")]
     [InverseProperty("Receipts")]
     public virtual PurchaseOrder? PurchaseOrder { get; set; }
+
+    [ForeignKey("SupplementaryReceiptId")]
+    [InverseProperty("Receipts")]
+    public virtual SupplementaryReceipt? SupplementaryReceipt { get; set; }
 
     [InverseProperty("ParentRequest")]
     public virtual ICollection<Receipt> ChildRequests { get; set; } = new List<Receipt>();

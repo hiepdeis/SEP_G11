@@ -3,7 +3,6 @@ namespace Backend.Domains.Import.DTOs.Admins
     public class CreatePurchaseRequestFromAlertDto
     {
         public int ProjectId { get; set; }
-        public decimal? FinalQuantity { get; set; }
         public List<PurchaseRequestItemInputDto> Items { get; set; } = new();
     }
 

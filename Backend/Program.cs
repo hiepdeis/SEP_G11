@@ -56,8 +56,8 @@ builder.Services.AddScoped<IStockShortageAlertService, StockShortageAlertService
 builder.Services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
 builder.Services.AddScoped<IReceiptService, ReceiptService>();
 builder.Services.AddScoped<IPurchaseRequestService, PurchaseRequestService>();
-
-
+builder.Services.AddScoped<IIncidentWorkflowService, IncidentWorkflowService>();
+builder.Services.AddScoped<ISupplierService, SupplierService>();
 // Configure Swagger to support file uploads
 builder.Services.AddSwaggerGen(c =>
 {

@@ -32,7 +32,7 @@ public partial class IncidentReport
     [StringLength(2000)]
     public string Description { get; set; } = null!;
 
-    /// <summary>"Open" | "Resolved"</summary>
+    /// <summary>"Open" | "PendingManagerReview" | "PendingPurchasingAction" | "PendingManagerApproval" | "AwaitingSupplementaryGoods" | "Resolved"</summary>
     [Required]
     [StringLength(20)]
     [Unicode(false)]
@@ -65,4 +65,7 @@ public partial class IncidentReport
 
     [InverseProperty("IncidentReport")]
     public virtual ICollection<IncidentReportDetail> IncidentReportDetails { get; set; } = new List<IncidentReportDetail>();
+
+    [InverseProperty("IncidentReport")]
+    public virtual ICollection<SupplementaryReceipt> SupplementaryReceipts { get; set; } = new List<SupplementaryReceipt>();
 }

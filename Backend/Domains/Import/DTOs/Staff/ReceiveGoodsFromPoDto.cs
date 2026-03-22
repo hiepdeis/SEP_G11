@@ -3,6 +3,7 @@ namespace Backend.Domains.Import.DTOs.Staff
     public class ReceiveGoodsFromPoDto
     {
         public long PurchaseOrderId { get; set; }
+        public long? SupplementaryReceiptId { get; set; }
         public List<ReceiveGoodsFromPoItemDto> Items { get; set; } = new();
     }
 
@@ -16,8 +17,8 @@ namespace Backend.Domains.Import.DTOs.Staff
     {
         public long ReceiptId { get; set; }
         public long PurchaseOrderId { get; set; }
-        public string PoStatus { get; set; } = string.Empty;
-        public decimal ActualQuantity { get; set; }
-        public decimal OrderedQuantity { get; set; }
+        public long? SupplementaryReceiptId { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string NextStep { get; set; } = string.Empty;
     }
 }
