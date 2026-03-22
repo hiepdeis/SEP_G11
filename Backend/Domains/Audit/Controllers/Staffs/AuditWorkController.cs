@@ -20,7 +20,7 @@ public class AuditWorkController : ControllerBase
         //// Tạm thời ví dụ:
         //var claim = User?.Claims?.FirstOrDefault(c => c.Type == "userId")?.Value;
         //return int.TryParse(claim, out var id) ? id : 7;
-        return 7;
+        return 8;
     }
 
     // POST api/staff/audits/{stockTakeId}/finish

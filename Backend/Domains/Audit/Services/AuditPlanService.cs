@@ -23,8 +23,7 @@ namespace Backend.Domains.Audit.Services
             if (!whExists)
                 throw new ArgumentException("WarehouseId không tồn tại.");
 
-            // 2) Nếu BinLocationIds được cung cấp, validate tất cả tồn tại và thuộc warehouse
-            var binLocationIds = request.BinLocationIds;
+            var binLocationIds = request.BinLocationIds ?? new List<int>();
             if (binLocationIds.Any())
             {
                 var invalidBins = new List<int>();
@@ -84,7 +83,7 @@ namespace Backend.Domains.Audit.Services
                 .AsNoTracking()
                 .Where(x => x.WarehouseId == request.WarehouseId && x.QuantityOnHand > 0);
 
-            if (binLocationIds != null && binLocationIds.Any())
+            if (binLocationIds.Any())
             {
                 inventoryQuery = inventoryQuery.Where(x => binLocationIds.Contains(x.BinId));
             }
@@ -102,11 +101,12 @@ namespace Backend.Domains.Audit.Services
                     SystemQty = item.QuantityOnHand, 
                     CountQty = null,                 
                     Variance = 0 - item.QuantityOnHand,
-                    DiscrepancyStatus = "Pending"
+                    DiscrepancyStatus = "Pending",
+                    CountRound = 1 
                 }).ToList();
 
                 _db.StockTakeDetails.AddRange(details);
-                await _db.SaveChangesAsync(ct);
+                await _db.SaveChangesAsync(ct); 
             }
 
             return new AuditPlanResponse

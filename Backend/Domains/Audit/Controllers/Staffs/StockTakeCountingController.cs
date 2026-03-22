@@ -29,7 +29,7 @@ namespace Backend.Controllers
             //    throw new UnauthorizedAccessException("UserId claim is missing or invalid.");
 
             //return userId;
-            return 7;
+            return 8;
         }
 
         [HttpGet("{stockTakeId:int}/counted-items")]

@@ -23,7 +23,7 @@ namespace Backend.Domains.Audit.Controllers.Accountants
         [HttpPost("plans")]
         public async Task<IActionResult> CreatePlan([FromBody] CreateAuditPlanRequest request, CancellationToken ct)
         {
-            int userID = 1; // FIX CỨNG để test
+            int userID = 8; // FIX CỨNG để test
             //Lấy userId từ JWT claim(tuỳ bạn đang lưu claim kiểu gì)
             var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
                            ?? User.FindFirstValue("userId");

@@ -389,8 +389,8 @@ namespace Backend.Domains.Audit.Services
             if (st == null)
                 return (false, "Audit not found.");
 
-            if (st.CreatedBy != managerUserId)
-                return (false, "You do not have permission to update this audit.");
+            // if (st.CreatedBy != managerUserId)
+            //     return (false, "You do not have permission to update this audit.");
 
             var member = await _db.StockTakeTeamMembers
                 .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId && x.UserId == targetUserId, ct);
