@@ -200,9 +200,6 @@ export default function PurchasingDashboardPage() {
     return 0;
   });
 
-  // ==============================================================
-  // LOGIC XỬ LÝ CHO PR (PURCHASE REQUESTS)
-  // ==============================================================
   const filteredPRs = requests.filter((item) => {
     let matchesStatus = true;
     if (filterStatus === "Submitted")
@@ -434,7 +431,7 @@ export default function PurchasingDashboardPage() {
             >
               <div className="flex items-center gap-2">
                 <Package className="w-4 h-4" />
-                Purchase Orders (PO)
+                {t("Purchase Orders")}
               </div>
             </button>
             <button
@@ -447,7 +444,7 @@ export default function PurchasingDashboardPage() {
             >
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4" />
-                Purchase Requests (PR)
+                {t("Purchase Requests")}
               </div>
             </button>
           </div>
@@ -721,14 +718,14 @@ export default function PurchasingDashboardPage() {
                           return (
                             <TableRow
                               key={item.purchaseOrderId}
-                              className="group hover:bg-slate-50/50 transition-colors"
+                              className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
                               onClick={() => {
                                 const selection = window.getSelection();
                                 if (
                                   selection &&
                                   selection.toString().length > 0
                                 ) {
-                                  return; 
+                                  return;
                                 }
                                 handleReviewPO(item.purchaseOrderId);
                               }}
@@ -799,7 +796,7 @@ export default function PurchasingDashboardPage() {
                                   }
                                   className={
                                     item.status === "AdminApproved"
-                                      ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[160px]"
+                                      ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[110px]"
                                       : "text-indigo-600 border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 w-[100px]"
                                   }
                                 >
@@ -807,7 +804,7 @@ export default function PurchasingDashboardPage() {
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                   ) : item.status === "AdminApproved" ? (
                                     <>
-                                      {t("Sent to Supplier")}{" "}
+                                      {t("Review")}{" "}
                                       <ArrowRight className="w-4 h-4 ml-1.5" />
                                     </>
                                   ) : (
@@ -825,16 +822,16 @@ export default function PurchasingDashboardPage() {
                           return (
                             <TableRow
                               key={item.requestId}
-                              className="group hover:bg-slate-50/50 transition-colors"
+                              className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
                               onClick={() => {
                                 const selection = window.getSelection();
                                 if (
                                   selection &&
                                   selection.toString().length > 0
                                 ) {
-                                  return; 
+                                  return;
                                 }
-                                handleReviewPR(item.requestId)
+                                handleReviewPR(item.requestId);
                               }}
                             >
                               <TableCell className="pl-6">
@@ -881,7 +878,7 @@ export default function PurchasingDashboardPage() {
                                       : "bg-slate-100 text-slate-700 border-slate-200"
                                   }
                                 >
-                                  {item.status ? t(item.status) : t("Unknown")}
+                                  {t(formatPascalCase(item.status))}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right pr-6">
@@ -916,9 +913,10 @@ export default function PurchasingDashboardPage() {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                       <DropdownMenuItem
-                                        onClick={() =>
-                                          handleViewPRDetail(item.requestId)
-                                        }
+                                        onClick={(e) => {
+                                          e.stopPropagation(); // QUAN TRỌNG: Chặn click lan lên TableRow
+                                          handleViewPRDetail(item.requestId);
+                                        }}
                                       >
                                         <Eye className="w-4 h-4 mr-2 focus:text-primary" />{" "}
                                         {t("View Alert Details")}

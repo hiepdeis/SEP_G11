@@ -166,8 +166,8 @@ export default function AccountantReceiptsListPage() {
     if (sortConfig.key === "receiptCode") {
       const codeA = a.receiptCode || "";
       const codeB = b.receiptCode || "";
-      return sortConfig.direction === "asc" 
-        ? codeA.localeCompare(codeB) 
+      return sortConfig.direction === "asc"
+        ? codeA.localeCompare(codeB)
         : codeB.localeCompare(codeA);
     }
 
@@ -260,9 +260,7 @@ export default function AccountantReceiptsListPage() {
                   <p className="text-sm text-slate-500 font-medium">
                     {t("Pending Accounting Review")}
                   </p>
-                  <h3 className="text-2xl font-bold text-emerald-600">
-                    {pendingCloseCount}
-                  </h3>
+                  <h3 className="text-2xl font-bold">{pendingCloseCount}</h3>
                 </div>
               </CardContent>
             </Card>
@@ -301,7 +299,12 @@ export default function AccountantReceiptsListPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="All">{t("All")}</SelectItem>
-                      <SelectItem value="Completed" className="text-emerald-600 font-medium">{t("Pending Closure")}</SelectItem>
+                      <SelectItem
+                        value="Completed"
+                        className="font-medium"
+                      >
+                        {t("Pending Closure")}
+                      </SelectItem>
                       <SelectItem value="Closed">{t("Closed")}</SelectItem>
                     </SelectContent>
                   </Select>
@@ -312,7 +315,7 @@ export default function AccountantReceiptsListPage() {
                         <Button
                           variant="outline"
                           className={cn(
-                            "justify-start text-left font-normal h-9 bg-white shadow-sm w-[130px]",
+                            "justify-start text-left font-normal h-9 bg-white shadow-sm",
                             !dateRange.from && "text-slate-500",
                           )}
                         >
@@ -343,7 +346,7 @@ export default function AccountantReceiptsListPage() {
                         <Button
                           variant="outline"
                           className={cn(
-                            "justify-start text-left font-normal h-9 bg-white shadow-sm w-[130px]",
+                            "justify-start text-left font-normal h-9 bg-white shadow-sm",
                             !dateRange.to && "text-slate-500",
                           )}
                         >
@@ -397,19 +400,19 @@ export default function AccountantReceiptsListPage() {
                 </div>
               </div>
             </CardHeader>
-            
+
             <CardContent className="p-0 flex flex-col justify-between flex-1">
               <div className="[&>div]:max-h-[450px] [&>div]:min-h-[450px] [&>div]:overflow-y-auto">
                 <Table>
                   <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                     <TableRow className="bg-slate-50">
                       <TableHead
-                        className="pl-6 cursor-pointer transition-colors w-[25%]"
-                        onClick={() => handleSort("date")}
+                        className="cursor-pointer transition-colors w-[25%] pl-6"
+                        onClick={() => handleSort("receiptCode")}
                       >
                         <div className="flex items-center gap-1.5 select-none">
-                          {t("Receipt Date")}
-                          {sortConfig?.key === "date" ? (
+                          {t("Receipt & PO Code")}
+                          {sortConfig?.key === "receiptCode" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
                             ) : (
@@ -423,11 +426,11 @@ export default function AccountantReceiptsListPage() {
 
                       <TableHead
                         className="cursor-pointer transition-colors w-[25%]"
-                        onClick={() => handleSort("receiptCode")}
+                        onClick={() => handleSort("date")}
                       >
                         <div className="flex items-center gap-1.5 select-none">
-                          {t("Receipt & PO Code")}
-                          {sortConfig?.key === "receiptCode" ? (
+                          {t("Receipt Date")}
+                          {sortConfig?.key === "date" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
                             ) : (
@@ -477,24 +480,13 @@ export default function AccountantReceiptsListPage() {
                           className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
                           onClick={() => {
                             const selection = window.getSelection();
-                            if (selection && selection.toString().length > 0) return;
+                            if (selection && selection.toString().length > 0)
+                              return;
                             handleReview(item.receiptId);
                           }}
                         >
-                          <TableCell className="pl-6">
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-slate-800">
-                                {formatDateTime(item.receiptDate)}
-                              </span>
-                              <span className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                                <CalendarDays className="w-3.5 h-3.5" />
-                                {t("System Date")}
-                              </span>
-                            </div>
-                          </TableCell>
-
                           <TableCell>
-                            <div className="flex flex-col text-left">
+                            <div className="flex flex-col pl-4">
                               <div className="flex items-center gap-2">
                                 <Receipt className="w-4 h-4 text-slate-400" />
                                 <span className="font-bold text-slate-800">
@@ -502,9 +494,19 @@ export default function AccountantReceiptsListPage() {
                                 </span>
                               </div>
                               <span className="text-xs text-slate-500 flex items-center gap-1 mt-1">
-                                PO: <span className="font-mono bg-slate-100 px-1 rounded">{item.purchaseOrderCode || "N/A"}</span>
+                                PO:{" "}
+                                <span className="font-mono bg-slate-100 px-1 rounded">
+                                  {item.purchaseOrderCode || "N/A"}
+                                </span>
                               </span>
                             </div>
+                          </TableCell>
+
+                          <TableCell className="">
+                            <span className="flex gap-2 text-slate-800 items-center">
+                              <CalendarDays className="w-3.5 h-3.5" />
+                              {formatDateTime(item.receiptDate)}
+                            </span>
                           </TableCell>
 
                           <TableCell>
@@ -521,7 +523,9 @@ export default function AccountantReceiptsListPage() {
                               variant="outline"
                               className={getStatusBadge(item.status)}
                             >
-                              {item.status === "Completed" ? t("Pending Closure") : t(formatPascalCase(item.status))}
+                              {item.status === "Completed"
+                                ? t("Pending Closure")
+                                : t(formatPascalCase(item.status))}
                             </Badge>
                           </TableCell>
 
@@ -533,7 +537,11 @@ export default function AccountantReceiptsListPage() {
                                 handleReview(item.receiptId);
                               }}
                               disabled={loadingId === item.receiptId}
-                              variant={item.status === "Completed" ? "default" : "outline"}
+                              variant={
+                                item.status === "Completed"
+                                  ? "default"
+                                  : "outline"
+                              }
                               className={
                                 item.status === "Completed"
                                   ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm min-w-[100px]"

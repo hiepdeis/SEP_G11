@@ -662,7 +662,7 @@ export default function StockShortageAlertListPage() {
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-slate-500 whitespace-nowrap">
-                        {t("Rows per page:")}
+                        {t("Rows per page")}:
                       </span>
                       <Select
                         value={itemsPerPage.toString()}

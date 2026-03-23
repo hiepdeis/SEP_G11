@@ -433,7 +433,7 @@ export default function AdminPurchaseManagementPage() {
             >
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4" />
-                Purchase Requests (PR)
+                {t("Purchase Requests")}
               </div>
             </button>
             <button
@@ -446,7 +446,7 @@ export default function AdminPurchaseManagementPage() {
             >
               <div className="flex items-center gap-2 relative">
                 <BellRing className="w-4 h-4" />
-                Confirmed Alerts
+                 {t("Stock Shortage Alerts")}
                 {confirmedAlertsCount > 0 && (
                   <span className="absolute -top-1 -right-3 flex h-2 w-2 rounded-full bg-rose-500"></span>
                 )}
@@ -467,7 +467,7 @@ export default function AdminPurchaseManagementPage() {
                     value={filterStatus}
                     onValueChange={(value) => setFilterStatus(value)}
                   >
-                    <SelectTrigger className="w-[150px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
+                    <SelectTrigger className="bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
                       <SelectValue placeholder={t("Filter by status")} />
                     </SelectTrigger>
                     <SelectContent>
@@ -887,11 +887,12 @@ export default function AdminPurchaseManagementPage() {
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                           <DropdownMenuItem
-                                            onClick={() =>
+                                            onClick={(e) =>{
+                                              e.stopPropagation();
                                               handleViewAlertDetail(
                                                 item.alertId,
                                               )
-                                            }
+                                            }}
                                           >
                                             <Eye className="w-4 h-4 mr-2 focus:text-primary" />{" "}
                                             {t("View Alert Details")}

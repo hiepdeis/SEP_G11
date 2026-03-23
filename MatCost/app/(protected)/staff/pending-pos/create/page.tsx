@@ -9,14 +9,11 @@ import {
   Loader2,
   Building2,
   PackageCheck,
-  CheckCircle2,
-  AlertTriangle,
   Info,
   CalendarDays,
   ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -41,7 +38,6 @@ interface ReceiveItemInput {
   materialCode: string;
   materialName: string;
   orderedQuantity: number;
-  actualQuantity: string;
 }
 
 export default function ReceiveGoodsPage() {
@@ -78,7 +74,6 @@ export default function ReceiveGoodsPage() {
             materialCode: i.materialCode,
             materialName: i.materialName,
             orderedQuantity: i.orderedQuantity,
-            actualQuantity: i.orderedQuantity.toString(),
           }));
           setItems(mappedItems);
         }
@@ -96,68 +91,16 @@ export default function ReceiveGoodsPage() {
     fetchOrderDetails();
   }, [poIdParam, router, t]);
 
-  const handleQuantityChange = (materialId: number, value: string) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.materialId === materialId
-          ? { ...item, actualQuantity: value }
-          : item,
-      ),
-    );
-  };
-
-  const handleSetAllToOrdered = () => {
-    setItems((prev) =>
-      prev.map((item) => ({
-        ...item,
-        actualQuantity: item.orderedQuantity.toString(),
-      })),
-    );
-  };
-
-  const handleClearAll = () => {
-    setItems((prev) =>
-      prev.map((item) => ({
-        ...item,
-        actualQuantity: "",
-      })),
-    );
-  };
-
   const handleSubmit = () => {
-    const invalidItem = items.find(
-      (i) => i.actualQuantity === "" || Number(i.actualQuantity) < 0,
-    );
-
-    if (invalidItem) {
-      return toast.error(
-        t("Please enter a valid quantity (>= 0) for all items."),
-      );
+    if (items.length === 0) {
+      return toast.error(t("There are no items to receive."));
     }
-
-    const totalReceived = items.reduce(
-      (sum, item) => sum + Number(item.actualQuantity),
-      0,
-    );
-    if (totalReceived === 0) {
-      return toast.error(
-        t("You must receive at least 1 item to create a receipt."),
-      );
-    }
-
-    const hasDiscrepancy = items.some(
-      (i) => Number(i.actualQuantity) !== i.orderedQuantity,
-    );
 
     showConfirmToast({
       title: t("Create Goods Receipt?"),
-      description: hasDiscrepancy
-        ? t(
-            "There is a difference between the ordered quantity and actual received quantity. Are you sure you want to proceed? The receipt will be sent to QC.",
-          )
-        : t(
-            "Are you sure you want to create a receipt for these items? They will be sent to QC for quality check.",
-          ),
+      description: t(
+        "Are you sure you want to create a receipt for these items? They will be sent to QC for quality check.",
+      ),
       confirmLabel: t("Yes, Create Receipt"),
       onConfirm: async () => {
         setIsSubmitting(true);
@@ -166,16 +109,17 @@ export default function ReceiveGoodsPage() {
             purchaseOrderId: Number(poIdParam),
             items: items.map((i) => ({
               materialId: i.materialId,
-              actualQuantity: Number(i.actualQuantity),
+              actualQuantity: i.orderedQuantity, // Gửi luôn số lượng order xuống API
             })),
           };
 
-          await staffReceiptsApi.receiveGoodsFromPurchaseOrder(payload);
+          const res =
+            await staffReceiptsApi.receiveGoodsFromPurchaseOrder(payload);
           toast.success(
             t("Goods Receipt created successfully! Status: Pending QC."),
           );
 
-          router.push("/staff/inbound-requests");
+          router.push(`/staff/inbound-requests/${res.data.receiptId}/process`);
         } catch (error: any) {
           console.error(error);
           toast.error(
@@ -253,7 +197,7 @@ export default function ReceiveGoodsPage() {
             <div className="lg:col-span-1 space-y-6">
               <Card className="border-slate-200 shadow-sm bg-white gap-0">
                 <CardHeader className="border-b border-slate-100 pb-4">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pt-2">
                     <ClipboardList className="w-5 h-5 text-indigo-600" />
                     {t("Delivery Information")}
                   </CardTitle>
@@ -284,8 +228,8 @@ export default function ReceiveGoodsPage() {
                       <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                         {t("Supplier Note")}
                       </span>
-                      <p className="text-sm text-slate-600 bg-amber-50 p-2 rounded-md italic border border-amber-100">
-                        {order.supplierNote}
+                      <p className="text-sm text-slate-600 p-2 rounded-md italic">
+                        "{order.supplierNote}"
                       </p>
                     </div>
                   )}
@@ -313,28 +257,10 @@ export default function ReceiveGoodsPage() {
               <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] flex flex-col gap-0">
                 <CardHeader className="border-b border-slate-100 pb-4">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                    <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pt-2">
                       <PackageCheck className="w-5 h-5 text-indigo-600" />
-                      {t("Actual Goods Received")}
+                      {t("Goods Details")}
                     </CardTitle>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleClearAll}
-                        className="h-8 text-xs text-slate-600"
-                      >
-                        {t("Clear All")}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleSetAllToOrdered}
-                        className="h-8 text-xs bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
-                      >
-                        {t("Match Ordered Quantity")}
-                      </Button>
-                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="p-0 flex-1 overflow-hidden">
@@ -342,31 +268,16 @@ export default function ReceiveGoodsPage() {
                     <Table>
                       <TableHeader className="bg-slate-50 sticky top-0 z-10">
                         <TableRow>
-                          <TableHead className="w-[45%] pl-6">
+                          <TableHead className="w-[70%] pl-6">
                             {t("Material Details")}
                           </TableHead>
-                          <TableHead className="w-[20%] text-center">
+                          <TableHead className="w-[30%] text-center">
                             {t("Ordered Quantity")}
                           </TableHead>
-                          <TableHead className="w-[25%] text-center">
-                            {t("Actual Received Quantity")} *
-                          </TableHead>
-                          <TableHead className="w-[10%] text-center"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {items.map((item) => {
-                          const actualNum = Number(item.actualQuantity);
-                          const isShortage =
-                            item.actualQuantity !== "" &&
-                            actualNum < item.orderedQuantity;
-                          const isOverage =
-                            item.actualQuantity !== "" &&
-                            actualNum > item.orderedQuantity;
-                          const isMatch =
-                            item.actualQuantity !== "" &&
-                            actualNum === item.orderedQuantity;
-
                           return (
                             <TableRow
                               key={item.materialId}
@@ -387,61 +298,6 @@ export default function ReceiveGoodsPage() {
                                 <span className="font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
                                   {item.orderedQuantity.toLocaleString("vi-VN")}
                                 </span>
-                              </TableCell>
-
-                              <TableCell className="align-middle px-4">
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  placeholder="0"
-                                  className={`w-full text-center font-semibold text-lg focus-visible:ring-indigo-600 transition-colors ${
-                                    isShortage
-                                      ? "border-amber-300 bg-amber-50 text-amber-700"
-                                      : isOverage
-                                        ? "border-rose-300 bg-rose-50 text-rose-700"
-                                        : isMatch
-                                          ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                                          : ""
-                                  }`}
-                                  value={item.actualQuantity}
-                                  onChange={(e) =>
-                                    handleQuantityChange(
-                                      item.materialId,
-                                      e.target.value.slice(0, 9),
-                                    )
-                                  }
-                                />
-                              </TableCell>
-
-                              <TableCell className="align-middle text-center pr-4">
-                                {isShortage && (
-                                  <div
-                                    className="flex justify-center"
-                                    title={t(
-                                      "Shortage: Receiving less than ordered",
-                                    )}
-                                  >
-                                    <AlertTriangle className="w-5 h-5 text-amber-500" />
-                                  </div>
-                                )}
-                                {isOverage && (
-                                  <div
-                                    className="flex justify-center"
-                                    title={t(
-                                      "Overage: Receiving more than ordered",
-                                    )}
-                                  >
-                                    <AlertTriangle className="w-5 h-5 text-rose-500" />
-                                  </div>
-                                )}
-                                {isMatch && (
-                                  <div
-                                    className="flex justify-center"
-                                    title={t("Match: Exact quantity")}
-                                  >
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                                  </div>
-                                )}
                               </TableCell>
                             </TableRow>
                           );

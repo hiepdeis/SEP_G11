@@ -16,6 +16,7 @@ import {
   Calculator,
   Check,
   X,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +45,7 @@ import { showConfirmToast } from "@/hooks/confirm-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { DateTimePicker } from "@/components/ui/custom/date-time-picker";
+import { formatPascalCase } from "@/lib/format-pascal-case";
 
 export default function PurchaseOrderDetailPage() {
   const params = useParams();
@@ -63,6 +65,7 @@ export default function PurchaseOrderDetailPage() {
   >(undefined);
   const [supplierNote, setSupplierNote] = useState("");
   const [isConfirmingDelivery, setIsConfirmingDelivery] = useState(false);
+  const [isRecreating, setIsRecreating] = useState(false);
 
   useEffect(() => {
     const fetchOrderDetail = async () => {
@@ -108,6 +111,37 @@ export default function PurchaseOrderDetailPage() {
           );
         } finally {
           setIsSending(false);
+        }
+      },
+    });
+  };
+
+  const handleRecreatePO = () => {
+    if (!order?.requestId) {
+      toast.error(
+        t("Cannot recreate PO: Missing original Purchase Request ID."),
+      );
+      return;
+    }
+
+    showConfirmToast({
+      title: t("Recreate Purchase Order?"),
+      description: t(
+        "Are you sure you want to recreate this rejected Purchase Order? You will be redirected to draft a new one based on the original request.",
+      ),
+      confirmLabel: t("Yes, Recreate"),
+      onConfirm: async () => {
+        setIsRecreating(true);
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          router.push(
+            `/purchasing/purchase-orders/create?requestId=${order.requestId}`,
+          );
+        } catch (error: any) {
+          console.error(error);
+          toast.error(t("An error occurred while trying to recreate the PO."));
+        } finally {
+          setIsRecreating(false);
         }
       },
     });
@@ -223,18 +257,14 @@ export default function PurchaseOrderDetailPage() {
                 variant="outline"
                 className={`px-3 py-1.5 text-sm font-medium ${getStatusBadge(order.status)}`}
               >
-                {order.status == "SentToSupplier"
-                  ? "Sent To Supplier"
-                  : order.status == "AdminApproved"
-                    ? "Admin Approved"
-                    : t(order.status)}
+                {t(formatPascalCase(order.status))}
               </Badge>
 
               {order.status === "AdminApproved" && (
                 <Button
                   onClick={handleSendToSupplier}
                   disabled={isSending}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm ml-2"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm ml-2"
                 >
                   {isSending ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -244,13 +274,29 @@ export default function PurchaseOrderDetailPage() {
                   {t("Send to Supplier")}
                 </Button>
               )}
-              {(order.status === "SentToSupplier" && order.expectedDeliveryDate === null) && (
+              {order.status === "SentToSupplier" &&
+                order.expectedDeliveryDate === null && (
+                  <Button
+                    onClick={() => setIsConfirmDeliveryModalOpen(true)}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm ml-2"
+                  >
+                    <CalendarDays className="w-4 h-4 mr-2" />
+                    {t("Confirm Delivery")}
+                  </Button>
+                )}
+              {(order.status === "AdminRejected" ||
+                order.status === "AccountantRejected") && (
                 <Button
-                  onClick={() => setIsConfirmDeliveryModalOpen(true)}
-                  className="bg-indigo-600 hover:bg-blue-700 text-white shadow-sm ml-2"
+                  onClick={handleRecreatePO}
+                  disabled={isRecreating}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm ml-2"
                 >
-                  <CalendarDays className="w-4 h-4 mr-2" />
-                  {t("Confirm Delivery")}
+                  {isRecreating ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                  )}
+                  {t("Recreate PO")}
                 </Button>
               )}
             </div>
@@ -445,7 +491,14 @@ export default function PurchaseOrderDetailPage() {
                       <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                         {t("Source PR ID")}
                       </span>
-                      <div className="flex items-center gap-2 text-indigo-600 font-medium">
+                      <div
+                        className="flex items-center gap-2 text-indigo-600 font-medium cursor-pointer"
+                        onClick={() => {
+                          router.push(
+                            "/purchasing/purchase-request/" + order.requestId,
+                          );
+                        }}
+                      >
                         <FileText className="w-4 h-4 text-indigo-400" />#
                         {order.requestId}
                       </div>
@@ -482,7 +535,7 @@ export default function PurchaseOrderDetailPage() {
             <div className="lg:col-span-2">
               <Card className="border-slate-200 shadow-sm bg-white min-h-[400px] flex flex-col gap-0">
                 <CardHeader className="border-b border-slate-100 py-5 flex flex-row items-center justify-between pt-1">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 py-2">
                     <Package className="w-5 h-5 text-indigo-600" />
                     {t("Order Details")}
                   </CardTitle>
@@ -585,6 +638,7 @@ export default function PurchaseOrderDetailPage() {
                   value={expectedDeliveryDate}
                   onChange={setExpectedDeliveryDate}
                   placeholder={t("Select date and time...")}
+                  disablePastDates
                 />
               </div>
               <div className="space-y-2">
@@ -606,7 +660,7 @@ export default function PurchaseOrderDetailPage() {
                 variant="ghost"
                 onClick={() => {
                   setIsConfirmDeliveryModalOpen(false);
-                  setExpectedDeliveryDate(undefined); 
+                  setExpectedDeliveryDate(undefined);
                   setSupplierNote("");
                 }}
                 className="text-slate-600"

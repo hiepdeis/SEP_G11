@@ -32,6 +32,7 @@ import {
 } from "@/services/import-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { formatPascalCase } from "@/lib/format-pascal-case";
 
 export default function PurchaseRequestDetailPage({ role = "admin" }) {
   const params = useParams();
@@ -133,7 +134,7 @@ export default function PurchaseRequestDetailPage({ role = "admin" }) {
                 variant="outline"
                 className={`px-3 py-1 text-sm font-medium ${getStatusBadge(request.status)}`}
               >
-                {t(request.status)}
+                {t(formatPascalCase(request.status))}
               </Badge>
             </div>
           </div>
@@ -215,7 +216,7 @@ export default function PurchaseRequestDetailPage({ role = "admin" }) {
             <div className="lg:col-span-2">
               <Card className="border-slate-200 shadow-sm bg-white min-h-[400px] flex flex-col gap-0">
                 <CardHeader className="border-b border-slate-100 py-4 flex flex-row items-center justify-between">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pb-2">
                     <Package className="w-5 h-5 text-indigo-600" />
                     {t("Requested Materials")}
                   </CardTitle>

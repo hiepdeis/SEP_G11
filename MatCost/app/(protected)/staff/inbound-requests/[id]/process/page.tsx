@@ -224,9 +224,9 @@ export default function StaffQCCheckPage() {
           toast.success(t("QC Check submitted successfully"));
 
           if (res.data.nextStep?.includes("incident-report")) {
-            router.push(`/staff/receipts/${id}/incident-report`);
+            router.push(`/staff/inbound-requests/${id}/process/incident`);
           } else {
-            router.push(`/staff/receipts/inbound-requests`);
+            router.push(`/staff/inbound-requests/${id}/process/confirm`);
           }
         } catch (error: any) {
           toast.error(
@@ -291,7 +291,7 @@ export default function StaffQCCheckPage() {
             <div className="flex flex-col gap-1">
               <Button
                 variant="ghost"
-                onClick={() => router.push("/staff/receipts/inbound-requests")}
+                onClick={() => router.push("/staff/inbound-requests")}
                 className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit -ml-2 mb-1 h-8"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}

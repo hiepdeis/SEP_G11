@@ -49,7 +49,11 @@ import { formatPascalCase } from "@/lib/format-pascal-case";
 
 type IncidentDetail = ManagerIncidentDetailDto | PurchasingIncidentDetailDto;
 
-export default function IncidentDetailPage({ role = "manager" }: { role?: "manager" | "purchase" }) {
+export default function IncidentDetailPage({
+  role = "manager",
+}: {
+  role?: "manager" | "purchase";
+}) {
   const { t } = useTranslation();
   const params = useParams();
   const router = useRouter();
@@ -82,7 +86,7 @@ export default function IncidentDetailPage({ role = "manager" }: { role?: "manag
         toast.error(
           error.response?.data?.message || t("Incident report not found."),
         );
-        
+
         // Return back based on role
         if (role === "purchase") {
           router.push("/purchasing/incident-reports");
@@ -141,15 +145,17 @@ export default function IncidentDetailPage({ role = "manager" }: { role?: "manag
   }
 
   // Define pending conditions based on role
-  const isManagerPending = role === "manager" && incident.status === "PendingManagerReview";
-  const isPurchasingPending = role === "purchase" && incident.status === "PendingPurchasingAction";
+  const isManagerPending =
+    role === "manager" && incident.status === "PendingManagerReview";
+  const isPurchasingPending =
+    role === "purchase" && incident.status === "PendingPurchasingAction";
 
   const totalTableItems = incident.items.length;
   const totalTablePages = Math.ceil(totalTableItems / tableItemsPerPage) || 1;
   const startTableIndex = (tablePage - 1) * tableItemsPerPage;
   const paginatedItems = incident.items.slice(
     startTableIndex,
-    startTableIndex + tableItemsPerPage
+    startTableIndex + tableItemsPerPage,
   );
 
   return (
@@ -180,7 +186,7 @@ export default function IncidentDetailPage({ role = "manager" }: { role?: "manag
                 </h1>
                 <Badge
                   className={
-                    (isManagerPending || isPurchasingPending)
+                    isManagerPending || isPurchasingPending
                       ? "bg-amber-100 text-amber-700 hover:bg-amber-100"
                       : "bg-indigo-100 text-indigo-700 hover:bg-indigo-100"
                   }
@@ -257,8 +263,8 @@ export default function IncidentDetailPage({ role = "manager" }: { role?: "manag
                 </CardContent>
               </Card>
 
-              <Card className="border-amber-200 shadow-sm bg-amber-50/30 gap-0 pb-0">
-                <CardHeader className="border-b border-amber-100 py-4">
+              <Card className="border-slate-200 shadow-sm gap-0 pb-0">
+                <CardHeader className="border-b border-slate-100 py-4">
                   <CardTitle className="text-base font-semibold flex items-center gap-2 text-amber-800">
                     <MessageSquare className="w-5 h-5 text-amber-600" />
                     {t("Staff Description")}
@@ -266,8 +272,10 @@ export default function IncidentDetailPage({ role = "manager" }: { role?: "manag
                 </CardHeader>
                 <CardContent className="p-5">
                   <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap font-bold">
+                    "
                     {incident.description ||
                       t("No general description provided.")}
+                    "
                   </p>
                 </CardContent>
               </Card>
@@ -345,7 +353,7 @@ export default function IncidentDetailPage({ role = "manager" }: { role?: "manag
                       </TableBody>
                     </Table>
                   </div>
-                  
+
                   {/* --- THANH ĐIỀU HƯỚNG PHÂN TRANG --- */}
                   {totalTablePages > 1 && (
                     <div className="px-6 py-3 flex items-center justify-between border-t border-slate-100 bg-slate-50/50 shrink-0 mt-auto">
@@ -362,7 +370,9 @@ export default function IncidentDetailPage({ role = "manager" }: { role?: "manag
                           variant="outline"
                           size="sm"
                           className="h-7 text-xs px-2"
-                          onClick={() => setTablePage((p) => Math.max(1, p - 1))}
+                          onClick={() =>
+                            setTablePage((p) => Math.max(1, p - 1))
+                          }
                           disabled={tablePage === 1}
                         >
                           <ChevronLeft className="w-3 h-3 mr-1" /> {t("Prev")}
@@ -375,7 +385,9 @@ export default function IncidentDetailPage({ role = "manager" }: { role?: "manag
                           size="sm"
                           className="h-7 text-xs px-2"
                           onClick={() =>
-                            setTablePage((p) => Math.min(totalTablePages, p + 1))
+                            setTablePage((p) =>
+                              Math.min(totalTablePages, p + 1),
+                            )
                           }
                           disabled={tablePage === totalTablePages}
                         >

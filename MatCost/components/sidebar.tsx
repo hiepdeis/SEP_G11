@@ -107,7 +107,7 @@ export function Sidebar() {
       href: "/admin",
       subItems: [
         {
-          label: t("sidebar.tabs.purchase_request"),
+          label: t("sidebar.tabs.purchase_requests"),
           href: "/admin/purchase-requests",
         },
         {
@@ -149,7 +149,7 @@ export function Sidebar() {
       href: "/manager",
       subItems: [
         {
-          label: t("sidebar.tabs.alerts"),
+          label: t("sidebar.tabs.stock_shortage_alerts"),
           href: "/manager/alerts",
         },
         {
@@ -160,15 +160,15 @@ export function Sidebar() {
     },
     {
       label: t("sidebar.roles.staff"),
-      href: "/manager",
+      href: "/staff",
       subItems: [
         {
           label: t("sidebar.tabs.pending_pos"),
-          href: "/manager/pending-pos",
+          href: "/staff/pending-pos",
         },
         {
-          label: t("sidebar.tabs.inbound-requests"),
-          href: "/manager/inbound-requests",
+          label: t("sidebar.tabs.inbound_requests"),
+          href: "/staff/inbound-requests",
         },
       ],
     }

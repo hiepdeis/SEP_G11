@@ -297,7 +297,7 @@ export default function AccountantReceiptDetailPage() {
               {/* TABLE 1: WAREHOUSE CARDS (THẺ KHO) */}
               <Card className="border-slate-200 shadow-sm bg-white flex flex-col gap-0">
                 <CardHeader className="border-b border-slate-100 py-4 flex flex-row items-center justify-between shrink-0 ">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pb-2">
                     <ClipboardList className="w-5 h-5 text-indigo-600" />
                     {t("Ledger Entries (Warehouse Cards)")}
                   </CardTitle>
@@ -384,7 +384,7 @@ export default function AccountantReceiptDetailPage() {
               {/* TABLE 2: INVENTORY CURRENTS (TỒN KHO HIỆN TẠI) */}
               <Card className="border-slate-200 shadow-sm bg-white flex flex-col gap-0">
                 <CardHeader className="border-b border-slate-100 py-4 flex flex-row items-center justify-between shrink-0">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pb-2">
                     <Database className="w-5 h-5 text-indigo-600" />
                     {t("Updated Inventory Stock")}
                   </CardTitle>

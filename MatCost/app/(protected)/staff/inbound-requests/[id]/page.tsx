@@ -98,10 +98,9 @@ export default function StaffInboundDetailPage() {
 
   const handleProcess = () => {
     toast.info(t("Proceeding to QC check"));
-    router.push(`/staff/receipts/${id}/qc-check`);
+    router.push(`/staff/inbound-requests/${id}/process`);
   };
 
-  // --- HÀM MỚI: Submit Incident to Manager (Bước 16) ---
   const handleSubmitToManager = () => {
     if (!incidentData?.incidentId) return;
 

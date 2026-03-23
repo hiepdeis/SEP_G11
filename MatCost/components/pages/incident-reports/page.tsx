@@ -237,7 +237,7 @@ export default function IncidentsListPage({ role = "manager" }: { role?: "manage
                   <p className="text-sm text-slate-500 font-medium">
                     {role === "purchase" ? t("Pending Action") : t("Pending Reviews")}
                   </p>
-                  <h3 className="text-2xl font-bold text-amber-600">
+                  <h3 className="text-2xl font-bold">
                     {incidents.length}
                   </h3>
                 </div>
@@ -525,7 +525,7 @@ export default function IncidentsListPage({ role = "manager" }: { role?: "manage
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-slate-500 whitespace-nowrap">
-                        {t("Rows per page:")}
+                        {t("Rows per page")}:
                       </span>
                       <Select
                         value={itemsPerPage.toString()}

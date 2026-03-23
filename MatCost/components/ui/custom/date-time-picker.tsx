@@ -18,9 +18,15 @@ interface DateTimePickerProps {
   value?: Date;
   onChange: (date?: Date) => void;
   placeholder?: string;
+  disablePastDates?: boolean; 
 }
 
-export function DateTimePicker({ value, onChange, placeholder }: DateTimePickerProps) {
+export function DateTimePicker({ 
+  value, 
+  onChange, 
+  placeholder, 
+  disablePastDates = false 
+}: DateTimePickerProps) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = React.useState(false);
   
@@ -76,6 +82,7 @@ export function DateTimePicker({ value, onChange, placeholder }: DateTimePickerP
           onSelect={handleDateSelect}
           initialFocus
           className="p-3"
+          disabled={disablePastDates ? (date) => date < new Date(new Date().setHours(0, 0, 0, 0)) : undefined}
         />
         <div className="p-3 border-t border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-2">

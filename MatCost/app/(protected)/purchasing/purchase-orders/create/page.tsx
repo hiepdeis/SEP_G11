@@ -66,9 +66,8 @@ export default function CreatePurchaseOrderPage() {
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   const [requests, setRequests] = useState<PurchaseRequestDto[]>([]);
-  const [suppliers, setSuppliers] = useState<{ id: number; name: string }[]>(
-    [],
-  );
+  // 1. Cập nhật state để khớp với API trả về (dùng supplierId)
+  const [suppliers, setSuppliers] = useState<{ supplierId: number; name: string }[]>([]);
 
   const [selectedRequestId, setSelectedRequestId] = useState<string>(
     requestIdParam || "",
@@ -88,28 +87,24 @@ export default function CreatePurchaseOrderPage() {
     const fetchInitialData = async () => {
       setIsLoadingData(true);
       try {
-        const [prRes] = await Promise.all([
+        // 2. Gọi song song cả API lấy PR và API lấy Supplier
+        const [prRes, suppliersRes] = await Promise.all([
           purchasingPurchaseRequestApi.getRequests(),
+          purchasingPurchaseOrderApi.getSuppliers(),
         ]);
 
         setRequests(prRes.data);
+        setSuppliers(suppliersRes.data);
 
-        setSuppliers([
-          { id: 1, name: "Vinaconex Steel Provider" },
-          { id: 2, name: "Hoa Phat Group" },
-          { id: 3, name: "Ha Tien Cement Co." },
-        ]);
       } catch (error) {
         console.error("Failed to load initial data", error);
-        toast.error(t("Failed to load purchase requests."));
+        toast.error(t("Failed to load initial data."));
       } finally {
         setIsLoadingData(false);
       }
     };
     fetchInitialData();
   }, [t]);
-
-  console.log(requests);
 
   useEffect(() => {
     if (selectedRequestId && requests.length > 0) {
@@ -316,7 +311,7 @@ export default function CreatePurchaseOrderPage() {
                                 {r.requestCode}
                               </span>
                               <span className="text-xs text-slate-500 mt-0.5 group-focus:text-indigo-100">
-                                Project: {r.projectName} | Items:{" "}
+                                {t("Project")}: {r.projectName} | {t("Items")}:{" "}
                                 {r.items?.length || 0}
                               </span>
                             </div>
@@ -341,7 +336,7 @@ export default function CreatePurchaseOrderPage() {
                       </SelectTrigger>
                       <SelectContent>
                         {suppliers.map((s) => (
-                          <SelectItem key={s.id} value={s.id.toString()}>
+                          <SelectItem key={s.supplierId} value={s.supplierId.toString()}>
                             {s.name}
                           </SelectItem>
                         ))}
@@ -356,7 +351,7 @@ export default function CreatePurchaseOrderPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-slate-200 shadow-sm bg-indigo-50/50">
+              <Card className="border-slate-200 shadow-sm bg-indigo-50/50 p-0">
                 <CardContent className="p-5 flex flex-col gap-2">
                   <div className="flex items-center gap-2 text-indigo-700 font-semibold mb-1">
                     <Calculator className="w-5 h-5" />
@@ -381,8 +376,8 @@ export default function CreatePurchaseOrderPage() {
                     {t("Order Details & Pricing")}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-0 flex-1 overflow-hidden">
-                  <div className="overflow-x-auto">
+                <CardContent className="p-0 flex-1 overflow-hidden flex flex-col">
+                  <div className="overflow-x-auto flex-1">
                     <Table>
                       <TableHeader className="bg-slate-50 sticky top-0">
                         <TableRow>
@@ -401,14 +396,13 @@ export default function CreatePurchaseOrderPage() {
                           <TableHead className="w-[20%] text-right pr-6">
                             {t("Unit Price (VND)")}
                           </TableHead>
-                          {/* <TableHead className="w-[5%] text-center pr-6"></TableHead> */}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {items.length === 0 ? (
                           <TableRow>
                             <TableCell
-                              colSpan={6}
+                              colSpan={5}
                               className="h-40 text-center text-slate-500"
                             >
                               {t(
@@ -455,7 +449,6 @@ export default function CreatePurchaseOrderPage() {
                                     )
                                   }
                                 />
-                                <span className="absolute right-3 top-2.5 text-xs font-medium text-slate-400 pointer-events-none"></span>
                               </TableCell>
                               <TableCell className="align-top pt-4">
                                 <Select
@@ -476,8 +469,8 @@ export default function CreatePurchaseOrderPage() {
                                   <SelectContent className="w-[var(--radix-select-trigger-width)]">
                                     {suppliers.map((s) => (
                                       <SelectItem
-                                        key={s.id}
-                                        value={s.id.toString()}
+                                        key={s.supplierId}
+                                        value={s.supplierId.toString()}
                                       >
                                         {s.name}
                                       </SelectItem>
@@ -501,18 +494,6 @@ export default function CreatePurchaseOrderPage() {
                                   }
                                 />
                               </TableCell>
-
-                              {/* <TableCell className="align-top pt-4 text-center pr-6">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                                  onClick={() => handleRemoveRow(item.id)}
-                                  title={t("Remove Item")}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </TableCell> */}
                             </TableRow>
                           ))
                         )}

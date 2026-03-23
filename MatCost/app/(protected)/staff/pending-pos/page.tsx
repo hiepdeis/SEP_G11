@@ -254,7 +254,7 @@ export default function PendingDeliveriesPage() {
                   <p className="text-sm text-slate-500 font-medium">
                     {t("Overdue Deliveries")}
                   </p>
-                  <h3 className="text-2xl font-bold text-rose-600">
+                  <h3 className="text-2xl font-bold">
                     {overdueCount}
                   </h3>
                 </div>
@@ -507,7 +507,7 @@ export default function PendingDeliveriesPage() {
                                   <ListOrdered className="w-3.5 h-3.5" />
                                   {item.items?.length || 0} {t("Items")}
                                 </span>
-                                <span className="text-xs text-slate-500 mt-1.5 line-clamp-1 max-w-[200px] italic">
+                                <span className="text-xs text-slate-500 mt-1.5 italic">
                                   {item.items?.map(i => i.materialName).join(", ")}
                                 </span>
                               </div>
