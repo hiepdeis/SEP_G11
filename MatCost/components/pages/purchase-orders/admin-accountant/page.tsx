@@ -68,7 +68,9 @@ export default function AccountantPurchaseOrderListPage({
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [filterStatus, setFilterStatus] = useState<"All" | "Pending">("All");
+  const [filterStatus, setFilterStatus] = useState<"All" | "Pending">(
+    "Pending",
+  );
 
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
@@ -114,7 +116,10 @@ export default function AccountantPurchaseOrderListPage({
         }
         setOrders(res.data);
       } catch (error) {
-        console.error(`Failed to fetch pending purchase orders for ${role}`, error);
+        console.error(
+          `Failed to fetch pending purchase orders for ${role}`,
+          error,
+        );
         toast.error(t("Failed to fetch pending purchase orders"));
       } finally {
         setIsLoading(false);
@@ -217,7 +222,7 @@ export default function AccountantPurchaseOrderListPage({
   const pendingCount = orders.filter(
     (item) => item.status === targetStatus,
   ).length;
-  
+
   const totalAmountPending = orders
     .filter((item) => item.status === targetStatus)
     .reduce((sum, item) => sum + (item.totalAmount || 0), 0);
@@ -226,8 +231,10 @@ export default function AccountantPurchaseOrderListPage({
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header 
-          title={role === "admin" ? t("Admin Dashboard") : t("Accountant Dashboard")}
+        <Header
+          title={
+            role === "admin" ? t("Admin Dashboard") : t("Accountant Dashboard")
+          }
         />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
@@ -237,9 +244,11 @@ export default function AccountantPurchaseOrderListPage({
                 {t("Purchase Orders")}
               </h1>
               <p className="text-sm text-slate-500">
-                {role === "admin" 
-                  ? t("Review and formally approve final purchase orders.") 
-                  : t("Review and approve pricing for requested purchase orders.")}
+                {role === "admin"
+                  ? t("Review and formally approve final purchase orders.")
+                  : t(
+                      "Review and approve pricing for requested purchase orders.",
+                    )}
               </p>
             </div>
           </div>
@@ -249,8 +258,14 @@ export default function AccountantPurchaseOrderListPage({
           >
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
-                <div className={`p-3 rounded-lg ${role === "admin" ? "bg-indigo-100 text-indigo-600" : "bg-yellow-100 text-yellow-600"}`}>
-                  {role === "admin" ? <CheckCircle2 className="w-6 h-6" /> : <FileText className="w-6 h-6" />}
+                <div
+                  className={`p-3 rounded-lg ${role === "admin" ? "bg-indigo-100 text-indigo-600" : "bg-yellow-100 text-yellow-600"}`}
+                >
+                  {role === "admin" ? (
+                    <CheckCircle2 className="w-6 h-6" />
+                  ) : (
+                    <FileText className="w-6 h-6" />
+                  )}
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
@@ -296,13 +311,25 @@ export default function AccountantPurchaseOrderListPage({
                       setFilterStatus(value)
                     }
                   >
-                    <SelectTrigger className="w-[150px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
+                    <SelectTrigger className="bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
                       <SelectValue placeholder={t("Filter by status")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="All">{t("All")}</SelectItem>
                       <SelectItem value="Pending">
-                        {t("Pending Review")}
+                        <Badge
+                          variant="outline"
+                          className="bg-yellow-50 text-yellow-700 border-yellow-200"
+                        >
+                          {t("Pending Review")}
+                        </Badge>
+                      </SelectItem>
+                      <SelectItem value="All">
+                        <Badge
+                          variant="outline"
+                          className="bg-slate-50 text-slate-700 border-slate-200"
+                        >
+                          {t("All")}
+                        </Badge>
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -524,7 +551,9 @@ export default function AccountantPurchaseOrderListPage({
                                   : "bg-slate-50 text-slate-700 border-slate-200"
                               }
                             >
-                              {item.status === targetStatus ? t("Pending Review") : t(item.status)}
+                              {item.status === targetStatus
+                                ? t("Pending Review")
+                                : t(item.status)}
                             </Badge>
                           </TableCell>
 
@@ -536,7 +565,7 @@ export default function AccountantPurchaseOrderListPage({
                                 handleReview(item.purchaseOrderId);
                               }}
                               disabled={loadingId === item.purchaseOrderId}
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[130px]"
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[200px]"
                             >
                               {loadingId === item.purchaseOrderId ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />

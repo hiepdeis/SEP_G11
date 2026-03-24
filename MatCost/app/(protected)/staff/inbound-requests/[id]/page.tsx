@@ -96,11 +96,6 @@ export default function StaffInboundDetailPage() {
     if (id) fetchData();
   }, [id, t]);
 
-  const handleProcess = () => {
-    toast.info(t("Proceeding to QC check"));
-    router.push(`/staff/inbound-requests/${id}/process`);
-  };
-
   const handleSubmitToManager = () => {
     if (!incidentData?.incidentId) return;
 
@@ -176,18 +171,6 @@ export default function StaffInboundDetailPage() {
             >
               <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}
             </Button>
-
-            <div className="flex gap-3">
-              {request.status == "PendingQC" && (
-                <Button
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
-                  onClick={handleProcess}
-                >
-                  {qcData ? t("Continue Processing") : t("Start Processing")}{" "}
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              )}
-            </div>
           </div>
 
           {/* HORIZONTAL TIMELINE */}

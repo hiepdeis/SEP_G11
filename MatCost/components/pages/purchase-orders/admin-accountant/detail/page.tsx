@@ -17,6 +17,7 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,12 +40,13 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   accountantPurchaseOrderApi,
   adminPurchaseOrderApi,
-  PurchaseOrderReviewResponse,
+  PurchaseOrderReviewResponseDto,
 } from "@/services/import-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { formatPascalCase } from "@/lib/format-pascal-case";
 import { showConfirmToast } from "@/hooks/confirm-toast";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function PurchaseOrderReviewPage({ role = "accountant" }) {
   const params = useParams();
@@ -53,7 +55,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
 
   const id = Number(params.id);
 
-  const [data, setData] = useState<PurchaseOrderReviewResponse | null>(null);
+  const [data, setData] = useState<PurchaseOrderReviewResponseDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const [isApproving, setIsApproving] = useState(false);
@@ -404,19 +406,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
           </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* THÔNG TIN CHUNG (CỘT TRÁI) */}
             <div className="lg:col-span-1 space-y-6">
-              <Card className="border-indigo-200 shadow-sm bg-indigo-50/50">
-                <CardContent className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2 text-indigo-700 font-semibold mb-1">
-                    <Calculator className="w-5 h-5" />
-                    {t("PO Total Amount")}
-                  </div>
-                  <div className="text-3xl font-bold text-slate-900 truncate">
-                    {formatCurrency(order.totalAmount)}
-                  </div>
-                </CardContent>
-              </Card>
               <Card className="border-slate-200 shadow-sm bg-white gap-0">
                 <CardHeader className="border-b border-slate-100 py-4">
                   <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
@@ -434,6 +424,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                       {order.supplierName}
                     </div>
                   </div>
+
                   <div className="space-y-1">
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                       {t("Destination Project")}
@@ -443,6 +434,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                       {order.projectName}
                     </div>
                   </div>
+
                   <div className="space-y-1">
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                       {t("Created By")}
@@ -451,20 +443,78 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                       ID: {order.createdBy}
                     </div>
                   </div>
+
+                  {/* HIỂN THỊ REVISION NOTE CỦA PURCHASING NẾU CÓ */}
+                  {data.revisionNote && (
+                    <div className="space-y-1 pt-3 border-t border-slate-100">
+                      <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                        {t("Revision Note")}
+                      </span>
+                      <div className="text-sm text-amber-800 bg-amber-50 border border-amber-200 p-2.5 rounded-md italic">
+                        "{data.revisionNote}"
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
-              {/* Nếu đã bị Reject, hiển thị luôn lý do ra ngoài thẻ */}
+              {/* THẺ LỊCH SỬ TỪ CHỐI (CHỈ HIỆN KHI CÓ DỮ LIỆU) */}
+              {data.revisionHistory && data.revisionHistory.length > 0 && 
+              // data.revisionHistory[0].rejectedAt !== "" &&
+               (
+                <Card className="border-slate-200 shadow-sm bg-white gap-0">
+                  <CardHeader className="border-b border-slate-100 py-4">
+                    <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                      <History className="w-5 h-5 text-indigo-600" />{" "}
+                      {t("Revision History")}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-5 space-y-4">
+                    {data.revisionHistory
+                      .filter((rev) => rev.rejectedAt)
+                      .map((rev) => (
+                        <div
+                          key={rev.poId}
+                          className="flex flex-col border-l-2 border-rose-200 pl-3 relative pb-4 last:pb-0" // Thêm pb-4 để cách các item ra cho đẹp
+                        >
+                          <div className="absolute w-2 h-2 bg-rose-500 rounded-full -left-[5px] top-1.5" />
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-rose-600">
+                              {t("Revision")} #{rev.revisionNumber}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              {formatDate(rev.rejectedAt)}
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-700 mt-1">
+                            <span className="font-semibold text-slate-500">
+                              {t("Rejected By")}:
+                            </span>{" "}
+                            {rev.rejectedBy}
+                          </div>
+                          {rev.rejectionReason && (
+                            <div className="text-xs text-slate-600 italic bg-rose-50 p-2 rounded mt-1.5 border border-rose-100">
+                              "{rev.rejectionReason}"
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Nếu phiên bản HIỆN TẠI đang bị Reject, hiển thị thông báo */}
               {(isAccountantRejected || isAdminRejected) && (
                 <Card className="border-rose-200 shadow-sm bg-rose-50 p-0">
                   <CardContent className="p-5 flex flex-col gap-2">
                     <div className="flex items-center gap-2 text-rose-700 font-semibold mb-1">
                       <AlertCircle className="w-5 h-5" />
-                      {t("Rejection Reason")}
+                      {t("Current Status: Rejected")}
                     </div>
                     <p className="text-sm text-slate-700">
                       {t(
-                        "This PO was rejected and returned to Purchasing. Please check notes for details.",
+                        "This PO has been rejected. Waiting for Purchasing to create a new revision.",
                       )}
                     </p>
                   </CardContent>
@@ -473,7 +523,18 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
             </div>
 
             {/* BẢNG SO SÁNH GIÁ (CỘT PHẢI) */}
-            <div className="lg:col-span-3">
+            <div className="lg:col-span-3 space-y-6">
+              <Card className="border-indigo-200 shadow-sm bg-indigo-50/50 p-0">
+                <CardContent className="p-5 flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-indigo-700 font-semibold mb-1">
+                    <Calculator className="w-5 h-5" />
+                    {t("PO Total Amount")}
+                  </div>
+                  <div className="text-3xl font-bold text-slate-900 truncate">
+                    {formatCurrency(order.totalAmount)}
+                  </div>
+                </CardContent>
+              </Card>
               <Card className="border-slate-200 shadow-sm bg-white min-h-[400px] flex flex-col gap-0">
                 <CardHeader className="border-b border-slate-100 pb-4 flex flex-row items-center justify-between">
                   <div>
@@ -627,56 +688,62 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
         </div>
       </main>
 
-      {/* MODAL NHẬP LÝ DO REJECT */}
-      {rejectModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
-          <Card className="w-full max-w-md shadow-lg border-0 animate-in zoom-in-95 duration-200 gap-0">
-            <CardHeader className="rounded-t-xl pt-2">
-              <CardTitle className="text-rose-700 flex items-center gap-2">
-                <AlertCircle className="w-5 h-5" />
-                {t(`Reject Purchase Order`)}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <p className="text-sm text-slate-800">
-                {t(
-                  "Please provide a reason for rejecting this PO. This will be sent back to the Purchasing department.",
-                )}
-              </p>
-              <Textarea
-                placeholder={t("Enter rejection reason here...")}
-                className="min-h-[100px] resize-none focus-visible:ring-rose-500"
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                autoFocus
-              />
-            </CardContent>
-            <CardFooter className="flex justify-end gap-3 pt-2 p-6">
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setRejectModalOpen(false);
-                  setRejectReason("");
-                }}
-                className="text-slate-600"
-              >
-                {t("Cancel")}
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleReject}
-                disabled={isRejecting}
-                className="bg-rose-600 hover:bg-rose-700"
-              >
-                {isRejecting && (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                )}
-                {t("Confirm Reject")}
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      )}
+      <Dialog
+        open={rejectModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRejectModalOpen(false);
+            setRejectReason("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden border-0 shadow-lg bg-white">
+          <DialogHeader className="pt-5 pb-4 px-6 border-b border-slate-100 bg-white">
+            <DialogTitle className="text-rose-700 flex items-center gap-2 text-lg">
+              <AlertCircle className="w-5 h-5" />
+              {t("Reject Purchase Order")}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="p-6 space-y-4 bg-white">
+            <p className="text-sm text-slate-800">
+              {t(
+                "Please provide a reason for rejecting this PO. This will be sent back to the Purchasing department.",
+              )}
+            </p>
+            <Textarea
+              placeholder={t("Enter rejection reason here...")}
+              className="min-h-[100px] resize-none focus-visible:ring-rose-500 bg-white"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-white flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setRejectModalOpen(false);
+                setRejectReason("");
+              }}
+              className="text-slate-600 hover:bg-slate-100"
+              disabled={isRejecting}
+            >
+              {t("Cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleReject}
+              disabled={isRejecting}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {isRejecting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {t("Confirm Reject")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

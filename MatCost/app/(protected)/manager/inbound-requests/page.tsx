@@ -2,10 +2,10 @@
 
 import SharedReceiptsListPage from "@/components/pages/inbound-request/manager-accountant/page";
 
-export default function AccountantInboundRequest() {
+export default function ManagerInboundRequest() {
   return (
     <>
-      <SharedReceiptsListPage role="accountant" />
+      <SharedReceiptsListPage role="manager" />
     </>
   );
 }

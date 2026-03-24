@@ -39,8 +39,8 @@ import {
 import {
   purchasingPurchaseOrderApi,
   PurchaseOrderDto,
-  purchasingPurchaseRequestApi, // Bổ sung API PR
-  PurchaseRequestDto, // Bổ sung DTO PR
+  purchasingPurchaseRequestApi,
+  PurchaseRequestDto,
 } from "@/services/import-service";
 import { toast } from "sonner";
 import {
@@ -80,7 +80,7 @@ export default function PurchasingDashboardPage() {
   const [loadingId, setLoadingId] = useState<number | null>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("All");
+  const [filterStatus, setFilterStatus] = useState<string>("PendingApproval");
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
     to: Date | undefined;
@@ -113,7 +113,6 @@ export default function PurchasingDashboardPage() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Fetch cả 2 data cùng lúc để việc chuyển tab diễn ra tức thì (instant)
         const [poRes, prRes] = await Promise.all([
           purchasingPurchaseOrderApi.getOrders(),
           purchasingPurchaseRequestApi.getRequests(),
@@ -131,11 +130,10 @@ export default function PurchasingDashboardPage() {
     fetchData();
   }, [t]);
 
-  // Reset filters khi chuyển tab
   const handleTabChange = (tab: "PO" | "PR") => {
     setActiveTab(tab);
     setSearchTerm("");
-    setFilterStatus("All");
+    setFilterStatus("PendingApproval");
     setCurrentPage(1);
     setSortConfig(null);
   };
@@ -156,15 +154,18 @@ export default function PurchasingDashboardPage() {
   // ==============================================================
   const filteredPOs = orders.filter((item) => {
     let matchesStatus = true;
-    if (filterStatus === "Draft") matchesStatus = item.status === "Draft";
-    else if (filterStatus === "Pending")
+    if (filterStatus === "All") matchesStatus = true;
+    else if (filterStatus === "PendingApproval")
       matchesStatus =
-        item.status === "AccountantPending" || item.status === "AdminPending";
-    else if (filterStatus === "History")
+        item.status === "Draft" || item.status === "AccountantApproved";
+    else if (filterStatus === "Approved")
+      matchesStatus = item.status === "AdminApproved";
+    else if (filterStatus === "Rejected")
       matchesStatus =
-        item.status !== "Draft" &&
-        item.status !== "AccountantPending" &&
-        item.status !== "AdminPending";
+        item.status === "AdminRejected" ||
+        item.status === "AccountantRejected" ||
+        item.status === "Rejected";
+    else matchesStatus = item.status === filterStatus;
 
     const matchesSearch = item.purchaseOrderCode
       .toLowerCase()
@@ -201,11 +202,8 @@ export default function PurchasingDashboardPage() {
   });
 
   const filteredPRs = requests.filter((item) => {
+    if (item.status === "DraftPO") return false;
     let matchesStatus = true;
-    if (filterStatus === "Submitted")
-      matchesStatus = item.status === "Submitted";
-    else if (filterStatus === "History")
-      matchesStatus = item.status !== "Submitted";
 
     const matchesSearch = item.requestCode
       .toLowerCase()
@@ -241,10 +239,8 @@ export default function PurchasingDashboardPage() {
     return 0;
   });
 
-  // Data cuối cùng để render dựa trên Active Tab
   const currentSortedData = activeTab === "PO" ? sortedPOs : sortedPRs;
 
-  // Phân trang
   const isAll = itemsPerPage === -1;
   const totalPages = isAll
     ? 1
@@ -262,7 +258,6 @@ export default function PurchasingDashboardPage() {
 
   const handleReviewPR = (id: number) => {
     setLoadingId(id);
-    // Chuyển sang trang tạo PO và truyền requestId lên URL để xử lý PR này
     router.push(`/purchasing/purchase-orders/create?requestId=${id}`);
   };
 
@@ -279,21 +274,19 @@ export default function PurchasingDashboardPage() {
       : "0 ₫";
   const formatPlus = (num: number) => (num > 999 ? "999+" : num);
 
-  // Thống kê KPI PO
-  const poDraftCount = orders.filter((i) => i.status === "Draft").length;
-  const poPendingCount = orders.filter(
-    (i) => i.status === "AccountantPending" || i.status === "AdminPending",
+  const poDraftCount = orders.filter(
+    (i) => i.status === "Draft" || i.status === "AccountantPending",
+  ).length;
+  const poRejected = orders.filter(
+    (i) => i.status === "AccountantRejected" || i.status === "AdminRejected",
   ).length;
   const poApprovedCount = orders.filter(
     (i) => i.status === "AdminApproved" || i.status === "SentToSupplier",
   ).length;
 
-  // Thống kê KPI PR
   const prPendingCount = requests.filter(
     (i) => i.status === "Submitted",
   ).length;
-  const prTotalCount = requests.length;
-  const prAlertDrivenCount = requests.filter((i) => i.alertId != null).length;
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
@@ -330,7 +323,7 @@ export default function PurchasingDashboardPage() {
                   </div>
                   <div>
                     <p className="text-sm text-slate-500 font-medium">
-                      {t("PO Drafts")}
+                      {t("Pending Approval")}
                     </p>
                     <h3 className="text-2xl font-bold text-slate-900">
                       {formatPlus(poDraftCount)}
@@ -340,15 +333,15 @@ export default function PurchasingDashboardPage() {
               </Card>
               <Card className="bg-white border-slate-200 shadow-sm">
                 <CardContent className="p-4 flex items-center gap-4">
-                  <div className="p-3 bg-yellow-100 text-yellow-600 rounded-lg">
+                  <div className="p-3 bg-rose-100 text-rose-600 rounded-lg">
                     <Clock className="w-6 h-6" />
                   </div>
                   <div>
                     <p className="text-sm text-slate-500 font-medium">
-                      {t("PO Awaiting Approval")}
+                      {t("PO Rejected")}
                     </p>
                     <h3 className="text-2xl font-bold text-slate-900">
-                      {formatPlus(poPendingCount)}
+                      {formatPlus(poRejected)}
                     </h3>
                   </div>
                 </CardContent>
@@ -386,40 +379,9 @@ export default function PurchasingDashboardPage() {
                   </div>
                 </CardContent>
               </Card>
-              <Card className="bg-white border-slate-200 shadow-sm">
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg">
-                    <FileText className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-500 font-medium">
-                      {t("Total PRs")}
-                    </p>
-                    <h3 className="text-2xl font-bold text-slate-900">
-                      {formatPlus(prTotalCount)}
-                    </h3>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-white border-slate-200 shadow-sm">
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className="p-3 bg-rose-100 text-rose-600 rounded-lg">
-                    <AlertTriangle className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-500 font-medium">
-                      {t("From Alerts")}
-                    </p>
-                    <h3 className="text-2xl font-bold text-slate-900">
-                      {formatPlus(prAlertDrivenCount)}
-                    </h3>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           )}
 
-          {/* CUSTOM TABS */}
           <div className="flex items-center gap-1 border-b border-slate-200 mt-2">
             <button
               onClick={() => handleTabChange("PO")}
@@ -442,9 +404,12 @@ export default function PurchasingDashboardPage() {
                   : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
               }`}
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 relative">
                 <FileText className="w-4 h-4" />
                 {t("Purchase Requests")}
+                {prPendingCount > 0 && (
+                  <span className="absolute -top-1 -right-3 flex h-2 w-2 rounded-full bg-rose-500"></span>
+                )}
               </div>
             </button>
           </div>
@@ -453,43 +418,77 @@ export default function PurchasingDashboardPage() {
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-sm font-medium text-slate-500 hidden md:block">
-                    {t("Filters")}:
-                  </span>
+                  {activeTab === "PO" && (
+                    <>
+                      <span className="text-sm font-medium text-slate-500 hidden md:block">
+                        {t("Filters")}:
+                      </span>
 
-                  {/* DYNAMIC FILTER SELECT */}
-                  <Select
-                    value={filterStatus}
-                    onValueChange={(value) => setFilterStatus(value)}
-                  >
-                    <SelectTrigger className="w-[150px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
-                      <SelectValue placeholder={t("Filter by status")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activeTab === "PO" ? (
-                        <>
-                          <SelectItem value="All">{t("All POs")}</SelectItem>
-                          <SelectItem value="Draft">{t("Drafts")}</SelectItem>
-                          <SelectItem value="Pending">
-                            {t("Pending Approval")}
-                          </SelectItem>
-                          <SelectItem value="History">
-                            {t("History")}
-                          </SelectItem>
-                        </>
-                      ) : (
-                        <>
-                          <SelectItem value="All">{t("All PRs")}</SelectItem>
-                          <SelectItem value="Submitted">
-                            {t("Pending PRs")}
-                          </SelectItem>
-                          <SelectItem value="History">
-                            {t("History")}
-                          </SelectItem>
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
+                      <Select
+                        value={filterStatus}
+                        onValueChange={(value) => setFilterStatus(value)}
+                      >
+                        <SelectTrigger className="bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
+                          <SelectValue placeholder={t("Filter by status")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <>
+                            <SelectItem value="PendingApproval">
+                              <Badge
+                                variant="outline"
+                                className="bg-yellow-50 text-yellow-700 border-yellow-200"
+                              >
+                                {t("Pending Approval")}
+                              </Badge>
+                            </SelectItem>
+                            <SelectItem value="AdminApproved">
+                              <Badge
+                                variant="outline"
+                                className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                              >
+                                {t("Approved")}
+                              </Badge>
+                            </SelectItem>
+                            <SelectItem
+                              className="text-rose-600"
+                              value="Rejected"
+                            >
+                              <Badge
+                                variant="outline"
+                                className="bg-rose-50 text-rose-700 border-rose-200"
+                              >
+                                {t("Rejected")}
+                              </Badge>
+                            </SelectItem>
+                            <SelectItem value="SentToSupplier">
+                              <Badge
+                                variant="outline"
+                                className="bg-indigo-50 text-indigo-700 border-indigo-200"
+                              >
+                                {t("Sent To Supplier")}
+                              </Badge>
+                            </SelectItem>
+                            <SelectItem value="PartiallyReceived">
+                              <Badge
+                                variant="outline"
+                                className="bg-amber-50 text-amber-700 border-amber-200"
+                              >
+                                {t("Partially Received")}
+                              </Badge>
+                            </SelectItem>
+                            <SelectItem value="All">
+                              <Badge
+                                variant="outline"
+                                className="bg-slate-50 text-slate-700 border-slate-200"
+                              >
+                                {t("All")}
+                              </Badge>
+                            </SelectItem>
+                          </>
+                        </SelectContent>
+                      </Select>
+                    </>
+                  )}
 
                   <div className="flex items-center gap-2">
                     <Popover>
@@ -592,7 +591,6 @@ export default function PurchasingDashboardPage() {
                   <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                     <TableRow className="bg-slate-50">
                       {activeTab === "PO" ? (
-                        /* CỘT CHO BẢNG PO */
                         <>
                           <TableHead
                             className="pl-6 cursor-pointer transition-colors w-[20%]"
@@ -642,7 +640,6 @@ export default function PurchasingDashboardPage() {
                           </TableHead>
                         </>
                       ) : (
-                        /* CỘT CHO BẢNG PR */
                         <>
                           <TableHead
                             className="pl-6 cursor-pointer transition-colors w-[25%]"
@@ -713,7 +710,6 @@ export default function PurchasingDashboardPage() {
                       </TableRow>
                     ) : (
                       paginatedData.map((item: any) => {
-                        // Render Table Row tuỳ thuộc vào PO hay PR
                         if (activeTab === "PO") {
                           return (
                             <TableRow
@@ -731,11 +727,22 @@ export default function PurchasingDashboardPage() {
                               }}
                             >
                               <TableCell className="pl-6">
-                                <div className="flex flex-col">
-                                  <span className="font-semibold text-slate-700">
-                                    {item.purchaseOrderCode}
-                                  </span>
-                                  <span className="text-xs text-slate-400 flex items-center gap-1 mt-1">
+                                <div className="flex flex-col items-start gap-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-slate-700">
+                                      {item.purchaseOrderCode}
+                                    </span>
+                                    {/* BADGE REVISION */}
+                                    {item.revisionNumber > 1 && (
+                                      <Badge
+                                        variant="outline"
+                                        className="bg-amber-50 text-amber-700 border-amber-200 px-1.5 py-0 h-5 text-[10px] uppercase tracking-wider"
+                                      >
+                                        {t("Revision")} #{item.revisionNumber}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <span className="text-xs text-slate-400 flex items-center gap-1">
                                     <CalendarDays className="w-3 h-3" />{" "}
                                     {formatDate(item.createdAt)}
                                   </span>
@@ -768,36 +775,47 @@ export default function PurchasingDashboardPage() {
                                 <Badge
                                   variant="outline"
                                   className={
-                                    item.status === "Draft"
-                                      ? "bg-slate-100 text-slate-600 border-slate-200"
-                                      : item.status.includes("Pending")
-                                        ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                    item.status === "Draft" ||
+                                    item.status === "AccountantApproved"
+                                      ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                      : item.status === "AdminApproved"
+                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                         : item.status.includes("Reject")
                                           ? "bg-rose-50 text-rose-700 border-rose-200"
-                                          : item.status === "AdminApproved"
+                                          : item.status === "SentToSupplier"
                                             ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                            : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                            : item.status === "PartiallyReceived"
+                                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                                              : "bg-slate-50 text-slate-700 border-slate-200"
                                   }
                                 >
-                                  {t(formatPascalCase(item.status))}
+                                  {item.status === "Draft" ||
+                                  item.status === "AccountantApproved"
+                                    ? "Pending Approval"
+                                    : item.status === "AdminApproved"
+                                      ? "Approved"
+                                      : t(formatPascalCase(item.status))}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right pr-6">
                                 <Button
                                   size="sm"
-                                  onClick={() =>
-                                    handleReviewPO(item.purchaseOrderId)
-                                  }
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleReviewPO(item.purchaseOrderId);
+                                  }}
                                   disabled={loadingId === item.purchaseOrderId}
                                   variant={
-                                    item.status === "AdminApproved"
+                                    item.status === "AdminApproved" ||
+                                    item.status.includes("Rejected")
                                       ? "default"
                                       : "outline"
                                   }
                                   className={
-                                    item.status === "AdminApproved"
-                                      ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[110px]"
-                                      : "text-indigo-600 border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 w-[100px]"
+                                    item.status === "AdminApproved" ||
+                                    item.status.includes("Rejected")
+                                      ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[200px]"
+                                      : "text-indigo-600 border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 w-[200px]"
                                   }
                                 >
                                   {loadingId === item.purchaseOrderId ? (
@@ -805,6 +823,11 @@ export default function PurchasingDashboardPage() {
                                   ) : item.status === "AdminApproved" ? (
                                     <>
                                       {t("Review")}{" "}
+                                      <ArrowRight className="w-4 h-4 ml-1.5" />
+                                    </>
+                                  ) : item.status.includes("Rejected") ? (
+                                    <>
+                                      {t("Recreate PO")}{" "}
                                       <ArrowRight className="w-4 h-4 ml-1.5" />
                                     </>
                                   ) : (
@@ -818,7 +841,6 @@ export default function PurchasingDashboardPage() {
                             </TableRow>
                           );
                         } else {
-                          // PR ROW RENDER
                           return (
                             <TableRow
                               key={item.requestId}
@@ -878,19 +900,22 @@ export default function PurchasingDashboardPage() {
                                       : "bg-slate-100 text-slate-700 border-slate-200"
                                   }
                                 >
-                                  {t(formatPascalCase(item.status))}
+                                  {item.status == "Submitted"
+                                    ? "Pending Draft Creation"
+                                    : t(formatPascalCase(item.status))}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right pr-6">
                                 <div className="flex justify-end items-center gap-2">
                                   <Button
                                     size="sm"
-                                    onClick={() =>
-                                      handleReviewPR(item.requestId)
-                                    }
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleReviewPR(item.requestId);
+                                    }}
                                     disabled={loadingId === item.requestId}
                                     variant="default"
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[150px]"
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                                   >
                                     {loadingId === item.requestId ? (
                                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -907,6 +932,7 @@ export default function PurchasingDashboardPage() {
                                         variant="outline"
                                         size="icon"
                                         className="h-8 w-8 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-indigo-800"
+                                        onClick={(e) => e.stopPropagation()}
                                       >
                                         <MoreHorizontal className="w-4 h-4" />
                                       </Button>
@@ -914,7 +940,7 @@ export default function PurchasingDashboardPage() {
                                     <DropdownMenuContent align="end">
                                       <DropdownMenuItem
                                         onClick={(e) => {
-                                          e.stopPropagation(); // QUAN TRỌNG: Chặn click lan lên TableRow
+                                          e.stopPropagation();
                                           handleViewPRDetail(item.requestId);
                                         }}
                                       >

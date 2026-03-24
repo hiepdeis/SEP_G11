@@ -10,16 +10,16 @@ import {
   Loader2,
   Building2,
   PackagePlus,
-  Users,
   FileText,
-  Trash2,
   Calculator,
   ChevronRight,
   ChevronLeft,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -61,18 +61,19 @@ export default function CreatePurchaseOrderPage() {
   const { t } = useTranslation();
 
   const requestIdParam = searchParams.get("requestId");
+  const parentPOIdParam = searchParams.get("parentPOId"); // Lấy Parent PO ID từ URL nếu có
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   const [requests, setRequests] = useState<PurchaseRequestDto[]>([]);
-  // 1. Cập nhật state để khớp với API trả về (dùng supplierId)
   const [suppliers, setSuppliers] = useState<{ supplierId: number; name: string }[]>([]);
 
   const [selectedRequestId, setSelectedRequestId] = useState<string>(
     requestIdParam || "",
   );
   const [globalSupplierId, setGlobalSupplierId] = useState<string>("");
+  const [revisionNote, setRevisionNote] = useState<string>(""); // State cho Revision Note
   const [items, setItems] = useState<OrderItemInput[]>([]);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -87,7 +88,6 @@ export default function CreatePurchaseOrderPage() {
     const fetchInitialData = async () => {
       setIsLoadingData(true);
       try {
-        // 2. Gọi song song cả API lấy PR và API lấy Supplier
         const [prRes, suppliersRes] = await Promise.all([
           purchasingPurchaseRequestApi.getRequests(),
           purchasingPurchaseOrderApi.getSuppliers(),
@@ -144,10 +144,6 @@ export default function CreatePurchaseOrderPage() {
     }
   };
 
-  const handleRemoveRow = (idToRemove: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== idToRemove));
-  };
-
   const formatCurrency = (val: number) => {
     return val.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
   };
@@ -180,12 +176,17 @@ export default function CreatePurchaseOrderPage() {
       return toast.error(t("Please assign a unit price for all items."));
     }
 
+    // Bắt buộc nhập Revision Note nếu đây là bản làm lại (Recreate)
+    if (parentPOIdParam && !revisionNote.trim()) {
+      return toast.error(t("Please provide a revision note explaining the changes."));
+    }
+
     showConfirmToast({
-      title: t("Create Purchase Order Draft?"),
-      description: t(
-        "Are you sure you want to create a Purchase Order draft with these details?",
-      ),
-      confirmLabel: t("Yes, Create Draft"),
+      title: parentPOIdParam ? t("Recreate Purchase Order?") : t("Create Purchase Order Draft?"),
+      description: parentPOIdParam 
+        ? t("Are you sure you want to submit this revised Purchase Order?") 
+        : t("Are you sure you want to create a Purchase Order draft with these details?"),
+      confirmLabel: parentPOIdParam ? t("Yes, Submit Revision") : t("Yes, Create Draft"),
       onConfirm: async () => {
         setIsSubmitting(true);
 
@@ -193,6 +194,8 @@ export default function CreatePurchaseOrderPage() {
           const payload = {
             requestId: Number(selectedRequestId),
             supplierId: globalSupplierId ? Number(globalSupplierId) : undefined,
+            parentPOId: parentPOIdParam ? Number(parentPOIdParam) : undefined,
+            revisionNote: revisionNote.trim() || undefined,
             items: items.map((i) => ({
               materialId: i.materialId,
               orderedQuantity: Number(i.orderedQuantity),
@@ -202,14 +205,18 @@ export default function CreatePurchaseOrderPage() {
           };
 
           await purchasingPurchaseOrderApi.createDraft(payload);
-          toast.success(t("Purchase Order draft created successfully!"));
+          toast.success(
+            parentPOIdParam 
+              ? t("Revised Purchase Order submitted successfully!") 
+              : t("Purchase Order draft created successfully!")
+          );
 
           router.push("/purchasing/purchase-orders");
         } catch (error: any) {
           console.error(error);
           toast.error(
             error.response?.data?.message ||
-              t("Failed to create Purchase Order draft."),
+              t("Failed to create Purchase Order."),
           );
         } finally {
           setIsSubmitting(false);
@@ -243,7 +250,7 @@ export default function CreatePurchaseOrderPage() {
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title={t("Create Purchase Order Draft")} />
+        <Header title={parentPOIdParam ? t("Recreate Purchase Order") : t("Create Purchase Order Draft")} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6 mx-auto w-full">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -257,7 +264,14 @@ export default function CreatePurchaseOrderPage() {
               </Button>
               <div>
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                  {t("New Purchase Order Draft")}
+                  {parentPOIdParam ? (
+                    <>
+                      <RefreshCw className="w-6 h-6 text-indigo-600" />
+                      {t("Recreate Rejected Order")}
+                    </>
+                  ) : (
+                    t("New Purchase Order Draft")
+                  )}
                 </h1>
               </div>
             </div>
@@ -272,7 +286,7 @@ export default function CreatePurchaseOrderPage() {
               ) : (
                 <Save className="w-4 h-4 mr-2" />
               )}
-              {t("Confirm Purchase Order")}
+              {parentPOIdParam ? t("Submit Revised Order") : t("Confirm Purchase Order")}
             </Button>
           </div>
 
@@ -295,8 +309,9 @@ export default function CreatePurchaseOrderPage() {
                     <Select
                       value={selectedRequestId}
                       onValueChange={setSelectedRequestId}
+                      disabled={!!parentPOIdParam} // Khóa không cho đổi PR nếu đang Recreate
                     >
-                      <SelectTrigger className="w-full bg-slate-50 border-slate-200 min-h-[60px] py-2">
+                      <SelectTrigger className={`w-full bg-slate-50 min-h-[60px] py-2 ${parentPOIdParam ? "border-slate-200 opacity-70" : "border-slate-300"}`}>
                         <SelectValue placeholder={t("Select a PR...")} />
                       </SelectTrigger>
                       <SelectContent className="w-[var(--radix-select-trigger-width)]">
@@ -321,7 +336,7 @@ export default function CreatePurchaseOrderPage() {
                     </Select>
                   </div>
 
-                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <div className="space-y-2 pt-4 border-t border-slate-100">
                     <label className="text-sm font-medium text-slate-700">
                       {t("Global Supplier")}
                     </label>
@@ -348,6 +363,22 @@ export default function CreatePurchaseOrderPage() {
                       )}
                     </p>
                   </div>
+
+                  {/* THÊM TRƯỜNG REVISION NOTE NẾU LÀ RECREATE */}
+                  {parentPOIdParam && (
+                    <div className="space-y-2 pt-4 border-t border-slate-100">
+                      <label className="text-sm font-medium text-slate-700">
+                        {t("Revision Note")} <span className="text-red-500">*</span>
+                      </label>
+                      <Textarea
+                        placeholder={t("Explain the adjustments made (e.g., Updated unit price)...")}
+                        value={revisionNote}
+                        onChange={(e) => setRevisionNote(e.target.value)}
+                        className="min-h-[80px] resize-none focus-visible:ring-indigo-600"
+                      />
+                    </div>
+                  )}
+
                 </CardContent>
               </Card>
 
@@ -391,10 +422,10 @@ export default function CreatePurchaseOrderPage() {
                             {t("Order Quantity")} *
                           </TableHead>
                           <TableHead className="w-[15%]">
-                            {t("Supplier")}
+                            {t("Supplier")} *
                           </TableHead>
                           <TableHead className="w-[20%] text-right pr-6">
-                            {t("Unit Price (VND)")}
+                            {t("Unit Price (VND)")} *
                           </TableHead>
                         </TableRow>
                       </TableHeader>

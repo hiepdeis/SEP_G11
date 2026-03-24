@@ -17,7 +17,9 @@ import {
   ClipboardList,
   AlertCircle,
   Eye,
+  TriangleAlert,
   ShieldCheck,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +54,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { formatPascalCase } from "@/lib/format-pascal-case";
 
 export default function InboundReceiptsPage() {
   const router = useRouter();
@@ -62,7 +65,7 @@ export default function InboundReceiptsPage() {
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [filterStatus, setFilterStatus] = useState<string>("All");
+  const [filterStatus, setFilterStatus] = useState<string>("QCPassed");
 
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
@@ -79,6 +82,24 @@ export default function InboundReceiptsPage() {
     key: "date" | "quantity";
     direction: "asc" | "desc";
   } | null>(null);
+
+  const getStatusBadge = (status?: string | null) => {
+    switch (status) {
+      case "PendingIncident":
+        return "bg-yellow-50 text-yellow-700 border-yellow-200";
+      case "ReadyForStamp":
+        return "bg-amber-50 text-amber-700 border-amber-200";
+      case "ReadyForPutaway":
+      case "PartiallyPutaway":
+        return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      case "QCPassed":
+        return "bg-green-50 text-green-700 border-green-200";
+      case "PendingManagerReview":
+        return "bg-rose-50 text-rose-700 border-rose-200";
+      default:
+        return "bg-slate-100 text-slate-700 border-slate-200";
+    }
+  };
 
   const handleSort = (key: "date" | "quantity") => {
     let direction: "asc" | "desc" = "asc";
@@ -174,9 +195,15 @@ export default function InboundReceiptsPage() {
   const endIndex = isAll ? sortedData.length : startIndex + itemsPerPage;
   const paginatedData = sortedData.slice(startIndex, endIndex);
 
-  const handleAction = (id: number) => {
+  const handleAction = (id: number, status: string = "View") => {
     setLoadingId(id);
-    router.push(`/staff/inbound-requests/${id}`);
+    if (status === "PendingIncident") {
+      router.push(`/staff/inbound-requests/${id}/incident`);
+    } else if (status === "ReadyForPutaway" || status === "QCPassed") {
+      router.push(`/staff/inbound-requests/${id}/putaway`);
+    } else {
+      router.push(`/staff/inbound-requests/${id}`);
+    }
   };
 
   const formatDateTime = (dateString: string | null | undefined) => {
@@ -191,20 +218,6 @@ export default function InboundReceiptsPage() {
   const incidentCount = receipts.filter(
     (r) => r.status === "PendingManagerReview",
   ).length;
-
-  const getStatusBadge = (status?: string | null) => {
-    switch (status) {
-      case "PendingQC":
-        return "bg-amber-50 text-amber-700 border-amber-200";
-      case "Approved":
-      case "Completed":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      case "PendingManagerReview":
-        return "bg-rose-50 text-rose-700 border-rose-200";
-      default:
-        return "bg-slate-100 text-slate-700 border-slate-200";
-    }
-  };
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
@@ -252,9 +265,7 @@ export default function InboundReceiptsPage() {
                   <p className="text-sm text-slate-500 font-medium">
                     {t("Pending QC Check")}
                   </p>
-                  <h3 className="text-2xl font-bold">
-                    {pendingQCCount}
-                  </h3>
+                  <h3 className="text-2xl font-bold">{pendingQCCount}</h3>
                 </div>
               </CardContent>
             </Card>
@@ -268,9 +279,7 @@ export default function InboundReceiptsPage() {
                   <p className="text-sm text-slate-500 font-medium">
                     {t("Incidents Pending Review")}
                   </p>
-                  <h3 className="text-2xl font-bold">
-                    {incidentCount}
-                  </h3>
+                  <h3 className="text-2xl font-bold">{incidentCount}</h3>
                 </div>
               </CardContent>
             </Card>
@@ -292,18 +301,53 @@ export default function InboundReceiptsPage() {
                       <SelectValue placeholder={t("Filter by status")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="All">{t("All")}</SelectItem>
-                      <SelectItem value="PendingQC">
-                        {t("Pending QC")}
+                      <SelectItem value="QCPassed">
+                        <Badge
+                          variant="outline"
+                          className="bg-green-50 text-green-700 border-green-200"
+                        >
+                          {t("QC Passed")}
+                        </Badge>
                       </SelectItem>
-                      <SelectItem value="Completed">
-                        {t("Completed")}
+                      <SelectItem value="ReadyForPutaway">
+                        <Badge
+                          variant="outline"
+                          className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                        >
+                          {t("Ready For Putaway")}
+                        </Badge>
+                      </SelectItem>
+                      <SelectItem value="ReadyForStamp">
+                        <Badge
+                          variant="outline"
+                          className="bg-amber-50 text-amber-700 border-amber-200"
+                        >
+                          {t("Pending Stamp")}
+                        </Badge>
+                      </SelectItem>
+                      <SelectItem value="PartiallyPutaway">
+                        <Badge
+                          variant="outline"
+                          className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                        >
+                          {t("Partially Putaway")}
+                        </Badge>
                       </SelectItem>
                       <SelectItem value="PendingIncident">
-                        {t("Pending Incident")}
+                        <Badge
+                          variant="outline"
+                          className="bg-yellow-50 text-yellow-700 border-yellow-200"
+                        >
+                          {t("Pending Incident")}
+                        </Badge>
                       </SelectItem>
-                      <SelectItem value="PendingManagerReview">
-                        {t("Incident Review")}
+                      <SelectItem value="All">
+                        <Badge
+                          variant="outline"
+                          className="bg-slate-50 text-slate-700 border-slate-200"
+                        >
+                          {t("All")}
+                        </Badge>
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -481,7 +525,7 @@ export default function InboundReceiptsPage() {
                             const selection = window.getSelection();
                             if (selection && selection.toString().length > 0)
                               return;
-                            handleAction(item.receiptId);
+                            handleAction(item.receiptId, "PendingIncident");
                           }}
                         >
                           <TableCell className="pl-6">
@@ -520,11 +564,9 @@ export default function InboundReceiptsPage() {
                               variant="outline"
                               className={getStatusBadge(item.status)}
                             >
-                              {item.status === "PendingQC"
-                                ? "Pending QC"
-                                : item.status === "PendingManagerReview"
-                                  ? "Incident Review"
-                                  : t(item.status || "Unknown")}
+                              {item.status === "ReadyForStamp"
+                                ? "Pending Stamp"
+                                : t(formatPascalCase(item.status))}
                             </Badge>
                           </TableCell>
 
@@ -533,26 +575,35 @@ export default function InboundReceiptsPage() {
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleAction(item.receiptId);
+                                handleAction(item.receiptId, item.status);
                               }}
                               disabled={loadingId === item.receiptId}
                               variant={
-                                item.status === "PendingQC"
+                                item.status === "PendingIncident"
                                   ? "default"
                                   : "outline"
                               }
                               className={
-                                item.status === "PendingQC"
-                                  ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm min-w-[100px]"
-                                  : "text-indigo-600 border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 min-w-[100px]"
+                                item.status === "PendingIncident"
+                                  ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm min-w-[200px]"
+                                  : item.status === "ReadyForPutaway" ||
+                                      item.status === "QCPassed"
+                                    ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm min-w-[200px]"
+                                    : "text-indigo-600 border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 min-w-[200px]"
                               }
                             >
                               {loadingId === item.receiptId ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : item.status === "PendingQC" ? (
+                              ) : item.status === "PendingIncident" ? (
                                 <>
-                                  <ShieldCheck className="w-4 h-4 mr-1.5" />
-                                  {t("QC Check")}
+                                  <TriangleAlert className="w-4 h-4 mr-1.5" />
+                                  {t("Review Incident")}
+                                </>
+                              ) : item.status === "ReadyForPutaway" ||
+                                item.status === "QCPassed" ? (
+                                <>
+                                  <ArrowRight className="w-4 h-4 mr-1.5" />
+                                  {t("Putaway")}
                                 </>
                               ) : (
                                 <>

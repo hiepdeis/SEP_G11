@@ -156,6 +156,10 @@ export function Sidebar() {
           label: t("sidebar.tabs.incident_reports"),
           href: "/manager/incident-reports",
         },
+        {
+          label: t("sidebar.tabs.inbound_requests"),
+          href: "/manager/inbound-requests",
+        },
       ],
     },
     {

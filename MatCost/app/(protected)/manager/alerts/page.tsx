@@ -342,17 +342,44 @@ export default function StockShortageAlertListPage() {
                         | "PRCreated",
                     ) => setFilterStatus(value)}
                   >
-                    <SelectTrigger className="w-[170px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
+                    <SelectTrigger className="bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
                       <SelectValue placeholder={t("Filter by status")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="All">{t("All")}</SelectItem>
-                      <SelectItem value="Pending">{t("Pending")}</SelectItem>
-                      <SelectItem value="ManagerConfirmed">
-                        {t("Confirmed")}
+                      <SelectItem value="All">
+                        <Badge
+                          variant="outline"
+                          className="bg-slate-50 text-slate-700 border-slate-200"
+                        >
+                          {t("All")}
+                        </Badge>
                       </SelectItem>
-                      <SelectItem value="PRCreated">
-                        {t("PR Created")}
+                      <SelectItem value="Pending">
+                        <Badge
+                          variant="outline"
+                          className="bg-rose-50 text-rose-700 border-rose-200"
+                        >
+                          {t("Pending")}
+                        </Badge>
+                      </SelectItem>
+                      <SelectItem value="ManagerConfirmed">
+                        <Badge
+                          variant="outline"
+                          className="bg-yellow-50 text-yellow-700 border-yellow-200"
+                        >
+                          {t("Confirmed")}
+                        </Badge>
+                      </SelectItem>
+                      <SelectItem
+                        className="text-emerald-600"
+                        value="PRCreated"
+                      >
+                        <Badge
+                          variant="outline"
+                          className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                        >
+                          {t("PR Created")}
+                        </Badge>
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -599,7 +626,7 @@ export default function StockShortageAlertListPage() {
                               {item.status == "PRCreated"
                                 ? "PR Created"
                                 : item.status == "ManagerConfirmed"
-                                  ? "Manager Confirmed"
+                                  ? "Confirmed"
                                   : t(item.status)}
                             </Badge>
                           </TableCell>
@@ -616,8 +643,8 @@ export default function StockShortageAlertListPage() {
                               }
                               className={
                                 item.status === "Pending"
-                                  ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[90px]"
-                                  : "text-indigo-600 border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 w-[90px]"
+                                  ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[200px]"
+                                  : "text-indigo-600 border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 w-[200px]"
                               }
                             >
                               {loadingId === item.alertId ? (

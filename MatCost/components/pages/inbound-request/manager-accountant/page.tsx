@@ -8,19 +8,20 @@ import {
   Search,
   Loader2,
   CalendarDays,
-  Package,
   ChevronLeft,
   ChevronRight,
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
   Delete,
-  Truck,
-  AlertCircle,
-  Clock,
+  FileText,
+  Receipt,
   Building2,
-  ListOrdered,
-  AlertTriangle,
+  CheckCircle2,
+  Lock,
+  Eye,
+  ArrowRight,
+  UserSquare2, // Icon cho Supplier
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,8 +36,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  staffReceiptsApi,
-  PendingPurchaseOrderDto,
+  accountantReceiptsApi,
+  managerReceiptsApi,
 } from "@/services/import-service";
 import { toast } from "sonner";
 import {
@@ -46,15 +47,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  endOfDay,
-  format,
-  isWithinInterval,
-  startOfDay,
-  isBefore,
-  isToday,
-  isAfter,
-} from "date-fns";
+import { endOfDay, format, isWithinInterval, startOfDay } from "date-fns";
 import {
   Popover,
   PopoverContent,
@@ -63,19 +56,22 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { formatPascalCase } from "@/lib/format-pascal-case";
 
-export default function PendingDeliveriesPage() {
+export default function SharedReceiptsListPage({
+  role = "accountant",
+}: {
+  role?: "manager" | "accountant";
+}) {
   const router = useRouter();
   const { t } = useTranslation();
 
-  const [orders, setOrders] = useState<PendingPurchaseOrderDto[]>([]);
+  const [receipts, setReceipts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [filterTimeframe, setFilterTimeframe] = useState<
-    "All" | "Overdue" | "Today" | "Upcoming"
-  >("All");
+  const [filterStatus, setFilterStatus] = useState<string>("All");
 
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
@@ -89,11 +85,11 @@ export default function PendingDeliveriesPage() {
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
 
   const [sortConfig, setSortConfig] = useState<{
-    key: "date" | "items";
+    key: "date" | "receiptCode";
     direction: "asc" | "desc";
   } | null>(null);
 
-  const handleSort = (key: "date" | "items") => {
+  const handleSort = (key: "date" | "receiptCode") => {
     let direction: "asc" | "desc" = "asc";
     if (
       sortConfig &&
@@ -105,82 +101,95 @@ export default function PendingDeliveriesPage() {
     setSortConfig({ key, direction });
   };
 
+  // Helper để lấy đúng trường ngày theo Role
+  const getItemDate = (item: any) =>
+    role === "manager" ? item.putawayCompletedAt : item.receiptDate;
+
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const res = await staffReceiptsApi.getPendingPurchaseOrders();
-        setOrders(res.data);
+        let res;
+        if (role === "manager") {
+          res = await managerReceiptsApi.getReceipts();
+        } else {
+          res = await accountantReceiptsApi.getReceipts();
+        }
+        setReceipts(res.data);
       } catch (error) {
-        console.error("Failed to fetch pending deliveries", error);
-        toast.error(t("Failed to fetch pending deliveries"));
+        console.error(`Failed to fetch ${role} receipts`, error);
+        toast.error(t("Failed to fetch receipts list"));
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchData();
-  }, [t]);
+  }, [role, t]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterTimeframe, sortConfig, itemsPerPage, dateRange]);
+  }, [searchTerm, filterStatus, sortConfig, itemsPerPage, dateRange]);
 
-  const filteredData = orders.filter((item) => {
+  // 1. Lọc dữ liệu
+  const filteredData = receipts.filter((item) => {
+    let matchesStatus = true;
+    if (filterStatus !== "All") {
+      matchesStatus = item.status === filterStatus;
+    }
+
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch =
-      item.poCode?.toLowerCase().includes(searchLower) ||
-      item.supplierName?.toLowerCase().includes(searchLower);
+      item.receiptCode?.toLowerCase().includes(searchLower) ||
+      item.purchaseOrderCode?.toLowerCase().includes(searchLower);
 
-    let matchesTimeframe = true;
-    const itemDate = new Date(item.expectedDeliveryDate);
-    const todayStart = startOfDay(new Date());
-    const todayEnd = endOfDay(new Date());
+    let matchesDate = true;
+    const itemDateRaw = getItemDate(item);
 
-    if (filterTimeframe === "Overdue") {
-      matchesTimeframe = isBefore(itemDate, todayStart);
-    } else if (filterTimeframe === "Today") {
-      matchesTimeframe = isToday(itemDate);
-    } else if (filterTimeframe === "Upcoming") {
-      matchesTimeframe = isAfter(itemDate, todayEnd);
-    }
-
-    let matchesDateRange = true;
     if (dateRange.from || dateRange.to) {
-      const fromDate = dateRange.from
-        ? startOfDay(dateRange.from)
-        : new Date(2000, 0, 1);
-      const toDate = dateRange.to
-        ? endOfDay(dateRange.to)
-        : new Date(2100, 0, 1);
+      if (!itemDateRaw) {
+        matchesDate = false;
+      } else {
+        const itemDate = new Date(itemDateRaw);
+        const fromDate = dateRange.from
+          ? startOfDay(dateRange.from)
+          : new Date(2000, 0, 1);
+        const toDate = dateRange.to
+          ? endOfDay(dateRange.to)
+          : new Date(2100, 0, 1);
 
-      matchesDateRange = isWithinInterval(itemDate, {
-        start: fromDate,
-        end: toDate,
-      });
+        matchesDate = isWithinInterval(itemDate, {
+          start: fromDate,
+          end: toDate,
+        });
+      }
     }
 
-    return matchesSearch && matchesTimeframe && matchesDateRange;
+    return matchesStatus && matchesSearch && matchesDate;
   });
 
+  // 2. Sắp xếp dữ liệu
   const sortedData = [...filteredData].sort((a, b) => {
     if (!sortConfig) return 0;
 
     if (sortConfig.key === "date") {
-      const dateA = new Date(a.expectedDeliveryDate).getTime();
-      const dateB = new Date(b.expectedDeliveryDate).getTime();
+      const dateA = getItemDate(a) ? new Date(getItemDate(a)).getTime() : 0;
+      const dateB = getItemDate(b) ? new Date(getItemDate(b)).getTime() : 0;
       return sortConfig.direction === "asc" ? dateA - dateB : dateB - dateA;
     }
 
-    if (sortConfig.key === "items") {
-      const qtyA = a.items?.length || 0;
-      const qtyB = b.items?.length || 0;
-      return sortConfig.direction === "asc" ? qtyA - qtyB : qtyB - qtyA;
+    if (sortConfig.key === "receiptCode") {
+      const codeA = a.receiptCode || "";
+      const codeB = b.receiptCode || "";
+      return sortConfig.direction === "asc"
+        ? codeA.localeCompare(codeB)
+        : codeB.localeCompare(codeA);
     }
 
     return 0;
   });
 
+  // 3. Phân trang
   const isAll = itemsPerPage === -1;
   const totalPages = isAll
     ? 1
@@ -190,58 +199,82 @@ export default function PendingDeliveriesPage() {
   const endIndex = isAll ? sortedData.length : startIndex + itemsPerPage;
   const paginatedData = sortedData.slice(startIndex, endIndex);
 
-  const handleReceiveGoods = (id: number) => {
+  // Xử lý nút xem chi tiết dựa vào Role
+  const handleReview = (id: number) => {
     setLoadingId(id);
-    router.push(`/staff/pending-pos/create?poId=${id}`);
+    const basePath =
+      role === "manager"
+        ? "/manager/inbound-requests"
+        : "/accountant/inbound-requests";
+    router.push(`${basePath}/${id}`);
   };
 
-  const formatDateTime = (dateString: string) => {
+  const formatDateTime = (dateString: string | null | undefined) => {
+    if (!dateString) return "N/A";
     return format(new Date(dateString), "dd/MM/yyyy HH:mm");
   };
 
-  const todayStart = startOfDay(new Date());
+  // Thống kê
+  const pendingCloseCount = receipts.filter(
+    (item) => item.status === "Completed",
+  ).length;
+  const closedCount = receipts.filter(
+    (item) => item.status === "Closed",
+  ).length;
 
-  const totalPending = orders.length;
-  const todayCount = orders.filter((o) =>
-    isToday(new Date(o.expectedDeliveryDate)),
-  ).length;
-  const overdueCount = orders.filter((o) =>
-    isBefore(new Date(o.expectedDeliveryDate), todayStart),
-  ).length;
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "Completed":
+        return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      case "Closed":
+        return "bg-slate-100 text-slate-700 border-slate-200";
+      default:
+        return "bg-indigo-50 text-indigo-700 border-indigo-200";
+    }
+  };
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title={t("Inbound Management")} />
+        <Header
+          title={
+            role === "manager"
+              ? t("Manager Dashboard")
+              : t("Accounting Dashboard")
+          }
+        />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                {t("Pending Deliveries")}
+                {t("Inbound Receipts Book")}
               </h1>
               <p className="text-sm text-slate-500">
-                {t(
-                  "Track incoming supplier deliveries and initiate receiving processes.",
-                )}
+                {role === "manager"
+                  ? t(
+                      "Review completed putaway receipts and monitor warehouse inbound operations.",
+                    )
+                  : t(
+                      "Review completed warehouse receipts and finalize accounting records to close them.",
+                    )}
               </p>
             </div>
           </div>
 
-          {/* CARDS THỐNG KÊ */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg">
-                  <Truck className="w-6 h-6" />
+                  <FileText className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    {t("Total Inbound POs")}
+                    {t("Total Receipts")}
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {totalPending}
+                    {receipts.length}
                   </h3>
                 </div>
               </CardContent>
@@ -250,29 +283,31 @@ export default function PendingDeliveriesPage() {
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 bg-emerald-100 text-emerald-600 rounded-lg">
-                  <CalendarDays className="w-6 h-6" />
+                  <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    {t("Expected Today")}
+                    {role === "manager"
+                      ? t("Completed Putaway")
+                      : t("Pending Accounting Review")}
                   </p>
-                  <h3 className="text-2xl font-bold text-slate-900">
-                    {todayCount}
-                  </h3>
+                  <h3 className="text-2xl font-bold">{pendingCloseCount}</h3>
                 </div>
               </CardContent>
             </Card>
 
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-rose-100 text-rose-600 rounded-lg">
-                  <AlertCircle className="w-6 h-6" />
+                <div className="p-3 bg-slate-100 text-slate-600 rounded-lg">
+                  <Lock className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    {t("Overdue Deliveries")}
+                    {t("Closed Receipts")}
                   </p>
-                  <h3 className="text-2xl font-bold">{overdueCount}</h3>
+                  <h3 className="text-2xl font-bold text-slate-900">
+                    {closedCount}
+                  </h3>
                 </div>
               </CardContent>
             </Card>
@@ -287,48 +322,52 @@ export default function PendingDeliveriesPage() {
                   </span>
 
                   <Select
-                    value={filterTimeframe}
-                    onValueChange={(
-                      value: "All" | "Overdue" | "Today" | "Upcoming",
-                    ) => setFilterTimeframe(value)}
+                    value={filterStatus}
+                    onValueChange={(value) => setFilterStatus(value)}
                   >
                     <SelectTrigger className="w-[170px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
-                      <SelectValue placeholder={t("Filter by timeframe")} />
+                      <SelectValue placeholder={t("Filter by status")} />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="All">
-                        <Badge
-                          variant="outline"
-                          className="bg-slate-50 text-slate-700 border-slate-200"
-                        >
-                          {t("All Deliveries")}
-                        </Badge>
-                      </SelectItem>
-                      <SelectItem value="Overdue">
-                        <Badge
-                          variant="outline"
-                          className="bg-rose-50 text-rose-700 border-rose-200"
-                        >
-                          {t("Overdue")}
-                        </Badge>
-                      </SelectItem>
-                      <SelectItem value="Today">
-                        <Badge
-                          variant="outline"
-                          className="bg-emerald-50 text-emerald-700 border-emerald-200"
-                        >
-                          {t("Expected Today")}
-                        </Badge>
-                      </SelectItem>
-                      <SelectItem value="Upcoming">
-                        <Badge
-                          variant="outline"
-                          className="bg-yellow-50 text-yellow-700 border-yellow-200"
-                        >
-                          {t("Upcoming")}
-                        </Badge>
-                      </SelectItem>
-                    </SelectContent>
+
+                    {role === "manager" ? (
+                      <SelectContent>
+                        <SelectItem value="All">
+                          <Badge
+                            variant="outline"
+                            className="bg-slate-50 text-slate-700 border-slate-200"
+                          >
+                            {t("All")}
+                          </Badge>
+                        </SelectItem>
+                        <SelectItem value="ReadyForStamp">
+                          <Badge
+                            variant="outline"
+                            className="bg-indigo-50 text-indigo-700 border-indigo-200"
+                          >
+                            {t("Ready For Stamp")}
+                          </Badge>
+                        </SelectItem>
+                      </SelectContent>
+                    ) : (
+                      <SelectContent>
+                        <SelectItem value="All">
+                          <Badge
+                            variant="outline"
+                            className="bg-slate-50 text-slate-700 border-slate-200"
+                          >
+                            {t("All")}
+                          </Badge>
+                        </SelectItem>
+                        <SelectItem value="Stamped">
+                          <Badge
+                            variant="outline"
+                            className="bg-indigo-50 text-indigo-700 border-indigo-200"
+                          >
+                            {t("Stamped")}
+                          </Badge>
+                        </SelectItem>
+                      </SelectContent>
+                    )}
                   </Select>
 
                   <div className="flex items-center gap-2">
@@ -341,7 +380,7 @@ export default function PendingDeliveriesPage() {
                             !dateRange.from && "text-slate-500",
                           )}
                         >
-                          <CalendarDays className="mr-2 h-4 w-4" />
+                          <CalendarDays className="mr-2 h-4 w-4 shrink-0" />
                           {dateRange.from ? (
                             format(dateRange.from, "dd/MM/yyyy")
                           ) : (
@@ -372,7 +411,7 @@ export default function PendingDeliveriesPage() {
                             !dateRange.to && "text-slate-500",
                           )}
                         >
-                          <CalendarDays className="mr-2 h-4 w-4" />
+                          <CalendarDays className="mr-2 h-4 w-4 shrink-0" />
                           {dateRange.to ? (
                             format(dateRange.to, "dd/MM/yyyy")
                           ) : (
@@ -413,7 +452,7 @@ export default function PendingDeliveriesPage() {
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                   <Input
-                    placeholder={t("Search PO Code, Supplier...")}
+                    placeholder={t("Search Receipt, PO...")}
                     className="pl-9 h-9"
                     maxLength={50}
                     value={searchTerm}
@@ -422,17 +461,38 @@ export default function PendingDeliveriesPage() {
                 </div>
               </div>
             </CardHeader>
+
             <CardContent className="p-0 flex flex-col justify-between flex-1">
               <div className="[&>div]:max-h-[450px] [&>div]:min-h-[450px] [&>div]:overflow-y-auto">
                 <Table>
                   <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                     <TableRow className="bg-slate-50">
                       <TableHead
-                        className="pl-6 cursor-pointer transition-colors w-[25%]"
+                        className="cursor-pointer transition-colors w-[25%] pl-6"
+                        onClick={() => handleSort("receiptCode")}
+                      >
+                        <div className="flex items-center gap-1.5 select-none">
+                          {t("Receipt & PO Code")}
+                          {sortConfig?.key === "receiptCode" ? (
+                            sortConfig.direction === "asc" ? (
+                              <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
+                            ) : (
+                              <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50 hover:text-indigo-600" />
+                          )}
+                        </div>
+                      </TableHead>
+
+                      <TableHead
+                        className="cursor-pointer transition-colors w-[25%]"
                         onClick={() => handleSort("date")}
                       >
                         <div className="flex items-center gap-1.5 select-none">
-                          {t("Expected Delivery")}
+                          {role === "manager"
+                            ? t("Putaway Date")
+                            : t("Receipt Date")}
                           {sortConfig?.key === "date" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
@@ -445,29 +505,14 @@ export default function PendingDeliveriesPage() {
                         </div>
                       </TableHead>
 
-                      <TableHead className="w-[30%]">
-                        {t("Purchase Order & Supplier")}
+                      <TableHead className="w-[20%]">
+                        {role === "manager" ? t("Supplier") : t("Warehouse")}
                       </TableHead>
 
-                      <TableHead
-                        className="cursor-pointer transition-colors w-[25%]"
-                        onClick={() => handleSort("items")}
-                      >
-                        <div className="flex items-center gap-1.5 select-none">
-                          {t("Materials to Receive")}
-                          {sortConfig?.key === "items" ? (
-                            sortConfig.direction === "asc" ? (
-                              <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
-                            ) : (
-                              <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
-                            )
-                          ) : (
-                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50 hover:text-indigo-600" />
-                          )}
-                        </div>
+                      <TableHead className="w-[15%] text-center">
+                        {t("Status")}
                       </TableHead>
-
-                      <TableHead className="text-right pr-6 w-[20%]">
+                      <TableHead className="text-right pr-6 w-[15%]">
                         {t("Action")}
                       </TableHead>
                     </TableRow>
@@ -475,147 +520,129 @@ export default function PendingDeliveriesPage() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="h-32 text-center">
+                        <TableCell colSpan={5} className="h-32 text-center">
                           <div className="flex justify-center items-center gap-2 text-indigo-600">
                             <Loader2 className="w-6 h-6 animate-spin" />{" "}
-                            {t("Loading inbound deliveries...")}
+                            {t("Loading receipts...")}
                           </div>
                         </TableCell>
                       </TableRow>
                     ) : paginatedData.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={4}
+                          colSpan={5}
                           className="h-32 text-center text-slate-500"
                         >
-                          {t("No pending deliveries found.")}
+                          {t("No receipts found.")}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      paginatedData.map((item) => {
-                        const expectedDate = new Date(
-                          item.expectedDeliveryDate,
-                        );
-                        const isLate = isBefore(expectedDate, todayStart);
-                        const isTdy = isToday(expectedDate);
-
-                        const isSupplementary =
-                          item.type === "Supplementary" ||
-                          item.supplementaryReceiptId != null;
-
-                        return (
-                          <TableRow
-                            key={item.purchaseOrderId}
-                            className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
-                            onClick={() => {
-                              const selection = window.getSelection();
-                              if (selection && selection.toString().length > 0)
-                                return;
-                              handleReceiveGoods(item.purchaseOrderId);
-                            }}
-                          >
-                            <TableCell className="pl-6 align-top py-4">
-                              <div className="flex flex-col">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span
-                                    className={`font-semibold ${
-                                      isLate
-                                        ? "text-rose-600"
-                                        : isTdy
-                                          ? "text-emerald-600"
-                                          : "text-slate-800"
-                                    }`}
-                                  >
-                                    {formatDateTime(item.expectedDeliveryDate)}
-                                  </span>
-                                  {isLate && (
-                                    <Badge
-                                      variant="outline"
-                                      className="bg-rose-50 text-rose-700 border-rose-200 px-1 py-0 uppercase text-[9px]"
-                                    >
-                                      {t("Overdue")}
-                                    </Badge>
-                                  )}
-                                  {isTdy && (
-                                    <Badge
-                                      variant="outline"
-                                      className="bg-emerald-50 text-emerald-700 border-emerald-200 px-1 py-0 uppercase text-[9px]"
-                                    >
-                                      {t("Today")}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <span className="text-xs text-slate-400 flex items-center gap-1.5">
-                                  <Clock className="w-3.5 h-3.5" />
-                                  {t("ETA")}
+                      paginatedData.map((item) => (
+                        <TableRow
+                          key={item.receiptId}
+                          className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
+                          onClick={() => {
+                            const selection = window.getSelection();
+                            if (selection && selection.toString().length > 0)
+                              return;
+                            handleReview(item.receiptId);
+                          }}
+                        >
+                          <TableCell>
+                            <div className="flex flex-col pl-4">
+                              <div className="flex items-center gap-2">
+                                <Receipt className="w-4 h-4 text-slate-400" />
+                                <span className="font-bold text-slate-800">
+                                  {item.receiptCode}
                                 </span>
                               </div>
-                            </TableCell>
-
-                            <TableCell className="align-top py-4">
-                              <div className="flex flex-col text-left">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-slate-700">
-                                    {item.poCode}
-                                  </span>
-                                  {isSupplementary && (
-                                    <Badge
-                                      variant="outline"
-                                      className="bg-amber-50 text-amber-700 border-amber-200"
-                                    >
-                                      <AlertTriangle className="w-3 h-3 mr-1" />
-                                      {t("Replacement")}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <span className="text-sm text-slate-600 flex items-center gap-1.5 mt-1 font-medium">
-                                  <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                                  {item.supplierName}
+                              <span className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                                PO:{" "}
+                                <span className="font-mono bg-slate-100 px-1 rounded">
+                                  {item.purchaseOrderCode || "N/A"}
                                 </span>
-                              </div>
-                            </TableCell>
+                              </span>
+                            </div>
+                          </TableCell>
 
-                            <TableCell className="align-top py-4">
-                              <div className="flex flex-col items-start gap-2">
-                                <span className="font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100 flex items-center gap-1.5">
-                                  <ListOrdered className="w-3.5 h-3.5" />
-                                  {item.items?.length || 0} {t("Items")}
-                                </span>
+                          <TableCell className="">
+                            <span className="flex gap-2 text-slate-800 items-center">
+                              <CalendarDays className="w-3.5 h-3.5" />
+                              {formatDateTime(getItemDate(item))}
+                            </span>
+                          </TableCell>
 
-                                {isSupplementary && item.originalFailReason && (
-                                  <div className="mt-1 text-xs text-rose-600 bg-rose-50/50 p-2 border border-rose-100 rounded-md w-full">
-                                    <span className="font-semibold">
-                                      {t("Previous Issue")}:
-                                    </span>{" "}
-                                    {item.originalFailReason}
-                                  </div>
-                                )}
-                              </div>
-                            </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {role === "manager" ? (
+                                <UserSquare2 className="w-4 h-4 text-slate-400" />
+                              ) : (
+                                <Building2 className="w-4 h-4 text-slate-400" />
+                              )}
+                              <span className="text-sm font-medium text-slate-700">
+                                {role === "manager"
+                                  ? item.supplierName || t("Unknown Supplier")
+                                  : item.warehouseName || t("Main Warehouse")}
+                              </span>
+                            </div>
+                          </TableCell>
 
-                            <TableCell className="text-right pr-6 align-top py-4">
-                              <Button
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleReceiveGoods(item.purchaseOrderId);
-                                }}
-                                disabled={loadingId === item.purchaseOrderId}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-32"
-                              >
-                                {loadingId === item.purchaseOrderId ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <>
-                                    <Package className="w-4 h-4 mr-2" />
-                                    {t("Receive")}
-                                  </>
-                                )}
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
+                          <TableCell className="text-center">
+                            <Badge
+                              variant="outline"
+                              className={getStatusBadge(item.status)}
+                            >
+                              {item.status === "Completed" &&
+                              role === "accountant"
+                                ? t("Pending Closure")
+                                : t(formatPascalCase(item.status))}
+                            </Badge>
+                          </TableCell>
+
+                          <TableCell className="text-right pr-6">
+                            <Button
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReview(item.receiptId);
+                              }}
+                              disabled={loadingId === item.receiptId}
+                              variant={
+                                (item.status === "Stamped" &&
+                                  role === "accountant") ||
+                                (item.status === "ReadyForStamp" &&
+                                  role === "manager")
+                                  ? "default"
+                                  : "outline"
+                              }
+                              className={
+                                (item.status === "Stamped" &&
+                                  role === "accountant") ||
+                                (item.status === "ReadyForStamp" &&
+                                  role === "manager")
+                                  ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm min-w-[200px]"
+                                  : "text-slate-600 border-slate-200 hover:text-indigo-600 hover:bg-indigo-50 min-w-[200px]"
+                              }
+                            >
+                              {loadingId === item.receiptId ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (item.status === "Stamped" &&
+                                  role === "accountant") ||
+                                (item.status === "ReadyForStamp" &&
+                                  role === "manager") ? (
+                                <>
+                                  {t("Review")}{" "}
+                                  <ArrowRight className="w-4 h-4 ml-1.5" />
+                                </>
+                              ) : (
+                                <>
+                                  {t("View")} <Eye className="w-4 h-4 ml-1.5" />
+                                </>
+                              )}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
                     )}
                   </TableBody>
                 </Table>

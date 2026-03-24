@@ -55,7 +55,7 @@ namespace Backend.Domains.Import.Services
                     .ThenInclude(q => q!.QCCheckDetails)
                         .ThenInclude(d => d.ReceiptDetail)
                             .ThenInclude(rd => rd.Material)
-                .Where(i => i.Status == "PendingManagerReview")
+                .Where(i => i.Status == "PendingManagerReview"  || i.Status == "PendingManagerApproval")
                 .OrderByDescending(i => i.CreatedAt)
                 .ToListAsync();
 

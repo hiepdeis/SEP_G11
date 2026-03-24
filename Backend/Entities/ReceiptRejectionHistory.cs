@@ -8,8 +8,8 @@ public class ReceiptRejectionHistory
     [Key]
     public long Id { get; set; }
 
-    [Required]
-    public long? ReceiptId { get; set; }
+    //[Required]
+    //public long? ReceiptId { get; set; }
 
     public long? PurchaseOrderId { get; set; }
 

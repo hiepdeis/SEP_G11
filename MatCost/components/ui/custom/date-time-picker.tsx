@@ -18,21 +18,23 @@ interface DateTimePickerProps {
   value?: Date;
   onChange: (date?: Date) => void;
   placeholder?: string;
-  disablePastDates?: boolean; 
+  disablePastDates?: boolean;
+  minDate?: Date;
 }
 
-export function DateTimePicker({ 
-  value, 
-  onChange, 
-  placeholder, 
-  disablePastDates = false 
+export function DateTimePicker({
+  value,
+  onChange,
+  placeholder,
+  disablePastDates = false,
+  minDate,
 }: DateTimePickerProps) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = React.useState(false);
-  
+
   // Lưu state giờ riêng để khi đổi ngày không bị mất giờ đã chọn
   const [timeValue, setTimeValue] = React.useState<string>(
-    value ? format(value, "HH:mm") : "12:00"
+    value ? format(value, "HH:mm") : "12:00",
   );
 
   const handleDateSelect = (selectedDate: Date | undefined) => {
@@ -64,7 +66,7 @@ export function DateTimePicker({
           variant={"outline"}
           className={cn(
             "group w-full justify-start text-left font-normal bg-white",
-            !value && "text-slate-500"
+            !value && "text-slate-500",
           )}
         >
           <CalendarIcon className="mr-2 h-4 w-4 text-indigo-600 group-hover:text-white" />
@@ -75,19 +77,36 @@ export function DateTimePicker({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 shadow-lg border-slate-200" align="start">
+      <PopoverContent
+        className="w-auto p-0 shadow-lg border-slate-200"
+        align="start"
+      >
         <Calendar
           mode="single"
           selected={value}
           onSelect={handleDateSelect}
           initialFocus
           className="p-3"
-          disabled={disablePastDates ? (date) => date < new Date(new Date().setHours(0, 0, 0, 0)) : undefined}
+          disabled={(date) => {
+            if (
+              disablePastDates &&
+              date < new Date(new Date().setHours(0, 0, 0, 0))
+            )
+              return true;
+            if (
+              minDate &&
+              date < new Date(new Date(minDate).setHours(0, 0, 0, 0))
+            )
+              return true;
+            return false;
+          }}
         />
         <div className="p-3 border-t border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-indigo-600" />
-            <span className="text-sm font-medium text-slate-700">{t("Time")}</span>
+            <span className="text-sm font-medium text-slate-700">
+              {t("Time")}
+            </span>
             <Input
               type="time"
               value={timeValue}

@@ -94,8 +94,8 @@ public partial class Receipt
     [InverseProperty("Receipt")]
     public virtual ICollection<ReceiptDetail> ReceiptDetails { get; set; } = new List<ReceiptDetail>();
 
-    [InverseProperty("Receipt")]
-    public virtual ICollection<ReceiptRejectionHistory> RejectionHistories { get; set; } = new List<ReceiptRejectionHistory>();
+    //[InverseProperty("Receipt")]
+    //public virtual ICollection<ReceiptRejectionHistory> RejectionHistories { get; set; } = new List<ReceiptRejectionHistory>();
 
     [InverseProperty("Receipt")]
     public virtual ICollection<QCCheck> QCChecks { get; set; } = new List<QCCheck>();

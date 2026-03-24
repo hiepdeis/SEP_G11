@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -38,6 +39,10 @@ interface ReceiveItemInput {
   materialCode: string;
   materialName: string;
   orderedQuantity: number;
+  actualQuantity: number;
+  passQuantity: number;
+  failQuantity: number;
+  failReason: string;
 }
 
 export default function ReceiveGoodsPage() {
@@ -69,11 +74,15 @@ export default function ReceiveGoodsPage() {
         setOrder(orderData);
 
         if (orderData.items) {
-          const mappedItems = orderData.items.map((i) => ({
+          const mappedItems: ReceiveItemInput[] = orderData.items.map((i) => ({
             materialId: i.materialId,
             materialCode: i.materialCode,
             materialName: i.materialName,
             orderedQuantity: i.orderedQuantity,
+            actualQuantity: i.orderedQuantity, // Mặc định thực nhận = số lượng đặt
+            passQuantity: i.orderedQuantity, // Mặc định pass = số lượng đặt
+            failQuantity: 0,
+            failReason: "",
           }));
           setItems(mappedItems);
         }
@@ -91,35 +100,115 @@ export default function ReceiveGoodsPage() {
     fetchOrderDetails();
   }, [poIdParam, router, t]);
 
+  // Handler cập nhật số lượng thực nhận (Actual)
+  const handleActualChange = (id: number, val: string) => {
+    const num = Math.max(0, Number(val) || 0);
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.materialId === id) {
+          // Tự động gán Pass = Actual, Fail = 0 khi thay đổi Actual
+          return {
+            ...item,
+            actualQuantity: num,
+            passQuantity: num,
+            failQuantity: 0,
+            failReason: "",
+          };
+        }
+        return item;
+      }),
+    );
+  };
+
+  // Handler cập nhật số lượng đạt (Pass) -> Tự động tính Fail
+  const handlePassChange = (id: number, val: string) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.materialId === id) {
+          const pass = Math.min(
+            item.actualQuantity,
+            Math.max(0, Number(val) || 0),
+          );
+          const fail = item.actualQuantity - pass;
+          const needsReason =
+            fail > 0 || item.orderedQuantity !== item.actualQuantity;
+          return {
+            ...item,
+            passQuantity: pass,
+            failQuantity: fail,
+            failReason: needsReason ? item.failReason : "",
+          };
+        }
+        return item;
+      }),
+    );
+  };
+
+  const handleReasonChange = (id: number, val: string) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.materialId === id ? { ...item, failReason: val } : item,
+      ),
+    );
+  };
+
   const handleSubmit = () => {
     if (items.length === 0) {
       return toast.error(t("There are no items to receive."));
     }
 
+    const invalidReasonItem = items.find(
+      (i) =>
+        (i.failQuantity > 0 || i.orderedQuantity !== i.actualQuantity) &&
+        !i.failReason.trim(),
+    );
+
+    if (invalidReasonItem) {
+      return toast.error(
+        t("Please provide a fail reason for items with failed quantity."),
+      );
+    }
+
     showConfirmToast({
-      title: t("Create Goods Receipt?"),
+      title: t("Finalize Receiving & QC?"),
       description: t(
-        "Are you sure you want to create a receipt for these items? They will be sent to QC for quality check.",
+        "Are you sure you want to finalize the receiving and Quality Control check for these items?",
       ),
-      confirmLabel: t("Yes, Create Receipt"),
+      confirmLabel: t("Yes, Submit"),
       onConfirm: async () => {
         setIsSubmitting(true);
         try {
           const payload = {
             purchaseOrderId: Number(poIdParam),
-            items: items.map((i) => ({
-              materialId: i.materialId,
-              actualQuantity: i.orderedQuantity, // Gửi luôn số lượng order xuống API
-            })),
+            items: items.map((i) => {
+              const isFailed =
+                i.failQuantity > 0 || i.orderedQuantity !== i.actualQuantity;
+
+              return {
+                materialId: i.materialId,
+                actualQuantity: i.actualQuantity,
+                passQuantity: i.passQuantity,
+                failQuantity: i.failQuantity,
+                failReason: isFailed ? i.failReason.trim() : undefined,
+                result: isFailed ? "Fail" : "Pass",
+              };
+            }),
           };
 
           const res =
             await staffReceiptsApi.receiveGoodsFromPurchaseOrder(payload);
-          toast.success(
-            t("Goods Receipt created successfully! Status: Pending QC."),
-          );
 
-          router.push(`/staff/inbound-requests/${res.data.receiptId}/process`);
+          if (res.data.failedItems && res.data.failedItems.length > 0) {
+            toast.warning(
+              t(
+                "Receipt created with failed items. Please proceed with Incident Report.",
+              ),
+            );
+          } else {
+            toast.success(t("Receipt and QC completed successfully!"));
+          }
+
+          router.push(`/staff/inbound-requests`);
         } catch (error: any) {
           console.error(error);
           toast.error(
@@ -153,7 +242,7 @@ export default function ReceiveGoodsPage() {
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title={t("Receive Goods")} />
+        <Header title={t("Receive & QC Goods")} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6 mx-auto w-full">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -188,7 +277,7 @@ export default function ReceiveGoodsPage() {
               ) : (
                 <PackageCheck className="w-4 h-4 mr-2" />
               )}
-              {t("Create Receipt & Send to QC")}
+              {t("Complete Receiving & QC")}
             </Button>
           </div>
 
@@ -228,7 +317,7 @@ export default function ReceiveGoodsPage() {
                       <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                         {t("Supplier Note")}
                       </span>
-                      <p className="text-sm text-slate-600 p-2 rounded-md italic">
+                      <p className="text-sm text-slate-600 p-2 rounded-md italic bg-slate-50">
                         "{order.supplierNote}"
                       </p>
                     </div>
@@ -236,30 +325,30 @@ export default function ReceiveGoodsPage() {
                 </CardContent>
               </Card>
 
-              {/* Box Hướng dẫn */}
+              {/* Box Hướng dẫn đã được cập nhật */}
               <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex items-start gap-3 shadow-sm">
                 <Info className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
                 <div className="flex flex-col gap-1">
                   <p className="text-sm font-semibold text-indigo-900">
-                    {t("Next Step: QC Check")}
+                    {t("Receiving & QC Workflow")}
                   </p>
                   <p className="text-xs text-indigo-700 leading-relaxed">
                     {t(
-                      "Once this receipt is created, the items will be moved to the staging area and wait for Quality Control (QC) inspection. Stock will not be updated until QC is passed.",
+                      "Please count the actual goods received and perform the Quality Control (QC) check directly. Passed items will proceed to Putaway, while failed items will require an Incident Report.",
                     )}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* BẢNG ĐẾM HÀNG THỰC TẾ (CỘT PHẢI) */}
+            {/* BẢNG ĐẾM HÀNG VÀ QC (CỘT PHẢI) */}
             <div className="lg:col-span-3">
               <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] flex flex-col gap-0">
                 <CardHeader className="border-b border-slate-100 pb-4">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pt-2">
                       <PackageCheck className="w-5 h-5 text-indigo-600" />
-                      {t("Goods Details")}
+                      {t("Goods Details & QC Results")}
                     </CardTitle>
                   </div>
                 </CardHeader>
@@ -268,40 +357,120 @@ export default function ReceiveGoodsPage() {
                     <Table>
                       <TableHeader className="bg-slate-50 sticky top-0 z-10">
                         <TableRow>
-                          <TableHead className="w-[70%] pl-6">
+                          <TableHead className="w-[25%] pl-6">
                             {t("Material Details")}
                           </TableHead>
-                          <TableHead className="w-[30%] text-center">
-                            {t("Ordered Quantity")}
+                          <TableHead className="w-[10%] text-center">
+                            {t("Ordered")}
+                          </TableHead>
+                          <TableHead className="w-[15%] text-center">
+                            {t("Received")} *
+                          </TableHead>
+                          <TableHead className="w-[15%] text-center">
+                            {t("Pass")} *
+                          </TableHead>
+                          <TableHead className="w-[10%] text-center">
+                            {t("Fail")}
+                          </TableHead>
+                          <TableHead className="w-[25%] pr-6">
+                            {t("Fail Reason")}
                           </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {items.map((item) => {
-                          return (
-                            <TableRow
-                              key={item.materialId}
-                              className="hover:bg-slate-50/50 transition-colors"
-                            >
-                              <TableCell className="pl-6 align-middle py-4">
-                                <div className="flex flex-col">
-                                  <span className="font-semibold text-slate-800">
-                                    {item.materialName}
-                                  </span>
-                                  <span className="text-xs text-slate-400 font-mono mt-0.5">
-                                    {item.materialCode}
-                                  </span>
-                                </div>
-                              </TableCell>
-
-                              <TableCell className="align-middle text-center">
-                                <span className="font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
-                                  {item.orderedQuantity.toLocaleString("vi-VN")}
+                        {items.map((item) => (
+                          <TableRow
+                            key={item.materialId}
+                            className="hover:bg-slate-50/50 transition-colors"
+                          >
+                            <TableCell className="pl-6 align-top py-4">
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-slate-800">
+                                  {item.materialName}
                                 </span>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
+                                <span className="text-xs text-slate-400 font-mono mt-0.5">
+                                  {item.materialCode}
+                                </span>
+                              </div>
+                            </TableCell>
+
+                            <TableCell className="align-top text-center pt-5">
+                              <span className="font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
+                                {item.orderedQuantity.toLocaleString("vi-VN")}
+                              </span>
+                            </TableCell>
+
+                            {/* CỘT ACTUAL QUANTITY */}
+                            <TableCell className="align-top pt-4">
+                              <Input
+                                type="number"
+                                min="0"
+                                className="w-full text-center focus-visible:ring-indigo-600 font-semibold"
+                                value={item.actualQuantity}
+                                onChange={(e) =>
+                                  handleActualChange(
+                                    item.materialId,
+                                    e.target.value,
+                                  )
+                                }
+                              />
+                            </TableCell>
+
+                            {/* CỘT PASS QUANTITY */}
+                            <TableCell className="align-top pt-4">
+                              <Input
+                                type="number"
+                                min="0"
+                                max={item.actualQuantity}
+                                className="w-full text-center focus-visible:ring-emerald-500 font-semibold text-emerald-700"
+                                value={item.passQuantity}
+                                onChange={(e) =>
+                                  handlePassChange(
+                                    item.materialId,
+                                    e.target.value,
+                                  )
+                                }
+                              />
+                            </TableCell>
+
+                            {/* CỘT FAIL QUANTITY (Tự động tính) */}
+                            <TableCell className="align-top text-center pt-6">
+                              <span
+                                className={`font-bold ${
+                                  item.failQuantity > 0
+                                    ? "text-rose-600"
+                                    : "text-slate-400"
+                                }`}
+                              >
+                                {item.failQuantity.toFixed(3)}
+                              </span>
+                            </TableCell>
+
+                            {/* CỘT FAIL REASON */}
+                            <TableCell className="align-top pt-4 pr-6">
+                              {item.failQuantity > 0 ||
+                              item.orderedQuantity !== item.actualQuantity ? (
+                                <Input
+                                  placeholder={t(
+                                    "Reason for failed or missing items...",
+                                  )}
+                                  className="w-full focus-visible:ring-rose-500 border-rose-200 bg-rose-50/50"
+                                  value={item.failReason}
+                                  onChange={(e) =>
+                                    handleReasonChange(
+                                      item.materialId,
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                              ) : (
+                                <span className="text-slate-300 text-sm flex h-9 items-center justify-center italic bg-slate-50 rounded-md border border-dashed border-slate-200">
+                                  {t("N/A")}
+                                </span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
                       </TableBody>
                     </Table>
                   </div>

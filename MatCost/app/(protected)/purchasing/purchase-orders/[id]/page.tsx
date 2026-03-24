@@ -17,6 +17,7 @@ import {
   Check,
   X,
   RefreshCw,
+  AlertCircle, // Thêm icon cảnh báo
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,7 +39,7 @@ import {
 import {
   purchasingPurchaseOrderApi,
   PurchaseOrderDto,
-} from "@/services/import-service"; // Cập nhật đúng đường dẫn file service
+} from "@/services/import-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { showConfirmToast } from "@/hooks/confirm-toast";
@@ -46,6 +47,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { DateTimePicker } from "@/components/ui/custom/date-time-picker";
 import { formatPascalCase } from "@/lib/format-pascal-case";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function PurchaseOrderDetailPage() {
   const params = useParams();
@@ -135,7 +137,7 @@ export default function PurchaseOrderDetailPage() {
         try {
           await new Promise((resolve) => setTimeout(resolve, 500));
           router.push(
-            `/purchasing/purchase-orders/create?requestId=${order.requestId}`,
+            `/purchasing/purchase-orders/create?requestId=${order.requestId}&parentPOId=${order.purchaseOrderId}`,
           );
         } catch (error: any) {
           console.error(error);
@@ -211,6 +213,8 @@ export default function PurchaseOrderDetailPage() {
       case "SentToSupplier":
         return "bg-emerald-50 text-emerald-700 border-emerald-200";
       case "Rejected":
+      case "AccountantRejected":
+      case "AdminRejected":
         return "bg-rose-50 text-rose-700 border-rose-200";
       default:
         return "bg-slate-100 text-slate-700 border-slate-200";
@@ -232,6 +236,8 @@ export default function PurchaseOrderDetailPage() {
 
   const isAccountantRejected = order.status === "AccountantRejected";
   const isAdminRejected = order.status === "AdminRejected";
+  const isRejected =
+    isAccountantRejected || isAdminRejected || order.status === "Rejected";
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
@@ -260,6 +266,16 @@ export default function PurchaseOrderDetailPage() {
                 {t(formatPascalCase(order.status))}
               </Badge>
 
+              {/* BADGE REVISION */}
+              {order.revisionNumber > 1 && (
+                <Badge
+                  variant="outline"
+                  className="px-3 py-1.5 text-sm font-medium bg-amber-50 text-amber-700 border-amber-200"
+                >
+                  {t("Revision")} #{order.revisionNumber}
+                </Badge>
+              )}
+
               {order.status === "AdminApproved" && (
                 <Button
                   onClick={handleSendToSupplier}
@@ -284,8 +300,7 @@ export default function PurchaseOrderDetailPage() {
                     {t("Confirm Delivery")}
                   </Button>
                 )}
-              {(order.status === "AdminRejected" ||
-                order.status === "AccountantRejected") && (
+              {isRejected && (
                 <Button
                   onClick={handleRecreatePO}
                   disabled={isRecreating}
@@ -302,14 +317,28 @@ export default function PurchaseOrderDetailPage() {
             </div>
           </div>
 
+          {/* HIỂN THỊ KHUNG CẢNH BÁO LÝ DO TỪ CHỐI */}
+          {isRejected && order.rejectionReason && (
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-start gap-3 shadow-sm">
+              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-semibold text-rose-900">
+                  {t("Order Rejected")}
+                </p>
+                <p className="text-sm text-rose-700 leading-relaxed">
+                  <span className="font-medium">{t("Reason")}:</span>{" "}
+                  {order.rejectionReason}
+                </p>
+              </div>
+            </div>
+          )}
+
           <Card className="border-slate-200 shadow-sm bg-white">
             <CardContent>
               <div className="relative mx-auto px-4">
                 <div className="absolute left-[12.5%] right-[12.5%] top-5 h-1 bg-slate-200 z-10 rounded-full" />
                 <div
-                  className={`absolute left-[12.5%] top-5 h-1 rounded-full z-10 transition-all duration-500 overflow-hidden ${
-                    order.status === "Rejected" ? "bg-red-500" : "bg-indigo-600"
-                  }`}
+                  className="absolute left-[12.5%] top-5 h-1 rounded-full z-10 transition-all duration-500 overflow-hidden bg-indigo-600"
                   style={{
                     width: order.sentToSupplierAt
                       ? "75%"
@@ -320,7 +349,7 @@ export default function PurchaseOrderDetailPage() {
                           : "0%",
                   }}
                 >
-                  {order.status !== "Rejected" && (
+                  {!isRejected && (
                     <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/70 to-transparent animate-shimmer-slide" />
                   )}
                 </div>
@@ -336,6 +365,9 @@ export default function PurchaseOrderDetailPage() {
                       </p>
                       <p className="text-[11px] text-slate-400 mt-0.5">
                         {formatDate(order.createdAt)}
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        {order.createdByName}
                       </p>
                     </div>
                   </div>
@@ -373,6 +405,9 @@ export default function PurchaseOrderDetailPage() {
                           {t("Pending")}
                         </p>
                       )}
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        {order.accountantApprovedByName}
+                      </p>
                     </div>
                   </div>
 
@@ -407,6 +442,9 @@ export default function PurchaseOrderDetailPage() {
                           {t("Pending")}
                         </p>
                       )}
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        {order.adminApprovedByName}
+                      </p>
                     </div>
                   </div>
 
@@ -501,6 +539,18 @@ export default function PurchaseOrderDetailPage() {
                       >
                         <FileText className="w-4 h-4 text-indigo-400" />#
                         {order.requestId}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* HIỂN THỊ REVISION NOTE NẾU CÓ */}
+                  {order.revisionNote && (
+                    <div className="space-y-1 pt-3 border-t border-slate-100">
+                      <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
+                        {t("Revision Note")}
+                      </span>
+                      <div className="text-sm text-slate-700 bg-indigo-50/50 p-2 rounded-md italic">
+                        "{order.revisionNote}"
                       </div>
                     </div>
                   )}
@@ -618,69 +668,77 @@ export default function PurchaseOrderDetailPage() {
           </div>
         </div>
       </main>
-      {/* MODAL NHẬP THÔNG TIN GIAO HÀNG */}
-      {isConfirmDeliveryModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
-          <Card className="w-full max-w-md shadow-lg border-0 animate-in zoom-in-95 duration-200 gap-0">
-            <CardHeader className="rounded-t-xl pt-4 border-b border-slate-100">
-              <CardTitle className="text-slate-800 flex items-center gap-2 text-lg">
-                <CalendarDays className="w-5 h-5 text-indigo-600" />
-                {t("Confirm Supplier Delivery")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">
-                  {t("Expected Delivery Date")}{" "}
-                  <span className="text-red-500">*</span>
-                </label>
-                <DateTimePicker
-                  value={expectedDeliveryDate}
-                  onChange={setExpectedDeliveryDate}
-                  placeholder={t("Select date and time...")}
-                  disablePastDates
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">
-                  {t("Supplier Note (Optional)")}
-                </label>
-                <Textarea
-                  placeholder={t(
-                    "Enter any notes or conditions from the supplier...",
-                  )}
-                  className="min-h-[100px] resize-none focus-visible:ring-indigo-600"
-                  value={supplierNote}
-                  onChange={(e) => setSupplierNote(e.target.value)}
-                />
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-end gap-3 p-4 pb-0">
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setIsConfirmDeliveryModalOpen(false);
-                  setExpectedDeliveryDate(undefined);
-                  setSupplierNote("");
-                }}
-                className="text-slate-600"
-              >
-                {t("Cancel")}
-              </Button>
-              <Button
-                onClick={handleConfirmDelivery}
-                disabled={isConfirmingDelivery}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white"
-              >
-                {isConfirmingDelivery && (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+      <Dialog 
+        open={isConfirmDeliveryModalOpen} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsConfirmDeliveryModalOpen(false);
+            setExpectedDeliveryDate(undefined);
+            setSupplierNote("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden border-0 shadow-lg">
+          <DialogHeader className="pt-5 pb-4 px-6 border-b border-slate-100 bg-white">
+            <DialogTitle className="text-slate-800 flex items-center gap-2 text-lg">
+              <CalendarDays className="w-5 h-5 text-indigo-600" />
+              {t("Confirm Supplier Delivery")}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="p-6 space-y-5 bg-white">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">
+                {t("Expected Delivery Date")}{" "}
+                <span className="text-red-500">*</span>
+              </label>
+              <DateTimePicker
+                value={expectedDeliveryDate}
+                onChange={setExpectedDeliveryDate}
+                placeholder={t("Select date and time...")}
+                disablePastDates
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">
+                {t("Supplier Note (Optional)")}
+              </label>
+              <Textarea
+                placeholder={t(
+                  "Enter any notes or conditions from the supplier...",
                 )}
-                {t("Confirm")}
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      )}
+                className="min-h-[100px] resize-none focus-visible:ring-indigo-600"
+                value={supplierNote}
+                onChange={(e) => setSupplierNote(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-white flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setIsConfirmDeliveryModalOpen(false);
+                setExpectedDeliveryDate(undefined);
+                setSupplierNote("");
+              }}
+              className="text-slate-600"
+            >
+              {t("Cancel")}
+            </Button>
+            <Button
+              onClick={handleConfirmDelivery}
+              disabled={isConfirmingDelivery}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              {isConfirmingDelivery && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
+              {t("Confirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

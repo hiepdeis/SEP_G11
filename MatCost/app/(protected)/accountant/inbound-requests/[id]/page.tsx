@@ -47,6 +47,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { formatPascalCase } from "@/lib/format-pascal-case";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function AccountantReceiptDetailPage() {
   const { t } = useTranslation();
@@ -54,7 +55,9 @@ export default function AccountantReceiptDetailPage() {
   const router = useRouter();
   const id = Number(params.id);
 
-  const [receipt, setReceipt] = useState<AccountantReceiptDetailDto | null>(null);
+  const [receipt, setReceipt] = useState<AccountantReceiptDetailDto | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
 
   // Modal State
@@ -78,9 +81,7 @@ export default function AccountantReceiptDetailPage() {
         setReceipt(res.data);
       } catch (error: any) {
         console.error("Failed to fetch accountant receipt detail", error);
-        toast.error(
-          error.response?.data?.message || t("Receipt not found."),
-        );
+        toast.error(error.response?.data?.message || t("Receipt not found."));
         router.push("/accountant/inbound-requests");
       } finally {
         setIsLoading(false);
@@ -97,7 +98,9 @@ export default function AccountantReceiptDetailPage() {
         accountingNote: accountingNote.trim() || undefined,
       });
 
-      toast.success(t("Receipt closed successfully. Accounting records finalized."));
+      toast.success(
+        t("Receipt closed successfully. Accounting records finalized."),
+      );
       setIsCloseModalOpen(false);
 
       router.push("/accountant/inbound-requests");
@@ -134,19 +137,25 @@ export default function AccountantReceiptDetailPage() {
     );
   }
 
-  const isPendingClosure = receipt.status === "Completed";
+  const isPendingClosure = receipt.status === "Stamped";
 
-  // Warehouse Cards Pagination Data
   const totalCards = receipt.warehouseCards?.length || 0;
   const totalCardsPages = Math.ceil(totalCards / cardsPerPage) || 1;
   const startCardsIndex = (cardsPage - 1) * cardsPerPage;
-  const paginatedCards = receipt.warehouseCards?.slice(startCardsIndex, startCardsIndex + cardsPerPage) || [];
+  const paginatedCards =
+    receipt.warehouseCards?.slice(
+      startCardsIndex,
+      startCardsIndex + cardsPerPage,
+    ) || [];
 
-  // Inventory Currents Pagination Data
   const totalInventory = receipt.inventoryCurrents?.length || 0;
   const totalInventoryPages = Math.ceil(totalInventory / inventoryPerPage) || 1;
   const startInventoryIndex = (inventoryPage - 1) * inventoryPerPage;
-  const paginatedInventory = receipt.inventoryCurrents?.slice(startInventoryIndex, startInventoryIndex + inventoryPerPage) || [];
+  const paginatedInventory =
+    receipt.inventoryCurrents?.slice(
+      startInventoryIndex,
+      startInventoryIndex + inventoryPerPage,
+    ) || [];
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
@@ -171,12 +180,14 @@ export default function AccountantReceiptDetailPage() {
                 </h1>
                 <Badge
                   className={
-                    receipt.status === "Completed"
+                    receipt.status === "Stamped"
                       ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
                       : "bg-slate-100 text-slate-700 hover:bg-slate-100"
                   }
                 >
-                  {receipt.status === "Completed" ? t("Pending Closure") : t(formatPascalCase(receipt.status))}
+                  {receipt.status === "Stamped"
+                    ? t("Pending Closure")
+                    : t(formatPascalCase(receipt.status))}
                 </Badge>
               </div>
             </div>
@@ -271,21 +282,33 @@ export default function AccountantReceiptDetailPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-5 space-y-3">
-                     <div className="flex items-center justify-between">
-                       <span className="text-sm text-slate-600">{t("QC Code")}</span>
-                       <span className="font-mono text-sm font-medium text-slate-800">{receipt.qcCheck.qcCheckCode}</span>
-                     </div>
-                     <div className="flex items-center justify-between">
-                       <span className="text-sm text-slate-600">{t("Overall Result")}</span>
-                       <Badge className={receipt.qcCheck.overallResult === "Pass" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100" : "bg-red-100 text-red-700 hover:bg-red-100"}>
-                         {t(receipt.qcCheck.overallResult)}
-                       </Badge>
-                     </div>
-                     {receipt.qcCheck.notes && (
-                       <p className="text-xs text-slate-500 italic border-t border-emerald-100 pt-3 mt-1">
-                         {receipt.qcCheck.notes}
-                       </p>
-                     )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-slate-600">
+                        {t("QC Code")}
+                      </span>
+                      <span className="font-mono text-sm font-medium text-slate-800">
+                        {receipt.qcCheck.qcCheckCode}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-slate-600">
+                        {t("Overall Result")}
+                      </span>
+                      <Badge
+                        className={
+                          receipt.qcCheck.overallResult === "Pass"
+                            ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
+                            : "bg-red-100 text-red-700 hover:bg-red-100"
+                        }
+                      >
+                        {t(receipt.qcCheck.overallResult)}
+                      </Badge>
+                    </div>
+                    {receipt.qcCheck.notes && (
+                      <p className="text-xs text-slate-500 italic border-t border-emerald-100 pt-3 mt-1">
+                        {receipt.qcCheck.notes}
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -293,7 +316,6 @@ export default function AccountantReceiptDetailPage() {
 
             {/* CỘT PHẢI: BẢNG SỐ LIỆU */}
             <div className="lg:col-span-2 space-y-6">
-              
               {/* TABLE 1: WAREHOUSE CARDS (THẺ KHO) */}
               <Card className="border-slate-200 shadow-sm bg-white flex flex-col gap-0">
                 <CardHeader className="border-b border-slate-100 py-4 flex flex-row items-center justify-between shrink-0 ">
@@ -301,7 +323,10 @@ export default function AccountantReceiptDetailPage() {
                     <ClipboardList className="w-5 h-5 text-indigo-600" />
                     {t("Ledger Entries (Warehouse Cards)")}
                   </CardTitle>
-                  <Badge variant="secondary" className="bg-white border-slate-200 text-slate-700">
+                  <Badge
+                    variant="secondary"
+                    className="bg-white border-slate-200 text-slate-700"
+                  >
                     {totalCards} {t("Entries")}
                   </Badge>
                 </CardHeader>
@@ -309,18 +334,33 @@ export default function AccountantReceiptDetailPage() {
                   <Table>
                     <TableHeader className="bg-white">
                       <TableRow>
-                        <TableHead className="pl-6 w-[20%]">{t("Date")}</TableHead>
-                        <TableHead className="w-[25%]">{t("Material")}</TableHead>
-                        <TableHead className="w-[15%] text-center">{t("Type")}</TableHead>
-                        <TableHead className="w-[10%] text-right">{t("Before")}</TableHead>
-                        <TableHead className="w-[15%] text-right text-emerald-600">{t("Change")}</TableHead>
-                        <TableHead className="w-[15%] pr-6 text-right font-bold">{t("After")}</TableHead>
+                        <TableHead className="pl-6 w-[20%]">
+                          {t("Date")}
+                        </TableHead>
+                        <TableHead className="w-[25%]">
+                          {t("Material")}
+                        </TableHead>
+                        <TableHead className="w-[15%] text-center">
+                          {t("Type")}
+                        </TableHead>
+                        <TableHead className="w-[10%] text-right">
+                          {t("Before")}
+                        </TableHead>
+                        <TableHead className="w-[15%] text-right text-emerald-600">
+                          {t("Change")}
+                        </TableHead>
+                        <TableHead className="w-[15%] pr-6 text-right font-bold">
+                          {t("After")}
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {paginatedCards.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="h-24 text-center text-slate-500">
+                          <TableCell
+                            colSpan={6}
+                            className="h-24 text-center text-slate-500"
+                          >
                             {t("No ledger entries found.")}
                           </TableCell>
                         </TableRow>
@@ -329,7 +369,10 @@ export default function AccountantReceiptDetailPage() {
                           <TableRow key={idx} className="hover:bg-slate-50/50">
                             <TableCell className="pl-6 py-3">
                               <p className="text-sm font-medium text-slate-700">
-                                {format(new Date(card.transactionDate), "dd/MM/yyyy")}
+                                {format(
+                                  new Date(card.transactionDate),
+                                  "dd/MM/yyyy",
+                                )}
                               </p>
                               <p className="text-[10px] text-slate-400 font-mono mt-0.5">
                                 {card.cardCode}
@@ -344,7 +387,10 @@ export default function AccountantReceiptDetailPage() {
                               </p>
                             </TableCell>
                             <TableCell className="text-center">
-                              <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 font-normal">
+                              <Badge
+                                variant="outline"
+                                className="bg-indigo-50 text-indigo-700 border-indigo-200 font-normal"
+                              >
                                 {card.transactionType}
                               </Badge>
                             </TableCell>
@@ -366,13 +412,33 @@ export default function AccountantReceiptDetailPage() {
                   {totalCardsPages > 1 && (
                     <div className="px-6 py-2 flex items-center justify-between border-t border-slate-100 bg-slate-50">
                       <span className="text-xs text-slate-500">
-                        {startCardsIndex + 1}-{Math.min(startCardsIndex + cardsPerPage, totalCards)} {t("of")} {totalCards}
+                        {startCardsIndex + 1}-
+                        {Math.min(startCardsIndex + cardsPerPage, totalCards)}{" "}
+                        {t("of")} {totalCards}
                       </span>
                       <div className="flex items-center gap-1">
-                        <Button variant="outline" size="sm" className="h-6 px-2" onClick={() => setCardsPage(p => Math.max(1, p - 1))} disabled={cardsPage === 1}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2"
+                          onClick={() =>
+                            setCardsPage((p) => Math.max(1, p - 1))
+                          }
+                          disabled={cardsPage === 1}
+                        >
                           <ChevronLeft className="w-3 h-3" />
                         </Button>
-                        <Button variant="outline" size="sm" className="h-6 px-2" onClick={() => setCardsPage(p => Math.min(totalCardsPages, p + 1))} disabled={cardsPage === totalCardsPages}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2"
+                          onClick={() =>
+                            setCardsPage((p) =>
+                              Math.min(totalCardsPages, p + 1),
+                            )
+                          }
+                          disabled={cardsPage === totalCardsPages}
+                        >
                           <ChevronRight className="w-3 h-3" />
                         </Button>
                       </div>
@@ -388,7 +454,10 @@ export default function AccountantReceiptDetailPage() {
                     <Database className="w-5 h-5 text-indigo-600" />
                     {t("Updated Inventory Stock")}
                   </CardTitle>
-                  <Badge variant="secondary" className="bg-white border-slate-200 text-slate-700">
+                  <Badge
+                    variant="secondary"
+                    className="bg-white border-slate-200 text-slate-700"
+                  >
                     {totalInventory} {t("Locations")}
                   </Badge>
                 </CardHeader>
@@ -396,16 +465,27 @@ export default function AccountantReceiptDetailPage() {
                   <Table>
                     <TableHeader className="bg-white">
                       <TableRow>
-                        <TableHead className="pl-6 w-[35%]">{t("Material")}</TableHead>
-                        <TableHead className="w-[20%]">{t("Bin Location")}</TableHead>
-                        <TableHead className="w-[25%]">{t("Batch Code")}</TableHead>
-                        <TableHead className="w-[20%] pr-6 text-right">{t("Current Qty")}</TableHead>
+                        <TableHead className="pl-6 w-[35%]">
+                          {t("Material")}
+                        </TableHead>
+                        <TableHead className="w-[20%]">
+                          {t("Bin Location")}
+                        </TableHead>
+                        <TableHead className="w-[25%]">
+                          {t("Batch Code")}
+                        </TableHead>
+                        <TableHead className="w-[20%] pr-6 text-right">
+                          {t("Current Qty")}
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {paginatedInventory.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="h-24 text-center text-slate-500">
+                          <TableCell
+                            colSpan={4}
+                            className="h-24 text-center text-slate-500"
+                          >
                             {t("No inventory updates.")}
                           </TableCell>
                         </TableRow>
@@ -421,7 +501,10 @@ export default function AccountantReceiptDetailPage() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline" className="font-normal text-slate-600 bg-slate-100">
+                              <Badge
+                                variant="outline"
+                                className="font-normal text-slate-600 bg-slate-100"
+                              >
                                 {inv.binCode}
                               </Badge>
                             </TableCell>
@@ -444,13 +527,36 @@ export default function AccountantReceiptDetailPage() {
                   {totalInventoryPages > 1 && (
                     <div className="px-6 py-2 flex items-center justify-between border-t border-slate-100 bg-slate-50">
                       <span className="text-xs text-slate-500">
-                        {startInventoryIndex + 1}-{Math.min(startInventoryIndex + inventoryPerPage, totalInventory)} {t("of")} {totalInventory}
+                        {startInventoryIndex + 1}-
+                        {Math.min(
+                          startInventoryIndex + inventoryPerPage,
+                          totalInventory,
+                        )}{" "}
+                        {t("of")} {totalInventory}
                       </span>
                       <div className="flex items-center gap-1">
-                        <Button variant="outline" size="sm" className="h-6 px-2" onClick={() => setInventoryPage(p => Math.max(1, p - 1))} disabled={inventoryPage === 1}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2"
+                          onClick={() =>
+                            setInventoryPage((p) => Math.max(1, p - 1))
+                          }
+                          disabled={inventoryPage === 1}
+                        >
                           <ChevronLeft className="w-3 h-3" />
                         </Button>
-                        <Button variant="outline" size="sm" className="h-6 px-2" onClick={() => setInventoryPage(p => Math.min(totalInventoryPages, p + 1))} disabled={inventoryPage === totalInventoryPages}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2"
+                          onClick={() =>
+                            setInventoryPage((p) =>
+                              Math.min(totalInventoryPages, p + 1),
+                            )
+                          }
+                          disabled={inventoryPage === totalInventoryPages}
+                        >
                           <ChevronRight className="w-3 h-3" />
                         </Button>
                       </div>
@@ -458,67 +564,74 @@ export default function AccountantReceiptDetailPage() {
                   )}
                 </CardContent>
               </Card>
-
             </div>
           </div>
         </div>
       </main>
+      <Dialog
+        open={isCloseModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCloseModalOpen(false);
+            setAccountingNote("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden border-0 shadow-lg bg-white">
+          <DialogHeader className="pt-5 pb-4 px-6 border-b border-slate-100 bg-white">
+            <DialogTitle className="text-indigo-800 flex items-center gap-2 text-lg">
+              <Lock className="w-5 h-5" />
+              {t("Finalize & Close Receipt")}
+            </DialogTitle>
+          </DialogHeader>
 
-      {/* MODAL CLOSE RECEIPT */}
-      {isCloseModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
-          <Card className="w-full max-w-md shadow-lg border-0 animate-in zoom-in-95 duration-200 gap-0 pb-0">
-            <CardHeader className="rounded-t-xl pt-4 border-b border-slate-100">
-              <CardTitle className="text-indigo-800 flex items-center gap-2 text-lg">
-                <Lock className="w-5 h-5" />
-                {t("Finalize & Close Receipt")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <p className="text-sm text-slate-700">
-                {t("By closing this receipt, you confirm that all accounting checks have been completed. This action will lock the receipt from further modifications.")}
-              </p>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">
-                  {t("Accounting Note (Optional)")}
-                </label>
-                <Textarea
-                  placeholder={t("Enter any final accounting remarks...")}
-                  className="min-h-[100px] resize-none focus-visible:ring-indigo-500 mt-4"
-                  value={accountingNote}
-                  onChange={(e) => setAccountingNote(e.target.value)}
-                  autoFocus
-                />
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-end gap-3 p-4">
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setIsCloseModalOpen(false);
-                  setAccountingNote("");
-                }}
-                className="text-slate-600"
-                disabled={isClosing}
-              >
-                {t("Cancel")}
-              </Button>
-              <Button
-                onClick={handleCloseReceipt}
-                disabled={isClosing}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white"
-              >
-                {isClosing ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Check className="w-4 h-4 mr-2" />
-                )}
-                {t("Confirm Close")}
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      )}
+          <div className="p-6 space-y-4 bg-white">
+            <p className="text-sm text-slate-700">
+              {t(
+                "By closing this receipt, you confirm that all accounting checks have been completed. This action will lock the receipt from further modifications.",
+              )}
+            </p>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">
+                {t("Accounting Note (Optional)")}
+              </label>
+              <Textarea
+                placeholder={t("Enter any final accounting remarks...")}
+                className="min-h-[100px] resize-none focus-visible:ring-indigo-500 mt-2 bg-white"
+                value={accountingNote}
+                onChange={(e) => setAccountingNote(e.target.value)}
+                autoFocus
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-white flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setIsCloseModalOpen(false);
+                setAccountingNote("");
+              }}
+              className="text-slate-600 hover:bg-slate-100"
+              disabled={isClosing}
+            >
+              {t("Cancel")}
+            </Button>
+            <Button
+              onClick={handleCloseReceipt}
+              disabled={isClosing}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              {isClosing ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Check className="w-4 h-4 mr-2" />
+              )}
+              {t("Confirm Close")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -192,9 +192,8 @@ export default function IncidentsListPage({ role = "manager" }: { role?: "manage
 
   const handleReview = (id: number) => {
     setLoadingId(id);
-    // Điều hướng theo Role
     if (role === "purchase") {
-      router.push(`/purchasing/incidents/${id}`);
+      router.push(`/purchasing/incident-reports/${id}`);
     } else {
       router.push(`/manager/incident-reports/${id}`);
     }

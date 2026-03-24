@@ -1155,10 +1155,10 @@ public partial class MyDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
 
-            entity.HasOne(e => e.Receipt)
-                .WithMany(r => r.RejectionHistories)
-                .HasForeignKey(e => e.ReceiptId)
-                .OnDelete(DeleteBehavior.Cascade);
+            //entity.HasOne(e => e.Receipt)
+            //    .WithMany(r => r.RejectionHistories)
+            //    .HasForeignKey(e => e.ReceiptId)
+            //    .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(e => e.PurchaseOrder)
                 .WithMany(p => p.RejectionHistories)

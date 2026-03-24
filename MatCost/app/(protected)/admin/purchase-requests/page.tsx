@@ -446,7 +446,7 @@ export default function AdminPurchaseManagementPage() {
             >
               <div className="flex items-center gap-2 relative">
                 <BellRing className="w-4 h-4" />
-                 {t("Stock Shortage Alerts")}
+                {t("Stock Shortage Alerts")}
                 {confirmedAlertsCount > 0 && (
                   <span className="absolute -top-1 -right-3 flex h-2 w-2 rounded-full bg-rose-500"></span>
                 )}
@@ -473,22 +473,49 @@ export default function AdminPurchaseManagementPage() {
                     <SelectContent>
                       {activeTab === "PR" ? (
                         <>
-                          <SelectItem value="All">{t("All PRs")}</SelectItem>
+                          <SelectItem value="All">
+                            <Badge
+                              variant="outline"
+                              className="bg-slate-50 text-slate-700 border-slate-200"
+                            >
+                              {t("All")}
+                            </Badge>
+                          </SelectItem>
                           <SelectItem value="Submitted">
-                            {t("Submitted")}
+                            <Badge
+                              variant="outline"
+                              className="bg-yellow-50 text-yellow-700 border-yellow-200"
+                            >
+                              {t("Submitted")}
+                            </Badge>
                           </SelectItem>
                           <SelectItem value="DraftPO">
-                            {t("PO Draft")}
+                            <Badge
+                              variant="outline"
+                              className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                            >
+                              {t("Draft PO")}
+                            </Badge>
                           </SelectItem>
                         </>
                       ) : (
                         <>
-                          <SelectItem value="All">{t("All Alerts")}</SelectItem>
-                          <SelectItem value="ManagerConfirmed">
-                            {t("Confirmed")}
+                          <SelectItem value="All">
+                            <Badge
+                              variant="outline"
+                              className="bg-slate-50 text-slate-700 border-slate-200"
+                            >
+                              {t("All")}
+                            </Badge>
                           </SelectItem>
-                          <SelectItem value="PRCreated">
-                            {t("Resolved")}
+                          <SelectItem value="ManagerConfirmed">
+                            <Badge
+                              variant="outline"
+                              className="bg-yellow-50 text-yellow-700 border-yellow-200"
+                            >
+                              {t("Manager Confirmed")}
+                              {t("All")}
+                            </Badge>
                           </SelectItem>
                         </>
                       )}
@@ -770,7 +797,9 @@ export default function AdminPurchaseManagementPage() {
                                   className={
                                     item.status === "Submitted"
                                       ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                                      : "bg-slate-100 text-slate-700 border-slate-200"
+                                      : item.status === "DraftPO"
+                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                        : "bg-slate-100 text-slate-700 border-slate-200"
                                   }
                                 >
                                   {t(formatPascalCase(item.status))}
@@ -782,7 +811,7 @@ export default function AdminPurchaseManagementPage() {
                                   onClick={() => handleReviewPR(item.requestId)}
                                   disabled={loadingId === item.requestId}
                                   variant="default"
-                                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[100px]"
+                                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[200px]"
                                 >
                                   {loadingId === item.requestId ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -809,7 +838,7 @@ export default function AdminPurchaseManagementPage() {
                                 ) {
                                   return;
                                 }
-                                handleCreatePRFromAlert(item.alertId)
+                                handleCreatePRFromAlert(item.alertId);
                               }}
                             >
                               <TableCell className="pl-6">
@@ -887,11 +916,11 @@ export default function AdminPurchaseManagementPage() {
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                           <DropdownMenuItem
-                                            onClick={(e) =>{
+                                            onClick={(e) => {
                                               e.stopPropagation();
                                               handleViewAlertDetail(
                                                 item.alertId,
-                                              )
+                                              );
                                             }}
                                           >
                                             <Eye className="w-4 h-4 mr-2 focus:text-primary" />{" "}
