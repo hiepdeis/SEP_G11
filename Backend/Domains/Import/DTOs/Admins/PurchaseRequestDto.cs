@@ -21,6 +21,7 @@ namespace Backend.Domains.Import.DTOs.Admins
         public string ProjectName { get; set; } = string.Empty;
         public long? AlertId { get; set; }
         public int CreatedBy { get; set; }
+        public string? CreatedByName { get; set; }
         public DateTime CreatedAt { get; set; }
         public string Status { get; set; } = string.Empty;
         public List<PurchaseRequestItemDto> Items { get; set; } = new();

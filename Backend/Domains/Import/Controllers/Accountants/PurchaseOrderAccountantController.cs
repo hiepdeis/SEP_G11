@@ -1,7 +1,12 @@
+using System.Collections.Generic;
+using System.Linq;
+using Backend.Data;
 using Backend.Domains.Import.DTOs.Accountants;
 using Backend.Domains.Import.DTOs.Purchasing;
 using Backend.Domains.Import.Interfaces;
+using Backend.Entities;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Domains.Import.Controllers.Accountants
 {
@@ -10,10 +15,12 @@ namespace Backend.Domains.Import.Controllers.Accountants
     public class PurchaseOrderAccountantController : ControllerBase
     {
         private readonly IPurchaseOrderService _service;
+        private readonly MyDbContext _context;
 
-        public PurchaseOrderAccountantController(IPurchaseOrderService service)
+        public PurchaseOrderAccountantController(IPurchaseOrderService service, MyDbContext context)
         {
             _service = service;
+            _context = context;
         }
 
         [HttpGet]
@@ -22,9 +29,13 @@ namespace Backend.Domains.Import.Controllers.Accountants
             try
             {
                 var orders = await _service.GetOrdersAsync();
-                var result = orders
+                var pending = orders
                     .Where(o => o.Status == "Draft")
-                    .Select(PurchaseOrderMapper.ToDto)
+                    .ToList();
+
+                var userNames = await LoadUserNamesAsync(pending);
+                var result = pending
+                    .Select(o => PurchaseOrderMapper.ToDto(o, userNames))
                     .ToList();
 
                 return Ok(result);
@@ -55,10 +66,11 @@ namespace Backend.Domains.Import.Controllers.Accountants
 
                 var review = await _service.ReviewPriceAsync(purchaseOrderId);
                 var revisionHistory = await _service.GetRevisionHistoryAsync(purchaseOrderId);
+                var userNames = await LoadUserNamesAsync(new[] { order });
 
                 var response = new PurchaseOrderReviewResponseDto
                 {
-                    Order = PurchaseOrderMapper.ToDto(order),
+                    Order = PurchaseOrderMapper.ToDto(order, userNames),
                     Review = review,
                     RevisionHistory = revisionHistory,
                     RevisionNote = order.RevisionNote
@@ -91,7 +103,8 @@ namespace Backend.Domains.Import.Controllers.Accountants
             {
                 var accountantId = 1; // TODO: replace with JWT claims
                 var order = await _service.AccountantApproveAsync(purchaseOrderId, accountantId);
-                return Ok(PurchaseOrderMapper.ToDto(order));
+                var userNames = await LoadUserNamesAsync(new[] { order });
+                return Ok(PurchaseOrderMapper.ToDto(order, userNames));
             }
             catch (KeyNotFoundException ex)
             {
@@ -118,7 +131,8 @@ namespace Backend.Domains.Import.Controllers.Accountants
             {
                 var accountantId = 1; // TODO: replace with JWT claims
                 var order = await _service.AccountantRejectAsync(purchaseOrderId, accountantId, dto.Reason);
-                return Ok(PurchaseOrderMapper.ToDto(order));
+                var userNames = await LoadUserNamesAsync(new[] { order });
+                return Ok(PurchaseOrderMapper.ToDto(order, userNames));
             }
             catch (KeyNotFoundException ex)
             {
@@ -136,6 +150,35 @@ namespace Backend.Domains.Import.Controllers.Accountants
             {
                 return StatusCode(500, new { message = "Internal server error", error = ex.Message });
             }
+        }
+
+        private async Task<Dictionary<int, string>> LoadUserNamesAsync(IEnumerable<PurchaseOrder> orders)
+        {
+            var userIds = orders
+                .SelectMany(GetUserIds)
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .Distinct()
+                .ToList();
+
+            if (userIds.Count == 0)
+                return new Dictionary<int, string>();
+
+            return await _context.Users
+                .Where(u => userIds.Contains(u.UserId))
+                .ToDictionaryAsync(
+                    u => u.UserId,
+                    u => string.IsNullOrWhiteSpace(u.FullName) ? u.Username : u.FullName);
+        }
+
+        private static IEnumerable<int?> GetUserIds(PurchaseOrder order)
+        {
+            return new int?[]
+            {
+                order.CreatedBy,
+                order.AccountantApprovedBy,
+                order.AdminApprovedBy
+            };
         }
     }
 }
