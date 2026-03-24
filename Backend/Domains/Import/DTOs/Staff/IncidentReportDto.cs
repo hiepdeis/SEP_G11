@@ -14,16 +14,28 @@ namespace Backend.Domains.Import.DTOs.Staff
     {
         public int MaterialId { get; set; }
 
-        public decimal OrderedQuantity { get; set; }
-
-        public decimal PassQuantity { get; set; }
-
-        public decimal FailQuantity { get; set; }
-
         /// <summary>"Quantity" | "Quality" | "Damage"</summary>
         public string IssueType { get; set; } = string.Empty;
 
-        public string? Notes { get; set; }
+        public string? EvidenceNote { get; set; }
+
+        public List<string> EvidenceImages { get; set; } = new();
+    }
+
+    public class IncidentReportCreateResultDto
+    {
+        public long IncidentId { get; set; }
+        public long ReceiptId { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public IncidentReportCreateSummaryDto Summary { get; set; } = new();
+        public string NextStep { get; set; } = string.Empty;
+    }
+
+    public class IncidentReportCreateSummaryDto
+    {
+        public int TotalFailItems { get; set; }
+        public decimal TotalFailQuantity { get; set; }
+        public string SupplierName { get; set; } = string.Empty;
     }
 
     // OUTPUT DTOs (GET)

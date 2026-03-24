@@ -63,4 +63,7 @@ public partial class ReceiptDetail
 
     [InverseProperty("ReceiptDetail")]
     public virtual ICollection<IncidentReportDetail> IncidentReportDetails { get; set; } = new List<IncidentReportDetail>();
+
+    [InverseProperty("ReceiptDetail")]
+    public virtual ICollection<ReceiptDetailBinAllocation> BinAllocations { get; set; } = new List<ReceiptDetailBinAllocation>();
 }

@@ -87,6 +87,7 @@ namespace Backend.Domains.Import.Services
             return request;
         }
 
+        // For admin want to view all purchase requests
         public async Task<List<PurchaseRequest>> GetRequestsAsync()
         {
             return await _context.PurchaseRequests
@@ -109,7 +110,7 @@ namespace Backend.Domains.Import.Services
                 .Include(r => r.Alert)
                 .Include(r => r.Items)
                     .ThenInclude(i => i.Material)
-                .Where(r => r.Status == "Submitted")
+                .Where(r => r.Status == "Submitted" || r.Status == "DraftPO")
                 .OrderByDescending(r => r.CreatedAt)
                 .AsNoTracking()
                 .ToListAsync();

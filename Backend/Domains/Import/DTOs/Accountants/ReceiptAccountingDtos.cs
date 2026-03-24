@@ -8,10 +8,10 @@ namespace Backend.Domains.Import.DTOs.Accountants
         public long ReceiptId { get; set; }
         public string ReceiptCode { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
-        public DateTime? ReceiptDate { get; set; }
-        public long? PurchaseOrderId { get; set; }
         public string? PurchaseOrderCode { get; set; }
-        public string? WarehouseName { get; set; }
+        public string? SupplierName { get; set; }
+        public decimal TotalValue { get; set; }
+        public DateTime? StampedAt { get; set; }
     }
 
     public class AccountantReceiptDetailDto
@@ -42,5 +42,24 @@ namespace Backend.Domains.Import.DTOs.Accountants
     public class AccountantReceiptCloseDto
     {
         public string? AccountingNote { get; set; }
+    }
+
+    public class AccountantReceiptCloseResultDto
+    {
+        public long ReceiptId { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string? ClosedBy { get; set; }
+        public DateTime? ClosedAt { get; set; }
+        public AccountantReceiptCloseSummaryDto Summary { get; set; } = new();
+    }
+
+    public class AccountantReceiptCloseSummaryDto
+    {
+        public string? PurchaseOrderCode { get; set; }
+        public string? SupplierName { get; set; }
+        public int TotalItems { get; set; }
+        public decimal TotalQuantity { get; set; }
+        public List<string> BatchCodes { get; set; } = new();
+        public decimal TotalValue { get; set; }
     }
 }

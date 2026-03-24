@@ -83,11 +83,34 @@ namespace Backend.Domains.Import.Controllers.Staff
             try
             {
                 var staffId = 4; // TODO: replace with JWT claims
-                var result = await _receiptService.ReceiveGoodsFromPOAsync(
-                    dto.PurchaseOrderId,
-                    dto.SupplementaryReceiptId,
-                    dto.Items,
-                    staffId);
+                var result = await _receiptService.ReceiveGoodsFromPOAsync(dto, staffId);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
+
+        [HttpPost("{receiptId}/putaway")]
+        public async Task<IActionResult> Putaway(long receiptId, [FromBody] ReceiptPutawayDto dto)
+        {
+            try
+            {
+                var staffId = 4; // TODO: replace with JWT claims
+                var result = await _receiptService.PutawayAsync(receiptId, dto, staffId);
                 return Ok(result);
             }
             catch (KeyNotFoundException ex)
@@ -115,6 +138,24 @@ namespace Backend.Domains.Import.Controllers.Staff
             {
                 var result = await _receiptService.GetPendingPurchaseOrdersAsync();
                 return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
+
+        [HttpGet("batches")]
+        public async Task<IActionResult> GetBatches([FromQuery] int materialId, [FromQuery] string? batchCode)
+        {
+            try
+            {
+                var result = await _receiptService.GetBatchesAsync(materialId, batchCode);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -166,42 +207,6 @@ namespace Backend.Domains.Import.Controllers.Staff
             catch (KeyNotFoundException ex)
             {
                 return NotFound(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// POST /api/staff/receipts/{receiptId}/qc-check
-        /// Nộp kết quả kiểm tra QC cho một phiếu nhập kho.
-        /// OverallResult: "Pass" | "Fail"
-        /// Status transition: Approved or GoodsArrived → GoodsArrived
-        /// </summary>
-        [HttpPost("{receiptId}/qc-check")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> SubmitQCCheck(long receiptId, [FromBody] SubmitQCCheckDto dto)
-        {
-            try
-            {
-                var staffId = 4; // TODO: lấy từ JWT claims
-                var result = await _receiptService.SubmitQCCheckAsync(receiptId, dto, staffId);
-                return Ok(result);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {

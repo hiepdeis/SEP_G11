@@ -1,5 +1,6 @@
 ﻿using Backend.Data;
 using Backend.Domains.Import.DTOs.Accountants;
+using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.DTOs.Purchasing;
 using Backend.Domains.Import.DTOs.Staff;
 using Backend.Domains.Import.Interfaces;
@@ -29,7 +30,8 @@ namespace Backend.Domains.Import.Services
                                         .Include(r => r.CreatedByNavigation)
                                         .Include(r => r.ReceiptDetails)
                                         .ThenInclude(rd => rd.Supplier)
-                            .Where(r => r.Status == "Approved" || r.Status == "GoodsArrived" || r.Status == "Completed" || r.Status == "PendingQC" || r.Status == "PendingIncident" || r.Status == "PendingManagerReview")
+                            .Where(r => r.Status == "Approved" || r.Status == "GoodsArrived" ||
+                             r.Status == "Completed" || r.Status == "PendingQC" || r.Status == "PendingIncident" || r.Status == "PendingManagerReview" || r.Status == "QCPassed" || r.Status == "ReadyForPutaway" || r.Status == "PartiallyPutaway" || r.Status == "ReadyForStamp")
                             .OrderByDescending(r => r.ApprovedAt)
                             .Select(r => new GetInboundRequestListDto
                             {
@@ -306,7 +308,7 @@ namespace Backend.Domains.Import.Services
                     }
                 }
 
-                receipt.Status = "Completed";
+                receipt.Status = "QCPassed";
                 receipt.ConfirmedBy = staffId;
                 receipt.ConfirmedAt = today;
 
@@ -320,39 +322,55 @@ namespace Backend.Domains.Import.Services
             }
         }
 
-        public async Task<ReceiveGoodsFromPoResultDto> ReceiveGoodsFromPOAsync(long purchaseOrderId, long? supplementaryReceiptId, List<ReceiveGoodsFromPoItemDto> items, int staffId)
+        public async Task<ReceiveGoodsFromPoResultDto> ReceiveGoodsFromPOAsync(ReceiveGoodsFromPoDto dto, int staffId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
                 // STEP 1: basic validation
-                if (items == null || items.Count == 0)
+                if (dto.Items == null || dto.Items.Count == 0)
                     throw new ArgumentException("Items list cannot be empty");
+
+                var validResults = new[] { "Pass", "Fail" };
+                foreach (var item in dto.Items)
+                {
+                    if (!validResults.Contains(item.Result))
+                        throw new ArgumentException($"Result must be 'Pass' or 'Fail' for MaterialId {item.MaterialId}");
+
+                    if (item.Result == "Fail" && string.IsNullOrWhiteSpace(item.FailReason))
+                        throw new ArgumentException($"FailReason is required when result is 'Fail' for MaterialId {item.MaterialId}");
+
+                    if (item.ActualQuantity < 0 || item.PassQuantity < 0 || item.FailQuantity < 0)
+                        throw new ArgumentException($"Quantities must be non-negative for MaterialId {item.MaterialId}");
+
+                    if (item.PassQuantity + item.FailQuantity != item.ActualQuantity)
+                        throw new ArgumentException("Tong passQuantity + failQuantity phai bang actualQuantity");
+                }
 
                 var purchaseOrder = await _context.PurchaseOrders
                     .Include(o => o.Items)
                         .ThenInclude(i => i.Material)
-                    .FirstOrDefaultAsync(o => o.PurchaseOrderId == purchaseOrderId);
+                    .FirstOrDefaultAsync(o => o.PurchaseOrderId == dto.PurchaseOrderId);
 
                 if (purchaseOrder == null)
-                    throw new KeyNotFoundException($"PurchaseOrder with ID {purchaseOrderId} not found");
+                    throw new KeyNotFoundException($"PurchaseOrder with ID {dto.PurchaseOrderId} not found");
 
-                var allowedStatuses = new[] { "AdminApproved", "SentToSupplier" };
+                var allowedStatuses = new[] { "AdminApproved", "SentToSupplier", "PartiallyReceived", "OverReceived" };
                 if (!allowedStatuses.Contains(purchaseOrder.Status))
                     throw new InvalidOperationException(
-                        $"Cannot receive goods for PO {purchaseOrderId} with status '{purchaseOrder.Status}'");
+                        $"Cannot receive goods for PO {dto.PurchaseOrderId} with status '{purchaseOrder.Status}'");
 
                 // STEP 2: validate supplementary receipt if provided
                 SupplementaryReceipt? supplementaryReceipt = null;
-                if (supplementaryReceiptId.HasValue)
+                if (dto.SupplementaryReceiptId.HasValue)
                 {
                     supplementaryReceipt = await _context.SupplementaryReceipts
-                        .FirstOrDefaultAsync(s => s.SupplementaryReceiptId == supplementaryReceiptId.Value);
+                        .FirstOrDefaultAsync(s => s.SupplementaryReceiptId == dto.SupplementaryReceiptId.Value);
 
                     if (supplementaryReceipt == null)
-                        throw new KeyNotFoundException($"SupplementaryReceipt with ID {supplementaryReceiptId} not found");
+                        throw new KeyNotFoundException($"SupplementaryReceipt with ID {dto.SupplementaryReceiptId} not found");
 
-                    if (supplementaryReceipt.PurchaseOrderId != purchaseOrderId)
+                    if (supplementaryReceipt.PurchaseOrderId != dto.PurchaseOrderId)
                         throw new InvalidOperationException("Supplementary receipt does not belong to this purchase order");
 
                     if (supplementaryReceipt.Status != "Approved")
@@ -366,22 +384,14 @@ namespace Backend.Domains.Import.Services
                 if (warehouse == null)
                     throw new InvalidOperationException("No warehouse found to receive goods");
 
-                var binLocation = await _context.BinLocations
-                    .Where(b => b.WarehouseId == warehouse.WarehouseId)
-                    .OrderBy(b => b.BinId)
-                    .FirstOrDefaultAsync();
-
-                if (binLocation == null)
-                    throw new InvalidOperationException("No bin location found for receiving warehouse");
-
                 var poItemMap = purchaseOrder.Items.ToDictionary(i => i.MaterialId, i => i);
-                var requestedMaterialIds = items.Select(i => i.MaterialId).Distinct().ToList();
+                var requestedMaterialIds = dto.Items.Select(i => i.MaterialId).Distinct().ToList();
 
                 var extraMaterials = requestedMaterialIds.Except(poItemMap.Keys).ToList();
                 if (extraMaterials.Count > 0)
                     throw new ArgumentException("Receipt items contain materials not in PO");
 
-                foreach (var item in items)
+                foreach (var item in dto.Items)
                 {
                     if (item.ActualQuantity < 0)
                         throw new ArgumentException("ActualQuantity must be >= 0");
@@ -394,8 +404,8 @@ namespace Backend.Domains.Import.Services
                 {
                     ReceiptCode = receiptCode,
                     WarehouseId = warehouse.WarehouseId,
-                    PurchaseOrderId = purchaseOrderId,
-                    SupplementaryReceiptId = supplementaryReceiptId,
+                    PurchaseOrderId = dto.PurchaseOrderId,
+                    SupplementaryReceiptId = dto.SupplementaryReceiptId,
                     CreatedBy = staffId,
                     ReceiptDate = now,
                     Status = "PendingQC"
@@ -405,10 +415,10 @@ namespace Backend.Domains.Import.Services
                 await _context.SaveChangesAsync();
 
                 decimal totalAmount = 0;
-                foreach (var item in items)
+                var receiptDetails = new List<ReceiptDetail>();
+                foreach (var item in dto.Items)
                 {
                     var poItem = poItemMap[item.MaterialId];
-                    var batch = await GetOrCreateBatchAsync(item.MaterialId, null, null, null);
                     var lineTotal = item.ActualQuantity * (poItem.UnitPrice ?? 0);
 
                     var detail = new ReceiptDetail
@@ -420,15 +430,85 @@ namespace Backend.Domains.Import.Services
                         ActualQuantity = item.ActualQuantity,
                         UnitPrice = poItem.UnitPrice,
                         LineTotal = lineTotal,
-                        BinLocationId = binLocation.BinId,
-                        BatchId = batch.BatchId
+                        BinLocationId = null,
+                        BatchId = null
                     };
 
                     _context.ReceiptDetails.Add(detail);
+                    receiptDetails.Add(detail);
                     totalAmount += lineTotal;
                 }
 
                 receipt.TotalAmount = totalAmount;
+
+                await _context.SaveChangesAsync();
+
+                var overallResult = dto.Items.Any(d => d.FailQuantity > 0 || d.Result == "Fail")
+                    ? "Fail"
+                    : "Pass";
+
+                var qcCheckCode = await GenerateQCCheckCodeAsync();
+                var detailMap = receiptDetails.ToDictionary(rd => rd.MaterialId, rd => rd);
+
+                var qcCheck = new QCCheck
+                {
+                    QCCheckCode = qcCheckCode,
+                    ReceiptId = receipt.ReceiptId,
+                    CheckedBy = staffId,
+                    CheckedAt = now,
+                    OverallResult = overallResult,
+                    Notes = dto.Notes,
+                    QCCheckDetails = dto.Items.Select(d =>
+                    {
+                        var rd = detailMap[d.MaterialId];
+                        return new QCCheckDetail
+                        {
+                            ReceiptDetailId = rd.DetailId,
+                            Result = d.Result,
+                            FailReason = d.FailReason,
+                            PassQuantity = d.PassQuantity,
+                            FailQuantity = d.FailQuantity
+                        };
+                    }).ToList()
+                };
+
+                _context.QCChecks.Add(qcCheck);
+
+                if (overallResult == "Pass")
+                {
+                    string? poStatus = null;
+                    if (receipt.PurchaseOrderId.HasValue)
+                    {
+                        var totalOrdered = purchaseOrder.Items.Sum(i => i.OrderedQuantity);
+                        var totalPass = dto.Items.Sum(d => d.PassQuantity);
+
+                        if (totalPass == totalOrdered)
+                            purchaseOrder.Status = "FullyReceived";
+                        else if (totalPass < totalOrdered)
+                            purchaseOrder.Status = "PartiallyReceived";
+                        else
+                            purchaseOrder.Status = "OverReceived";
+
+                        poStatus = purchaseOrder.Status;
+                    }
+
+                    receipt.Status = "QCPassed";
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return new ReceiveGoodsFromPoResultDto
+                    {
+                        ReceiptId = receipt.ReceiptId,
+                        PurchaseOrderId = dto.PurchaseOrderId,
+                        SupplementaryReceiptId = dto.SupplementaryReceiptId,
+                        Status = receipt.Status,
+                        PoStatus = poStatus,
+                        NextStep = $"POST /api/staff/receipts/{receipt.ReceiptId}/putaway"
+                    };
+                }
+
+                receipt.Status = "PendingIncident";
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -436,10 +516,19 @@ namespace Backend.Domains.Import.Services
                 return new ReceiveGoodsFromPoResultDto
                 {
                     ReceiptId = receipt.ReceiptId,
-                    PurchaseOrderId = purchaseOrderId,
-                    SupplementaryReceiptId = supplementaryReceiptId,
-                    Status = receipt.Status ?? "PendingQC",
-                    NextStep = $"POST /api/staff/receipts/{receipt.ReceiptId}/qc-check"
+                    PurchaseOrderId = dto.PurchaseOrderId,
+                    SupplementaryReceiptId = dto.SupplementaryReceiptId,
+                    Status = receipt.Status,
+                    FailedItems = dto.Items
+                        .Where(d => d.FailQuantity > 0 || d.Result == "Fail")
+                        .Select(d => new QCFailedItemDto
+                        {
+                            MaterialId = d.MaterialId,
+                            FailQuantity = d.FailQuantity,
+                            FailReason = d.FailReason
+                        })
+                        .ToList(),
+                    NextStep = $"POST /api/staff/receipts/{receipt.ReceiptId}/incident-report"
                 };
             }
             catch
@@ -451,27 +540,347 @@ namespace Backend.Domains.Import.Services
 
         public async Task<List<PendingPurchaseOrderDto>> GetPendingPurchaseOrdersAsync()
         {
-            var orders = await _context.PurchaseOrders
+            var newDeliveries = await _context.PurchaseOrders
                 .Include(o => o.Supplier)
                 .Include(o => o.Items)
                     .ThenInclude(i => i.Material)
                 .Where(o => o.Status == "SentToSupplier" && o.ExpectedDeliveryDate.HasValue)
                 .OrderBy(o => o.ExpectedDeliveryDate)
+                .Select(o => new PendingPurchaseOrderDto
+                {
+                    Type = "NewDelivery",
+                    PurchaseOrderId = o.PurchaseOrderId,
+                    PoCode = o.PurchaseOrderCode,
+                    SupplierName = o.Supplier != null ? o.Supplier.Name : string.Empty,
+                    ExpectedDeliveryDate = o.ExpectedDeliveryDate!.Value,
+                    Items = o.Items.Select(i => new PendingPurchaseOrderItemDto
+                    {
+                        MaterialId = i.MaterialId,
+                        MaterialName = i.Material != null ? i.Material.Name : string.Empty,
+                        OrderedQuantity = i.OrderedQuantity,
+                        Unit = i.Material != null ? i.Material.Unit ?? string.Empty : string.Empty
+                    }).ToList()
+                })
                 .ToListAsync();
 
-            return orders.Select(o => new PendingPurchaseOrderDto
-            {
-                PurchaseOrderId = o.PurchaseOrderId,
-                PoCode = o.PurchaseOrderCode,
-                SupplierName = o.Supplier?.Name ?? string.Empty,
-                ExpectedDeliveryDate = o.ExpectedDeliveryDate!.Value,
-                Items = o.Items.Select(i => new PendingPurchaseOrderItemDto
+            var replacementDeliveries = await _context.SupplementaryReceipts
+                .Include(s => s.PurchaseOrder)
+                    .ThenInclude(p => p.Supplier)
+                .Include(s => s.IncidentReport)
+                    .ThenInclude(i => i.QCCheck)
+                        .ThenInclude(q => q!.QCCheckDetails)
+                .Include(s => s.Items)
+                    .ThenInclude(i => i.Material)
+                .Where(s => s.Status == "Approved" && s.ExpectedDeliveryDate.HasValue)
+                .Where(s => s.IncidentReport.Status == "AwaitingSupplementaryGoods")
+                .OrderBy(s => s.ExpectedDeliveryDate)
+                .Select(s => new PendingPurchaseOrderDto
                 {
-                    MaterialName = i.Material?.Name ?? string.Empty,
-                    OrderedQuantity = i.OrderedQuantity,
-                    Unit = i.Material?.Unit ?? string.Empty
-                }).ToList()
-            }).ToList();
+                    Type = "ReplacementDelivery",
+                    PurchaseOrderId = s.PurchaseOrderId,
+                    PoCode = s.PurchaseOrder.PurchaseOrderCode,
+                    SupplierName = s.PurchaseOrder.Supplier != null ? s.PurchaseOrder.Supplier.Name : string.Empty,
+                    ExpectedDeliveryDate = s.ExpectedDeliveryDate!.Value,
+                    SupplementaryReceiptId = s.SupplementaryReceiptId,
+                    IncidentId = s.IncidentId,
+                    ReplacementQuantity = s.Items.Sum(i => i.SupplementaryQuantity),
+                    OriginalFailReason = string.Join("; ",
+                        s.IncidentReport.QCCheck!.QCCheckDetails
+                            .Where(d => !string.IsNullOrWhiteSpace(d.FailReason))
+                            .Select(d => d.FailReason)
+                            .Distinct()),
+                    Items = s.Items.Select(i => new PendingPurchaseOrderItemDto
+                    {
+                        MaterialId = i.MaterialId,
+                        MaterialName = i.Material != null ? i.Material.Name : string.Empty,
+                        OrderedQuantity = i.SupplementaryQuantity,
+                        Unit = i.Material != null ? i.Material.Unit ?? string.Empty : string.Empty
+                    }).ToList()
+                })
+                .ToListAsync();
+
+            return newDeliveries.Concat(replacementDeliveries).ToList();
+        }
+
+        public async Task<ReceiptPutawayResultDto> PutawayAsync(long receiptId, ReceiptPutawayDto dto, int staffId)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                if (dto.Items == null || dto.Items.Count == 0)
+                    throw new ArgumentException("Items list cannot be empty");
+
+                var receipt = await _context.Receipts
+                    .Include(r => r.ReceiptDetails)
+                        .ThenInclude(rd => rd.Material)
+                    .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
+
+                if (receipt == null)
+                    throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
+
+                if (receipt.Status != "QCPassed" && receipt.Status != "ReadyForPutaway")
+                    throw new InvalidOperationException("Receipt chua QC Pass hoac chua duoc phe duyet putaway");
+
+                if (!receipt.WarehouseId.HasValue)
+                    throw new InvalidOperationException("Receipt warehouse is required");
+
+                var qcCheck = await _context.QCChecks
+                    .Include(q => q.QCCheckDetails)
+                    .FirstOrDefaultAsync(q => q.ReceiptId == receiptId);
+
+                if (qcCheck == null)
+                    throw new InvalidOperationException("Receipt chua QC Pass");
+
+                var receiptDetailMap = receipt.ReceiptDetails
+                    .GroupBy(rd => rd.MaterialId)
+                    .ToDictionary(g => g.Key, g => g.First());
+
+                var passQtyMap = qcCheck.QCCheckDetails
+                    .GroupBy(d => d.ReceiptDetailId)
+                    .ToDictionary(g => g.Key, g => g.Sum(x => x.PassQuantity));
+
+                var binIds = dto.Items
+                    .SelectMany(i => i.BinAllocations)
+                    .Select(a => a.BinId)
+                    .Distinct()
+                    .ToList();
+
+                var binMap = await _context.BinLocations
+                    .Where(b => binIds.Contains(b.BinId))
+                    .ToDictionaryAsync(b => b.BinId, b => b);
+
+                var summary = new List<ReceiptPutawaySummaryDto>();
+                var today = DateTime.UtcNow;
+                var cardPrefix = $"WC-{today:yyyyMMdd}-";
+                var cardSeq = await GetNextWarehouseCardSequenceAsync(today);
+
+                foreach (var item in dto.Items)
+                {
+                    if (!receiptDetailMap.TryGetValue(item.MaterialId, out var receiptDetail))
+                        throw new ArgumentException($"MaterialId {item.MaterialId} not found in receipt {receiptId}");
+
+                    var passQty = passQtyMap.TryGetValue(receiptDetail.DetailId, out var pass)
+                        ? pass
+                        : 0m;
+
+                    var totalAllocation = item.BinAllocations.Sum(a => a.Quantity);
+                    if (totalAllocation != passQty)
+                    {
+                        var materialName = receiptDetail.Material?.Name ?? $"Material {item.MaterialId}";
+                        throw new InvalidOperationException(
+                            $"Tong so luong xep ke ({totalAllocation}) khac voi so luong QC Pass ({passQty}) cua {materialName}");
+                    }
+
+                    foreach (var allocation in item.BinAllocations)
+                    {
+                        if (!binMap.TryGetValue(allocation.BinId, out var bin))
+                            throw new InvalidOperationException($"Ke {allocation.BinId} khong thuoc kho nay");
+
+                        if (bin.WarehouseId != receipt.WarehouseId.Value)
+                            throw new InvalidOperationException($"Ke {bin.Code} khong thuoc kho nay");
+                    }
+
+                    Batch batch;
+                    if (item.Batch.BatchId.HasValue)
+                    {
+                        batch = await _context.Batches
+                            .FirstOrDefaultAsync(b => b.BatchId == item.Batch.BatchId.Value)
+                            ?? throw new KeyNotFoundException($"Batch with ID {item.Batch.BatchId} not found");
+
+                        if (batch.MaterialId != item.MaterialId)
+                            throw new InvalidOperationException("Batch khong thuoc material nay");
+                    }
+                    else
+                    {
+                        if (string.IsNullOrWhiteSpace(item.Batch.BatchCode))
+                            throw new ArgumentException("BatchCode is required when creating new batch");
+
+                        batch = new Batch
+                        {
+                            MaterialId = item.MaterialId,
+                            BatchCode = item.Batch.BatchCode,
+                            MfgDate = item.Batch.MfgDate,
+                            ExpiryDate = item.Batch.ExpiryDate,
+                            CertificateImage = item.Batch.CertificateImage,
+                            CreatedDate = today
+                        };
+
+                        _context.Batches.Add(batch);
+                        await _context.SaveChangesAsync();
+                    }
+
+                    foreach (var allocation in item.BinAllocations)
+                    {
+                        var allocationEntity = new ReceiptDetailBinAllocation
+                        {
+                            ReceiptDetailId = receiptDetail.DetailId,
+                            BinId = allocation.BinId,
+                            Quantity = allocation.Quantity,
+                            BatchId = batch.BatchId
+                        };
+                        _context.ReceiptDetailBinAllocations.Add(allocationEntity);
+
+                        var inventory = await _context.InventoryCurrents
+                            .FirstOrDefaultAsync(i =>
+                                i.WarehouseId == receipt.WarehouseId &&
+                                i.MaterialId == item.MaterialId &&
+                                i.BinId == allocation.BinId &&
+                                i.BatchId == batch.BatchId);
+
+                        var qtyBefore = inventory?.QuantityOnHand ?? 0;
+                        var qtyAfter = qtyBefore + allocation.Quantity;
+
+                        if (inventory == null)
+                        {
+                            inventory = new InventoryCurrent
+                            {
+                                WarehouseId = receipt.WarehouseId,
+                                MaterialId = item.MaterialId,
+                                BinId = allocation.BinId,
+                                BatchId = batch.BatchId,
+                                QuantityOnHand = allocation.Quantity,
+                                LastUpdated = today
+                            };
+                            _context.InventoryCurrents.Add(inventory);
+                        }
+                        else
+                        {
+                            inventory.QuantityOnHand = qtyAfter;
+                            inventory.LastUpdated = today;
+                        }
+
+                        var cardCode = $"{cardPrefix}{cardSeq:D4}";
+                        cardSeq++;
+                        var warehouseCard = new WarehouseCard
+                        {
+                            CardCode = cardCode,
+                            WarehouseId = receipt.WarehouseId.Value,
+                            MaterialId = item.MaterialId,
+                            BinId = allocation.BinId,
+                            BatchId = batch.BatchId,
+                            TransactionType = "Import",
+                            ReferenceId = receiptId,
+                            ReferenceType = "Receipt",
+                            TransactionDate = today,
+                            Quantity = allocation.Quantity,
+                            QuantityBefore = qtyBefore,
+                            QuantityAfter = qtyAfter,
+                            CreatedBy = staffId
+                        };
+                        _context.WarehouseCards.Add(warehouseCard);
+                    }
+
+                    receiptDetail.BatchId = batch.BatchId;
+                    if (item.BinAllocations.Count == 1)
+                        receiptDetail.BinLocationId = item.BinAllocations[0].BinId;
+
+                    summary.Add(new ReceiptPutawaySummaryDto
+                    {
+                        MaterialName = receiptDetail.Material?.Name ?? string.Empty,
+                        BatchCode = batch.BatchCode,
+                        ExpiryDate = batch.ExpiryDate,
+                        TotalQuantity = totalAllocation,
+                        BinAllocations = item.BinAllocations.Select(a => new ReceiptPutawayBinSummaryDto
+                        {
+                            BinCode = binMap[a.BinId].Code,
+                            Quantity = a.Quantity
+                        }).ToList()
+                    });
+                }
+
+                if (receipt.Status == "ReadyForPutaway")
+                    receipt.Status = "PartiallyPutaway";
+                else
+                    receipt.Status = "ReadyForStamp";
+
+                Receipt? originalReceiptForStamp = null;
+
+                if (receipt.SupplementaryReceiptId.HasValue)
+                {
+                    var supplementaryReceipt = await _context.SupplementaryReceipts
+                        .FirstOrDefaultAsync(s => s.SupplementaryReceiptId == receipt.SupplementaryReceiptId.Value);
+
+                    if (supplementaryReceipt != null)
+                    {
+                        supplementaryReceipt.Status = "GoodsReceived";
+
+                        var incident = await _context.IncidentReports
+                            .Include(i => i.Receipt)
+                            .FirstOrDefaultAsync(i => i.IncidentId == supplementaryReceipt.IncidentId);
+
+                        if (incident != null)
+                        {
+                            incident.Status = "Resolved";
+
+                            if (incident.Receipt != null)
+                            {
+                                incident.Receipt.Status = "ReadyForStamp";
+                                originalReceiptForStamp = incident.Receipt;
+                            }
+                        }
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                if (originalReceiptForStamp != null)
+                {
+                    await CreateRoleNotificationsAsync(
+                        "Manager",
+                        $"Phiếu nhập {originalReceiptForStamp.ReceiptCode} sẵn sàng để đóng dấu",
+                        "Receipt",
+                        originalReceiptForStamp.ReceiptId);
+                }
+                else if (receipt.Status == "ReadyForStamp")
+                {
+                    await CreateRoleNotificationsAsync(
+                        "Manager",
+                        $"Phiếu nhập {receipt.ReceiptCode} sẵn sàng để đóng dấu",
+                        "Receipt",
+                        receiptId);
+                }
+
+                return new ReceiptPutawayResultDto
+                {
+                    ReceiptId = receiptId,
+                    Status = receipt.Status,
+                    Summary = summary,
+                    NextStep = receipt.Status == "ReadyForStamp"
+                        ? $"POST /api/manager/receipts/{receiptId}/stamp"
+                        : "Waiting supplementary goods"
+                };
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public async Task<List<ReceiptBatchLookupDto>> GetBatchesAsync(int materialId, string? batchCode)
+        {
+            if (materialId <= 0)
+                throw new ArgumentException("materialId is required", nameof(materialId));
+
+            var query = _context.Batches
+                .Include(b => b.Material)
+                .Where(b => b.MaterialId == materialId);
+
+            if (!string.IsNullOrWhiteSpace(batchCode))
+                query = query.Where(b => b.BatchCode.Contains(batchCode));
+
+            return await query
+                .OrderByDescending(b => b.CreatedDate)
+                .Select(b => new ReceiptBatchLookupDto
+                {
+                    BatchId = b.BatchId,
+                    BatchCode = b.BatchCode,
+                    MfgDate = b.MfgDate,
+                    ExpiryDate = b.ExpiryDate,
+                    MaterialName = b.Material.Name
+                })
+                .ToListAsync();
         }
 
         private async Task<Batch> GetOrCreateBatchAsync(int materialId, string? batchCode, DateTime? mfgDate, string? certificateImage)
@@ -506,6 +915,157 @@ namespace Backend.Domains.Import.Services
             await _context.SaveChangesAsync(); // Save to get BatchId
 
             return batch;
+        }
+
+        #endregion
+
+        #region Manager Methods
+
+        public async Task<List<ManagerReceiptSummaryDto>> GetReceiptsForManagerAsync(string? status)
+        {
+            var targetStatus = string.IsNullOrWhiteSpace(status) ? "ReadyForStamp" : status;
+
+            var receipts = await _context.Receipts
+                .Include(r => r.PurchaseOrder)
+                    .ThenInclude(o => o!.Supplier)
+                .Include(r => r.ReceiptDetails)
+                .Where(r => r.Status == targetStatus)
+                .OrderByDescending(r => r.ConfirmedAt ?? r.ReceiptDate ?? r.ApprovedAt)
+                .ToListAsync();
+
+            if (receipts.Count == 0)
+                return new List<ManagerReceiptSummaryDto>();
+
+            var receiptIds = receipts.Select(r => r.ReceiptId).ToList();
+
+            var allocationTotals = await _context.ReceiptDetailBinAllocations
+                .Where(a => receiptIds.Contains(a.ReceiptDetail.ReceiptId))
+                .GroupBy(a => a.ReceiptDetail.ReceiptId)
+                .Select(g => new
+                {
+                    ReceiptId = g.Key,
+                    TotalQuantity = g.Sum(x => x.Quantity)
+                })
+                .ToDictionaryAsync(x => x.ReceiptId, x => x.TotalQuantity);
+
+            var putawayMap = await _context.WarehouseCards
+                .Where(w => w.ReferenceType == "Receipt" && receiptIds.Contains(w.ReferenceId))
+                .GroupBy(w => w.ReferenceId)
+                .Select(g => new
+                {
+                    ReceiptId = g.Key,
+                    PutawayCompletedAt = g.Max(x => x.TransactionDate)
+                })
+                .ToDictionaryAsync(x => x.ReceiptId, x => x.PutawayCompletedAt);
+
+            return receipts.Select(r => new ManagerReceiptSummaryDto
+            {
+                ReceiptId = r.ReceiptId,
+                ReceiptCode = r.ReceiptCode,
+                PurchaseOrderCode = r.PurchaseOrder?.PurchaseOrderCode,
+                SupplierName = r.PurchaseOrder?.Supplier?.Name,
+                TotalItems = r.ReceiptDetails.Count,
+                TotalQuantity = allocationTotals.TryGetValue(r.ReceiptId, out var qty) ? qty : 0m,
+                PutawayCompletedAt = putawayMap.TryGetValue(r.ReceiptId, out var putawayAt) ? putawayAt : null,
+                Status = r.Status ?? string.Empty
+            }).ToList();
+        }
+
+        public async Task<ManagerReceiptDetailDto> GetReceiptForManagerAsync(long receiptId)
+        {
+            var receipt = await _context.Receipts
+                .Include(r => r.PurchaseOrder)
+                    .ThenInclude(o => o!.Supplier)
+                .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.Material)
+                .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.BinAllocations)
+                        .ThenInclude(a => a.Bin)
+                .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.BinAllocations)
+                        .ThenInclude(a => a.Batch)
+                .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
+
+            if (receipt == null)
+                throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
+
+            var qcCheck = await _context.QCChecks
+                .Include(q => q.QCCheckDetails)
+                .Where(q => q.ReceiptId == receiptId)
+                .OrderByDescending(q => q.CheckedAt)
+                .FirstOrDefaultAsync();
+
+            var passQtyMap = qcCheck?.QCCheckDetails
+                .GroupBy(d => d.ReceiptDetailId)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.PassQuantity))
+                ?? new Dictionary<long, decimal>();
+
+            return new ManagerReceiptDetailDto
+            {
+                ReceiptId = receipt.ReceiptId,
+                ReceiptCode = receipt.ReceiptCode,
+                PurchaseOrderId = receipt.PurchaseOrderId,
+                PurchaseOrderCode = receipt.PurchaseOrder?.PurchaseOrderCode,
+                SupplierName = receipt.PurchaseOrder?.Supplier?.Name,
+                Status = receipt.Status ?? string.Empty,
+                Items = receipt.ReceiptDetails.Select(detail =>
+                {
+                    var allocationBatch = detail.BinAllocations.FirstOrDefault()?.Batch ?? detail.Batch;
+                    return new ManagerReceiptDetailItemDto
+                    {
+                        MaterialName = detail.Material?.Name ?? string.Empty,
+                        OrderedQuantity = detail.Quantity,
+                        ActualQuantity = detail.ActualQuantity ?? 0m,
+                        PassQuantity = passQtyMap.TryGetValue(detail.DetailId, out var passQty) ? passQty : 0m,
+                        BatchCode = allocationBatch?.BatchCode,
+                        ExpiryDate = allocationBatch?.ExpiryDate,
+                        BinAllocations = detail.BinAllocations.Select(a => new ManagerReceiptBinAllocationDto
+                        {
+                            BinCode = a.Bin.Code,
+                            Quantity = a.Quantity
+                        }).ToList()
+                    };
+                }).ToList()
+            };
+        }
+
+        public async Task<ManagerReceiptStampResultDto> StampReceiptAsync(long receiptId, ManagerReceiptStampDto dto, int managerId)
+        {
+            var receipt = await _context.Receipts
+                .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
+
+            if (receipt == null)
+                throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
+
+            if (receipt.Status != "ReadyForStamp")
+                throw new InvalidOperationException("Phiếu nhập chưa hoàn tất putaway");
+
+            var now = DateTime.UtcNow;
+            receipt.Status = "Stamped";
+            receipt.StampedByManagerId = managerId;
+            receipt.StampedAt = now;
+            receipt.StampNotes = dto.Notes;
+
+            await _context.SaveChangesAsync();
+
+            await CreateRoleNotificationsAsync(
+                "Accountant",
+                $"Phiếu nhập {receipt.ReceiptCode} đã được Thủ kho xác nhận. Vui lòng hạch toán.",
+                "Receipt",
+                receiptId);
+
+            var userMap = await BuildUserNameMapAsync(managerId);
+            var managerName = ResolveUserName(userMap, managerId);
+
+            return new ManagerReceiptStampResultDto
+            {
+                ReceiptId = receipt.ReceiptId,
+                Status = receipt.Status,
+                StampedBy = managerName,
+                StampedAt = receipt.StampedAt,
+                Notes = receipt.StampNotes,
+                NextStep = $"POST /api/accountant/receipts/{receiptId}/close"
+            };
         }
 
         #endregion
@@ -728,68 +1288,7 @@ namespace Backend.Domains.Import.Services
             // STEP 6: finalize based on QC result
             if (overallResult == "Pass")
             {
-                var cardPrefix = $"WC-{today:yyyyMMdd}-";
-                var cardSeq = await GetNextWarehouseCardSequenceAsync(today);
-
-                // Apply pass quantities to inventory and warehouse cards
-                foreach (var d in dto.Details)
-                {
-                    var detail = receiptDetailMap[d.MaterialId];
-                    if (!detail.BinLocationId.HasValue || !detail.BatchId.HasValue)
-                        throw new InvalidOperationException("BinLocationId and BatchId are required to update inventory");
-
-                    var inventory = await _context.InventoryCurrents
-                        .FirstOrDefaultAsync(i =>
-                            i.WarehouseId == receipt.WarehouseId &&
-                            i.MaterialId == detail.MaterialId &&
-                            i.BinId == detail.BinLocationId &&
-                            i.BatchId == detail.BatchId);
-
-                    var qtyBefore = inventory?.QuantityOnHand ?? 0;
-                    var qtyAfter = qtyBefore + d.PassQuantity;
-
-                    if (inventory == null)
-                    {
-                        inventory = new InventoryCurrent
-                        {
-                            WarehouseId = receipt.WarehouseId,
-                            MaterialId = detail.MaterialId,
-                            BinId = detail.BinLocationId.Value,
-                            BatchId = detail.BatchId.Value,
-                            QuantityOnHand = d.PassQuantity,
-                            LastUpdated = today
-                        };
-                        _context.InventoryCurrents.Add(inventory);
-                    }
-                    else
-                    {
-                        inventory.QuantityOnHand = qtyAfter;
-                        inventory.LastUpdated = today;
-                    }
-
-                    var cardCode = $"{cardPrefix}{cardSeq:D4}";
-                    cardSeq++;
-                    var warehouseCard = new WarehouseCard
-                    {
-                        CardCode = cardCode,
-                        WarehouseId = receipt.WarehouseId!.Value,
-                        MaterialId = detail.MaterialId,
-                        BinId = detail.BinLocationId.Value,
-                        BatchId = detail.BatchId.Value,
-                        TransactionType = "Import",
-                        ReferenceId = receiptId,
-                        ReferenceType = "Receipt",
-                        TransactionDate = today,
-                        Quantity = d.PassQuantity,
-                        QuantityBefore = qtyBefore,
-                        QuantityAfter = qtyAfter,
-                        CreatedBy = staffId,
-                        Notes = dto.Notes
-                    };
-                    _context.WarehouseCards.Add(warehouseCard);
-                }
-
-                receipt.Status = "Completed";
+                receipt.Status = "QCPassed";
 
                 string? poStatus = null;
 
@@ -852,7 +1351,7 @@ namespace Backend.Domains.Import.Services
                 {
                     Status = receipt.Status,
                     PoStatus = poStatus,
-                    NextStep = string.Empty
+                    NextStep = $"POST /api/staff/receipts/{receiptId}/putaway"
                 };
             }
 
@@ -942,23 +1441,25 @@ namespace Backend.Domains.Import.Services
 
         #region Incident Report Methods
 
-        public async Task<IncidentReportDto> CreateIncidentReportAsync(long receiptId, CreateIncidentReportDto dto, int staffId)
+        public async Task<IncidentReportCreateResultDto> CreateIncidentReportAsync(long receiptId, CreateIncidentReportDto dto, int staffId)
         {
             // STEP 1: validate input
             if (string.IsNullOrWhiteSpace(dto.Description))
                 throw new ArgumentException("Description is required");
 
+            if (dto.Details == null || dto.Details.Count == 0)
+                throw new ArgumentException("Details list cannot be empty");
+
             // Validate IssueType values
             var validIssueTypes = new[] { "Quantity", "Quality", "Damage" };
             foreach (var d in dto.Details)
             {
+                if (string.IsNullOrWhiteSpace(d.IssueType))
+                    throw new ArgumentException("Loại sự cố không được để trống");
+
                 if (!validIssueTypes.Contains(d.IssueType))
                     throw new ArgumentException(
                         $"IssueType '{d.IssueType}' is invalid for MaterialId {d.MaterialId}. Must be: Quantity | Quality | Damage");
-
-                if (d.PassQuantity < 0 || d.FailQuantity < 0 || d.OrderedQuantity < 0)
-                    throw new ArgumentException(
-                        $"Quantities must be non-negative for MaterialId {d.MaterialId}");
             }
 
             var receipt = await _context.Receipts
@@ -971,8 +1472,7 @@ namespace Backend.Domains.Import.Services
                 throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
 
             if (receipt.Status != "PendingIncident")
-                throw new InvalidOperationException(
-                    $"Cannot create incident report for receipt with status '{receipt.Status}'. Must be 'PendingIncident'");
+                throw new InvalidOperationException("Receipt không ở trạng thái chờ biên bản");
 
             // Kiểm tra đã có biên bản chưa
             var existing = await _context.IncidentReports
@@ -996,9 +1496,16 @@ namespace Backend.Domains.Import.Services
                 throw new ArgumentException(
                     $"MaterialIds {string.Join(", ", invalidMaterials)} do not belong to receipt {receiptId}");
 
-            // Link QC check from receipt (if any)
             var linkedQCCheck = await _context.QCChecks
-                .FirstOrDefaultAsync(q => q.ReceiptId == receiptId && q.OverallResult == "Fail");
+                .Include(q => q.QCCheckDetails)
+                .FirstOrDefaultAsync(q => q.ReceiptId == receiptId);
+
+            if (linkedQCCheck == null)
+                throw new InvalidOperationException("Receipt không ở trạng thái chờ biên bản");
+
+            var failedQcDetails = linkedQCCheck.QCCheckDetails
+                .Where(d => d.Result == "Fail" || d.FailQuantity > 0)
+                .ToList();
 
             // Generate IncidentCode
             var today = DateTime.UtcNow;
@@ -1016,50 +1523,111 @@ namespace Backend.Domains.Import.Services
                     nextSeq = lastSeq + 1;
             }
 
+            var purchaseOrder = receipt.PurchaseOrderId.HasValue
+                ? await _context.PurchaseOrders
+                    .Include(o => o.Supplier)
+                    .Include(o => o.Items)
+                    .FirstOrDefaultAsync(o => o.PurchaseOrderId == receipt.PurchaseOrderId.Value)
+                : null;
+
+            if (receipt.PurchaseOrderId.HasValue && purchaseOrder == null)
+                throw new KeyNotFoundException($"PurchaseOrder with ID {receipt.PurchaseOrderId} not found");
+
+            var orderedQtyMap = purchaseOrder?.Items
+                .GroupBy(i => i.MaterialId)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.OrderedQuantity))
+                ?? new Dictionary<int, decimal>();
+
+            var evidenceImages = new List<IncidentEvidenceImage>();
+            var incidentDetails = new List<IncidentReportDetail>();
+
+            foreach (var d in dto.Details)
+            {
+                if (!receiptDetailMap.TryGetValue(d.MaterialId, out var receiptDetail))
+                    continue;
+
+                var qcDetail = failedQcDetails
+                    .FirstOrDefault(x => x.ReceiptDetailId == receiptDetail.DetailId);
+
+                if (qcDetail == null)
+                {
+                    var materialName = receiptDetail.Material?.Name ?? $"Material {d.MaterialId}";
+                    throw new InvalidOperationException(
+                        $"Material {materialName} không có lỗi QC để lập biên bản");
+                }
+
+                var images = d.EvidenceImages?.Where(i => !string.IsNullOrWhiteSpace(i)).ToList()
+                    ?? new List<string>();
+
+                if (images.Count == 0)
+                {
+                    var materialName = receiptDetail.Material?.Name ?? $"Material {d.MaterialId}";
+                    throw new InvalidOperationException(
+                        $"Cần ít nhất 1 ảnh bằng chứng cho {materialName}");
+                }
+
+                var orderedQty = orderedQtyMap.TryGetValue(d.MaterialId, out var qty)
+                    ? qty
+                    : 0m;
+
+                var detail = new IncidentReportDetail
+                {
+                    ReceiptDetailId = receiptDetail.DetailId,
+                    MaterialId = d.MaterialId,
+                    ExpectedQuantity = orderedQty,
+                    ActualQuantity = qcDetail.PassQuantity + qcDetail.FailQuantity,
+                    IssueType = d.IssueType,
+                    Notes = d.EvidenceNote
+                };
+                incidentDetails.Add(detail);
+
+                foreach (var image in images)
+                {
+                    evidenceImages.Add(new IncidentEvidenceImage
+                    {
+                        IncidentReportDetail = detail,
+                        ImageData = image,
+                        UploadedAt = today,
+                        UploadedByStaffId = staffId
+                    });
+                }
+            }
+
             var incident = new IncidentReport
             {
                 IncidentCode = $"{prefix}{nextSeq:D4}",
                 ReceiptId = receiptId,
-                QCCheckId = linkedQCCheck?.QCCheckId,
+                PurchaseOrderId = receipt.PurchaseOrderId,
+                QCCheckId = linkedQCCheck.QCCheckId,
                 CreatedBy = staffId,
                 CreatedAt = today,
                 Description = dto.Description,
                 Status = "Open",
-                IncidentReportDetails = dto.Details.Select(d => new IncidentReportDetail
-                {
-                    ReceiptDetailId = receiptDetailMap[d.MaterialId].DetailId,
-                    MaterialId = d.MaterialId,
-                    ExpectedQuantity = d.OrderedQuantity,
-                    ActualQuantity = d.PassQuantity + d.FailQuantity,
-                    IssueType = d.IssueType,
-                    Notes = d.Notes
-                }).ToList()
+                IncidentReportDetails = incidentDetails
             };
 
             _context.IncidentReports.Add(incident);
+            _context.IncidentEvidenceImages.AddRange(evidenceImages);
 
-            // Receipt transitions to manager review once incident is created
-            receipt.Status = "PendingManagerReview";
+            receipt.Status = "PendingIncident";
 
             await _context.SaveChangesAsync();
 
-            // Notify warehouse manager about the new incident
-            await CreateRoleNotificationsAsync(
-                "Manager",
-                $"New incident {incident.IncidentCode} requires manager review.",
-                "IncidentReport",
-                incident.IncidentId);
+            var totalFailQuantity = failedQcDetails.Sum(d => d.FailQuantity);
 
-            // Load creator name
-            var creator = await _context.Users.FindAsync(staffId);
-
-            return MapIncidentReportToDto(
-                incident,
-                receipt.ReceiptCode,
-                receipt.ReceiptDetails,
-                linkedQCCheck,
-                creator?.FullName ?? creator?.Email,
-                null);
+            return new IncidentReportCreateResultDto
+            {
+                IncidentId = incident.IncidentId,
+                ReceiptId = receiptId,
+                Status = incident.Status,
+                Summary = new IncidentReportCreateSummaryDto
+                {
+                    TotalFailItems = incidentDetails.Count,
+                    TotalFailQuantity = totalFailQuantity,
+                    SupplierName = purchaseOrder?.Supplier?.Name ?? string.Empty
+                },
+                NextStep = $"POST /api/staff/incidents/{incident.IncidentId}/submit-to-manager"
+            };
         }
 
         public async Task<IncidentReportDto> GetIncidentReportByReceiptAsync(long receiptId)
@@ -1167,35 +1735,69 @@ namespace Backend.Domains.Import.Services
 
         #region Accountant Methods
 
-        public async Task<List<AccountantReceiptSummaryDto>> GetReceiptsForAccountantAsync()
+        public async Task<List<AccountantReceiptSummaryDto>> GetReceiptsForAccountantAsync(string? status)
         {
-            return await _context.Receipts
+            var targetStatus = string.IsNullOrWhiteSpace(status) ? "Stamped" : status;
+
+            var receipts = await _context.Receipts
                 .Include(r => r.PurchaseOrder)
-                .Include(r => r.Warehouse)
-                .Where(r => r.Status == "Completed" || r.Status == "Closed")
-                .OrderByDescending(r => r.ReceiptDate ?? r.ConfirmedAt ?? r.ApprovedAt)
-                .Select(r => new AccountantReceiptSummaryDto
+                    .ThenInclude(o => o!.Supplier)
+                .Include(r => r.ReceiptDetails)
+                .Where(r => r.Status == targetStatus)
+                .OrderByDescending(r => r.StampedAt ?? r.ReceiptDate ?? r.ConfirmedAt ?? r.ApprovedAt)
+                .ToListAsync();
+
+            if (receipts.Count == 0)
+                return new List<AccountantReceiptSummaryDto>();
+
+            var receiptIds = receipts.Select(r => r.ReceiptId).ToList();
+
+            var latestQcIds = await _context.QCChecks
+                .Where(q => receiptIds.Contains(q.ReceiptId))
+                .GroupBy(q => q.ReceiptId)
+                .Select(g => new
                 {
-                    ReceiptId = r.ReceiptId,
-                    ReceiptCode = r.ReceiptCode,
-                    Status = r.Status ?? string.Empty,
-                    ReceiptDate = r.ReceiptDate,
-                    PurchaseOrderId = r.PurchaseOrderId,
-                    PurchaseOrderCode = r.PurchaseOrder != null ? r.PurchaseOrder.PurchaseOrderCode : null,
-                    WarehouseName = r.Warehouse != null ? r.Warehouse.Name : null
+                    ReceiptId = g.Key,
+                    QCCheckId = g.OrderByDescending(x => x.CheckedAt)
+                        .Select(x => x.QCCheckId)
+                        .FirstOrDefault()
                 })
                 .ToListAsync();
+
+            var qcIdSet = latestQcIds.Select(x => x.QCCheckId).ToHashSet();
+
+            var qcDetails = await _context.QCCheckDetails
+                .Include(d => d.ReceiptDetail)
+                .Where(d => qcIdSet.Contains(d.QCCheckId))
+                .ToListAsync();
+
+            var totalValueMap = qcDetails
+                .GroupBy(d => d.ReceiptDetail.ReceiptId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Sum(x => x.PassQuantity * (x.ReceiptDetail.UnitPrice ?? 0)));
+
+            return receipts.Select(r => new AccountantReceiptSummaryDto
+            {
+                ReceiptId = r.ReceiptId,
+                ReceiptCode = r.ReceiptCode,
+                Status = r.Status ?? string.Empty,
+                PurchaseOrderCode = r.PurchaseOrder?.PurchaseOrderCode,
+                SupplierName = r.PurchaseOrder?.Supplier?.Name,
+                TotalValue = totalValueMap.TryGetValue(r.ReceiptId, out var totalValue) ? totalValue : 0m,
+                StampedAt = r.StampedAt
+            }).ToList();
         }
 
         public async Task<AccountantReceiptDetailDto> GetReceiptForAccountantAsync(long receiptId)
         {
             var receipt = await _context.Receipts
                 .Include(r => r.PurchaseOrder)
-                    .ThenInclude(o => o.Project)
+                    .ThenInclude(o => o!.Project)
                 .Include(r => r.PurchaseOrder)
-                    .ThenInclude(o => o.Supplier)
+                    .ThenInclude(o => o!.Supplier)
                 .Include(r => r.PurchaseOrder)
-                    .ThenInclude(o => o.Items)
+                    .ThenInclude(o => o!.Items)
                         .ThenInclude(i => i.Material)
                 .Include(r => r.Warehouse)
                 .Include(r => r.ReceiptDetails)
@@ -1297,27 +1899,69 @@ namespace Backend.Domains.Import.Services
             };
         }
 
-        public async Task CloseReceiptAsync(long receiptId, AccountantReceiptCloseDto dto, int accountantId)
+        public async Task<AccountantReceiptCloseResultDto> CloseReceiptAsync(long receiptId, AccountantReceiptCloseDto dto, int accountantId)
         {
             var receipt = await _context.Receipts
+                .Include(r => r.PurchaseOrder)
+                    .ThenInclude(o => o!.Supplier)
+                .Include(r => r.ReceiptDetails)
                 .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
 
             if (receipt == null)
                 throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
 
-            if (receipt.Status == "Closed")
-                throw new InvalidOperationException("Receipt is already closed");
+            if (receipt.Status != "Stamped")
+                throw new InvalidOperationException("Phiếu nhập chưa được Thủ kho đóng dấu");
 
-            if (receipt.Status != "Completed")
-                throw new InvalidOperationException(
-                    $"Cannot close receipt {receiptId}. Current status: {receipt.Status}");
-
+            var now = DateTime.UtcNow;
             receipt.Status = "Closed";
-            receipt.AccountantNotes = dto.AccountingNote;
-            receipt.ClosedBy = accountantId;
-            receipt.ClosedAt = DateTime.UtcNow;
+            receipt.AccountingNote = dto.AccountingNote;
+            receipt.ClosedByAccountantId = accountantId;
+            receipt.ClosedAt = now;
 
             await _context.SaveChangesAsync();
+
+            var qcCheck = await _context.QCChecks
+                .Where(q => q.ReceiptId == receiptId)
+                .OrderByDescending(q => q.CheckedAt)
+                .FirstOrDefaultAsync();
+
+            var qcDetails = qcCheck == null
+                ? new List<QCCheckDetail>()
+                : await _context.QCCheckDetails
+                    .Include(d => d.ReceiptDetail)
+                    .Where(d => d.QCCheckId == qcCheck.QCCheckId)
+                    .ToListAsync();
+
+            var batchCodes = await _context.ReceiptDetailBinAllocations
+                .Include(a => a.Batch)
+                .Where(a => a.ReceiptDetail.ReceiptId == receiptId)
+                .Select(a => a.Batch.BatchCode)
+                .Distinct()
+                .ToListAsync();
+
+            var totalQuantity = qcDetails.Sum(d => d.PassQuantity);
+            var totalValue = qcDetails.Sum(d => d.PassQuantity * (d.ReceiptDetail.UnitPrice ?? 0));
+
+            var userMap = await BuildUserNameMapAsync(accountantId);
+            var accountantName = ResolveUserName(userMap, accountantId);
+
+            return new AccountantReceiptCloseResultDto
+            {
+                ReceiptId = receiptId,
+                Status = receipt.Status ?? string.Empty,
+                ClosedBy = accountantName,
+                ClosedAt = receipt.ClosedAt,
+                Summary = new AccountantReceiptCloseSummaryDto
+                {
+                    PurchaseOrderCode = receipt.PurchaseOrder?.PurchaseOrderCode,
+                    SupplierName = receipt.PurchaseOrder?.Supplier?.Name,
+                    TotalItems = receipt.ReceiptDetails.Count,
+                    TotalQuantity = totalQuantity,
+                    BatchCodes = batchCodes,
+                    TotalValue = totalValue
+                }
+            };
         }
 
         #endregion
@@ -1351,6 +1995,26 @@ namespace Backend.Domains.Import.Services
 
             // Format: RC20250208-0001
             return $"{prefix}-{(count + 1):D4}";
+        }
+
+        private async Task<string> GenerateQCCheckCodeAsync()
+        {
+            var today = DateTime.UtcNow;
+            var codePrefix = $"QC-{today:yyyyMMdd}-";
+            var lastQC = await _context.QCChecks
+                .Where(q => q.QCCheckCode.StartsWith(codePrefix))
+                .OrderByDescending(q => q.QCCheckId)
+                .FirstOrDefaultAsync();
+
+            var nextSeq = 1;
+            if (lastQC != null)
+            {
+                var parts = lastQC.QCCheckCode.Split('-');
+                if (parts.Length > 0 && int.TryParse(parts[^1], out var lastSeq))
+                    nextSeq = lastSeq + 1;
+            }
+
+            return $"{codePrefix}{nextSeq:D4}";
         }
 
         private async Task<int> GetNextWarehouseCardSequenceAsync(DateTime today)

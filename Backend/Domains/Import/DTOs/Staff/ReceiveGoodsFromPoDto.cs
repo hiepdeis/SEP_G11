@@ -4,6 +4,7 @@ namespace Backend.Domains.Import.DTOs.Staff
     {
         public long PurchaseOrderId { get; set; }
         public long? SupplementaryReceiptId { get; set; }
+        public string? Notes { get; set; }
         public List<ReceiveGoodsFromPoItemDto> Items { get; set; } = new();
     }
 
@@ -11,6 +12,10 @@ namespace Backend.Domains.Import.DTOs.Staff
     {
         public int MaterialId { get; set; }
         public decimal ActualQuantity { get; set; }
+        public decimal PassQuantity { get; set; }
+        public decimal FailQuantity { get; set; }
+        public string Result { get; set; } = string.Empty;
+        public string? FailReason { get; set; }
     }
 
     public class ReceiveGoodsFromPoResultDto
@@ -19,6 +24,8 @@ namespace Backend.Domains.Import.DTOs.Staff
         public long PurchaseOrderId { get; set; }
         public long? SupplementaryReceiptId { get; set; }
         public string Status { get; set; } = string.Empty;
+        public string? PoStatus { get; set; }
+        public List<QCFailedItemDto> FailedItems { get; set; } = new();
         public string NextStep { get; set; } = string.Empty;
     }
 }

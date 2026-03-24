@@ -10,10 +10,12 @@ namespace Backend.Domains.Import.Controllers.Purchasing
     public class PurchaseRequestsController : ControllerBase
     {
         private readonly IPurchaseRequestService _service;
+        private readonly IPurchaseOrderService _purchaseOrderService;
 
-        public PurchaseRequestsController(IPurchaseRequestService service)
+        public PurchaseRequestsController(IPurchaseRequestService service, IPurchaseOrderService purchaseOrderService)
         {
             _service = service;
+            _purchaseOrderService = purchaseOrderService;
         }
 
         [HttpGet]
@@ -25,6 +27,24 @@ namespace Backend.Domains.Import.Controllers.Purchasing
                 var result = requests.Select(ToDto).ToList();
 
                 return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
+
+        [HttpGet("{requestId:long}/po-history")]
+        public async Task<IActionResult> GetPoHistory(long requestId)
+        {
+            try
+            {
+                var history = await _purchaseOrderService.GetPurchaseOrderHistoryAsync(requestId);
+                return Ok(history);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
             }
             catch (Exception ex)
             {

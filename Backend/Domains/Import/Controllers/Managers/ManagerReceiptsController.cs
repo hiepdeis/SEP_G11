@@ -1,16 +1,16 @@
-using Backend.Domains.Import.DTOs.Accountants;
+using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Backend.Domains.Import.Controllers.Accountants
+namespace Backend.Domains.Import.Controllers.Managers
 {
     [ApiController]
-    [Route("api/accountant/receipts")]
-    public class ReceiptAccountantController : ControllerBase
+    [Route("api/manager/receipts")]
+    public class ManagerReceiptsController : ControllerBase
     {
         private readonly IReceiptService _service;
 
-        public ReceiptAccountantController(IReceiptService service)
+        public ManagerReceiptsController(IReceiptService service)
         {
             _service = service;
         }
@@ -20,7 +20,7 @@ namespace Backend.Domains.Import.Controllers.Accountants
         {
             try
             {
-                var receipts = await _service.GetReceiptsForAccountantAsync(status);
+                var receipts = await _service.GetReceiptsForManagerAsync(status);
                 return Ok(receipts);
             }
             catch (Exception ex)
@@ -30,11 +30,11 @@ namespace Backend.Domains.Import.Controllers.Accountants
         }
 
         [HttpGet("{receiptId:long}")]
-        public async Task<IActionResult> GetReceipt(long receiptId)
+        public async Task<IActionResult> GetReceiptDetail(long receiptId)
         {
             try
             {
-                var receipt = await _service.GetReceiptForAccountantAsync(receiptId);
+                var receipt = await _service.GetReceiptForManagerAsync(receiptId);
                 return Ok(receipt);
             }
             catch (KeyNotFoundException ex)
@@ -47,13 +47,13 @@ namespace Backend.Domains.Import.Controllers.Accountants
             }
         }
 
-        [HttpPost("{receiptId:long}/close")]
-        public async Task<IActionResult> CloseReceipt(long receiptId, [FromBody] AccountantReceiptCloseDto dto)
+        [HttpPost("{receiptId:long}/stamp")]
+        public async Task<IActionResult> StampReceipt(long receiptId, [FromBody] ManagerReceiptStampDto dto)
         {
             try
             {
-                var accountantId = 1; // TODO: replace with JWT claims
-                var result = await _service.CloseReceiptAsync(receiptId, dto, accountantId);
+                var managerId = 2; // TODO: replace with JWT claims
+                var result = await _service.StampReceiptAsync(receiptId, dto, managerId);
                 return Ok(result);
             }
             catch (KeyNotFoundException ex)

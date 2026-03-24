@@ -29,6 +29,14 @@ public class PurchaseOrder
     [Column("SupplierContractID")]
     public long? SupplierContractId { get; set; }
 
+    [Column("ParentPOID")]
+    public long? ParentPOId { get; set; }
+
+    public int RevisionNumber { get; set; } = 1;
+
+    [StringLength(500)]
+    public string? RevisionNote { get; set; }
+
     public int CreatedBy { get; set; }
 
     [Column(TypeName = "datetime")]
@@ -84,4 +92,17 @@ public class PurchaseOrder
 
     [InverseProperty("PurchaseOrder")]
     public virtual ICollection<SupplementaryReceipt> SupplementaryReceipts { get; set; } = new List<SupplementaryReceipt>();
+
+    [InverseProperty("PurchaseOrder")]
+    public virtual ICollection<ReceiptRejectionHistory> RejectionHistories { get; set; } = new List<ReceiptRejectionHistory>();
+
+    [InverseProperty("PurchaseOrder")]
+    public virtual ICollection<IncidentReport> IncidentReports { get; set; } = new List<IncidentReport>();
+
+    [ForeignKey("ParentPOId")]
+    [InverseProperty("ChildRevisions")]
+    public virtual PurchaseOrder? ParentPO { get; set; }
+
+    [InverseProperty("ParentPO")]
+    public virtual ICollection<PurchaseOrder> ChildRevisions { get; set; } = new List<PurchaseOrder>();
 }

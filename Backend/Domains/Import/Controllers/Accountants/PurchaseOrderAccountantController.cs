@@ -1,3 +1,4 @@
+using Backend.Domains.Import.DTOs.Accountants;
 using Backend.Domains.Import.DTOs.Purchasing;
 using Backend.Domains.Import.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -39,17 +40,31 @@ namespace Backend.Domains.Import.Controllers.Accountants
         {
             try
             {
+                var latestId = await _service.GetLatestRevisionIdAsync(purchaseOrderId);
+                if (latestId != purchaseOrderId)
+                {
+                    return BadRequest(new
+                    {
+                        message = $"PO này đã có bản revision mới hơn. Vui lòng review PO-{latestId} thay thế."
+                    });
+                }
+
                 var order = await _service.GetOrderAsync(purchaseOrderId);
                 if (order == null)
                     return NotFound(new { message = "Purchase order not found" });
 
                 var review = await _service.ReviewPriceAsync(purchaseOrderId);
+                var revisionHistory = await _service.GetRevisionHistoryAsync(purchaseOrderId);
 
-                return Ok(new
+                var response = new PurchaseOrderReviewResponseDto
                 {
-                    order = PurchaseOrderMapper.ToDto(order),
-                    review
-                });
+                    Order = PurchaseOrderMapper.ToDto(order),
+                    Review = review,
+                    RevisionHistory = revisionHistory,
+                    RevisionNote = order.RevisionNote
+                };
+
+                return Ok(response);
             }
             catch (KeyNotFoundException ex)
             {
