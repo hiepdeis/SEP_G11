@@ -1,7 +1,11 @@
+using System.Collections.Generic;
+using System.Linq;
+using Backend.Data;
 using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Domains.Import.Controllers.Admins
 {
@@ -10,10 +14,12 @@ namespace Backend.Domains.Import.Controllers.Admins
     public class StockShortageAlertsAdminController : ControllerBase
     {
         private readonly IStockShortageAlertService _service;
+        private readonly MyDbContext _context;
 
-        public StockShortageAlertsAdminController(IStockShortageAlertService service)
+        public StockShortageAlertsAdminController(IStockShortageAlertService service, MyDbContext context)
         {
             _service = service;
+            _context = context;
         }
 
         [HttpGet("confirmed")]
@@ -22,9 +28,13 @@ namespace Backend.Domains.Import.Controllers.Admins
             try
             {
                 var alerts = await _service.GetStockShortageAlertsAsync();
-                var result = alerts
+                var confirmed = alerts
                     .Where(a => a.Status == "ManagerConfirmed")
-                    .Select(ToDto)
+                    .ToList();
+
+                var userNames = await LoadUserNamesAsync(confirmed);
+                var result = confirmed
+                    .Select(a => ToDto(a, userNames))
                     .ToList();
 
                 return Ok(result);
@@ -44,7 +54,8 @@ namespace Backend.Domains.Import.Controllers.Admins
                 if (alert == null)
                     return NotFound(new { message = "Alert not found" });
 
-                return Ok(ToDto(alert));
+                var userNames = await LoadUserNamesAsync(new[] { alert });
+                return Ok(ToDto(alert, userNames));
             }
             catch (Exception ex)
             {
@@ -52,7 +63,9 @@ namespace Backend.Domains.Import.Controllers.Admins
             }
         }
 
-        private static StockShortageAlertDto ToDto(StockShortageAlert alert)
+        private static StockShortageAlertDto ToDto(
+            StockShortageAlert alert,
+            IReadOnlyDictionary<int, string> userNames)
         {
             return new StockShortageAlertDto
             {
@@ -70,8 +83,36 @@ namespace Backend.Domains.Import.Controllers.Admins
                 CreatedAt = alert.CreatedAt,
                 ConfirmedAt = alert.ConfirmedAt,
                 ConfirmedBy = alert.ConfirmedBy,
+                ConfirmedByName = GetUserName(userNames, alert.ConfirmedBy),
                 Notes = alert.Notes
             };
+        }
+
+        private async Task<Dictionary<int, string>> LoadUserNamesAsync(IEnumerable<StockShortageAlert> alerts)
+        {
+            var userIds = alerts
+                .Select(a => a.ConfirmedBy)
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .Distinct()
+                .ToList();
+
+            if (userIds.Count == 0)
+                return new Dictionary<int, string>();
+
+            return await _context.Users
+                .Where(u => userIds.Contains(u.UserId))
+                .ToDictionaryAsync(
+                    u => u.UserId,
+                    u => string.IsNullOrWhiteSpace(u.FullName) ? u.Username : u.FullName);
+        }
+
+        private static string? GetUserName(IReadOnlyDictionary<int, string> userNames, int? userId)
+        {
+            if (!userId.HasValue)
+                return null;
+
+            return userNames.TryGetValue(userId.Value, out var name) ? name : null;
         }
     }
 }

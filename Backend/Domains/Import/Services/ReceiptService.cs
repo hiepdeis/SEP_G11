@@ -1886,13 +1886,21 @@ namespace Backend.Domains.Import.Services
                 })
                 .ToListAsync();
 
+            var purchaseOrder = receipt.PurchaseOrder;
+            var purchaseOrderUserNames = purchaseOrder == null
+                ? new Dictionary<int, string>()
+                : await BuildUserNameMapAsync(
+                    purchaseOrder.CreatedBy,
+                    purchaseOrder.AccountantApprovedBy,
+                    purchaseOrder.AdminApprovedBy);
+
             return new AccountantReceiptDetailDto
             {
                 ReceiptId = receipt.ReceiptId,
                 ReceiptCode = receipt.ReceiptCode,
                 Status = receipt.Status ?? string.Empty,
                 ReceiptDate = receipt.ReceiptDate,
-                PurchaseOrder = receipt.PurchaseOrder == null ? null : PurchaseOrderMapper.ToDto(receipt.PurchaseOrder),
+                PurchaseOrder = purchaseOrder == null ? null : PurchaseOrderMapper.ToDto(purchaseOrder, purchaseOrderUserNames),
                 QCCheck = qcDto,
                 InventoryCurrents = inventoryCurrents,
                 WarehouseCards = warehouseCards

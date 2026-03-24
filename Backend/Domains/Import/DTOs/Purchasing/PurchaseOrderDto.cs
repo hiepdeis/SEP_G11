@@ -27,11 +27,14 @@ namespace Backend.Domains.Import.DTOs.Purchasing
         public int SupplierId { get; set; }
         public string SupplierName { get; set; } = string.Empty;
         public int CreatedBy { get; set; }
+        public string? CreatedByName { get; set; }
         public DateTime CreatedAt { get; set; }
         public string Status { get; set; } = string.Empty;
         public int? AccountantApprovedBy { get; set; }
+        public string? AccountantApprovedByName { get; set; }
         public DateTime? AccountantApprovedAt { get; set; }
         public int? AdminApprovedBy { get; set; }
+        public string? AdminApprovedByName { get; set; }
         public DateTime? AdminApprovedAt { get; set; }
         public DateTime? SentToSupplierAt { get; set; }
         public DateTime? ExpectedDeliveryDate { get; set; }
