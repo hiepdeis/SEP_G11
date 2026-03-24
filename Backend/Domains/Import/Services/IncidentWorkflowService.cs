@@ -122,7 +122,15 @@ namespace Backend.Domains.Import.Services
             // STEP 3: transition to purchasing action
             incident.Status = "PendingPurchasingAction";
 
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                var inner = ex.InnerException?.Message ?? "No inner exception";
+                throw new InvalidOperationException($"SaveChanges failed: {inner}", ex);
+            }
 
             // Notify purchasing team to work with supplier
             await CreateRoleNotificationsAsync(
@@ -366,124 +374,37 @@ namespace Backend.Domains.Import.Services
             if (!incident.Receipt.WarehouseId.HasValue)
                 throw new InvalidOperationException("Incident receipt has no warehouse assigned");
 
-            // STEP 2: apply pass quantities to inventory and warehouse cards
+            // STEP 2: summarize quantities (no inventory changes here)
             if (incident.QCCheck == null)
                 throw new InvalidOperationException("QC check is required before approving supplementary receipt");
 
+            var totalPassQuantity = incident.QCCheck.QCCheckDetails.Sum(d => d.PassQuantity);
+            var supplementaryQuantityPending = supplementaryReceipt.Items.Sum(i => i.SupplementaryQuantity);
             var today = DateTime.UtcNow;
-            decimal totalPassQuantity = 0;
-            var cardPrefix = $"WC-{today:yyyyMMdd}-";
-            var nextSeq = await GetNextWarehouseCardSequenceAsync(today);
-
-            foreach (var detail in incident.QCCheck.QCCheckDetails)
-            {
-                var receiptDetail = detail.ReceiptDetail;
-                if (!receiptDetail.BinLocationId.HasValue || !receiptDetail.BatchId.HasValue)
-                    throw new InvalidOperationException("BinLocationId and BatchId are required to update inventory");
-
-                var inventory = await _context.InventoryCurrents
-                    .FirstOrDefaultAsync(i =>
-                        i.WarehouseId == incident.Receipt.WarehouseId &&
-                        i.MaterialId == receiptDetail.MaterialId &&
-                        i.BinId == receiptDetail.BinLocationId &&
-                        i.BatchId == receiptDetail.BatchId);
-
-                var qtyBefore = inventory?.QuantityOnHand ?? 0;
-                var qtyAfter = qtyBefore + detail.PassQuantity;
-
-                if (inventory == null)
-                {
-                    inventory = new InventoryCurrent
-                    {
-                        WarehouseId = incident.Receipt.WarehouseId,
-                        MaterialId = receiptDetail.MaterialId,
-                        BinId = receiptDetail.BinLocationId.Value,
-                        BatchId = receiptDetail.BatchId.Value,
-                        QuantityOnHand = detail.PassQuantity,
-                        LastUpdated = today
-                    };
-                    _context.InventoryCurrents.Add(inventory);
-                }
-                else
-                {
-                    inventory.QuantityOnHand = qtyAfter;
-                    inventory.LastUpdated = today;
-                }
-
-                var cardCode = $"{cardPrefix}{nextSeq:D4}";
-                nextSeq++;
-                var warehouseCard = new WarehouseCard
-                {
-                    CardCode = cardCode,
-                    WarehouseId = incident.Receipt.WarehouseId!.Value,
-                    MaterialId = receiptDetail.MaterialId,
-                    BinId = receiptDetail.BinLocationId.Value,
-                    BatchId = receiptDetail.BatchId.Value,
-                    TransactionType = "Import",
-                    ReferenceId = incident.ReceiptId,
-                    ReferenceType = "Receipt",
-                    TransactionDate = today,
-                    Quantity = detail.PassQuantity,
-                    QuantityBefore = qtyBefore,
-                    QuantityAfter = qtyAfter,
-                    CreatedBy = managerId,
-                    Notes = notes
-                };
-                _context.WarehouseCards.Add(warehouseCard);
-
-                totalPassQuantity += detail.PassQuantity;
-            }
 
             // STEP 3: transition statuses
             incident.Status = "AwaitingSupplementaryGoods";
             supplementaryReceipt.Status = "Approved";
             supplementaryReceipt.ApprovedByManagerId = managerId;
             supplementaryReceipt.ApprovedAt = today;
-            incident.Receipt.Status = "Completed";
-
-            // STEP 4: update PO status based on pass quantity
-            var purchaseOrder = await _context.PurchaseOrders
-                .Include(o => o.Items)
-                .FirstOrDefaultAsync(o => o.PurchaseOrderId == incident.Receipt.PurchaseOrderId.Value);
-
-            if (purchaseOrder == null)
-                throw new KeyNotFoundException("Purchase order not found for incident receipt");
-
-            var totalOrdered = purchaseOrder.Items.Sum(i => i.OrderedQuantity);
-            string poStatus;
-
-            if (totalPassQuantity == totalOrdered)
-                poStatus = purchaseOrder.Status = "FullyReceived";
-            else if (totalPassQuantity < totalOrdered)
-                poStatus = purchaseOrder.Status = "PartiallyReceived";
-            else
-                poStatus = purchaseOrder.Status = "OverReceived";
+            incident.Receipt.Status = "ReadyForPutaway";
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            // Notify staff to wait for supplementary goods
             await CreateRoleNotificationsAsync(
                 "Staff",
-                $"Supplementary receipt {supplementaryReceipt.SupplementaryReceiptId} approved. Await replacement goods.",
-                "SupplementaryReceipt",
-                supplementaryReceipt.SupplementaryReceiptId);
-
-            await CreateRoleNotificationsAsync(
-                "Accountant",
-                $"Receipt {incident.Receipt?.ReceiptCode ?? incident.ReceiptId.ToString()} completed and awaiting accounting close.",
+                $"Có thể putaway {totalPassQuantity} cái đã Pass QC. Chờ NCC giao thêm {supplementaryQuantityPending} cái.",
                 "Receipt",
                 incident.ReceiptId);
-
-            var supplementaryQuantityPending = supplementaryReceipt.Items.Sum(i => i.SupplementaryQuantity);
 
             return new ManagerSupplementaryApprovalResultDto
             {
                 IncidentId = incidentId,
                 PassQuantityAdded = totalPassQuantity,
                 SupplementaryQuantityPending = supplementaryQuantityPending,
-                PoStatus = poStatus,
-                NextStep = "Staff uses POST /api/staff/receipts/from-po with supplementaryReceiptId"
+                PoStatus = string.Empty,
+                NextStep = $"POST /api/staff/receipts/{incident.ReceiptId}/putaway"
             };
         }
 
@@ -570,25 +491,6 @@ namespace Backend.Domains.Import.Services
             }
 
             await _context.SaveChangesAsync();
-        }
-
-        private async Task<int> GetNextWarehouseCardSequenceAsync(DateTime today)
-        {
-            var prefix = $"WC-{today:yyyyMMdd}-";
-            var lastCard = await _context.WarehouseCards
-                .Where(w => w.CardCode.StartsWith(prefix))
-                .OrderByDescending(w => w.CardId)
-                .FirstOrDefaultAsync();
-
-            var nextSeq = 1;
-            if (lastCard != null)
-            {
-                var parts = lastCard.CardCode.Split('-');
-                if (parts.Length > 0 && int.TryParse(parts[^1], out var lastSeq))
-                    nextSeq = lastSeq + 1;
-            }
-
-            return nextSeq;
         }
 
         private static List<ManagerIncidentItemSummaryDto> MapIncidentItems(IncidentReport incident)

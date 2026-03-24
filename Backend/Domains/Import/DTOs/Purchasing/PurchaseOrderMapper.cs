@@ -6,6 +6,11 @@ namespace Backend.Domains.Import.DTOs.Purchasing
     {
         public static PurchaseOrderDto ToDto(PurchaseOrder order)
         {
+            var rejectionReason = order.RejectionHistories
+                .OrderByDescending(r => r.RejectedAt)
+                .Select(r => r.RejectionReason)
+                .FirstOrDefault();
+
             return new PurchaseOrderDto
             {
                 PurchaseOrderId = order.PurchaseOrderId,
@@ -26,6 +31,10 @@ namespace Backend.Domains.Import.DTOs.Purchasing
                 ExpectedDeliveryDate = order.ExpectedDeliveryDate,
                 SupplierNote = order.SupplierNote,
                 TotalAmount = order.TotalAmount,
+                ParentPOId = order.ParentPOId,
+                RevisionNumber = order.RevisionNumber,
+                RevisionNote = order.RevisionNote,
+                RejectionReason = rejectionReason,
                 Items = order.Items.Select(i => new PurchaseOrderItemDto
                 {
                     ItemId = i.ItemId,

@@ -35,6 +35,9 @@ public partial class IncidentReportDetail
     [StringLength(1000)]
     public string? Notes { get; set; }
 
+    [InverseProperty("IncidentReportDetail")]
+    public virtual ICollection<IncidentEvidenceImage> EvidenceImages { get; set; } = new List<IncidentEvidenceImage>();
+
     // Navigation properties
     [ForeignKey("IncidentId")]
     [InverseProperty("IncidentReportDetails")]

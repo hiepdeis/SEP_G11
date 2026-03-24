@@ -45,6 +45,19 @@ public partial class Receipt
     public string? AccountantNotes { get; set; }
     public string? BackorderReason { get; set; }
 
+    public int? StampedByManagerId { get; set; }
+
+    [Column(TypeName = "datetime")]
+    public DateTime? StampedAt { get; set; }
+
+    [StringLength(500)]
+    public string? StampNotes { get; set; }
+
+    public int? ClosedByAccountantId { get; set; }
+
+    [StringLength(500)]
+    public string? AccountingNote { get; set; }
+
     public int? ClosedBy { get; set; }
 
     [Column(TypeName = "datetime")]

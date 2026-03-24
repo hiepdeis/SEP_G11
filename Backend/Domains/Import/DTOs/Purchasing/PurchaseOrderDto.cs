@@ -4,6 +4,8 @@ namespace Backend.Domains.Import.DTOs.Purchasing
     {
         public long RequestId { get; set; }
         public int? SupplierId { get; set; }
+        public long? ParentPOId { get; set; }
+        public string? RevisionNote { get; set; }
         public List<PurchaseOrderDraftItemDto> Items { get; set; } = new();
     }
 
@@ -35,6 +37,10 @@ namespace Backend.Domains.Import.DTOs.Purchasing
         public DateTime? ExpectedDeliveryDate { get; set; }
         public string? SupplierNote { get; set; }
         public decimal? TotalAmount { get; set; }
+        public long? ParentPOId { get; set; }
+        public int RevisionNumber { get; set; }
+        public string? RevisionNote { get; set; }
+        public string? RejectionReason { get; set; }
         public List<PurchaseOrderItemDto> Items { get; set; } = new();
     }
 
