@@ -48,6 +48,12 @@ namespace Backend.Domains.outbound.Controllers
                 return BadRequest("Invalid data.");
             }
 
+            var isStockTakeActive = await _context.StockTakeLocks.AnyAsync(l => l.IsActive);
+            if (isStockTakeActive)
+            {
+                return StatusCode(StatusCodes.Status409Conflict, "A stock take is currently in progress. Material issue requests cannot be created at this time.");
+            }
+
             var projectExists = await _context.Projects.AnyAsync(p => p.ProjectId == dto.ProjectId);
             if (!projectExists)
             {

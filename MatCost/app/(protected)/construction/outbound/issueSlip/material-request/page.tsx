@@ -183,7 +183,15 @@ export default function IssueMaterialPage() {
       await issueSlipApi.createIssueSlipDetails(createdSlip.issueId, detailsPayload);
       toast.success(t("Success"));
       router.push("/construction/outbound/issueSlip");
-    } catch (error: any) { toast.error(t("Error")); } finally { setIsSubmitting(false); }
+    } catch (error: any) { 
+        if (error.response && error.response.data) {
+            toast.error(error.response.data);
+        } else {
+            toast.error(t("Error"));
+        }
+    } finally { 
+        setIsSubmitting(false); 
+    }
   };
 
   const isAll = itemsPerPage === -1;

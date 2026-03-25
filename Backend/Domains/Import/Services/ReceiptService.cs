@@ -368,6 +368,11 @@ namespace Backend.Domains.Import.Services
 
         public async Task<long> CreateRequest(CreateImportRequestDto dto, int currentUserId)
         {
+            var isStockTakeActive = await _context.StockTakeLocks.AnyAsync(l => l.IsActive);
+            if (isStockTakeActive)
+            {
+                throw new InvalidOperationException("A stock take is currently in progress. Material import requests cannot be created at this time.");
+            }
             // Step 1: get all materials code that Surveyor wants to import
             var materialCodes = dto.Items.Select(c => c.MaterialCode).Distinct().ToList();
 
