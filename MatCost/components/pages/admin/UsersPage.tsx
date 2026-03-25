@@ -48,7 +48,7 @@ useEffect(() => {
       setRoles(data);
     } catch (err) {
       console.error("Load roles failed", err);
-      toast.error("Không load được danh sách vai trò");
+      toast.error(err instanceof Error ? err.message : "Không load được danh sách vai trò");
     } finally {
       setLoadingRoles(false);
     }
@@ -70,7 +70,7 @@ useEffect(() => {
       setUsers(res.items);
     } catch (err) {
       console.error("Load users failed", err);
-      toast.error("Không load được danh sách người dùng");
+      toast.error(err instanceof Error ? err.message : "Không load được danh sách người dùng");
     } finally {
       setLoadingUsers(false);
     }
@@ -144,7 +144,7 @@ useEffect(() => {
     closeModal();
   } catch (err) {
     console.error("Update user failed", err);
-    toast.error("Cập nhật người dùng thất bại");
+    toast.error(err instanceof Error ? err.message : "Cập nhật người dùng thất bại");
   }
 };
 
@@ -165,7 +165,7 @@ useEffect(() => {
     toast.success("Xóa người dùng thành công");
   } catch (err) {
     console.error("Delete user failed", err);
-    toast.error("Xóa người dùng thất bại");
+    toast.error(err instanceof Error ? err.message : "Xóa người dùng thất bại");
   }
 };
   return (
@@ -252,7 +252,7 @@ useEffect(() => {
       toast.success(`Đã cập nhật vai trò thành ${getRoleName(newRoleId, roles)}`);
     } catch (err) {
       console.error("Update role failed", err);
-      toast.error("Cập nhật vai trò thất bại");
+      toast.error(err instanceof Error ? err.message : "Cập nhật vai trò thất bại");
     }
   }}
   className="border border-gray-200 rounded-lg px-2 py-1 bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"

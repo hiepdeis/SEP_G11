@@ -169,7 +169,10 @@ public class AuditTeamService : IAuditTeamService
                     member.AssignedAt = now;
 
                 if (!wasActive)
+                {
+                    member.MemberCompletedAt = null;
                     notifyUserIds.Add(uid);
+                }
             }
         }
 
@@ -251,9 +254,6 @@ public class AuditTeamService : IAuditTeamService
 
         if (member.MemberCompletedAt == null)
             member.MemberCompletedAt = now;
-
-        member.IsActive = false;
-        member.RemovedAt = now;
 
         var creatorId = st.CreatedBy;
 

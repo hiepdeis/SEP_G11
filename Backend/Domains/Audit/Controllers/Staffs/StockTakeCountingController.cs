@@ -1,14 +1,14 @@
 using Backend.Domains.Audit.DTOs.Staffs;
 using Backend.Domains.Audit.Interfaces;
+using Backend.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace Backend.Controllers
 {
     [ApiController]
     [Route("api/staff/audits")]
-    //[Authorize]
+    [Authorize(Roles = "Staff")]
     public class StockTakeCountingController : ControllerBase
     {
         private readonly IStockTakeCountingService _stockTakeCountingService;
@@ -20,35 +20,44 @@ namespace Backend.Controllers
 
         private int GetCurrentUserId()
         {
-            //var userIdClaim =
-            //    User.FindFirst("UserId")?.Value ??
-            //    User.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
-            //    User.FindFirst("sub")?.Value;
+            return User.GetRequiredUserId();
+        }
 
-            //if (string.IsNullOrWhiteSpace(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
-            //    throw new UnauthorizedAccessException("UserId claim is missing or invalid.");
-
-            //return userId;
-            return 7;
+        private async Task<IActionResult> ExecuteReadAsync<T>(Func<Task<T>> action)
+        {
+            try
+            {
+                var data = await action();
+                return Ok(data);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
         }
 
         [HttpGet("{stockTakeId:int}/counted-items")]
         public async Task<IActionResult> GetCountedItems(
-    int stockTakeId,
-    [FromQuery] int skip = 0,
-    [FromQuery] int take = 50,
-    CancellationToken ct = default)
+            int stockTakeId,
+            [FromQuery] int skip = 0,
+            [FromQuery] int take = 50,
+            CancellationToken ct = default)
         {
-            var userId = GetCurrentUserId();
+            return await ExecuteReadAsync(async () =>
+            {
+                var userId = GetCurrentUserId();
 
-            var data = await _stockTakeCountingService.GetCountedItemsAsync(
-                stockTakeId,
-                userId,
-                skip,
-                take,
-                ct);
-
-            return Ok(data);
+                return await _stockTakeCountingService.GetCountedItemsAsync(
+                    stockTakeId,
+                    userId,
+                    skip,
+                    take,
+                    ct);
+            });
         }
 
         [HttpGet("{stockTakeId:int}/uncounted-items")]
@@ -58,16 +67,17 @@ namespace Backend.Controllers
             [FromQuery] int take = 50,
             CancellationToken ct = default)
         {
-            var userId = GetCurrentUserId();
+            return await ExecuteReadAsync(async () =>
+            {
+                var userId = GetCurrentUserId();
 
-            var data = await _stockTakeCountingService.GetUncountedItemsAsync(
-                stockTakeId,
-                userId,
-                skip,
-                take,
-                ct);
-
-            return Ok(data);
+                return await _stockTakeCountingService.GetUncountedItemsAsync(
+                    stockTakeId,
+                    userId,
+                    skip,
+                    take,
+                    ct);
+            });
         }
 
         [HttpGet("{stockTakeId:int}/materials/suggest")]
@@ -77,16 +87,17 @@ namespace Backend.Controllers
             [FromQuery] int take = 10,
             CancellationToken ct = default)
         {
-            var userId = GetCurrentUserId();
+            return await ExecuteReadAsync(async () =>
+            {
+                var userId = GetCurrentUserId();
 
-            var data = await _stockTakeCountingService.SuggestMaterialsAsync(
-                stockTakeId,
-                userId,
-                keyword,
-                take,
-                ct);
-
-            return Ok(data);
+                return await _stockTakeCountingService.SuggestMaterialsAsync(
+                    stockTakeId,
+                    userId,
+                    keyword,
+                    take,
+                    ct);
+            });
         }
 
         [HttpPost("{stockTakeId:int}/count-items")]
@@ -117,17 +128,18 @@ namespace Backend.Controllers
             [FromQuery] int take = 50,
             CancellationToken ct = default)
         {
-            var userId = GetCurrentUserId();
+            return await ExecuteReadAsync(async () =>
+            {
+                var userId = GetCurrentUserId();
 
-            var data = await _stockTakeCountingService.GetRecountItemsAsync(
-                stockTakeId,
-                userId,
-                keyword,
-                skip,
-                take,
-                ct);
-
-            return Ok(data);
+                return await _stockTakeCountingService.GetRecountItemsAsync(
+                    stockTakeId,
+                    userId,
+                    keyword,
+                    skip,
+                    take,
+                    ct);
+            });
         }
 
         [HttpPost("{stockTakeId:int}/recount-items")]

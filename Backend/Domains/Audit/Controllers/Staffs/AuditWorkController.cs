@@ -1,10 +1,13 @@
-﻿using Backend.Domains.Audit.Interfaces;
+using Backend.Domains.Audit.Interfaces;
+using Backend.Extensions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Domains.Audit.Controllers.Staffs;
 
 [ApiController]
 [Route("api/staff/audits")]
+[Authorize(Roles = "Staff")]
 public class AuditWorkController : ControllerBase
 {
     private readonly IAuditTeamService _svc;
@@ -16,14 +19,9 @@ public class AuditWorkController : ControllerBase
 
     private int GetUserIdOrDevFallback()
     {
-        //// Dùng lại logic của bạn nếu đã có BaseController.
-        //// Tạm thời ví dụ:
-        //var claim = User?.Claims?.FirstOrDefault(c => c.Type == "userId")?.Value;
-        //return int.TryParse(claim, out var id) ? id : 7;
-        return 7;
+        return User.GetRequiredUserId();
     }
 
-    // POST api/staff/audits/{stockTakeId}/finish
     [HttpPost("{stockTakeId:int}/finish")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

@@ -61,7 +61,8 @@ namespace Backend.Domains.Audit.Services
                     WarehouseId = st.WarehouseId,
                     BinId = null,
                     IsActive = true,
-                    LockedAt = DateTime.UtcNow
+                    LockedAt = DateTime.UtcNow,
+                    LockedBy = userId
                 });
             }
             else
@@ -83,6 +84,8 @@ namespace Backend.Domains.Audit.Services
                         return (false, $"BinId {binId} is already locked by another active audit.");
                 }
 
+                var now = DateTime.UtcNow;
+
                 foreach (var binId in assignedBinIds)
                 {
                     _db.StockTakeLocks.Add(new StockTakeLock
@@ -92,7 +95,8 @@ namespace Backend.Domains.Audit.Services
                         WarehouseId = st.WarehouseId,
                         BinId = binId,
                         IsActive = true,
-                        LockedAt = DateTime.UtcNow
+                        LockedAt = now,
+                        LockedBy = userId
                     });
                 }
             }
@@ -130,6 +134,7 @@ namespace Backend.Domains.Audit.Services
             {
                 item.IsActive = false;
                 item.UnlockedAt = DateTime.UtcNow;
+                item.UnlockedBy = userId;
             }
 
             await _db.SaveChangesAsync(ct);
