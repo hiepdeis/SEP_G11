@@ -199,7 +199,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                   <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pb-5"><ClipboardList className="w-4 h-4 text-indigo-600" /> {t("Discrepancies Details")}</CardTitle>
                   <div className="flex gap-2">
                     {canExport && detailData.status === "Completed" && (
-                      <Button variant="outline" size="sm" className="h-8 text-xs border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100" onClick={handleExportPdf}><Download className="w-3.5 h-3.5 mr-1.5" /> {t("Download PDF")}</Button>
+                      <Button variant="outline" size="sm" className="h-8 text-xs border-indigo-200 text-indigo-700 bg-indigo-50" onClick={handleExportPdf}><Download className="w-3.5 h-3.5 mr-1.5" /> {t("Download PDF")}</Button>
                     )}
                   </div>
                 </CardHeader>
@@ -236,7 +236,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                               </TableCell>
                               <TableCell className="text-right pr-6">
                                 {canResolve && !row.resolutionAction && row.discrepancyStatus !== "RecountRequested" && !isManagerSigned && (
-                                  row.discrepancyStatus === "Discrepancy" ? <Button size="sm" variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-50" onClick={() => handleQuickRecount(row)} disabled={isSubmitting}><RefreshCcw className="w-3.5 h-3.5 mr-1.5" /> {t("Recount")}</Button> : <Button size="sm" variant="outline" className="text-indigo-600 border-indigo-200" onClick={() => { setResolveItem(row); setResolveAction(""); }}>{t("Resolve")}</Button>
+                                  row.discrepancyStatus === "Discrepancy" ? <Button size="sm" variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-500" onClick={() => handleQuickRecount(row)} disabled={isSubmitting}><RefreshCcw className="w-3.5 h-3.5 mr-1.5" /> {t("Recount")}</Button> : <Button size="sm" variant="outline" className="text-indigo-600 border-indigo-200" onClick={() => { setResolveItem(row); setResolveAction(""); }}>{t("Resolve")}</Button>
                                 )}
                                 {row.resolutionAction && <span className="text-xs text-slate-400 italic block">{t(row.resolutionAction)}</span>}
                               </TableCell>
@@ -286,7 +286,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                     <CardHeader className="border-b border-orange-100 pt-4 pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2 text-orange-800"><AlertTriangle className="w-5 h-5" /> {t("Manage Recount Team")}</CardTitle></CardHeader>
                     <CardContent className="pt-6 space-y-4">
                       <p className="text-sm text-orange-700/80">{t("Items are pending recount. Re-summon staff who have finished.")}</p>
-                      <Button variant="outline" className="w-full border-orange-300 text-orange-700 hover:bg-orange-100 bg-white" onClick={fetchCandidates}>{t("Open Team List")}</Button>
+                      <Button variant="outline" className="w-full border-orange-300 text-orange-700 hover:bg-orange-500 bg-white" onClick={fetchCandidates}>{t("Open Team List")}</Button>
                     </CardContent>
                   </Card>
                 )}
