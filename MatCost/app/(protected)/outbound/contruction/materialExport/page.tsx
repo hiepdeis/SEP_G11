@@ -216,7 +216,7 @@ export default function IssueMaterialPage() {
       // 🧾 1. Tạo IssueSlip
       const issueSlipPayload = {
         projectId: Number(formData.projectId),
-        warehouseId: Number(formData.warehouseId),
+        warehouseId: 1,
         issueCode: formData.requestCode,
         userId: currentUserId,
         description: formData.notes,

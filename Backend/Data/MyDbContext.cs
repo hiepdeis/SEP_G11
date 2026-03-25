@@ -102,6 +102,8 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<IncidentReportDetail> IncidentReportDetails { get; set; }
 
+    public virtual DbSet<PickingList> PickingLists { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AdjustmentReason>(entity =>
@@ -117,6 +119,26 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.Description).HasMaxLength(500);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.Name).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<PickingList>(entity =>
+        {
+            entity.HasOne(d => d.IssueDetail)
+                .WithMany(p => p.PickingLists)
+                .HasForeignKey(d => d.IssueDetailId)
+                .HasConstraintName("FK_PickingList_IssueDetails");
+
+            entity.HasOne(d => d.Batch)
+                .WithMany(p => p.PickingLists) // Thêm ICollection<PickingList> vào Batch.cs nếu cần
+                .HasForeignKey(d => d.BatchId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_PickingList_Batches");
+
+            entity.HasOne(d => d.Bin)
+                .WithMany(p => p.PickingLists) // Thêm ICollection<PickingList> vào BinLocation.cs nếu cần
+                .HasForeignKey(d => d.BinId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_PickingList_BinLocations");
         });
 
         modelBuilder.Entity<Batch>(entity =>

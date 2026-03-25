@@ -29,7 +29,7 @@ public partial class IssueSlip
     [Column(TypeName = "datetime")]
     public DateTime? IssueDate { get; set; }
 
-    [StringLength(20)]
+    [StringLength(50)]
     [Unicode(false)]
     public string? Status { get; set; }  // open, closed, cancel 
 

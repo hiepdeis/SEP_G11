@@ -54,4 +54,7 @@ public partial class Batch
 
     [InverseProperty("Batch")]
     public virtual ICollection<WarehouseCard> WarehouseCards { get; set; } = new List<WarehouseCard>();
+
+    [InverseProperty("Batch")]
+    public virtual ICollection<PickingList> PickingLists { get; set; } = new List<PickingList>();
 }

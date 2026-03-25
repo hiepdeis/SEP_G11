@@ -20,6 +20,9 @@ public partial class Project
     [StringLength(255)]
     public string Name { get; set; } = null!;
 
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal? OverBudgetAllowance { get; set; }
+
     [Column(TypeName = "datetime")]
     public DateTime? StartDate { get; set; }
 
