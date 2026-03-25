@@ -65,7 +65,7 @@ export default function InboundReceiptsPage() {
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [filterStatus, setFilterStatus] = useState<string>("QCPassed");
+  const [filterStatus, setFilterStatus] = useState<string>("All");
 
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
@@ -301,6 +301,14 @@ export default function InboundReceiptsPage() {
                       <SelectValue placeholder={t("Filter by status")} />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="All">
+                        <Badge
+                          variant="outline"
+                          className="bg-slate-50 text-slate-700 border-slate-200"
+                        >
+                          {t("All")}
+                        </Badge>
+                      </SelectItem>
                       <SelectItem value="QCPassed">
                         <Badge
                           variant="outline"
@@ -339,14 +347,6 @@ export default function InboundReceiptsPage() {
                           className="bg-yellow-50 text-yellow-700 border-yellow-200"
                         >
                           {t("Pending Incident")}
-                        </Badge>
-                      </SelectItem>
-                      <SelectItem value="All">
-                        <Badge
-                          variant="outline"
-                          className="bg-slate-50 text-slate-700 border-slate-200"
-                        >
-                          {t("All")}
                         </Badge>
                       </SelectItem>
                     </SelectContent>

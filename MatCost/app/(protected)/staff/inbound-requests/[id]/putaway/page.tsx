@@ -38,6 +38,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface PutawayBinInput {
   id: string;
@@ -75,6 +81,9 @@ export default function PutawayPage() {
   const itemsPerPage = 3;
 
   const [binLocations, setBinLocations] = useState<any[]>([]);
+
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [viewerImage, setViewerImage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchReceipt = async () => {
@@ -285,7 +294,7 @@ export default function PutawayPage() {
                 expiryDate: item.batch.expiryDate
                   ? new Date(item.batch.expiryDate).toISOString()
                   : null,
-                certificateImage: item.batch.certificateImage, 
+                certificateImage: item.batch.certificateImage,
               },
               binAllocations: item.binAllocations.map((bin) => ({
                 binId: Number(bin.binId),
@@ -491,27 +500,35 @@ export default function PutawayPage() {
 
                             <div className="space-y-2 pt-2">
                               <label className="text-xs font-medium text-slate-700">
-                                {t("Certificate Image")}
+                                {t("Certificate Image")}{" "}
+                                <span className="text-red-500">*</span>
                               </label>
                               {item.batch.certificateImage ? (
                                 <div className="relative w-full h-32 border border-slate-200 rounded-md overflow-hidden group">
                                   <img
                                     src={item.batch.certificateImage}
                                     alt="Certificate"
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => {
+                                      setViewerImage(
+                                        item.batch.certificateImage,
+                                      );
+                                      setIsViewerOpen(true);
+                                    }}
                                   />
-                                  <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                  <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity pointer-events-none">
                                     <Button
                                       variant="destructive"
                                       size="sm"
-                                      className="h-8 text-xs"
-                                      onClick={() =>
+                                      className="h-8 text-xs pointer-events-auto"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         handleBatchChange(
                                           absoluteIdx,
                                           "certificateImage",
                                           null,
-                                        )
-                                      }
+                                        );
+                                      }}
                                     >
                                       <Trash2 className="w-3.5 h-3.5 mr-1" />{" "}
                                       {t("Remove")}
@@ -723,6 +740,28 @@ export default function PutawayPage() {
             </>
           )}
         </div>
+        <Dialog open={isViewerOpen} onOpenChange={setIsViewerOpen}>
+          <DialogContent className="sm:max-w-3xl bg-transparent border-0 shadow-none p-0 flex flex-col items-center justify-center">
+            <DialogHeader>
+              <DialogTitle></DialogTitle>
+            </DialogHeader>
+            {viewerImage && (
+              <div className="relative w-full flex flex-col items-center">
+                <button
+                  onClick={() => setIsViewerOpen(false)}
+                  className="absolute -top-10 right-0 bg-slate-900/50 hover:bg-slate-900 text-white rounded-full p-2 backdrop-blur-sm transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <img
+                  src={viewerImage}
+                  alt="Enlarged Certificate"
+                  className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+                />
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

@@ -46,7 +46,13 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { formatPascalCase } from "@/lib/format-pascal-case";
 import { showConfirmToast } from "@/hooks/confirm-toast";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function PurchaseOrderReviewPage({ role = "accountant" }) {
   const params = useParams();
@@ -460,49 +466,49 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
               </Card>
 
               {/* THẺ LỊCH SỬ TỪ CHỐI (CHỈ HIỆN KHI CÓ DỮ LIỆU) */}
-              {data.revisionHistory && data.revisionHistory.length > 0 && 
-              // data.revisionHistory[0].rejectedAt !== "" &&
-               (
-                <Card className="border-slate-200 shadow-sm bg-white gap-0">
-                  <CardHeader className="border-b border-slate-100 py-4">
-                    <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
-                      <History className="w-5 h-5 text-indigo-600" />{" "}
-                      {t("Revision History")}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-5 space-y-4">
-                    {data.revisionHistory
-                      .filter((rev) => rev.rejectedAt)
-                      .map((rev) => (
-                        <div
-                          key={rev.poId}
-                          className="flex flex-col border-l-2 border-rose-200 pl-3 relative pb-4 last:pb-0" // Thêm pb-4 để cách các item ra cho đẹp
-                        >
-                          <div className="absolute w-2 h-2 bg-rose-500 rounded-full -left-[5px] top-1.5" />
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-rose-600">
-                              {t("Revision")} #{rev.revisionNumber}
-                            </span>
-                            <span className="text-[10px] text-slate-400">
-                              {formatDate(rev.rejectedAt)}
-                            </span>
-                          </div>
-                          <div className="text-xs text-slate-700 mt-1">
-                            <span className="font-semibold text-slate-500">
-                              {t("Rejected By")}:
-                            </span>{" "}
-                            {rev.rejectedBy}
-                          </div>
-                          {rev.rejectionReason && (
-                            <div className="text-xs text-slate-600 italic bg-rose-50 p-2 rounded mt-1.5 border border-rose-100">
-                              "{rev.rejectionReason}"
+              {data.revisionHistory &&
+                data.revisionHistory.length > 0 &&
+                data.revisionHistory[0].rejectedAt !== null && (
+                  <Card className="border-slate-200 shadow-sm bg-white gap-0">
+                    <CardHeader className="border-b border-slate-100 py-4">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                        <History className="w-5 h-5 text-indigo-600" />{" "}
+                        {t("Revision History")}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-5 space-y-4">
+                      {data.revisionHistory
+                        .filter((rev) => rev.rejectedAt)
+                        .map((rev) => (
+                          <div
+                            key={rev.poId}
+                            className="flex flex-col border-l-2 border-rose-200 pl-3 relative pb-4 last:pb-0" // Thêm pb-4 để cách các item ra cho đẹp
+                          >
+                            <div className="absolute w-2 h-2 bg-rose-500 rounded-full -left-[5px] top-1.5" />
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-rose-600">
+                                {t("Revision")} #{rev.revisionNumber}
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                {formatDate(rev.rejectedAt)}
+                              </span>
                             </div>
-                          )}
-                        </div>
-                      ))}
-                  </CardContent>
-                </Card>
-              )}
+                            <div className="text-xs text-slate-700 mt-1">
+                              <span className="font-semibold text-slate-500">
+                                {t("Rejected By")}:
+                              </span>{" "}
+                              {rev.rejectedBy}
+                            </div>
+                            {rev.rejectionReason && (
+                              <div className="text-xs text-slate-600 italic bg-rose-50 p-2 rounded mt-1.5 border border-rose-100">
+                                "{rev.rejectionReason}"
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                    </CardContent>
+                  </Card>
+                )}
 
               {/* Nếu phiên bản HIỆN TẠI đang bị Reject, hiển thị thông báo */}
               {(isAccountantRejected || isAdminRejected) && (

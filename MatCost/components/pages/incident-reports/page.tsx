@@ -133,8 +133,6 @@ export default function IncidentsListPage({ role = "manager" }: { role?: "manage
 
     let matchesDate = true;
     if (dateRange.from || dateRange.to) {
-      // Vì DTO manager dùng 'submittedAt', còn purchasing dùng 'createdAt'
-      // Ta lấy cái nào tồn tại để lọc ngày
       const dateString = (item as ManagerIncidentSummaryDto).submittedAt || (item as PurchasingIncidentSummaryDto).createdAt;
       
       if (!dateString) {
@@ -234,7 +232,7 @@ export default function IncidentsListPage({ role = "manager" }: { role?: "manage
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    {role === "purchase" ? t("Pending Action") : t("Pending Reviews")}
+                    {role === "purchase" ? t("Pending Close") : t("Pending Reviews")}
                   </p>
                   <h3 className="text-2xl font-bold">
                     {incidents.length}
@@ -468,9 +466,9 @@ export default function IncidentsListPage({ role = "manager" }: { role?: "manage
                             <TableCell className="text-center">
                               <Badge
                                 variant="outline"
-                                className={role === "purchase" ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-amber-50 text-amber-700 border-amber-200"}
+                                className={role === "purchase" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-amber-50 text-amber-700 border-amber-200"}
                               >
-                                {role === "purchase" ? t("Pending Action") : t("Pending Review")}
+                                {role === "purchase" ? t("Pending Close") : t("Pending Review")}
                               </Badge>
                             </TableCell>
 

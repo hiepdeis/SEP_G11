@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
@@ -90,6 +90,78 @@ export default function StaffIncidentPage() {
   const [viewerIndex, setViewerIndex] = useState<number>(0);
 
   const [isSubmittingToManager, setIsSubmittingToManager] = useState(false);
+
+  const initData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+
+      const [receiptRes, qcRes] = await Promise.all([
+        staffReceiptsApi.getReceiptDetails(id),
+        staffReceiptsApi.getQCCheck(id),
+      ]);
+      setQcData(qcRes.data);
+
+      const failedQcDetails = qcRes.data.details.filter(
+        (q) => q.result === "Fail" || q.failQuantity > 0,
+      );
+
+      let existingIncidentData: IncidentReportDto | null = null;
+
+      try {
+        const incRes = await staffReceiptsApi.getIncidentReport(id);
+        existingIncidentData = incRes.data;
+        // CẬP NHẬT STATE Ở ĐÂY
+        setIsHistoryView(true);
+        setHistoricalIncidentData(existingIncidentData);
+        setIncidentDescription(existingIncidentData.description || "");
+      } catch (error: any) {
+        if (error.response?.status !== 404) {
+          console.error("Error fetching Incident Report:", error);
+        } else {
+           // QUAN TRỌNG: NẾU KHÔNG TÌM THẤY (404), ĐẢM BẢO RESET STATE
+           setIsHistoryView(false);
+           setHistoricalIncidentData(null);
+        }
+      }
+
+      const itemsToReport: IncidentItemInput[] = failedQcDetails.map(
+        (qcItem) => {
+          const receiptItem = receiptRes.data.items.find(
+            (i) => i.materialId === qcItem.materialId,
+          );
+
+          const historyDetail = existingIncidentData?.details.find(
+            (d) => d.materialId === qcItem.materialId,
+          );
+
+          return {
+            materialId: qcItem.materialId || 0,
+            materialCode: receiptItem?.materialCode || "",
+            materialName: receiptItem?.materialName || "",
+            unit: receiptItem?.unit || "Unit",
+            orderedQuantity: receiptItem?.quantity || 0,
+            passQuantity: qcItem.passQuantity,
+            failQuantity: qcItem.failQuantity,
+            issueType: historyDetail ? historyDetail.issueType : "",
+            notes: historyDetail
+              ? historyDetail.notes || ""
+              : qcItem.failReason || "",
+            evidenceImages: historyDetail?.evidenceImages || [],
+          };
+        },
+      );
+
+      setIncidentItems(itemsToReport);
+    } catch (error) {
+      toast.error(t("Failed to load data for incident report"));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [id, t]);
+
+  useEffect(() => {
+    if (id) initData();
+  }, [initData, id]);
 
   useEffect(() => {
     const initData = async () => {
@@ -234,6 +306,9 @@ export default function StaffIncidentPage() {
 
           await staffReceiptsApi.createIncidentReport(id, payload);
           toast.success(t("Incident Report created successfully!"));
+          
+          await initData(); 
+          
         } catch (error: any) {
           toast.error(
             error.response?.data?.message ||
