@@ -22,6 +22,8 @@ using NuGet.Packaging;
 using OfficeOpenXml;
 using System;
 using System.Text;
+using Backend.Domains.Projects.Interfaces;
+using Backend.Domains.Projects.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -141,6 +143,8 @@ builder.Services.AddCors(options =>
             .AllowCredentials();
     });
 });
+
+builder.Services.AddScoped<IProjectService, ProjectService>();
 
 var app = builder.Build();
 
