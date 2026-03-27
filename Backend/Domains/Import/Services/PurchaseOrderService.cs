@@ -274,7 +274,6 @@ namespace Backend.Domains.Import.Services
             purchaseOrder.Status = "AccountantRejected";
             purchaseOrder.AccountantApprovedBy = accountantId;
             purchaseOrder.AccountantApprovedAt = DateTime.UtcNow;
-            purchaseOrder.ParentPOId = purchaseOrderId;
 
             var rejection = new ReceiptRejectionHistory
             {
@@ -329,7 +328,6 @@ namespace Backend.Domains.Import.Services
             purchaseOrder.Status = "AdminRejected";
             purchaseOrder.AdminApprovedBy = adminId;
             purchaseOrder.AdminApprovedAt = DateTime.UtcNow;
-            purchaseOrder.ParentPOId = purchaseOrderId;
 
 
             var rejection = new ReceiptRejectionHistory
