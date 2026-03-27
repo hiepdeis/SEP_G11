@@ -14,6 +14,7 @@ namespace Backend.Domains.Import.Interfaces
         Task<List<PendingPurchaseOrderDto>> GetPendingPurchaseOrdersAsync();
         Task<PendingPurchaseOrderDto> GetPendingSupplementaryReceiptDetailAsync(long supplementaryReceiptId);
         Task<List<PendingPutawayReceiptDto>> GetPendingPutawayReceiptsAsync();
+        Task<PendingPutawayReceiptDto> GetPendingPutawayReceiptDetailAsync(long receiptId);
         Task<ReceiptPutawayResultDto> PutawayAsync(long receiptId, ReceiptPutawayDto dto, int staffId);
         Task<List<ReceiptBatchLookupDto>> GetBatchesAsync(int materialId, string? batchCode);
 
