@@ -719,6 +719,66 @@ namespace Backend.Domains.Import.Services
             return result;
         }
 
+        public async Task<PendingPutawayReceiptDto> GetPendingPutawayReceiptDetailAsync(long receiptId)
+        {
+            var receipt = await _context.Receipts
+                .Include(r => r.PurchaseOrder)
+                    .ThenInclude(o => o!.Supplier)
+                .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.Material)
+                .Include(r => r.QCChecks)
+                    .ThenInclude(q => q.QCCheckDetails)
+                .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
+
+            if (receipt == null)
+                throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
+
+            if (receipt.Status != "QCPassed" && receipt.Status != "ReadyForPutaway")
+                throw new InvalidOperationException("Receipt chua QC Pass hoac chua duoc phe duyet putaway");
+
+            var qcCheck = receipt.QCChecks
+                .OrderByDescending(q => q.CheckedAt)
+                .FirstOrDefault();
+
+            if (qcCheck == null)
+                throw new InvalidOperationException("Receipt chua QC Pass");
+
+            var passQtyMap = qcCheck.QCCheckDetails
+                .GroupBy(d => d.ReceiptDetailId)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.PassQuantity));
+
+            var note = receipt.Status == "ReadyForPutaway"
+                ? "Phan dat QC - cho NCC doi phan con lai"
+                : null;
+
+            var items = receipt.ReceiptDetails
+                .Select(d =>
+                {
+                    var passQty = passQtyMap.TryGetValue(d.DetailId, out var qty) ? qty : 0m;
+                    return new PendingPutawayItemDto
+                    {
+                        MaterialId = d.MaterialId,
+                        MaterialName = d.Material?.Name ?? string.Empty,
+                        QuantityToPutaway = passQty,
+                        Note = note
+                    };
+                })
+                .Where(i => i.QuantityToPutaway > 0)
+                .ToList();
+
+            if (items.Count == 0)
+                throw new InvalidOperationException("Khong co hang de putaway");
+
+            return new PendingPutawayReceiptDto
+            {
+                ReceiptId = receipt.ReceiptId,
+                PurchaseOrderCode = receipt.PurchaseOrder?.PurchaseOrderCode ?? string.Empty,
+                SupplierName = receipt.PurchaseOrder?.Supplier?.Name ?? string.Empty,
+                Status = receipt.Status ?? string.Empty,
+                Items = items
+            };
+        }
+
         public async Task<ReceiptPutawayResultDto> PutawayAsync(long receiptId, ReceiptPutawayDto dto, int staffId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
