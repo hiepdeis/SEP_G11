@@ -1,3 +1,5 @@
+using Backend.Entities;
+
 namespace Backend.Domains.Import.DTOs.Staff
 {
     // INPUT DTOs (POST)
@@ -88,6 +90,8 @@ namespace Backend.Domains.Import.DTOs.Staff
         public string IssueType { get; set; } = string.Empty;
 
         public string? Notes { get; set; }
+
+        public List<IncidentEvidenceImage> EvidenceImages { get; set; } = new();
     }
 
     public class IncidentReportSummaryDto

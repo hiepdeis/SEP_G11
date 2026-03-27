@@ -18,6 +18,8 @@ namespace Backend.Domains.Import.DTOs.Managers
     {
         public int MaterialId { get; set; }
         public string? MaterialName { get; set; }
+        public decimal? OrderedQuantity { get; set; }
+        public decimal? ActualQuantity { get; set; }
         public decimal PassQuantity { get; set; }
         public decimal FailQuantity { get; set; }
         public string? FailReason { get; set; }
