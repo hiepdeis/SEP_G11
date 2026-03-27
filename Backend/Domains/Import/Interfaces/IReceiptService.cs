@@ -12,6 +12,7 @@ namespace Backend.Domains.Import.Interfaces
         Task ConfirmGoodsReceiptAsync(long receiptId, ConfirmGoodsReceiptDto dto, int staffId);
         Task<ReceiveGoodsFromPoResultDto> ReceiveGoodsFromPOAsync(ReceiveGoodsFromPoDto dto, int staffId);
         Task<List<PendingPurchaseOrderDto>> GetPendingPurchaseOrdersAsync();
+        Task<List<PendingPutawayReceiptDto>> GetPendingPutawayReceiptsAsync();
         Task<ReceiptPutawayResultDto> PutawayAsync(long receiptId, ReceiptPutawayDto dto, int staffId);
         Task<List<ReceiptBatchLookupDto>> GetBatchesAsync(int materialId, string? batchCode);
 

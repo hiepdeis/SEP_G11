@@ -30,8 +30,13 @@ namespace Backend.Domains.Import.Services
                                         .Include(r => r.CreatedByNavigation)
                                         .Include(r => r.ReceiptDetails)
                                         .ThenInclude(rd => rd.Supplier)
-                            .Where(r => r.Status == "Approved" || r.Status == "GoodsArrived" ||
-                             r.Status == "Completed" || r.Status == "PendingQC" || r.Status == "PendingIncident" || r.Status == "PendingManagerReview" || r.Status == "QCPassed" || r.Status == "ReadyForPutaway" || r.Status == "PartiallyPutaway" || r.Status == "ReadyForStamp")
+                            .Include(r => r.IncidentReports)
+                                                        .Where(r => r.Status == "GoodsArrived" ||
+                                                            r.Status == "PendingQC" ||
+                                                         r.Status == "PendingIncident" || r.Status == "PendingManagerReview" ||
+                                                            r.Status == "QCPassed" ||
+                                                             r.Status == "PartiallyPutaway" || r.Status == "ReadyForStamp" ||
+                                                             r.IncidentReports.Any(i => i.Status == "PendingManagerReview"))
                             .OrderByDescending(r => r.ApprovedAt)
                             .Select(r => new GetInboundRequestListDto
                             {
@@ -545,6 +550,7 @@ namespace Backend.Domains.Import.Services
                 .Include(o => o.Items)
                     .ThenInclude(i => i.Material)
                 .Where(o => o.Status == "SentToSupplier" && o.ExpectedDeliveryDate.HasValue)
+                .Where(o => !_context.Receipts.Any(r => r.PurchaseOrderId == o.PurchaseOrderId)) // ensure no receipt created yet for this PO
                 .OrderBy(o => o.ExpectedDeliveryDate)
                 .Select(o => new PendingPurchaseOrderDto
                 {
@@ -573,6 +579,7 @@ namespace Backend.Domains.Import.Services
                     .ThenInclude(i => i.Material)
                 .Where(s => s.Status == "Approved" && s.ExpectedDeliveryDate.HasValue)
                 .Where(s => s.IncidentReport.Status == "AwaitingSupplementaryGoods")
+                .Where(s => !_context.Receipts.Any(r => r.SupplementaryReceiptId == s.SupplementaryReceiptId)) // ensure no receipt created yet for this supplementary receipt
                 .OrderBy(s => s.ExpectedDeliveryDate)
                 .Select(s => new PendingPurchaseOrderDto
                 {
@@ -600,6 +607,69 @@ namespace Backend.Domains.Import.Services
                 .ToListAsync();
 
             return newDeliveries.Concat(replacementDeliveries).ToList();
+        }
+
+        public async Task<List<PendingPutawayReceiptDto>> GetPendingPutawayReceiptsAsync()
+        {
+            var receipts = await _context.Receipts
+                .Include(r => r.PurchaseOrder)
+                    .ThenInclude(o => o!.Supplier)
+                .Include(r => r.ReceiptDetails)
+                    .ThenInclude(rd => rd.Material)
+                .Include(r => r.QCChecks)
+                    .ThenInclude(q => q.QCCheckDetails)
+                .Where(r => r.Status == "QCPassed" || r.Status == "ReadyForPutaway")
+                .OrderByDescending(r => r.ConfirmedAt ?? r.ReceiptDate ?? r.ApprovedAt)
+                .ToListAsync();
+
+            var result = new List<PendingPutawayReceiptDto>();
+
+            foreach (var receipt in receipts)
+            {
+                var qcCheck = receipt.QCChecks
+                    .OrderByDescending(q => q.CheckedAt)
+                    .FirstOrDefault();
+
+                if (qcCheck == null)
+                    continue;
+
+                var passQtyMap = qcCheck.QCCheckDetails
+                    .GroupBy(d => d.ReceiptDetailId)
+                    .ToDictionary(g => g.Key, g => g.Sum(x => x.PassQuantity));
+
+                var note = receipt.Status == "ReadyForPutaway"
+                    ? "Phan dat QC - cho NCC doi phan con lai"
+                    : null;
+
+                var items = receipt.ReceiptDetails
+                    .Select(d =>
+                    {
+                        var passQty = passQtyMap.TryGetValue(d.DetailId, out var qty) ? qty : 0m;
+                        return new PendingPutawayItemDto
+                        {
+                            MaterialId = d.MaterialId,
+                            MaterialName = d.Material?.Name ?? string.Empty,
+                            QuantityToPutaway = passQty,
+                            Note = note
+                        };
+                    })
+                    .Where(i => i.QuantityToPutaway > 0)
+                    .ToList();
+
+                if (items.Count == 0)
+                    continue;
+
+                result.Add(new PendingPutawayReceiptDto
+                {
+                    ReceiptId = receipt.ReceiptId,
+                    PurchaseOrderCode = receipt.PurchaseOrder?.PurchaseOrderCode ?? string.Empty,
+                    SupplierName = receipt.PurchaseOrder?.Supplier?.Name ?? string.Empty,
+                    Status = receipt.Status ?? string.Empty,
+                    Items = items
+                });
+            }
+
+            return result;
         }
 
         public async Task<ReceiptPutawayResultDto> PutawayAsync(long receiptId, ReceiptPutawayDto dto, int staffId)
@@ -1643,6 +1713,8 @@ namespace Backend.Domains.Import.Services
             var incident = await _context.IncidentReports
                 .Include(i => i.IncidentReportDetails)
                     .ThenInclude(d => d.Material)
+                .Include(i => i.IncidentReportDetails)
+                    .ThenInclude(d => d.EvidenceImages)
                 .Include(i => i.QCCheck)
                 .Include(i => i.CreatedByNavigation)
                 .Include(i => i.ResolvedByNavigation)
@@ -1725,7 +1797,15 @@ namespace Backend.Domains.Import.Services
                         ExpectedQuantity = d.ExpectedQuantity,
                         ActualQuantity = d.ActualQuantity,
                         IssueType = d.IssueType,
-                        Notes = d.Notes
+                        Notes = d.Notes,
+                        EvidenceImages = d.EvidenceImages.Select(i => new IncidentEvidenceImage
+                        {
+                            Id = i.Id,
+                            IncidentReportDetailId = i.IncidentReportDetailId,
+                            ImageData = i.ImageData,
+                            UploadedAt = i.UploadedAt,
+                            UploadedByStaffId = i.UploadedByStaffId
+                        }).ToList()
                     };
                 }).ToList()
             };

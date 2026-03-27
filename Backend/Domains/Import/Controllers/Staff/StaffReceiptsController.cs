@@ -145,6 +145,20 @@ namespace Backend.Domains.Import.Controllers.Staff
             }
         }
 
+        [HttpGet("pending-putaway")]
+        public async Task<IActionResult> GetPendingPutawayReceipts()
+        {
+            try
+            {
+                var result = await _receiptService.GetPendingPutawayReceiptsAsync();
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
+
         [HttpGet("batches")]
         public async Task<IActionResult> GetBatches([FromQuery] int materialId, [FromQuery] string? batchCode)
         {

@@ -55,7 +55,7 @@ namespace Backend.Domains.Import.Services
                     .ThenInclude(q => q!.QCCheckDetails)
                         .ThenInclude(d => d.ReceiptDetail)
                             .ThenInclude(rd => rd.Material)
-                .Where(i => i.Status == "PendingManagerReview"  || i.Status == "PendingManagerApproval")
+                .Where(i => i.Status == "PendingManagerReview" || i.Status == "PendingManagerApproval")
                 .OrderByDescending(i => i.CreatedAt)
                 .ToListAsync();
 
@@ -169,6 +169,8 @@ namespace Backend.Domains.Import.Services
                     {
                         MaterialId = d.MaterialId,
                         MaterialName = d.MaterialName,
+                        OrderedQuantity = d.OrderedQuantity,
+                        ActualQuantity = d.ActualQuantity,
                         PassQuantity = d.PassQuantity,
                         FailQuantity = d.FailQuantity,
                         FailReason = d.FailReason
@@ -212,6 +214,8 @@ namespace Backend.Domains.Import.Services
                     {
                         MaterialId = d.MaterialId,
                         MaterialName = d.MaterialName,
+                        OrderedQuantity = d.OrderedQuantity,
+                        ActualQuantity = d.ActualQuantity,
                         PassQuantity = d.PassQuantity,
                         FailQuantity = d.FailQuantity,
                         FailReason = d.FailReason
@@ -392,9 +396,20 @@ namespace Backend.Domains.Import.Services
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
+            var purchaseOrderCode = incident.Receipt.PurchaseOrderId.HasValue
+                ? await _context.PurchaseOrders
+                    .Where(p => p.PurchaseOrderId == incident.Receipt.PurchaseOrderId.Value)
+                    .Select(p => p.PurchaseOrderCode)
+                    .FirstOrDefaultAsync()
+                : null;
+
+            var message = string.IsNullOrWhiteSpace(purchaseOrderCode)
+                ? $"Da duyet phieu bo sung. Vui long xep {totalPassQuantity} cai vao kho."
+                : $"Da duyet phieu bo sung {purchaseOrderCode}. Vui long xep {totalPassQuantity} cai vao kho.";
+
             await CreateRoleNotificationsAsync(
                 "Staff",
-                $"Có thể putaway {totalPassQuantity} cái đã Pass QC. Chờ NCC giao thêm {supplementaryQuantityPending} cái.",
+                message,
                 "Receipt",
                 incident.ReceiptId);
 
@@ -501,6 +516,8 @@ namespace Backend.Domains.Import.Services
             {
                 MaterialId = d.ReceiptDetail.MaterialId,
                 MaterialName = d.ReceiptDetail.Material?.Name,
+                OrderedQuantity = d.ReceiptDetail.Quantity,
+                ActualQuantity = d.ReceiptDetail.ActualQuantity,
                 PassQuantity = d.PassQuantity,
                 FailQuantity = d.FailQuantity,
                 FailReason = d.FailReason
