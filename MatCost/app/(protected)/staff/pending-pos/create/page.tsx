@@ -28,7 +28,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   staffReceiptsApi,
   purchasingPurchaseOrderApi,
-  PurchaseOrderDto,
 } from "@/services/import-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -51,62 +50,76 @@ export default function ReceiveGoodsPage() {
   const { t } = useTranslation();
 
   const poIdParam = searchParams.get("poId");
+  const supIdParam = searchParams.get("supId");
 
-  const [order, setOrder] = useState<PurchaseOrderDto | null>(null);
+  // Dùng type any để chứa được cả PurchaseOrderDto và PendingPurchaseOrderDto
+  const [order, setOrder] = useState<any>(null);
   const [items, setItems] = useState<ReceiveItemInput[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!poIdParam) {
-      toast.error(t("No Purchase Order selected."));
-      router.push("/staff/receipts/pending-pos");
+    if (!poIdParam && !supIdParam) {
+      toast.error(t("No Purchase Order or Supplementary selected."));
+      router.push("/staff/pending-pos");
       return;
     }
 
     const fetchOrderDetails = async () => {
       setIsLoading(true);
       try {
-        const res = await purchasingPurchaseOrderApi.getOrder(
-          Number(poIdParam),
-        );
-        const orderData = res.data;
+        let orderData;
+
+        if (supIdParam) {
+          // GỌI API CHO SUPPLEMENTARY NẾU CÓ supId
+          const res = await staffReceiptsApi.getPendingSupplementaryReceiptDetail(
+            Number(supIdParam),
+          );
+          orderData = res.data;
+        } else {
+          // GỌI API CHO PO BÌNH THƯỜNG NẾU CÓ poId
+          const res = await purchasingPurchaseOrderApi.getOrder(
+            Number(poIdParam),
+          );
+          orderData = res.data;
+        }
+
         setOrder(orderData);
 
         if (orderData.items) {
-          const mappedItems: ReceiveItemInput[] = orderData.items.map((i) => ({
-            materialId: i.materialId,
-            materialCode: i.materialCode,
-            materialName: i.materialName,
-            orderedQuantity: i.orderedQuantity,
-            actualQuantity: i.orderedQuantity, // Mặc định thực nhận = số lượng đặt
-            passQuantity: i.orderedQuantity, // Mặc định pass = số lượng đặt
-            failQuantity: 0,
-            failReason: "",
-          }));
+          const mappedItems: ReceiveItemInput[] = orderData.items.map(
+            (i: any) => ({
+              materialId: i.materialId,
+              materialCode: i.materialCode || "",
+              materialName: i.materialName,
+              orderedQuantity: i.orderedQuantity || i.supplementaryQuantity || 0, 
+              actualQuantity: i.orderedQuantity || i.supplementaryQuantity || 0, 
+              passQuantity: i.orderedQuantity || i.supplementaryQuantity || 0, 
+              failQuantity: 0,
+              failReason: "",
+            }),
+          );
           setItems(mappedItems);
         }
       } catch (error: any) {
-        console.error("Failed to fetch PO details", error);
+        console.error("Failed to fetch order details", error);
         toast.error(
-          error.response?.data?.message || t("Purchase order not found."),
+          error.response?.data?.message || t("Order details not found."),
         );
-        router.push("/staff/receipts/pending-pos");
+        router.push("/staff/pending-pos");
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchOrderDetails();
-  }, [poIdParam, router, t]);
+  }, [poIdParam, supIdParam, router, t]);
 
-  // Handler cập nhật số lượng thực nhận (Actual)
   const handleActualChange = (id: number, val: string) => {
     const num = Math.max(0, Number(val) || 0);
     setItems((prev) =>
       prev.map((item) => {
         if (item.materialId === id) {
-          // Tự động gán Pass = Actual, Fail = 0 khi thay đổi Actual
           return {
             ...item,
             actualQuantity: num,
@@ -120,7 +133,6 @@ export default function ReceiveGoodsPage() {
     );
   };
 
-  // Handler cập nhật số lượng đạt (Pass) -> Tự động tính Fail
   const handlePassChange = (id: number, val: string) => {
     setItems((prev) =>
       prev.map((item) => {
@@ -152,7 +164,6 @@ export default function ReceiveGoodsPage() {
     );
   };
 
-
   const handleSubmit = () => {
     if (items.length === 0) {
       return toast.error(t("There are no items to receive."));
@@ -166,27 +177,24 @@ export default function ReceiveGoodsPage() {
 
     if (invalidReasonItem) {
       return toast.error(
-        t("Please provide a fail reason for items with failed quantity."),
+        t("Please provide a reason for items with failed/mismatched quantity."),
       );
     }
 
     showConfirmToast({
       title: t("Finalize Receiving & QC?"),
-      description: t(
-        "Are you sure you want to finalize the receiving and Quality Control check for these items?",
-      ),
+      description: t("Are you sure you want to finalize the receiving and Quality Control check for these items?"),
       confirmLabel: t("Yes, Submit"),
       onConfirm: async () => {
         setIsSubmitting(true);
         try {
-          const payload = {
-            purchaseOrderId: Number(poIdParam),
+          const payload: any = {
             items: items.map((i) => {
-              const isFailed =
-                i.failQuantity > 0 || i.orderedQuantity !== i.actualQuantity;
-
+              const isFailed = i.failQuantity > 0 || i.orderedQuantity !== i.actualQuantity;
+              
               return {
                 materialId: i.materialId,
+                orderedQuantity: Number(i.orderedQuantity.toFixed(3)),
                 actualQuantity: Number(i.actualQuantity.toFixed(3)),
                 passQuantity: Number(i.passQuantity.toFixed(3)),
                 failQuantity: Number(i.failQuantity.toFixed(3)),
@@ -196,23 +204,27 @@ export default function ReceiveGoodsPage() {
             }),
           };
 
-          console.log(payload);
-          
-
-          const res =
-            await staffReceiptsApi.receiveGoodsFromPurchaseOrder(payload);
-
-          if (res.data.failedItems && res.data.failedItems.length > 0) {
-            toast.warning(
-              t(
-                "Receipt created with failed items. Please proceed with Incident Report.",
-              ),
-            );
+          if (supIdParam) {
+            payload.supplementaryReceiptId = Number(supIdParam);
+            payload.purchaseOrderId = Number(poIdParam);
           } else {
-            toast.success(t("Receipt and QC completed successfully!"));
+            payload.purchaseOrderId = Number(poIdParam);
           }
 
-          router.push(`/staff/inbound-requests`);
+          const res = await staffReceiptsApi.receiveGoodsFromPurchaseOrder(payload);
+
+          const hasFailedItems = res.data.failedItems && res.data.failedItems.length > 0;
+
+          if (hasFailedItems) {
+            toast.warning(
+              t("Receipt created with failed items. Please proceed with Incident Report.")
+            );
+            router.push(`/staff/incident-reports`);
+          } else {
+            toast.success(t("Receipt and QC completed successfully!"));
+            router.push(`/staff/inbound-requests`);
+          }
+
         } catch (error: any) {
           console.error(error);
           toast.error(
@@ -228,7 +240,20 @@ export default function ReceiveGoodsPage() {
 
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleString("vi-VN");
+
+    let safeDateString = dateString;
+    
+    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
+      safeDateString = safeDateString.replace(" ", "T") + "Z";
+    }
+
+    return new Date(safeDateString).toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   if (isLoading || !order) {
@@ -260,12 +285,12 @@ export default function ReceiveGoodsPage() {
               </Button>
               <div>
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                  {t("Inbound Receipt")}
+                  {supIdParam ? t("Supplementary Receipt") : t("Inbound Receipt")}
                   <Badge
                     variant="outline"
                     className="bg-indigo-50 text-indigo-700 border-indigo-200 ml-2"
                   >
-                    PO #{order.purchaseOrderCode}
+                    PO #{order.purchaseOrderCode || order.poCode}
                   </Badge>
                 </h1>
               </div>
@@ -316,20 +341,19 @@ export default function ReceiveGoodsPage() {
                     </div>
                   </div>
 
-                  {order.supplierNote && (
+                  {(order.supplierNote || order.originalFailReason) && (
                     <div className="space-y-1 pt-4 border-t border-slate-100">
                       <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-                        {t("Supplier Note")}
+                        {supIdParam ? t("Incident Note") : t("Supplier Note")}
                       </span>
-                      <p className="text-sm text-slate-600 p-2 rounded-md italic bg-slate-50">
-                        "{order.supplierNote}"
+                      <p className="text-sm text-slate-600 p-2 rounded-md italic bg-slate-50 border border-slate-100">
+                        "{order.supplierNote || order.originalFailReason}"
                       </p>
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Box Hướng dẫn đã được cập nhật */}
               <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex items-start gap-3 shadow-sm">
                 <Info className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
                 <div className="flex flex-col gap-1">
@@ -365,7 +389,7 @@ export default function ReceiveGoodsPage() {
                             {t("Material Details")}
                           </TableHead>
                           <TableHead className="w-[10%] text-center">
-                            {t("Ordered")}
+                            {supIdParam ? t("Supplemented") : t("Ordered")}
                           </TableHead>
                           <TableHead className="w-[15%] text-center">
                             {t("Received")} *
@@ -392,9 +416,11 @@ export default function ReceiveGoodsPage() {
                                 <span className="font-semibold text-slate-800">
                                   {item.materialName}
                                 </span>
-                                <span className="text-xs text-slate-400 font-mono mt-0.5">
-                                  {item.materialCode}
-                                </span>
+                                {item.materialCode && (
+                                  <span className="text-xs text-slate-400 font-mono mt-0.5">
+                                    {item.materialCode}
+                                  </span>
+                                )}
                               </div>
                             </TableCell>
 

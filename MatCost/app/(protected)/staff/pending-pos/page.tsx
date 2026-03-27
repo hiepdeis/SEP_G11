@@ -190,13 +190,19 @@ export default function PendingDeliveriesPage() {
   const endIndex = isAll ? sortedData.length : startIndex + itemsPerPage;
   const paginatedData = sortedData.slice(startIndex, endIndex);
 
-  const handleReceiveGoods = (id: number) => {
+  const handleReceiveGoods = (id: number, supId: number | null) => {
     setLoadingId(id);
-    router.push(`/staff/pending-pos/create?poId=${id}`);
+    if (supId !== null) router.push(`/staff/pending-pos/create?poId=${id}&supId=${supId}`);
+    else router.push(`/staff/pending-pos/create?poId=${id}`);
   };
 
-  const formatDateTime = (dateString: string) => {
-    return format(new Date(dateString), "dd/MM/yyyy HH:mm");
+  const formatDateTime = (dateString?: string | null) => {
+    if (!dateString) return "N/A";
+    let safeDateString = dateString;
+    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
+      safeDateString = safeDateString.replace(" ", "T") + "Z";
+    }
+    return format(new Date(safeDateString), "dd/MM/yyyy HH:mm");
   };
 
   const todayStart = startOfDay(new Date());
@@ -505,13 +511,16 @@ export default function PendingDeliveriesPage() {
 
                         return (
                           <TableRow
-                            key={item.purchaseOrderId}
+                            key={`PO:${item.purchaseOrderId}${isSupplementary ? `-SupID:${item.supplementaryReceiptId}` : ""}`}
                             className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
                             onClick={() => {
                               const selection = window.getSelection();
                               if (selection && selection.toString().length > 0)
                                 return;
-                              handleReceiveGoods(item.purchaseOrderId);
+                              handleReceiveGoods(
+                                item.purchaseOrderId,
+                                item.supplementaryReceiptId,
+                              );
                             }}
                           >
                             <TableCell className="pl-6 align-top py-4">
@@ -598,7 +607,10 @@ export default function PendingDeliveriesPage() {
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleReceiveGoods(item.purchaseOrderId);
+                                  handleReceiveGoods(
+                                    item.purchaseOrderId,
+                                    item.supplementaryReceiptId,
+                                  );
                                 }}
                                 disabled={loadingId === item.purchaseOrderId}
                                 className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-32 min-w-[200px]"

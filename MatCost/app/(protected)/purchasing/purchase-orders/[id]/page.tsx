@@ -185,9 +185,13 @@ export default function PurchaseOrderDetailPage() {
     }
   };
 
-  const formatDate = (dateString?: string | null) => {
+ const formatDate = (dateString?: string | null) => {
     if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleString("vi-VN", {
+    let safeDateString = dateString;
+    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
+      safeDateString = safeDateString.replace(" ", "T") + "Z";
+    }
+    return new Date(safeDateString).toLocaleString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",

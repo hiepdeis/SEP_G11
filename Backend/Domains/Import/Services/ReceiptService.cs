@@ -33,9 +33,9 @@ namespace Backend.Domains.Import.Services
                             .Include(r => r.IncidentReports)
                                                         .Where(r => r.Status == "GoodsArrived" ||
                                                             r.Status == "PendingQC" ||
-                                                         //r.Status == "PendingIncident" || 
+                                                         r.Status == "PendingIncident" ||
                                                          r.Status == "PendingManagerReview" ||
-                                                            r.Status == "QCPassed" ||
+                                                            //r.Status == "QCPassed" ||
                                                              r.Status == "PartiallyPutaway" || r.Status == "ReadyForStamp" ||
                                                              r.IncidentReports.Any(i => i.Status == "PendingManagerReview"))
                             .OrderByDescending(r => r.ApprovedAt)
@@ -48,6 +48,7 @@ namespace Backend.Domains.Import.Services
                                 ReceiptApprovalDate = r.ApprovedAt,
                                 TotalQuantity = r.ReceiptDetails.Sum(rd => rd.Quantity),
                                 Status = r.Status,
+                                CreatedDate = r.ReceiptDate,
                                 Items = r.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
                                 {
                                     DetailId = rd.DetailId,
@@ -432,7 +433,7 @@ namespace Backend.Domains.Import.Services
                         ReceiptId = receipt.ReceiptId,
                         MaterialId = item.MaterialId,
                         SupplierId = poItem.SupplierId ?? purchaseOrder.SupplierId,
-                        Quantity = poItem.OrderedQuantity,
+                        Quantity = item.OrderedQuantity,
                         ActualQuantity = item.ActualQuantity,
                         UnitPrice = poItem.UnitPrice,
                         LineTotal = lineTotal,
@@ -709,8 +710,10 @@ namespace Backend.Domains.Import.Services
                 result.Add(new PendingPutawayReceiptDto
                 {
                     ReceiptId = receipt.ReceiptId,
+                    ReceiptCode = receipt.ReceiptCode ?? string.Empty,
                     PurchaseOrderCode = receipt.PurchaseOrder?.PurchaseOrderCode ?? string.Empty,
                     SupplierName = receipt.PurchaseOrder?.Supplier?.Name ?? string.Empty,
+                    CreatedAt= receipt.ReceiptDate ?? receipt.ApprovedAt ?? receipt.ConfirmedAt ?? DateTime.MinValue,
                     Status = receipt.Status ?? string.Empty,
                     Items = items
                 });
@@ -758,6 +761,7 @@ namespace Backend.Domains.Import.Services
                     return new PendingPutawayItemDto
                     {
                         MaterialId = d.MaterialId,
+                        MaterialCode = d.Material?.Code ?? string.Empty,
                         MaterialName = d.Material?.Name ?? string.Empty,
                         QuantityToPutaway = passQty,
                         Note = note

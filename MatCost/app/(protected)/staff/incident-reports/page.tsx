@@ -14,13 +14,11 @@ import {
   ArrowDown,
   ArrowUpDown,
   Delete,
-  ClipboardList,
+  AlertCircle,
   Eye,
-  TriangleAlert,
+  FileWarning,
   ShieldCheck,
-  ArrowRight,
-  MoreVertical,
-  CheckCircle2,
+  ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,9 +57,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { MoreVertical } from "lucide-react";
 
-interface ReceiptListItem {
-  id: number;
+interface IncidentListItem {
+  incidentId: number;
+  receiptId: number;
   code: string;
   referenceCode?: string | null;
   date: string;
@@ -71,19 +71,19 @@ interface ReceiptListItem {
   status: string;
 }
 
-export default function InboundReceiptsPage() {
+export default function IncidentReportsPage() {
   const router = useRouter();
   const { t } = useTranslation();
 
-  const [listItems, setListItems] = useState<ReceiptListItem[]>([]);
+  const [listItems, setListItems] = useState<IncidentListItem[]>([]);
   const [stats, setStats] = useState({
     total: 0,
-    pendingPutaway: 0,
-    pendingIncident: 0,
+    open: 0,
+    resolved: 0,
   });
 
   const [isLoading, setIsLoading] = useState(true);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [loadingId, setLoadingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("All");
   const [dateRange, setDateRange] = useState<{
@@ -103,17 +103,13 @@ export default function InboundReceiptsPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "PendingIncident":
-        return "bg-yellow-50 text-yellow-700 border-yellow-200";
-      case "ReadyForStamp":
-        return "bg-amber-50 text-amber-700 border-amber-200";
-      case "ReadyForPutaway":
-      case "PartiallyPutaway":
+      case "Resolved":
         return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      case "QCPassed":
-        return "bg-green-50 text-green-700 border-green-200";
-      case "PendingManagerReview":
-        return "bg-rose-50 text-rose-700 border-rose-200";
+      case "Open":
+      case "PendingManagerApproval":
+      case "AwaitingSupplementaryGoods":
+      case "PendingPurchasingAction":
+        return "bg-amber-50 text-amber-700 border-amber-200";
       default:
         return "bg-slate-100 text-slate-700 border-slate-200";
     }
@@ -135,64 +131,31 @@ export default function InboundReceiptsPage() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [receiptsRes, putawaysRes] = await Promise.all([
-          staffReceiptsApi.getAllReceiptsForWarehouse(),
-          staffReceiptsApi.getPendingPutawayReceipts(),
-        ]);
+        const res = await staffReceiptsApi.getAllIncidentReports();
+        const rawIncidents = res.data || [];
 
-        const rawReceipts = receiptsRes.data || [];
-        const rawPutaways = putawaysRes.data || [];
-
-        const unifiedList: ReceiptListItem[] = [];
-        const seenReceiptIds = new Set<number>();
-
-        rawPutaways.forEach((p) => {
-          if (!seenReceiptIds.has(p.receiptId)) {
-            seenReceiptIds.add(p.receiptId);
-            unifiedList.push({
-              id: p.receiptId,
-              code: p.receiptCode || `Receipt #${p.receiptId}`,
-              referenceCode: p.purchaseOrderCode,
-              date: p.createdAt,
-              creatorName: p.supplierName || "N/A",
-              warehouseName: "N/A",
-              totalQuantity: p.items?.length || 0,
-              status: p.status || "Unknown",
-            });
-          }
-        });
-
-        rawReceipts.forEach((r) => {
-          if (!seenReceiptIds.has(r.receiptId)) {
-            seenReceiptIds.add(r.receiptId);
-            unifiedList.push({
-              id: r.receiptId,
-              code: r.receiptCode || `Receipt #${r.receiptId}`,
-              referenceCode: r.purchaseOrderCode,
-              date: r.createdDate || "",
-              creatorName: r.createdByName || "N/A",
-              warehouseName: r.warehouseName || "N/A",
-              totalQuantity: r.items?.length || 0,
-              status: r.status || "Unknown",
-            });
-          }
-        });
+        const mappedList: IncidentListItem[] = rawIncidents.map((inc) => ({
+          incidentId: inc.incidentId,
+          receiptId: inc.receiptId,
+          code: inc.incidentCode,
+          referenceCode: inc.receiptCode,
+          date: inc.createdAt || "",
+          creatorName: inc.createdByName || "N/A",
+          warehouseName: inc.warehouseName || "N/A",
+          totalQuantity: inc.totalItems || 0,
+          status: inc.status || "Open",
+        }));
 
         setStats({
-          total: seenReceiptIds.size,
-          pendingPutaway: unifiedList.filter(
-            (i) =>
-              i.status === "ReadyForPutaway" || i.status === "PartiallyPutaway",
-          ).length,
-          pendingIncident: unifiedList.filter(
-            (i) => i.status === "PendingIncident",
-          ).length,
+          total: mappedList.length,
+          open: mappedList.filter((i) => i.status !== "Resolved").length,
+          resolved: mappedList.filter((i) => i.status === "Resolved").length,
         });
 
-        setListItems(unifiedList);
+        setListItems(mappedList);
       } catch (error) {
-        console.error("Failed to fetch data", error);
-        toast.error(t("Failed to fetch receipt data"));
+        console.error("Failed to fetch incidents", error);
+        toast.error(t("Failed to fetch incident reports"));
       } finally {
         setIsLoading(false);
       }
@@ -258,22 +221,14 @@ export default function InboundReceiptsPage() {
   const paginatedData = sortedData.slice(startIndex, endIndex);
 
   const handleAction = (
-    item: ReceiptListItem,
+    item: IncidentListItem,
     isSecondaryAction: boolean = false,
   ) => {
-    setLoadingId(item.id.toString());
+    setLoadingId(item.incidentId);
     if (isSecondaryAction) {
-      router.push(`/staff/inbound-requests/${item.id}`);
+      router.push(`/staff/inbound-requests/${item.receiptId}`); // Xem Receipt
     } else {
-      if (item.status === "PendingIncident")
-        router.push(`/staff/incident-reports/${item.id}`);
-      else if (
-        item.status === "ReadyForPutaway" ||
-        item.status === "QCPassed" ||
-        item.status === "PartiallyPutaway"
-      ) {
-        router.push(`/staff/inbound-requests/${item.id}/putaway`);
-      } else router.push(`/staff/inbound-requests/${item.id}`);
+      router.push(`/staff/incident-reports/${item.incidentId}`); // Xem Incident
     }
   };
 
@@ -296,17 +251,15 @@ export default function InboundReceiptsPage() {
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title={t("Inbound Receipts")} />
+        <Header title={t("Incident Reports")} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              {t("Inbound Receipts")}
+              {t("Incident Reports")}
             </h1>
             <p className="text-sm text-slate-500">
-              {t(
-                "Manage received goods, perform QC checks, and putaway items.",
-              )}
+              {t("Track and manage all inbound incidents and replacements.")}
             </p>
           </div>
 
@@ -314,11 +267,11 @@ export default function InboundReceiptsPage() {
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg">
-                  <ClipboardList className="w-6 h-6" />
+                  <FileWarning className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    {t("Total Receipts")}
+                    {t("Total Incidents")}
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
                     {stats.total}
@@ -328,29 +281,27 @@ export default function InboundReceiptsPage() {
             </Card>
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-emerald-100 text-emerald-600 rounded-lg">
-                  <CheckCircle2 className="w-6 h-6" />
+                <div className="p-3 bg-amber-100 text-amber-600 rounded-lg">
+                  <AlertCircle className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    {t("Pending Putaway")}
+                    {t("Open / Processing")}
                   </p>
-                  <h3 className="text-2xl font-bold">{stats.pendingPutaway}</h3>
+                  <h3 className="text-2xl font-bold">{stats.open}</h3>
                 </div>
               </CardContent>
             </Card>
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-yellow-100 text-yellow-600 rounded-lg">
-                  <TriangleAlert className="w-6 h-6" />
+                <div className="p-3 bg-emerald-100 text-emerald-600 rounded-lg">
+                  <ShieldCheck className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    {t("Pending Incident")}
+                    {t("Resolved")}
                   </p>
-                  <h3 className="text-2xl font-bold">
-                    {stats.pendingIncident}
-                  </h3>
+                  <h3 className="text-2xl font-bold">{stats.resolved}</h3>
                 </div>
               </CardContent>
             </Card>
@@ -376,36 +327,45 @@ export default function InboundReceiptsPage() {
                           {t("All")}
                         </Badge>
                       </SelectItem>
-                      <SelectItem value="QCPassed">
+                      <SelectItem value="Open">
                         <Badge
                           variant="outline"
-                          className="bg-green-50 text-green-700 border-green-200"
+                          className="bg-amber-50 text-amber-700 border-amber-200"
                         >
-                          {t("QC Passed")}
+                          {t("Open")}
                         </Badge>
                       </SelectItem>
-                      <SelectItem value="ReadyForPutaway">
+                      <SelectItem value="Resolved">
                         <Badge
                           variant="outline"
                           className="bg-emerald-50 text-emerald-700 border-emerald-200"
                         >
-                          {t("Ready For Putaway")}
+                          {t("Resolved")}
                         </Badge>
                       </SelectItem>
-                      <SelectItem value="PartiallyPutaway">
+                      <div className="h-px bg-slate-100 my-1 mx-2" />
+                      <SelectItem value="PendingManagerApproval">
                         <Badge
                           variant="outline"
-                          className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                          className="bg-amber-50 text-amber-700 border-amber-200"
                         >
-                          {t("Partially Putaway")}
+                          {t("Pending Approval")}
                         </Badge>
                       </SelectItem>
-                      <SelectItem value="PendingIncident">
+                      <SelectItem value="AwaitingSupplementaryGoods">
                         <Badge
                           variant="outline"
-                          className="bg-yellow-50 text-yellow-700 border-yellow-200"
+                          className="bg-amber-50 text-amber-700 border-amber-200"
                         >
-                          {t("Pending Incident")}
+                          {t("Awaiting Goods")}
+                        </Badge>
+                      </SelectItem>
+                      <SelectItem value="PendingPurchasingAction">
+                        <Badge
+                          variant="outline"
+                          className="bg-amber-50 text-amber-700 border-amber-200"
+                        >
+                          {t("Pending Purchase")}
                         </Badge>
                       </SelectItem>
                     </SelectContent>
@@ -489,7 +449,7 @@ export default function InboundReceiptsPage() {
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                   <Input
-                    placeholder={t("Search Code, Creator...")}
+                    placeholder={t("Search Code...")}
                     className="pl-9 h-9"
                     maxLength={50}
                     value={searchTerm}
@@ -522,14 +482,14 @@ export default function InboundReceiptsPage() {
                         </div>
                       </TableHead>
                       <TableHead className="w-[20%]">
-                        {t("Supplier & PO Ref")}
+                        {t("Related Receipt")}
                       </TableHead>
                       <TableHead
                         className="cursor-pointer transition-colors w-[15%] text-center"
                         onClick={() => handleSort("quantity")}
                       >
                         <div className="flex items-center justify-center gap-1.5 select-none">
-                          {t("Qty / Items")}
+                          {t("Defective Items")}
                           {sortConfig?.key === "quantity" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
@@ -571,14 +531,14 @@ export default function InboundReceiptsPage() {
                     ) : (
                       paginatedData.map((item) => (
                         <TableRow
-                          key={item.id}
+                          key={item.incidentId}
                           className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
                           onClick={() => handleAction(item)}
                         >
                           <TableCell className="pl-6">
                             <div className="flex flex-col">
                               <div className="flex items-center gap-2 mb-1">
-                                <ClipboardList className="w-4 h-4 text-indigo-500" />
+                                <FileWarning className="w-4 h-4 text-rose-500" />
                                 <span className="font-semibold text-slate-800">
                                   {item.code}
                                 </span>
@@ -606,7 +566,7 @@ export default function InboundReceiptsPage() {
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
-                            <span className="font-bold px-3 py-1 rounded-md bg-slate-100 text-slate-700">
+                            <span className="font-bold px-3 py-1 rounded-md bg-rose-50 text-rose-700">
                               {item.totalQuantity.toLocaleString("vi-VN")}
                             </span>
                           </TableCell>
@@ -615,83 +575,54 @@ export default function InboundReceiptsPage() {
                               variant="outline"
                               className={getStatusBadge(item.status)}
                             >
-                              {item.status === "ReadyForStamp"
-                                ? "Pending Stamp"
-                                : t(formatPascalCase(item.status))}
+                              {t(formatPascalCase(item.status))}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right pr-6">
                             <div className="flex items-center justify-end gap-2">
-                              {(item.status === "PendingIncident" ||
-                                item.status === "ReadyForPutaway" ||
-                                item.status === "PartiallyPutaway" ||
-                                item.status === "QCPassed") && (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <MoreVertical className="w-4 h-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent
-                                    align="end"
-                                    className="w-40"
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
+                                    onClick={(e) => e.stopPropagation()}
                                   >
-                                    <DropdownMenuItem
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleAction(item, true);
-                                      }}
-                                      className="cursor-pointer text-slate-700"
-                                    >
-                                      <Eye className="w-4 h-4 mr-2 text-slate-400" />
-                                      {t("View Details")}
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              )}
+                                    <MoreVertical className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  align="end"
+                                  className="w-40"
+                                >
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAction(item, true);
+                                    }}
+                                    className="cursor-pointer text-slate-700"
+                                  >
+                                    <ClipboardList className="w-4 h-4 mr-2 text-slate-400" />
+                                    {t("View Receipt")}
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                               <Button
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleAction(item);
                                 }}
-                                disabled={loadingId === item.id.toString()}
-                                variant={
-                                  item.status === "PendingIncident"
-                                    ? "default"
-                                    : "outline"
-                                }
-                                className={
-                                  item.status === "PendingIncident"
-                                    ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm min-w-[160px]"
-                                    : item.status === "ReadyForPutaway" ||
-                                        item.status === "QCPassed"
-                                      ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm min-w-[160px]"
-                                      : "text-indigo-600 border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 min-w-[160px]"
-                                }
+                                disabled={loadingId === item.incidentId}
+                                variant="outline"
+                                className="text-rose-600 border-rose-200 hover:text-rose-700 hover:bg-rose-50 min-w-[160px]"
                               >
-                                {loadingId === item.id.toString() ? (
+                                {loadingId === item.incidentId ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : item.status === "PendingIncident" ? (
-                                  <>
-                                    <TriangleAlert className="w-4 h-4 mr-1.5" />
-                                    {t("Review Incident")}
-                                  </>
-                                ) : item.status === "ReadyForPutaway" ||
-                                  item.status === "QCPassed" ? (
-                                  <>
-                                    <ArrowRight className="w-4 h-4 mr-1.5" />
-                                    {t("Putaway")}
-                                  </>
                                 ) : (
                                   <>
                                     <Eye className="w-4 h-4 mr-1.5" />
-                                    {t("View")}
+                                    {t("View Details")}
                                   </>
                                 )}
                               </Button>

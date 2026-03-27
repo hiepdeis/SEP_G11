@@ -24,8 +24,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   staffReceiptsApi,
-  GetInboundRequestListDto,
   ReceiptPutawayDto,
+  PendingPutawayReceiptDto, // Import DTO mới
 } from "@/services/import-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -56,7 +56,6 @@ interface PutawayItemInput {
   materialCode: string;
   materialName: string;
   passQuantity: number;
-  unit: string;
   batch: {
     batchCode: string;
     mfgDate: string;
@@ -72,7 +71,7 @@ export default function PutawayPage() {
   const router = useRouter();
   const id = Number(params.id);
 
-  const [receipt, setReceipt] = useState<GetInboundRequestListDto | null>(null);
+  const [receipt, setReceipt] = useState<PendingPutawayReceiptDto | null>(null);
   const [putawayItems, setPutawayItems] = useState<PutawayItemInput[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -89,45 +88,36 @@ export default function PutawayPage() {
     const fetchReceipt = async () => {
       setIsLoading(true);
       try {
-        const [receiptRes, qcRes, binRes] = await Promise.all([
-          staffReceiptsApi.getReceiptDetails(id),
-          staffReceiptsApi.getQCCheck(id),
+        const [receiptRes, binRes] = await Promise.all([
+          staffReceiptsApi.getPendingPutawayReceiptDetail(id),
           staffReceiptsApi.getAllBinLocation(),
         ]);
 
         const data = receiptRes.data;
-        const qcData = qcRes.data;
-
         setReceipt(data);
         setBinLocations(binRes.data);
 
-        const validQcDetails = qcData.details.filter((q) => q.passQuantity > 0);
+        const validItems = (data.items || []).filter(
+          (q) => q.quantityToPutaway > 0,
+        );
 
-        const initialForm: PutawayItemInput[] = validQcDetails.map((qcItem) => {
-          const receiptItem = (data.items || []).find(
-            (i) => i.materialId === qcItem.materialId,
-          );
-
+        const initialForm: PutawayItemInput[] = validItems.map((item) => {
           return {
-            materialId: qcItem.materialId || 0,
-            materialCode: receiptItem?.materialCode || "",
-            materialName:
-              receiptItem?.materialName || `Item #${qcItem.materialId}`,
-            passQuantity: qcItem.passQuantity,
-            unit: receiptItem?.unit || "Unit",
+            materialId: item.materialId || 0,
+            materialCode: item.materialCode,
+            materialName: item.materialName || `Item #${item.materialId}`,
+            passQuantity: item.quantityToPutaway,
             batch: {
-              batchCode: receiptItem?.batchCode || "",
-              mfgDate: receiptItem?.mfgDate
-                ? receiptItem.mfgDate.split("T")[0]
-                : "",
+              batchCode: "",
+              mfgDate: "",
               expiryDate: "",
               certificateImage: null,
             },
             binAllocations: [
               {
                 id: crypto.randomUUID(),
-                binId: receiptItem?.binLocationId || "",
-                quantity: qcItem.passQuantity,
+                binId: "",
+                quantity: item.quantityToPutaway,
               },
             ],
           };
@@ -168,6 +158,12 @@ export default function PutawayPage() {
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error(t("Only image files are allowed."));
+      e.target.value = ""; 
+      return;
+    }
 
     try {
       const reader = new FileReader();
@@ -235,6 +231,17 @@ export default function PutawayPage() {
       if (!item.batch.batchCode.trim()) {
         return toast.error(
           `${t("Please enter a Batch Code for")} ${item.materialName}`,
+        );
+      }
+
+      if (!item.batch.mfgDate.trim()) {
+        return toast.error(
+          `${t("Please enter a Manufactured Date for")} ${item.materialName}`,
+        );
+      }
+      if (!item.batch.expiryDate.trim()) {
+        return toast.error(
+          `${t("Please enter a Expiry Date for")} ${item.materialName}`,
         );
       }
 
@@ -328,7 +335,6 @@ export default function PutawayPage() {
     );
   }
 
-  // --- Tính toán Phân trang ---
   const totalItems = putawayItems.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -341,7 +347,7 @@ export default function PutawayPage() {
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title={`${t("Putaway")} #${receipt.receiptCode}`} />
+        <Header title={`${t("Putaway")} Receipt #${receipt.receiptId}`} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 mx-auto w-full space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -358,7 +364,7 @@ export default function PutawayPage() {
                   {t("Inventory Putaway")}
                 </h1>
                 <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
-                  {receipt.warehouseName}
+                  {receipt.supplierName || t("Warehouse")}
                 </Badge>
               </div>
             </div>
@@ -373,17 +379,13 @@ export default function PutawayPage() {
               ) : (
                 <CheckCircle2 className="w-4 h-4 mr-2" />
               )}
-              {t("Save & Send to Manager")}
+              {t("Save & Update Inventory")}
             </Button>
           </div>
 
           {putawayItems.length === 0 ? (
             <div className="bg-amber-50 border border-amber-200 text-amber-800 p-6 rounded-lg text-center shadow-sm">
-              <p>
-                {t(
-                  "There are no valid items to putaway (All actual quantities are 0).",
-                )}
-              </p>
+              <p>{t("There are no valid items to putaway.")}</p>
             </div>
           ) : (
             <>
@@ -418,7 +420,7 @@ export default function PutawayPage() {
                             variant="outline"
                             className="bg-white border-indigo-200 text-indigo-700 px-3 py-1 text-sm"
                           >
-                            {item.passQuantity} {item.unit}
+                            {item.passQuantity}
                           </Badge>
                         </div>
                       </CardHeader>
@@ -433,8 +435,8 @@ export default function PutawayPage() {
 
                             <div className="space-y-2">
                               <label className="text-xs font-medium text-slate-700">
-                                {t("Batch Code")}{" "}
-                                <span className="text-red-500">*</span>
+                                {t("Batch Code")}
+                                <span className="text-red-500"> *</span>
                               </label>
                               <Input
                                 placeholder="e.g. BATCH-2026-03"
@@ -453,7 +455,8 @@ export default function PutawayPage() {
                             <div className="grid grid-cols-2 gap-3">
                               <div className="space-y-2">
                                 <label className="text-xs font-medium text-slate-700">
-                                  {t("Mfg Date")}
+                                  {t("Manufactured Date")}
+                                  <span className="text-red-500"> *</span>
                                 </label>
                                 <DateTimePicker
                                   value={
@@ -474,6 +477,7 @@ export default function PutawayPage() {
                               <div className="space-y-2">
                                 <label className="text-xs font-medium text-slate-700">
                                   {t("Expiry Date")}
+                                  <span className="text-red-500"> *</span>
                                 </label>
                                 <DateTimePicker
                                   value={
@@ -627,7 +631,7 @@ export default function PutawayPage() {
                                     <Input
                                       type="number"
                                       min="1"
-                                      placeholder="Qty..."
+                                      placeholder="Quantity..."
                                       className="h-9 focus-visible:ring-indigo-500 bg-white"
                                       value={bin.quantity}
                                       onChange={(e) =>

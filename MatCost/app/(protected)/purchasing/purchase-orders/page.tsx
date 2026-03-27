@@ -251,10 +251,17 @@ export default function PurchasingDashboardPage() {
   const endIndex = isAll ? currentSortedData.length : startIndex + itemsPerPage;
   const paginatedData = currentSortedData.slice(startIndex, endIndex);
 
-  // Handlers
-  const handleReviewPO = (id: number) => {
+  const handleReviewPO = (
+    id: number,
+    requestId: number,
+    status: string = "View",
+  ) => {
     setLoadingId(id);
-    router.push(`/purchasing/purchase-orders/${id}`);
+    if (status === "AccountantRejected" || status === "AdminRejected")
+      router.push(
+        `/purchasing/purchase-orders/create?requestId=${requestId}&parentPOId=${id}`,
+      );
+    else router.push(`/purchasing/purchase-orders/${id}`);
   };
 
   const handleReviewPR = (id: number) => {
@@ -267,8 +274,23 @@ export default function PurchasingDashboardPage() {
   };
 
   // Formatters
-  const formatDate = (dateString?: string | null) =>
-    dateString ? new Date(dateString).toLocaleDateString("vi-VN") : "N/A";
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return "N/A";
+
+    let safeDateString = dateString;
+
+    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
+      safeDateString = safeDateString.replace(" ", "T") + "Z";
+    }
+
+    return new Date(safeDateString).toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
   const formatCurrency = (val?: number | null) =>
     val != null
       ? val.toLocaleString("vi-VN", { style: "currency", currency: "VND" })
@@ -724,7 +746,11 @@ export default function PurchasingDashboardPage() {
                                 ) {
                                   return;
                                 }
-                                handleReviewPO(item.purchaseOrderId);
+                                handleReviewPO(
+                                  item.purchaseOrderId,
+                                  item.requestId,
+                                  item.status,
+                                );
                               }}
                             >
                               <TableCell className="pl-6">
@@ -733,7 +759,6 @@ export default function PurchasingDashboardPage() {
                                     <span className="font-semibold text-slate-700">
                                       {item.purchaseOrderCode}
                                     </span>
-                                    {/* BADGE REVISION */}
                                     {item.revisionNumber > 1 && (
                                       <Badge
                                         variant="outline"
@@ -785,7 +810,8 @@ export default function PurchasingDashboardPage() {
                                           ? "bg-rose-50 text-rose-700 border-rose-200"
                                           : item.status === "SentToSupplier"
                                             ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                            : item.status === "PartiallyReceived"
+                                            : item.status ===
+                                                "PartiallyReceived"
                                               ? "bg-amber-50 text-amber-700 border-amber-200"
                                               : "bg-slate-50 text-slate-700 border-slate-200"
                                   }
@@ -799,45 +825,83 @@ export default function PurchasingDashboardPage() {
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right pr-6">
-                                <Button
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleReviewPO(item.purchaseOrderId);
-                                  }}
-                                  disabled={loadingId === item.purchaseOrderId}
-                                  variant={
-                                    item.status === "AdminApproved" ||
-                                    item.status.includes("Rejected")
-                                      ? "default"
-                                      : "outline"
-                                  }
-                                  className={
-                                    item.status === "AdminApproved" ||
-                                    item.status.includes("Rejected")
-                                      ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[200px]"
-                                      : "text-indigo-600 border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 w-[200px]"
-                                  }
-                                >
-                                  {loadingId === item.purchaseOrderId ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : item.status === "AdminApproved" ? (
-                                    <>
-                                      {t("Review")}{" "}
-                                      <ArrowRight className="w-4 h-4 ml-1.5" />
-                                    </>
-                                  ) : item.status.includes("Rejected") ? (
-                                    <>
-                                      {t("Recreate PO")}{" "}
-                                      <ArrowRight className="w-4 h-4 ml-1.5" />
-                                    </>
-                                  ) : (
-                                    <>
-                                      {t("View")}{" "}
-                                      <Eye className="w-4 h-4 ml-1.5" />
-                                    </>
+                                <div className="flex items-center justify-end gap-2">
+                                  {(item.status === "AccountantRejected" ||
+                                    item.status === "AdminRejected") && (
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-indigo-800"
+                                          onClick={(e) => e.stopPropagation()} // Good practice to stop row click
+                                        >
+                                          <MoreVertical className="w-4 h-4" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleReviewPO(
+                                              item.purchaseOrderId,
+                                              item.requestId,
+                                            );
+                                          }}
+                                        >
+                                          <Eye className="w-4 h-4 mr-2 focus:text-primary" />{" "}
+                                          {t("View Alert Details")}
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
                                   )}
-                                </Button>
+
+                                  <Button
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleReviewPO(
+                                        item.purchaseOrderId,
+                                        item.requestId,
+                                        item.status,
+                                      );
+                                    }}
+                                    disabled={
+                                      loadingId === item.purchaseOrderId
+                                    }
+                                    variant={
+                                      item.status === "AdminApproved" ||
+                                      item.status.includes("Rejected")
+                                        ? "default"
+                                        : "outline"
+                                    }
+                                    className={
+                                      item.status === "AdminApproved" ||
+                                      item.status.includes("Rejected")
+                                        ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[200px]"
+                                        : "text-indigo-600 border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 w-[200px]"
+                                    }
+                                  >
+                                    {loadingId === item.purchaseOrderId ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : item.status === "AdminApproved" ? (
+                                      <>
+                                        {t("Review")}{" "}
+                                        <ArrowRight className="w-4 h-4 ml-1.5" />
+                                      </>
+                                    ) : item.status.includes("Rejected") ? (
+                                      <>
+                                        {t("Recreate PO")}{" "}
+                                        <ArrowRight className="w-4 h-4 ml-1.5" />
+                                      </>
+                                    ) : (
+                                      <>
+                                        {t("View")}{" "}
+                                        <Eye className="w-4 h-4 ml-1.5" />
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           );

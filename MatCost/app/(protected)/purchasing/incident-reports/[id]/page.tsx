@@ -175,7 +175,20 @@ export default function PurchasingIncidentDetailPage() {
 
   const formatDateTime = (dateString?: string | null) => {
     if (!dateString) return "N/A";
-    return format(new Date(dateString), "dd/MM/yyyy HH:mm");
+
+    let safeDateString = dateString;
+
+    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
+      safeDateString = safeDateString.replace(" ", "T") + "Z";
+    }
+
+    return new Date(safeDateString).toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   if (isLoading || !incident) {
@@ -379,19 +392,20 @@ export default function PurchasingIncidentDetailPage() {
                                     `Item #${item.materialId}`}
                                 </p>
                               </TableCell>
-
-                              {/* Thêm cột Ordered */}
-                              <TableCell className="text-center align-top pt-4 font-medium text-slate-600">
-                                {item.orderedQuantity ?? 0}
+                              <TableCell className="text-center align-top pt-4">
+                                <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border-slate-200">
+                                  {item.orderedQuantity}
+                                </Badge>
                               </TableCell>
-
-                              {/* Thêm cột Actual */}
-                              <TableCell className="text-center align-top pt-4 font-medium text-slate-600">
-                                {item.actualQuantity ?? 0}
+                              <TableCell className="text-center align-top pt-4">
+                                <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border-slate-200">
+                                  {item.actualQuantity}
+                                </Badge>
                               </TableCell>
-
-                              <TableCell className="text-center align-top pt-4 font-medium text-emerald-600">
-                                {item.passQuantity}
+                              <TableCell className="text-center align-top pt-4">
+                                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
+                                  {item.passQuantity}
+                                </Badge>
                               </TableCell>
                               <TableCell className="text-center align-top pt-4">
                                 <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">
@@ -465,7 +479,7 @@ export default function PurchasingIncidentDetailPage() {
           if (!open) setIsProcessModalOpen(false);
         }}
       >
-        <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden border-0 shadow-lg bg-white">
+        <DialogContent className="sm:max-w-[800px] p-0 gap-0 overflow-hidden border-0 shadow-lg bg-white">
           <DialogHeader className="pt-5 pb-4 px-6 border-b border-slate-100 bg-white">
             <DialogTitle className="text-indigo-700 flex items-center gap-2 text-lg">
               <PackagePlus className="w-5 h-5" />
@@ -554,28 +568,14 @@ export default function PurchasingIncidentDetailPage() {
                           </TableCell>
 
                           <TableCell className="text-center font-bold text-amber-600">
-                            {shortage.toFixed(3)}
+                            {Number(shortage.toFixed(3))}
                           </TableCell>
 
                           <TableCell className="text-center font-bold text-rose-600">
-                            {failed.toFixed(3)}
+                            {Number(failed.toFixed(3))}
                           </TableCell>
-
-                          <TableCell className="py-2 pr-4">
-                            <Input
-                              type="number"
-                              min="0"
-                              className="w-full text-center focus-visible:ring-indigo-500 font-semibold"
-                              value={item.supplementaryQuantity.toFixed(3)}
-                              onChange={(e) => {
-                                const newItems = [...supplementaryItems];
-                                newItems[idx].supplementaryQuantity = Math.max(
-                                  0,
-                                  Number(e.target.value),
-                                );
-                                setSupplementaryItems(newItems);
-                              }}
-                            />
+                          <TableCell className="text-center font-bold text-green-600">
+                            {Number(item.supplementaryQuantity.toFixed(3))}
                           </TableCell>
                         </TableRow>
                       );

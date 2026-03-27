@@ -198,9 +198,16 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
     0,
   );
 
-  const formatDateTime = (dateString: string) => {
+  const formatDateTime = (dateString?: string | null) => {
     if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleString("vi-VN", {
+
+    let safeDateString = dateString;
+
+    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
+      safeDateString = safeDateString.replace(" ", "T") + "Z";
+    }
+
+    return new Date(safeDateString).toLocaleString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",

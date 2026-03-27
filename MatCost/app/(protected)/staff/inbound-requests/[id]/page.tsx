@@ -119,9 +119,16 @@ export default function StaffInboundDetailPage() {
     });
   };
 
-  const formatDate = (dateString: string | null | undefined) => {
+const formatDate = (dateString?: string | null) => {
     if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("vi-VN", {
+
+    let safeDateString = dateString;
+    
+    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
+      safeDateString = safeDateString.replace(" ", "T") + "Z";
+    }
+
+    return new Date(safeDateString).toLocaleString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",

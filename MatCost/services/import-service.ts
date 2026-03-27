@@ -545,6 +545,7 @@ export interface QCCheckDto {
 
 export interface ReceiveGoodsFromPoItemDto {
   materialId: number;
+  orderedQuantity: number;
   actualQuantity: number;
   passQuantity: number;
   failQuantity: number;
@@ -725,18 +726,21 @@ export interface ReceiptBatchLookupDto {
   mfgDate?: string | null;
   expiryDate?: string | null;
   materialName: string;
-} 
+}
 
 export interface PendingPutawayReceiptDto {
   receiptId: number;
+  receiptCode: string;
   purchaseOrderCode: string;
   supplierName: string;
   status: string;
+  createdAt: string;
   items: PendingPutawayItemDto[];
 }
 
 export interface PendingPutawayItemDto {
   materialId: number;
+  materialCode: string,
   materialName: string;
   quantityToPutaway: number;
   note?: string | null;
@@ -1054,6 +1058,24 @@ export const staffReceiptsApi = {
       "/staff/receipts/pending-pos",
     );
   },
+  getPendingSupplementaryReceiptDetail: (supplementaryReceiptId: number) => {
+    return axiosClient.get<PendingPurchaseOrderDto>(
+      `/staff/receipts/pending-pos/supplementary/${supplementaryReceiptId}`,
+    );
+  },
+
+  getPendingPutawayReceipts: () => {
+    return axiosClient.get<PendingPutawayReceiptDto[]>(
+      "/staff/receipts/pending-putaway",
+    );
+  },
+
+  getPendingPutawayReceiptDetail: (receiptId: number) => {
+    return axiosClient.get<PendingPutawayReceiptDto>(
+      `/staff/receipts/pending-putaway/${receiptId}`,
+    );
+  },
+
   getBatches: (materialId: number, batchCode?: string) => {
     return axiosClient.get<ReceiptBatchLookupDto[]>("/staff/receipts/batches", {
       params: { materialId, batchCode },
@@ -1099,13 +1121,6 @@ export const staffReceiptsApi = {
     );
   },
 };
-
-export const getPendingPutawayReceipts = () => {
-  return axiosClient.get<PendingPutawayReceiptDto[]>(
-    "/staff/receipts/pending-putaway"
-  );
-};
-
 
 // ==========================================
 // INTERNAL

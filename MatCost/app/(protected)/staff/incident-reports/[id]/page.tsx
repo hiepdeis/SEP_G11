@@ -60,6 +60,7 @@ interface IncidentItemInput {
   materialName: string;
   unit: string;
   orderedQuantity: number;
+  actualQuantity: number;
   passQuantity: number;
   failQuantity: number;
   issueType: string;
@@ -141,6 +142,7 @@ export default function StaffIncidentPage() {
             materialName: receiptItem?.materialName || "",
             unit: receiptItem?.unit || "Unit",
             orderedQuantity: receiptItem?.quantity || 0,
+            actualQuantity: receiptItem?.actualQuantity || 0,
             passQuantity: qcItem.passQuantity,
             failQuantity: qcItem.failQuantity,
             issueType: historyDetail ? historyDetail.issueType : "",
@@ -209,6 +211,7 @@ export default function StaffIncidentPage() {
               materialName: receiptItem?.materialName || "",
               unit: receiptItem?.unit || "Unit",
               orderedQuantity: receiptItem?.quantity || 0,
+              actualQuantity: receiptItem?.actualQuantity || 0,
               passQuantity: qcItem.passQuantity,
               failQuantity: qcItem.failQuantity,
               issueType: historyDetail ? historyDetail.issueType : "",
@@ -355,11 +358,23 @@ export default function StaffIncidentPage() {
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     if (!e.target.files || e.target.files.length === 0) return;
-    const files = Array.from(e.target.files);
+    
+    const allFiles = Array.from(e.target.files);
+    
+    const imageFiles = allFiles.filter((file) => file.type.startsWith("image/"));
+
+    if (imageFiles.length < allFiles.length) {
+      toast.warning(t("Only image files are allowed. Non-image files were skipped."));
+    }
+
+    if (imageFiles.length === 0) {
+      e.target.value = "";
+      return;
+    }
 
     try {
       const base64Images = await Promise.all(
-        files.map((file) => {
+        imageFiles.map((file) => {
           return new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
@@ -377,7 +392,7 @@ export default function StaffIncidentPage() {
       );
 
       if (uniqueNewImages.length < base64Images.length) {
-        toast.info(t("Duplicate images"));
+        toast.info(t("Duplicated images."));
       }
 
       newItems[index] = {
@@ -418,7 +433,7 @@ export default function StaffIncidentPage() {
             <div className="flex flex-col gap-1">
               <Button
                 variant="ghost"
-                onClick={() => router.push(`/staff/inbound-requests`)}
+                onClick={() => router.push(`/staff/incident-reports`)}
                 className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit -ml-2 mb-1 h-8"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}
@@ -536,6 +551,9 @@ export default function StaffIncidentPage() {
                       <TableHead className="w-[10%] text-center">
                         {t("Ordered")}
                       </TableHead>
+                      <TableHead className="w-[10%] text-center">
+                        {t("Actual")}
+                      </TableHead>
                       <TableHead className="w-[10%] text-center text-emerald-700">
                         {t("Passed")}
                       </TableHead>
@@ -587,6 +605,11 @@ export default function StaffIncidentPage() {
                                 <TableCell className="text-center align-top py-4 font-medium text-slate-600">
                                   <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border-slate-200">
                                     {item.orderedQuantity} {item.unit}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-center align-top py-4 font-medium text-slate-600">
+                                  <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border-slate-200">
+                                    {item.actualQuantity} {item.unit}
                                   </Badge>
                                 </TableCell>
                                 <TableCell className="text-center align-top py-4 text-emerald-600 font-medium">

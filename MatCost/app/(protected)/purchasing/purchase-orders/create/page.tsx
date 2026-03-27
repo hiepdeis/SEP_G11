@@ -179,7 +179,20 @@ export default function CreatePurchaseOrderPage() {
 
   const formatDateTime = (dateString?: string | null) => {
     if (!dateString) return "N/A";
-    return format(new Date(dateString), "dd/MM/yyyy HH:mm");
+
+    let safeDateString = dateString;
+    
+    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
+      safeDateString = safeDateString.replace(" ", "T") + "Z";
+    }
+
+    return new Date(safeDateString).toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const handleSubmit = () => {
@@ -591,7 +604,7 @@ export default function CreatePurchaseOrderPage() {
                               key={item.id}
                               className="hover:bg-slate-50/50 transition-colors"
                             >
-                              <TableCell className="pl-6 align-top pt-4">
+                              <TableCell className="pl-6 align-top py-4">
                                 <div className="flex flex-col">
                                   <span className="font-semibold text-slate-800">
                                     {item.materialName}
@@ -608,7 +621,7 @@ export default function CreatePurchaseOrderPage() {
                                 </span>
                               </TableCell>
 
-                              <TableCell className="align-top pt-4">
+                              <TableCell className="align-top py-4">
                                 <Input
                                   type="number"
                                   min="1"
@@ -625,7 +638,7 @@ export default function CreatePurchaseOrderPage() {
                                   }
                                 />
                               </TableCell>
-                              <TableCell className="align-top pt-4">
+                              <TableCell className="align-top py-4">
                                 <Select
                                   value={item.supplierId}
                                   onValueChange={(val) =>
@@ -653,7 +666,7 @@ export default function CreatePurchaseOrderPage() {
                                   </SelectContent>
                                 </Select>
                               </TableCell>
-                              <TableCell className="align-top text-right pt-4 pr-6">
+                              <TableCell className="align-top text-right py-4 pr-6">
                                 <Input
                                   type="number"
                                   min="0"

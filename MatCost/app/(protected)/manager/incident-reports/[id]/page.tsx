@@ -61,7 +61,9 @@ export default function ManagerIncidentDetailPage() {
   const router = useRouter();
   const id = Number(params.id);
 
-  const [incident, setIncident] = useState<ManagerIncidentDetailDto | null>(null);
+  const [incident, setIncident] = useState<ManagerIncidentDetailDto | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
 
   // States: Đơn đền bù
@@ -175,7 +177,20 @@ export default function ManagerIncidentDetailPage() {
 
   const formatDateTime = (dateString?: string | null) => {
     if (!dateString) return "N/A";
-    return format(new Date(dateString), "dd/MM/yyyy HH:mm");
+
+    let safeDateString = dateString;
+
+    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
+      safeDateString = safeDateString.replace(" ", "T") + "Z";
+    }
+
+    return new Date(safeDateString).toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   if (isLoading || !incident) {
@@ -192,7 +207,8 @@ export default function ManagerIncidentDetailPage() {
   }
 
   const isManagerPending = incident.status === "PendingManagerReview";
-  const isSupplementaryPending = supplementaryReceipt?.status === "PendingManagerApproval";
+  const isSupplementaryPending =
+    supplementaryReceipt?.status === "PendingManagerApproval";
 
   const totalTableItems = incident.items.length;
   const totalTablePages = Math.ceil(totalTableItems / tableItemsPerPage) || 1;
@@ -226,7 +242,10 @@ export default function ManagerIncidentDetailPage() {
                 </h1>
                 <Badge
                   className={
-                    isManagerPending || isSupplementaryPending || incident.status.includes("Pending") || supplementaryReceipt?.status.includes("Pending")
+                    isManagerPending ||
+                    isSupplementaryPending ||
+                    incident.status.includes("Pending") ||
+                    supplementaryReceipt?.status.includes("Pending")
                       ? "bg-amber-100 text-amber-700 hover:bg-amber-100"
                       : "bg-indigo-100 text-indigo-700 hover:bg-indigo-100"
                   }
@@ -285,7 +304,8 @@ export default function ManagerIncidentDetailPage() {
                     </span>
                     <div className="flex items-center gap-2 text-slate-800 font-medium">
                       <User className="w-4 h-4 text-slate-400" />
-                      {incident.qcCheck?.checkedByName || `ID: ${incident.qcCheck?.checkedBy}`}
+                      {incident.qcCheck?.checkedByName ||
+                        `ID: ${incident.qcCheck?.checkedBy}`}
                     </div>
                   </div>
 
@@ -310,7 +330,10 @@ export default function ManagerIncidentDetailPage() {
                 </CardHeader>
                 <CardContent className="p-5">
                   <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap italic">
-                    "{incident.description || t("No general description provided.")}"
+                    "
+                    {incident.description ||
+                      t("No general description provided.")}
+                    "
                   </p>
                 </CardContent>
               </Card>
@@ -318,7 +341,6 @@ export default function ManagerIncidentDetailPage() {
 
             {/* CỘT PHẢI: CHI TIẾT */}
             <div className="lg:col-span-2 space-y-6">
-              
               {/* CARD: SUPPLEMENTARY RECEIPT */}
               {supplementaryReceipt && (
                 <Card className="shadow-sm flex flex-col gap-0 overflow-hidden">
@@ -347,7 +369,9 @@ export default function ManagerIncidentDetailPage() {
                         </span>
                         <div className="flex items-center gap-2 text-slate-800 font-medium">
                           <CalendarDays className="w-4 h-4 text-indigo-400" />
-                          {formatDateTime(supplementaryReceipt.expectedDeliveryDate)}
+                          {formatDateTime(
+                            supplementaryReceipt.expectedDeliveryDate,
+                          )}
                         </div>
                       </div>
                       {supplementaryReceipt.supplierNote && (
@@ -366,7 +390,9 @@ export default function ManagerIncidentDetailPage() {
                       <Table>
                         <TableHeader className="bg-slate-50">
                           <TableRow>
-                            <TableHead className="w-[70%]">{t("Material")}</TableHead>
+                            <TableHead className="w-[70%]">
+                              {t("Material")}
+                            </TableHead>
                             <TableHead className="w-[30%] text-center text-indigo-700">
                               {t("Replacement Quantity")}
                             </TableHead>
@@ -376,7 +402,8 @@ export default function ManagerIncidentDetailPage() {
                           {supplementaryReceipt.items.map((suppItem, idx) => (
                             <TableRow key={idx}>
                               <TableCell className="font-medium text-slate-700">
-                                {suppItem.materialName || `Item #${suppItem.materialId}`}
+                                {suppItem.materialName ||
+                                  `Item #${suppItem.materialId}`}
                               </TableCell>
                               <TableCell className="text-center font-bold text-indigo-600">
                                 {suppItem.supplementaryQuantity}
@@ -390,7 +417,7 @@ export default function ManagerIncidentDetailPage() {
 
                   {/* NÚT DUYỆT/TỪ CHỐI ĐỀN BÙ */}
                   {isSupplementaryPending && (
-                    <CardFooter className="border-t border-indigo-100 p-4 flex justify-end gap-3 bg-slate-50">
+                    <CardFooter className="border-t border-indigo-100 p-4 flex justify-end gap-3">
                       <Button
                         variant="outline"
                         className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700"
@@ -424,7 +451,10 @@ export default function ManagerIncidentDetailPage() {
                     <PackageX className="w-5 h-5 text-rose-600" />
                     {t("Defective Materials List")}
                   </CardTitle>
-                  <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                  <Badge
+                    variant="secondary"
+                    className="bg-slate-100 text-slate-700"
+                  >
                     {totalTableItems} {t("Items")}
                   </Badge>
                 </CardHeader>
@@ -433,16 +463,33 @@ export default function ManagerIncidentDetailPage() {
                     <Table>
                       <TableHeader className="bg-slate-50 sticky top-0 z-10">
                         <TableRow>
-                          <TableHead className="w-[35%] pl-6">{t("Material")}</TableHead>
-                          <TableHead className="w-[15%] text-center text-emerald-700">{t("Passed")}</TableHead>
-                          <TableHead className="w-[15%] text-center text-rose-700 font-bold">{t("Failed")}</TableHead>
-                          <TableHead className="w-[35%] pr-6">{t("Staff Reason")}</TableHead>
+                          <TableHead className="w-[35%] pl-6">
+                            {t("Material")}
+                          </TableHead>
+                          <TableHead className="w-[15%] text-center text-slate-700">
+                            {t("Ordered")}
+                          </TableHead>
+                          <TableHead className="w-[15%] text-center text-slate-700">
+                            {t("Actual")}
+                          </TableHead>
+                          <TableHead className="w-[15%] text-center text-emerald-700">
+                            {t("Passed")}
+                          </TableHead>
+                          <TableHead className="w-[15%] text-center text-rose-700 font-bold">
+                            {t("Failed")}
+                          </TableHead>
+                          <TableHead className="w-[35%] pr-6">
+                            {t("Staff Reason")}
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {paginatedItems.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={4} className="h-32 text-center text-slate-500">
+                            <TableCell
+                              colSpan={4}
+                              className="h-32 text-center text-slate-500"
+                            >
                               {t("No items found.")}
                             </TableCell>
                           </TableRow>
@@ -451,11 +498,24 @@ export default function ManagerIncidentDetailPage() {
                             <TableRow key={idx} className="hover:bg-slate-50">
                               <TableCell className="pl-6 py-4 align-top">
                                 <p className="text-sm font-semibold text-slate-800">
-                                  {item.materialName || `Item #${item.materialId}`}
+                                  {item.materialName ||
+                                    `Item #${item.materialId}`}
                                 </p>
                               </TableCell>
-                              <TableCell className="text-center align-top pt-4 font-medium text-emerald-600">
-                                {item.passQuantity}
+                              <TableCell className="text-center align-top pt-4">
+                                <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border-slate-200">
+                                  {item.orderedQuantity}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center align-top pt-4">
+                                <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border-slate-200">
+                                  {item.actualQuantity}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center align-top pt-4">
+                                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
+                                  {item.passQuantity}
+                                </Badge>
                               </TableCell>
                               <TableCell className="text-center align-top pt-4">
                                 <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">
@@ -478,12 +538,20 @@ export default function ManagerIncidentDetailPage() {
                     <div className="px-6 py-3 flex items-center justify-between border-t border-slate-100 bg-slate-50/50 shrink-0 mt-auto">
                       <span className="text-xs text-slate-500">
                         {t("Showing")} {startTableIndex + 1}-
-                        {Math.min(startTableIndex + tableItemsPerPage, totalTableItems)} {t("of")} {totalTableItems}
+                        {Math.min(
+                          startTableIndex + tableItemsPerPage,
+                          totalTableItems,
+                        )}{" "}
+                        {t("of")} {totalTableItems}
                       </span>
                       <div className="flex items-center gap-2">
                         <Button
-                          variant="outline" size="sm" className="h-7 text-xs px-2"
-                          onClick={() => setTablePage((p) => Math.max(1, p - 1))}
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs px-2"
+                          onClick={() =>
+                            setTablePage((p) => Math.max(1, p - 1))
+                          }
                           disabled={tablePage === 1}
                         >
                           <ChevronLeft className="w-3 h-3 mr-1" /> {t("Prev")}
@@ -492,8 +560,14 @@ export default function ManagerIncidentDetailPage() {
                           {tablePage} / {totalTablePages}
                         </span>
                         <Button
-                          variant="outline" size="sm" className="h-7 text-xs px-2"
-                          onClick={() => setTablePage((p) => Math.min(totalTablePages, p + 1))}
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs px-2"
+                          onClick={() =>
+                            setTablePage((p) =>
+                              Math.min(totalTablePages, p + 1),
+                            )
+                          }
                           disabled={tablePage === totalTablePages}
                         >
                           {t("Next")} <ChevronRight className="w-3 h-3 ml-1" />
@@ -509,24 +583,38 @@ export default function ManagerIncidentDetailPage() {
       </main>
 
       {/* MODAL PHÊ DUYỆT (Sự cố hoặc Đền bù) */}
-      <Dialog open={isApproveModalOpen} onOpenChange={(open) => {
-          if (!open) { setIsApproveModalOpen(false); setApproveNotes(""); }
-        }}>
+      <Dialog
+        open={isApproveModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsApproveModalOpen(false);
+            setApproveNotes("");
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden border-0 shadow-lg bg-white">
           <DialogHeader className="pt-5 pb-4 px-6 border-b border-slate-100 bg-white">
             <DialogTitle className="text-emerald-700 flex items-center gap-2 text-lg">
               <CheckCircle2 className="w-5 h-5" />
-              {isSupplementaryPending ? t("Approve Supplementary") : t("Approve Incident")}
+              {isSupplementaryPending
+                ? t("Approve Supplementary")
+                : t("Approve Incident")}
             </DialogTitle>
           </DialogHeader>
           <div className="p-6 space-y-4 bg-white">
             <p className="text-sm text-slate-700">
               {isSupplementaryPending
-                ? t("You are about to approve this supplementary. It will be forwarded to the Warehouse Staff for goods awaiting.")
-                : t("You are about to approve this incident report. It will be forwarded to the Purchasing Team to arrange supplementary goods or refunds.")}
+                ? t(
+                    "You are about to approve this supplementary. It will be forwarded to the Warehouse Staff for goods awaiting.",
+                  )
+                : t(
+                    "You are about to approve this incident report. It will be forwarded to the Purchasing Team to arrange supplementary goods or refunds.",
+                  )}
             </p>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">{t("Manager Notes")}</label>
+            {/* <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">
+                {t("Manager Notes")}
+              </label>
               <Textarea
                 placeholder={t("Add instructions...")}
                 className="min-h-[100px] resize-none focus-visible:ring-emerald-500 mt-2 bg-white"
@@ -534,23 +622,32 @@ export default function ManagerIncidentDetailPage() {
                 onChange={(e) => setApproveNotes(e.target.value)}
                 autoFocus
               />
-            </div>
+            </div> */}
           </div>
           <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-white flex justify-end gap-2">
             <Button
               variant="ghost"
-              onClick={() => { setIsApproveModalOpen(false); setApproveNotes(""); }}
-              className="text-slate-600 hover:bg-slate-100"
+              onClick={() => {
+                setIsApproveModalOpen(false);
+                setApproveNotes("");
+              }}
+              className="text-slate-600 hover:text-slate-600 hover:bg-slate-100"
               disabled={isApproving || isApprovingSupp}
             >
               {t("Cancel")}
             </Button>
             <Button
-              onClick={supplementaryReceipt ? handleApproveSupplementary : handleApprove}
+              onClick={
+                supplementaryReceipt
+                  ? handleApproveSupplementary
+                  : handleApprove
+              }
               disabled={isApproving || isApprovingSupp}
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
-              {(isApproving || isApprovingSupp) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {(isApproving || isApprovingSupp) && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
               {t("Confirm Approval")}
             </Button>
           </DialogFooter>
@@ -558,9 +655,15 @@ export default function ManagerIncidentDetailPage() {
       </Dialog>
 
       {/* MODAL TỪ CHỐI YÊU CẦU ĐỀN BÙ */}
-      <Dialog open={rejectModalOpen} onOpenChange={(open) => {
-          if (!open) { setRejectModalOpen(false); setRejectReason(""); }
-        }}>
+      <Dialog
+        open={rejectModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRejectModalOpen(false);
+            setRejectReason("");
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden border-0 shadow-lg bg-white">
           <DialogHeader className="pt-5 pb-4 px-6 border-b border-slate-100 bg-white">
             <DialogTitle className="text-rose-700 flex items-center gap-2 text-lg">
@@ -570,7 +673,9 @@ export default function ManagerIncidentDetailPage() {
           </DialogHeader>
           <div className="p-6 space-y-4 bg-white">
             <p className="text-sm text-slate-800">
-              {t("Please provide a reason for rejecting this replacement request. It will be sent back to Purchasing.")}
+              {t(
+                "Please provide a reason for rejecting this replacement request. It will be sent back to Purchasing.",
+              )}
             </p>
             <Textarea
               placeholder={t("Enter rejection reason here...")}
@@ -583,7 +688,10 @@ export default function ManagerIncidentDetailPage() {
           <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-white flex justify-end gap-2">
             <Button
               variant="ghost"
-              onClick={() => { setRejectModalOpen(false); setRejectReason(""); }}
+              onClick={() => {
+                setRejectModalOpen(false);
+                setRejectReason("");
+              }}
               className="text-slate-600 hover:bg-slate-100"
               disabled={isRejecting}
             >

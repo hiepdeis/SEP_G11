@@ -187,10 +187,23 @@ export default function StockShortageAlertListPage() {
     setLoadingId(id);
     router.push(`/manager/alerts/${id}`);
   };
-
-  const formatDate = (dateString: string | null | undefined) => {
+  
+  const formatDate = (dateString?: string | null) => {
     if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("vi-VN");
+
+    let safeDateString = dateString;
+
+    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
+      safeDateString = safeDateString.replace(" ", "T") + "Z";
+    }
+
+    return new Date(safeDateString).toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const formatPlus = (num: number) => (num > 999 ? "999+" : num);
