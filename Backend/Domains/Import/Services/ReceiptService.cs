@@ -970,7 +970,34 @@ namespace Backend.Domains.Import.Services
                 else
                     receipt.Status = "ReadyForStamp";
 
-                Receipt? originalReceiptForStamp = null;
+                var currentPassQty = qcCheck.QCCheckDetails.Sum(d => d.PassQuantity);
+
+                if (receipt.PurchaseOrderId.HasValue)
+                {
+                    var purchaseOrder = await _context.PurchaseOrders
+                        .Include(po => po.Items)
+                        .FirstOrDefaultAsync(po => po.PurchaseOrderId == receipt.PurchaseOrderId.Value);
+
+                    if (purchaseOrder != null)
+                    {
+                        var orderedQty = purchaseOrder.Items.Sum(i => i.OrderedQuantity);
+
+                        var completedPassQty = await _context.QCCheckDetails
+                            .Where(d => d.QCCheck.Receipt.PurchaseOrderId == receipt.PurchaseOrderId.Value
+                                     && d.QCCheck.Receipt.Status == "ReadyForStamp"
+                                     && d.QCCheck.ReceiptId != receipt.ReceiptId)
+                            .SumAsync(d => (decimal?)d.PassQuantity) ?? 0m;
+
+                        completedPassQty += currentPassQty;
+
+                        if (completedPassQty == orderedQty)
+                            purchaseOrder.Status = "FullyReceived";
+                        else if (completedPassQty < orderedQty)
+                            purchaseOrder.Status = "PartiallyReceived";
+                        else
+                            purchaseOrder.Status = "OverReceived";
+                    }
+                }
 
                 if (receipt.SupplementaryReceiptId.HasValue)
                 {
@@ -988,12 +1015,6 @@ namespace Backend.Domains.Import.Services
                         if (incident != null)
                         {
                             incident.Status = "Resolved";
-
-                            if (incident.Receipt != null)
-                            {
-                                incident.Receipt.Status = "ReadyForStamp";
-                                originalReceiptForStamp = incident.Receipt;
-                            }
                         }
                     }
                 }
@@ -1001,15 +1022,7 @@ namespace Backend.Domains.Import.Services
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                if (originalReceiptForStamp != null)
-                {
-                    await CreateRoleNotificationsAsync(
-                        "Manager",
-                        $"Phiếu nhập {originalReceiptForStamp.ReceiptCode} sẵn sàng để đóng dấu",
-                        "Receipt",
-                        originalReceiptForStamp.ReceiptId);
-                }
-                else if (receipt.Status == "ReadyForStamp")
+                if (receipt.Status == "ReadyForStamp")
                 {
                     await CreateRoleNotificationsAsync(
                         "Manager",
