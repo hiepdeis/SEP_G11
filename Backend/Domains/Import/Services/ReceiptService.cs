@@ -610,6 +610,52 @@ namespace Backend.Domains.Import.Services
             return newDeliveries.Concat(replacementDeliveries).ToList();
         }
 
+        public async Task<PendingPurchaseOrderDto> GetPendingSupplementaryReceiptDetailAsync(long supplementaryReceiptId)
+        {
+            var supplementaryReceipt = await _context.SupplementaryReceipts
+                .Include(s => s.PurchaseOrder)
+                    .ThenInclude(p => p.Supplier)
+                .Include(s => s.IncidentReport)
+                    .ThenInclude(i => i.QCCheck)
+                        .ThenInclude(q => q!.QCCheckDetails)
+                .Include(s => s.Items)
+                    .ThenInclude(i => i.Material)
+                .FirstOrDefaultAsync(s => s.SupplementaryReceiptId == supplementaryReceiptId);
+
+            if (supplementaryReceipt == null)
+                throw new KeyNotFoundException($"SupplementaryReceipt with ID {supplementaryReceiptId} not found");
+
+            if (!supplementaryReceipt.ExpectedDeliveryDate.HasValue)
+                throw new InvalidOperationException("Supplementary receipt has no expected delivery date");
+
+            var failReasons = supplementaryReceipt.IncidentReport?.QCCheck?.QCCheckDetails
+                .Where(d => !string.IsNullOrWhiteSpace(d.FailReason))
+                .Select(d => d.FailReason!)
+                .Distinct()
+                .ToList()
+                ?? new List<string>();
+
+            return new PendingPurchaseOrderDto
+            {
+                Type = "ReplacementDelivery",
+                PurchaseOrderId = supplementaryReceipt.PurchaseOrderId,
+                PoCode = supplementaryReceipt.PurchaseOrder?.PurchaseOrderCode ?? string.Empty,
+                SupplierName = supplementaryReceipt.PurchaseOrder?.Supplier?.Name ?? string.Empty,
+                ExpectedDeliveryDate = supplementaryReceipt.ExpectedDeliveryDate.Value,
+                SupplementaryReceiptId = supplementaryReceipt.SupplementaryReceiptId,
+                IncidentId = supplementaryReceipt.IncidentId,
+                ReplacementQuantity = supplementaryReceipt.Items.Sum(i => i.SupplementaryQuantity),
+                OriginalFailReason = string.Join("; ", failReasons),
+                Items = supplementaryReceipt.Items.Select(i => new PendingPurchaseOrderItemDto
+                {
+                    MaterialId = i.MaterialId,
+                    MaterialName = i.Material?.Name ?? string.Empty,
+                    OrderedQuantity = i.SupplementaryQuantity,
+                    Unit = i.Material?.Unit ?? string.Empty
+                }).ToList()
+            };
+        }
+
         public async Task<List<PendingPutawayReceiptDto>> GetPendingPutawayReceiptsAsync()
         {
             var receipts = await _context.Receipts

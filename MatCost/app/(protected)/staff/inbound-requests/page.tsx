@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   ArrowRight,
   MoreVertical,
+  FileWarning, // Icon cho Incident
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ import {
 import {
   staffReceiptsApi,
   GetInboundRequestListDto,
+  IncidentReportSummaryDto, // Import DTO mới
 } from "@/services/import-service";
 import { toast } from "sonner";
 import {
@@ -63,13 +65,35 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+interface UnifiedListItem {
+  id: number;
+  type: "Receipt" | "Incident";
+  code: string;
+  referenceCode?: string | null;
+  date: string;
+  creatorName: string;
+  warehouseName: string;
+  totalQuantity: number;
+  status: string;
+  originalData: any;
+}
+
 export default function InboundReceiptsPage() {
   const router = useRouter();
   const { t } = useTranslation();
 
-  const [receipts, setReceipts] = useState<GetInboundRequestListDto[]>([]);
+  // State sử dụng interface chung
+  const [listItems, setListItems] = useState<UnifiedListItem[]>([]);
+
+  // States để lưu số liệu thống kê (tùy chọn)
+  const [stats, setStats] = useState({
+    totalReceipts: 0,
+    pendingIncident: 0,
+    incidentsPending: 0,
+  });
+
   const [isLoading, setIsLoading] = useState(true);
-  const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [loadingId, setLoadingId] = useState<string | null>(null); // Đổi thành string vì kết hợp cả ID và type (vd: 'receipt-1')
   const [searchTerm, setSearchTerm] = useState("");
 
   const [filterStatus, setFilterStatus] = useState<string>("All");
@@ -90,7 +114,18 @@ export default function InboundReceiptsPage() {
     direction: "asc" | "desc";
   } | null>(null);
 
-  const getStatusBadge = (status?: string | null) => {
+  const getStatusBadge = (status: string, type: string) => {
+    if (type === "Incident") {
+      switch (status) {
+        case "Resolved":
+          return "bg-emerald-50 text-emerald-700 border-emerald-200";
+        case "Open":
+          return "bg-rose-50 text-rose-700 border-rose-200";
+        default:
+          return "bg-amber-50 text-amber-700 border-amber-200";
+      }
+    }
+
     switch (status) {
       case "PendingIncident":
         return "bg-yellow-50 text-yellow-700 border-yellow-200";
@@ -124,11 +159,62 @@ export default function InboundReceiptsPage() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const res = await staffReceiptsApi.getAllReceiptsForWarehouse();
-        setReceipts(res.data);
+        const [receiptsRes, incidentsRes] = await Promise.all([
+          staffReceiptsApi.getAllReceiptsForWarehouse(),
+          staffReceiptsApi.getAllIncidentReports(),
+        ]);
+
+        const rawReceipts = receiptsRes.data || [];
+        const rawIncidents = incidentsRes.data || [];
+
+        setStats({
+          totalReceipts: rawReceipts.length,
+          pendingIncident: rawIncidents.filter(
+            (i) =>
+              i.status === "PendingManagerApproval" ||
+              i.status === "AwaitingSupplementaryGoods" ||
+              i.status === "PendingPurchasingAction",
+          ).length,
+          incidentsPending: rawIncidents.filter((i) => i.status === "Open")
+            .length,
+        });
+
+        const unifiedList: UnifiedListItem[] = [];
+
+        rawReceipts.forEach((r) => {
+          unifiedList.push({
+            id: r.receiptId,
+            type: "Receipt",
+            code: r.receiptCode,
+            referenceCode: r.purchaseOrderCode,
+            date: r.createdDate || "",
+            creatorName: r.createdByName || "N/A",
+            warehouseName: r.warehouseName || "N/A",
+            totalQuantity: r.items.length || 0,
+            status: r.status || "Unknown",
+            originalData: r,
+          });
+        });
+
+        rawIncidents.forEach((inc) => {
+          unifiedList.push({
+            id: inc.incidentId,
+            type: "Incident",
+            code: inc.incidentCode,
+            referenceCode: inc.receiptCode,
+            date: inc.createdAt || "",
+            creatorName: inc.createdByName || "N/A",
+            warehouseName: inc.warehouseName || "N/A",
+            totalQuantity: inc.totalItems || 0,
+            status: inc.status || "Open",
+            originalData: inc,
+          });
+        });
+
+        setListItems(unifiedList);
       } catch (error) {
-        console.error("Failed to fetch receipts", error);
-        toast.error(t("Failed to fetch inbound receipts"));
+        console.error("Failed to fetch data", error);
+        toast.error(t("Failed to fetch list data"));
       } finally {
         setIsLoading(false);
       }
@@ -141,23 +227,29 @@ export default function InboundReceiptsPage() {
     setCurrentPage(1);
   }, [searchTerm, filterStatus, sortConfig, itemsPerPage, dateRange]);
 
-  const filteredData = receipts.filter((item) => {
+  const filteredData = listItems.filter((item) => {
     let matchesStatus = true;
     if (filterStatus !== "All") {
-      matchesStatus = item.status === filterStatus;
+      // Cho phép lọc theo Loại (Receipt/Incident) hoặc Trạng thái cụ thể
+      if (filterStatus === "ReceiptOnly")
+        matchesStatus = item.type === "Receipt";
+      else if (filterStatus === "IncidentOnly")
+        matchesStatus = item.type === "Incident";
+      else matchesStatus = item.status === filterStatus;
     }
 
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch =
-      item.receiptCode?.toLowerCase().includes(searchLower) ||
-      item.createdByName?.toLowerCase().includes(searchLower);
+      item.code.toLowerCase().includes(searchLower) ||
+      item.referenceCode?.toLowerCase().includes(searchLower) ||
+      item.creatorName.toLowerCase().includes(searchLower);
 
     let matchesDate = true;
     if (dateRange.from || dateRange.to) {
-      if (!item.createdDate) {
+      if (!item.date) {
         matchesDate = false;
       } else {
-        const itemDate = new Date(item.createdDate);
+        const itemDate = new Date(item.date);
         const fromDate = dateRange.from
           ? startOfDay(dateRange.from)
           : new Date(2000, 0, 1);
@@ -179,14 +271,14 @@ export default function InboundReceiptsPage() {
     if (!sortConfig) return 0;
 
     if (sortConfig.key === "date") {
-      const dateA = a.createdDate ? new Date(a.createdDate).getTime() : 0;
-      const dateB = b.createdDate ? new Date(b.createdDate).getTime() : 0;
+      const dateA = a.date ? new Date(a.date).getTime() : 0;
+      const dateB = b.date ? new Date(b.date).getTime() : 0;
       return sortConfig.direction === "asc" ? dateA - dateB : dateB - dateA;
     }
 
     if (sortConfig.key === "quantity") {
-      const qtyA = a.totalQuantity || 0;
-      const qtyB = b.totalQuantity || 0;
+      const qtyA = a.totalQuantity;
+      const qtyB = b.totalQuantity;
       return sortConfig.direction === "asc" ? qtyA - qtyB : qtyB - qtyA;
     }
 
@@ -202,14 +294,35 @@ export default function InboundReceiptsPage() {
   const endIndex = isAll ? sortedData.length : startIndex + itemsPerPage;
   const paginatedData = sortedData.slice(startIndex, endIndex);
 
-  const handleAction = (id: number, status: string = "View") => {
-    setLoadingId(id);
-    if (status === "PendingIncident") {
-      router.push(`/staff/inbound-requests/${id}/incident`);
-    } else if (status === "ReadyForPutaway" || status === "QCPassed") {
-      router.push(`/staff/inbound-requests/${id}/putaway`);
+  // ĐIỀU HƯỚNG TÙY THEO LOẠI ITEM
+  const handleAction = (
+    item: UnifiedListItem,
+    isSecondaryAction: boolean = false,
+  ) => {
+    setLoadingId(`${item.type}-${item.id}`);
+
+    if (item.type === "Incident") {
+      // Route xem chi tiết sự cố
+      router.push(`/staff/incident-reports/${item.id}`);
+      return;
+    }
+
+    // Nếu là Receipt
+    if (isSecondaryAction) {
+      // Force View Detail
+      router.push(`/staff/inbound-requests/${item.id}`);
     } else {
-      router.push(`/staff/inbound-requests/${id}`);
+      // Primary Action (Tùy thuộc Status)
+      if (item.status === "PendingIncident") {
+        router.push(`/staff/inbound-requests/${item.id}/incident`);
+      } else if (
+        item.status === "ReadyForPutaway" ||
+        item.status === "QCPassed"
+      ) {
+        router.push(`/staff/inbound-requests/${item.id}/putaway`);
+      } else {
+        router.push(`/staff/inbound-requests/${item.id}`);
+      }
     }
   };
 
@@ -218,29 +331,21 @@ export default function InboundReceiptsPage() {
     return format(new Date(dateString), "dd/MM/yyyy HH:mm");
   };
 
-  const totalReceipts = receipts.length;
-  const pendingQCCount = receipts.filter(
-    (r) => r.status === "PendingQC",
-  ).length;
-  const incidentCount = receipts.filter(
-    (r) => r.status === "PendingManagerReview",
-  ).length;
-
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title={t("Inbound Receipts")} />
+        <Header title={t("Inbound Operations")} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                {t("Goods Receipts")}
+                {t("Inbound & Incident Logs")}
               </h1>
               <p className="text-sm text-slate-500">
                 {t(
-                  "Manage received goods, perform QC checks, and report incidents.",
+                  "Manage received goods, perform QC checks, and track incident reports.",
                 )}
               </p>
             </div>
@@ -257,7 +362,7 @@ export default function InboundReceiptsPage() {
                     {t("Total Receipts")}
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {totalReceipts}
+                    {stats.totalReceipts}
                   </h3>
                 </div>
               </CardContent>
@@ -270,9 +375,11 @@ export default function InboundReceiptsPage() {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    {t("Pending QC Check")}
+                    {t("Pending Incident")}
                   </p>
-                  <h3 className="text-2xl font-bold">{pendingQCCount}</h3>
+                  <h3 className="text-2xl font-bold">
+                    {stats.pendingIncident}
+                  </h3>
                 </div>
               </CardContent>
             </Card>
@@ -284,9 +391,11 @@ export default function InboundReceiptsPage() {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    {t("Incidents Pending Review")}
+                    {t("Open Incidents")}
                   </p>
-                  <h3 className="text-2xl font-bold">{incidentCount}</h3>
+                  <h3 className="text-2xl font-bold">
+                    {stats.incidentsPending}
+                  </h3>
                 </div>
               </CardContent>
             </Card>
@@ -311,15 +420,33 @@ export default function InboundReceiptsPage() {
                       <SelectItem value="All">
                         <Badge
                           variant="outline"
-                          className="bg-slate-50 text-slate-700 border-slate-200"
+                          className="bg-slate-50 text-slate-700"
                         >
                           {t("All")}
                         </Badge>
                       </SelectItem>
+                      <SelectItem value="ReceiptOnly">
+                        <Badge
+                          variant="outline"
+                          className="bg-indigo-50 text-indigo-700"
+                        >
+                          {t("Receipts Only")}
+                        </Badge>
+                      </SelectItem>
+                      <SelectItem value="IncidentOnly">
+                        <Badge
+                          variant="outline"
+                          className="bg-amber-50 text-amber-700"
+                        >
+                          {t("Incidents Only")}
+                        </Badge>
+                      </SelectItem>
+
+                      <div className="h-px bg-slate-100 my-1 mx-2" />
                       <SelectItem value="QCPassed">
                         <Badge
                           variant="outline"
-                          className="bg-green-50 text-green-700 border-green-200"
+                          className="bg-emerald-50 text-emerald-700"
                         >
                           {t("QC Passed")}
                         </Badge>
@@ -327,33 +454,17 @@ export default function InboundReceiptsPage() {
                       <SelectItem value="ReadyForPutaway">
                         <Badge
                           variant="outline"
-                          className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                          className="bg-emerald-50 text-emerald-700"
                         >
                           {t("Ready For Putaway")}
                         </Badge>
                       </SelectItem>
-                      <SelectItem value="ReadyForStamp">
+                      <SelectItem value="Open">
                         <Badge
                           variant="outline"
-                          className="bg-amber-50 text-amber-700 border-amber-200"
+                          className="bg-amber-50 text-amber-700"
                         >
-                          {t("Pending Stamp")}
-                        </Badge>
-                      </SelectItem>
-                      <SelectItem value="PartiallyPutaway">
-                        <Badge
-                          variant="outline"
-                          className="bg-emerald-50 text-emerald-700 border-emerald-200"
-                        >
-                          {t("Partially Putaway")}
-                        </Badge>
-                      </SelectItem>
-                      <SelectItem value="PendingIncident">
-                        <Badge
-                          variant="outline"
-                          className="bg-yellow-50 text-yellow-700 border-yellow-200"
-                        >
-                          {t("Pending Incident")}
+                          {t("Incident - Open")}
                         </Badge>
                       </SelectItem>
                     </SelectContent>
@@ -441,7 +552,7 @@ export default function InboundReceiptsPage() {
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                   <Input
-                    placeholder={t("Search Receipt Code, Creator...")}
+                    placeholder={t("Search Code, Creator...")}
                     className="pl-9 h-9"
                     maxLength={50}
                     value={searchTerm}
@@ -461,7 +572,7 @@ export default function InboundReceiptsPage() {
                         onClick={() => handleSort("date")}
                       >
                         <div className="flex items-center gap-1.5 select-none">
-                          {t("Date & Receipt ID")}
+                          {t("Date & Code")}
                           {sortConfig?.key === "date" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
@@ -479,11 +590,11 @@ export default function InboundReceiptsPage() {
                       </TableHead>
 
                       <TableHead
-                        className="cursor-pointer transition-colors w-[20%] text-center"
+                        className="cursor-pointer transition-colors w-[15%] text-center"
                         onClick={() => handleSort("quantity")}
                       >
                         <div className="flex items-center justify-center gap-1.5 select-none">
-                          {t("Total Quantity")}
+                          {t("Items")}
                           {sortConfig?.key === "quantity" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
@@ -499,7 +610,7 @@ export default function InboundReceiptsPage() {
                       <TableHead className="w-[15%] text-center">
                         {t("Status")}
                       </TableHead>
-                      <TableHead className="text-right pr-6 w-[20%]">
+                      <TableHead className="text-right pr-6 w-[25%]">
                         {t("Action")}
                       </TableHead>
                     </TableRow>
@@ -510,7 +621,7 @@ export default function InboundReceiptsPage() {
                         <TableCell colSpan={5} className="h-32 text-center">
                           <div className="flex justify-center items-center gap-2 text-indigo-600">
                             <Loader2 className="w-6 h-6 animate-spin" />{" "}
-                            {t("Loading receipts...")}
+                            {t("Loading data...")}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -520,31 +631,36 @@ export default function InboundReceiptsPage() {
                           colSpan={5}
                           className="h-32 text-center text-slate-500"
                         >
-                          {t("No receipts found.")}
+                          {t("No records found.")}
                         </TableCell>
                       </TableRow>
                     ) : (
                       paginatedData.map((item) => (
                         <TableRow
-                          key={item.receiptId}
+                          key={`${item.type}-${item.id}`}
                           className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
                           onClick={() => {
                             const selection = window.getSelection();
                             if (selection && selection.toString().length > 0)
                               return;
-                            handleAction(item.receiptId, item.status);
+                            handleAction(item);
                           }}
                         >
                           <TableCell className="pl-6">
                             <div className="flex flex-col">
                               <div className="flex items-center gap-2 mb-1">
+                                {item.type === "Incident" ? (
+                                  <FileWarning className="w-4 h-4 text-rose-500" />
+                                ) : (
+                                  <ClipboardList className="w-4 h-4 text-indigo-500" />
+                                )}
                                 <span className="font-semibold text-slate-800">
-                                  {item.receiptCode}
+                                  {item.code}
                                 </span>
                               </div>
                               <span className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
                                 <CalendarDays className="w-3.5 h-3.5" />
-                                {formatDateTime(item.createdDate)}
+                                {formatDateTime(item.date)}
                               </span>
                             </div>
                           </TableCell>
@@ -552,16 +668,20 @@ export default function InboundReceiptsPage() {
                           <TableCell>
                             <div className="flex flex-col text-left">
                               <span className="font-medium text-slate-700">
-                                {item.createdByName || "N/A"}
+                                {item.creatorName}
                               </span>
-                              <span className="text-xs text-slate-500 mt-0.5">
-                                {item.warehouseName}
-                              </span>
+                              {item.referenceCode && (
+                                <span className="text-xs text-slate-500 mt-0.5 font-mono">
+                                  {t("Ref")}: {item.referenceCode}
+                                </span>
+                              )}
                             </div>
                           </TableCell>
 
                           <TableCell className="text-center">
-                            <span className="font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-md">
+                            <span
+                              className={`font-bold px-3 py-1 rounded-md ${item.type === "Incident" ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-700"}`}
+                            >
                               {item.totalQuantity.toLocaleString("vi-VN")}
                             </span>
                           </TableCell>
@@ -569,7 +689,7 @@ export default function InboundReceiptsPage() {
                           <TableCell className="text-center">
                             <Badge
                               variant="outline"
-                              className={getStatusBadge(item.status)}
+                              className={getStatusBadge(item.status, item.type)}
                             >
                               {item.status === "ReadyForStamp"
                                 ? "Pending Stamp"
@@ -579,81 +699,107 @@ export default function InboundReceiptsPage() {
 
                           <TableCell className="text-right pr-6">
                             <div className="flex items-center justify-end gap-2">
-                              {(item.status === "PendingIncident" ||
-                                item.status === "ReadyForPutaway" ||
-                                item.status === "QCPassed") && (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <MoreVertical className="w-4 h-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent
-                                    align="end"
-                                    className="w-40"
+                              {/* RENDER DỰA THEO LOẠI */}
+                              {item.type === "Receipt" ? (
+                                <>
+                                  {(item.status === "PendingIncident" ||
+                                    item.status === "ReadyForPutaway" ||
+                                    item.status === "QCPassed") && (
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <MoreVertical className="w-4 h-4" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent
+                                        align="end"
+                                        className="w-40"
+                                      >
+                                        <DropdownMenuItem
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleAction(item, true);
+                                          }}
+                                          className="cursor-pointer text-slate-700"
+                                        >
+                                          <Eye className="w-4 h-4 mr-2 text-slate-400" />
+                                          {t("View Details")}
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  )}
+                                  <Button
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAction(item);
+                                    }}
+                                    disabled={
+                                      loadingId === `${item.type}-${item.id}`
+                                    }
+                                    variant={
+                                      item.status === "PendingIncident"
+                                        ? "default"
+                                        : "outline"
+                                    }
+                                    className={
+                                      item.status === "PendingIncident"
+                                        ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm min-w-[200px]"
+                                        : item.status === "ReadyForPutaway" ||
+                                            item.status === "QCPassed"
+                                          ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm min-w-[200px]"
+                                          : "text-indigo-600 border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 min-w-[200px]"
+                                    }
                                   >
-                                    <DropdownMenuItem
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleAction(item.receiptId);
-                                        toast.info(
-                                          "Navigate to view detail...",
-                                        );
-                                      }}
-                                      className="cursor-pointer text-slate-700"
-                                    >
-                                      <Eye className="w-4 h-4 mr-2 text-slate-400" />
-                                      {t("View Details")}
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
+                                    {loadingId === `${item.type}-${item.id}` ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : item.status === "PendingIncident" ? (
+                                      <>
+                                        <TriangleAlert className="w-4 h-4 mr-1.5" />
+                                        {t("Review Incident")}
+                                      </>
+                                    ) : item.status === "ReadyForPutaway" ||
+                                      item.status === "QCPassed" ? (
+                                      <>
+                                        <ArrowRight className="w-4 h-4 mr-1.5" />
+                                        {t("Putaway")}
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Eye className="w-4 h-4 mr-1.5" />
+                                        {t("View")}
+                                      </>
+                                    )}
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAction(item);
+                                  }}
+                                  disabled={
+                                    loadingId === `${item.type}-${item.id}`
+                                  }
+                                  variant="outline"
+                                  className="text-rose-600 border-rose-200 hover:text-rose-700 hover:bg-rose-50 min-w-[200px]"
+                                >
+                                  {loadingId === `${item.type}-${item.id}` ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <>
+                                      <FileWarning className="w-4 h-4 mr-1.5" />
+                                      {t("Incident Details")}
+                                    </>
+                                  )}
+                                </Button>
                               )}
-                              <Button
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAction(item.receiptId, item.status);
-                                }}
-                                disabled={loadingId === item.receiptId}
-                                variant={
-                                  item.status === "PendingIncident"
-                                    ? "default"
-                                    : "outline"
-                                }
-                                className={
-                                  item.status === "PendingIncident"
-                                    ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm min-w-[200px]"
-                                    : item.status === "ReadyForPutaway" ||
-                                        item.status === "QCPassed"
-                                      ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm min-w-[200px]"
-                                      : "text-indigo-600 border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 min-w-[200px]"
-                                }
-                              >
-                                {loadingId === item.receiptId ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : item.status === "PendingIncident" ? (
-                                  <>
-                                    <TriangleAlert className="w-4 h-4 mr-1.5" />
-                                    {t("Review Incident")}
-                                  </>
-                                ) : item.status === "ReadyForPutaway" ||
-                                  item.status === "QCPassed" ? (
-                                  <>
-                                    <ArrowRight className="w-4 h-4 mr-1.5" />
-                                    {t("Putaway")}
-                                  </>
-                                ) : (
-                                  <>
-                                    <Eye className="w-4 h-4 mr-1.5" />
-                                    {t("View")}
-                                  </>
-                                )}
-                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>

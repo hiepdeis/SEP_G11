@@ -145,6 +145,28 @@ namespace Backend.Domains.Import.Controllers.Staff
             }
         }
 
+        [HttpGet("pending-pos/supplementary/{supplementaryReceiptId:long}")]
+        public async Task<IActionResult> GetPendingSupplementaryReceiptDetail(long supplementaryReceiptId)
+        {
+            try
+            {
+                var result = await _receiptService.GetPendingSupplementaryReceiptDetailAsync(supplementaryReceiptId);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
+
         [HttpGet("pending-putaway")]
         public async Task<IActionResult> GetPendingPutawayReceipts()
         {
