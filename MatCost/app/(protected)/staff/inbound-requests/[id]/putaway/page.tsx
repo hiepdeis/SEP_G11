@@ -373,7 +373,7 @@ export default function PutawayPage() {
               ) : (
                 <CheckCircle2 className="w-4 h-4 mr-2" />
               )}
-              {t("Save & Update Inventory")}
+              {t("Save & Send to Manager")}
             </Button>
           </div>
 

@@ -601,7 +601,7 @@ export default function PendingDeliveriesPage() {
                                   handleReceiveGoods(item.purchaseOrderId);
                                 }}
                                 disabled={loadingId === item.purchaseOrderId}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-32"
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-32 min-w-[200px]"
                               >
                                 {loadingId === item.purchaseOrderId ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />

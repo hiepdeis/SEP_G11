@@ -52,6 +52,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { formatPascalCase } from "@/lib/format-pascal-case";
 
 interface IncidentItemInput {
   materialId: number;
@@ -118,9 +119,9 @@ export default function StaffIncidentPage() {
         if (error.response?.status !== 404) {
           console.error("Error fetching Incident Report:", error);
         } else {
-           // QUAN TRỌNG: NẾU KHÔNG TÌM THẤY (404), ĐẢM BẢO RESET STATE
-           setIsHistoryView(false);
-           setHistoricalIncidentData(null);
+          // QUAN TRỌNG: NẾU KHÔNG TÌM THẤY (404), ĐẢM BẢO RESET STATE
+          setIsHistoryView(false);
+          setHistoricalIncidentData(null);
         }
       }
 
@@ -306,9 +307,8 @@ export default function StaffIncidentPage() {
 
           await staffReceiptsApi.createIncidentReport(id, payload);
           toast.success(t("Incident Report created successfully!"));
-          
-          await initData(); 
-          
+
+          await initData();
         } catch (error: any) {
           toast.error(
             error.response?.data?.message ||
@@ -442,7 +442,7 @@ export default function StaffIncidentPage() {
                     ) : (
                       <AlertTriangle className="w-3 h-3 mr-1" />
                     )}
-                    {t("Status")}: {t(historicalIncidentData.status)}
+                    {t("Status")}: {t(formatPascalCase(historicalIncidentData.status))}
                   </Badge>
                 )}
               </div>
@@ -671,13 +671,12 @@ export default function StaffIncidentPage() {
                                       </div>
                                     )}
 
-                                    {/* Thumbnail Preview */}
                                     {/* Thumbnail Preview (Tối đa 5 ảnh) */}
                                     {item.evidenceImages.length > 0 && (
                                       <div className="flex flex-wrap gap-2 mt-2">
                                         {item.evidenceImages
                                           .slice(0, 5)
-                                          .map((img, imgIdx) => {
+                                          .map((imgObj, imgIdx) => {
                                             const isLastVisible = imgIdx === 4;
                                             const remainingCount =
                                               item.evidenceImages.length - 5;
@@ -685,20 +684,31 @@ export default function StaffIncidentPage() {
                                               isLastVisible &&
                                               remainingCount > 0;
 
+                                            // Lấy base64 từ property imageData hoặc fallback lại nếu nó đang là dạng string do bạn vừa mới upload ở client
+                                            const imgSrc =
+                                              typeof imgObj === "string"
+                                                ? imgObj
+                                                : imgObj.imageData;
+
                                             return (
                                               <div
                                                 key={imgIdx}
                                                 className="relative group cursor-pointer"
                                                 onClick={() => {
-                                                  setViewerImages(
-                                                    item.evidenceImages,
-                                                  );
+                                                  const imageStrings =
+                                                    item.evidenceImages.map(
+                                                      (img) =>
+                                                        typeof img === "string"
+                                                          ? img
+                                                          : img.imageData,
+                                                    );
+                                                  setViewerImages(imageStrings);
                                                   setViewerIndex(imgIdx);
                                                   setIsViewerOpen(true);
                                                 }}
                                               >
                                                 <img
-                                                  src={img}
+                                                  src={imgSrc}
                                                   alt="evidence"
                                                   className="w-10 h-10 object-cover rounded border border-slate-200 shadow-sm"
                                                 />

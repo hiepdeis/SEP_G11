@@ -33,7 +33,8 @@ namespace Backend.Domains.Import.Services
                             .Include(r => r.IncidentReports)
                                                         .Where(r => r.Status == "GoodsArrived" ||
                                                             r.Status == "PendingQC" ||
-                                                         r.Status == "PendingIncident" || r.Status == "PendingManagerReview" ||
+                                                         //r.Status == "PendingIncident" || 
+                                                         r.Status == "PendingManagerReview" ||
                                                             r.Status == "QCPassed" ||
                                                              r.Status == "PartiallyPutaway" || r.Status == "ReadyForStamp" ||
                                                              r.IncidentReports.Any(i => i.Status == "PendingManagerReview"))

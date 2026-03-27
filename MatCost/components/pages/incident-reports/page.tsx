@@ -232,7 +232,7 @@ export default function IncidentsListPage({ role = "manager" }: { role?: "manage
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    {role === "purchase" ? t("Pending Close") : t("Pending Reviews")}
+                    {role === "purchase" ? t("Pending Action") : t("Pending Reviews")}
                   </p>
                   <h3 className="text-2xl font-bold">
                     {incidents.length}
@@ -468,7 +468,7 @@ export default function IncidentsListPage({ role = "manager" }: { role?: "manage
                                 variant="outline"
                                 className={role === "purchase" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-amber-50 text-amber-700 border-amber-200"}
                               >
-                                {role === "purchase" ? t("Pending Close") : t("Pending Review")}
+                                {role === "purchase" ? t("Pending Action") : t("Pending Review")}
                               </Badge>
                             </TableCell>
 
@@ -480,7 +480,7 @@ export default function IncidentsListPage({ role = "manager" }: { role?: "manage
                                   handleReview(item.incidentId);
                                 }}
                                 disabled={loadingId === item.incidentId}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm min-w-[90px]"
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm min-w-[200px]"
                               >
                                 {loadingId === item.incidentId ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />

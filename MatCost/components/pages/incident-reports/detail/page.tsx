@@ -57,7 +57,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { showConfirmToast } from "@/hooks/confirm-toast";
 import { Input } from "@/components/ui/input";
 import { DateTimePicker } from "@/components/ui/custom/date-time-picker";
 
@@ -297,7 +296,8 @@ export default function IncidentDetailPage({
     role === "purchase" && incident.status === "PendingPurchasingAction";
   // Cờ kiểm tra Đơn đền bù đang chờ Manager duyệt
   const isSupplementaryPending =
-    role === "manager" && supplementaryReceipt?.status === "PendingManagerApproval";
+    role === "manager" &&
+    supplementaryReceipt?.status === "PendingManagerApproval";
 
   const totalTableItems = incident.items.length;
   const totalTablePages = Math.ceil(totalTableItems / tableItemsPerPage) || 1;
@@ -329,13 +329,17 @@ export default function IncidentDetailPage({
               </Button>
               <div className="hidden md:flex items-center gap-3 border-l border-slate-200 pl-4">
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                  {t("Incident Report")}
+                  {isSupplementaryPending
+                    ? t("Pending Supplementary")
+                    : t("Incident Report")}
                 </h1>
                 <Badge
                   className={
                     isManagerPending ||
                     isPurchasingPending ||
-                    isSupplementaryPending
+                    isSupplementaryPending ||
+                    incident.status.includes("Pending") ||
+                    supplementaryReceipt?.status.includes("Pending")
                       ? "bg-amber-100 text-amber-700 hover:bg-amber-100"
                       : "bg-indigo-100 text-indigo-700 hover:bg-indigo-100"
                   }
@@ -455,7 +459,9 @@ export default function IncidentDetailPage({
                       className={
                         supplementaryReceipt.status === "Pending"
                           ? "bg-amber-100 text-amber-700"
-                          : "bg-emerald-100 text-emerald-700"
+                          : supplementaryReceipt.status === "Rejected"
+                            ? "bg-rose-100 text-rose-700"
+                            : "bg-emerald-100 text-emerald-700"
                       }
                     >
                       {t(formatPascalCase(supplementaryReceipt.status))}
@@ -681,14 +687,21 @@ export default function IncidentDetailPage({
             <DialogHeader className="pt-5 pb-4 px-6 border-b border-slate-100 bg-white">
               <DialogTitle className="text-emerald-700 flex items-center gap-2 text-lg">
                 <CheckCircle2 className="w-5 h-5" />
-                {t("Approve Incident")}
+                {isSupplementaryPending
+                  ? t("Approve Supplementary")
+                  : t("Approve Incident")}
               </DialogTitle>
             </DialogHeader>
             <div className="p-6 space-y-4 bg-white">
               <p className="text-sm text-slate-700">
-                {t(
-                  "You are about to approve this incident report. It will be forwarded to the Purchasing Team to arrange supplementary goods or refunds.",
-                )}
+                {}
+                {isSupplementaryPending
+                  ? t(
+                      "You are about to approve this supplementary. It will be forwarded to the Warehouse Staff for goods awaiting.",
+                    )
+                  : t(
+                      "You are about to approve this incident report. It will be forwarded to the Purchasing Team to arrange supplementary goods or refunds.",
+                    )}
               </p>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">
