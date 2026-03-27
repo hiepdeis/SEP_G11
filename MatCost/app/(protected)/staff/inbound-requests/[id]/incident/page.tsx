@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
@@ -52,6 +52,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { formatPascalCase } from "@/lib/format-pascal-case";
 
 interface IncidentItemInput {
   materialId: number;
@@ -90,6 +91,78 @@ export default function StaffIncidentPage() {
   const [viewerIndex, setViewerIndex] = useState<number>(0);
 
   const [isSubmittingToManager, setIsSubmittingToManager] = useState(false);
+
+  const initData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+
+      const [receiptRes, qcRes] = await Promise.all([
+        staffReceiptsApi.getReceiptDetails(id),
+        staffReceiptsApi.getQCCheck(id),
+      ]);
+      setQcData(qcRes.data);
+
+      const failedQcDetails = qcRes.data.details.filter(
+        (q) => q.result === "Fail" || q.failQuantity > 0,
+      );
+
+      let existingIncidentData: IncidentReportDto | null = null;
+
+      try {
+        const incRes = await staffReceiptsApi.getIncidentReport(id);
+        existingIncidentData = incRes.data;
+        // CẬP NHẬT STATE Ở ĐÂY
+        setIsHistoryView(true);
+        setHistoricalIncidentData(existingIncidentData);
+        setIncidentDescription(existingIncidentData.description || "");
+      } catch (error: any) {
+        if (error.response?.status !== 404) {
+          console.error("Error fetching Incident Report:", error);
+        } else {
+          // QUAN TRỌNG: NẾU KHÔNG TÌM THẤY (404), ĐẢM BẢO RESET STATE
+          setIsHistoryView(false);
+          setHistoricalIncidentData(null);
+        }
+      }
+
+      const itemsToReport: IncidentItemInput[] = failedQcDetails.map(
+        (qcItem) => {
+          const receiptItem = receiptRes.data.items.find(
+            (i) => i.materialId === qcItem.materialId,
+          );
+
+          const historyDetail = existingIncidentData?.details.find(
+            (d) => d.materialId === qcItem.materialId,
+          );
+
+          return {
+            materialId: qcItem.materialId || 0,
+            materialCode: receiptItem?.materialCode || "",
+            materialName: receiptItem?.materialName || "",
+            unit: receiptItem?.unit || "Unit",
+            orderedQuantity: receiptItem?.quantity || 0,
+            passQuantity: qcItem.passQuantity,
+            failQuantity: qcItem.failQuantity,
+            issueType: historyDetail ? historyDetail.issueType : "",
+            notes: historyDetail
+              ? historyDetail.notes || ""
+              : qcItem.failReason || "",
+            evidenceImages: historyDetail?.evidenceImages || [],
+          };
+        },
+      );
+
+      setIncidentItems(itemsToReport);
+    } catch (error) {
+      toast.error(t("Failed to load data for incident report"));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [id, t]);
+
+  useEffect(() => {
+    if (id) initData();
+  }, [initData, id]);
 
   useEffect(() => {
     const initData = async () => {
@@ -234,6 +307,8 @@ export default function StaffIncidentPage() {
 
           await staffReceiptsApi.createIncidentReport(id, payload);
           toast.success(t("Incident Report created successfully!"));
+
+          await initData();
         } catch (error: any) {
           toast.error(
             error.response?.data?.message ||
@@ -367,7 +442,7 @@ export default function StaffIncidentPage() {
                     ) : (
                       <AlertTriangle className="w-3 h-3 mr-1" />
                     )}
-                    {t("Status")}: {t(historicalIncidentData.status)}
+                    {t("Status")}: {t(formatPascalCase(historicalIncidentData.status))}
                   </Badge>
                 )}
               </div>
@@ -596,13 +671,12 @@ export default function StaffIncidentPage() {
                                       </div>
                                     )}
 
-                                    {/* Thumbnail Preview */}
                                     {/* Thumbnail Preview (Tối đa 5 ảnh) */}
                                     {item.evidenceImages.length > 0 && (
                                       <div className="flex flex-wrap gap-2 mt-2">
                                         {item.evidenceImages
                                           .slice(0, 5)
-                                          .map((img, imgIdx) => {
+                                          .map((imgObj, imgIdx) => {
                                             const isLastVisible = imgIdx === 4;
                                             const remainingCount =
                                               item.evidenceImages.length - 5;
@@ -610,20 +684,31 @@ export default function StaffIncidentPage() {
                                               isLastVisible &&
                                               remainingCount > 0;
 
+                                            // Lấy base64 từ property imageData hoặc fallback lại nếu nó đang là dạng string do bạn vừa mới upload ở client
+                                            const imgSrc =
+                                              typeof imgObj === "string"
+                                                ? imgObj
+                                                : imgObj.imageData;
+
                                             return (
                                               <div
                                                 key={imgIdx}
                                                 className="relative group cursor-pointer"
                                                 onClick={() => {
-                                                  setViewerImages(
-                                                    item.evidenceImages,
-                                                  );
+                                                  const imageStrings =
+                                                    item.evidenceImages.map(
+                                                      (img) =>
+                                                        typeof img === "string"
+                                                          ? img
+                                                          : img.imageData,
+                                                    );
+                                                  setViewerImages(imageStrings);
                                                   setViewerIndex(imgIdx);
                                                   setIsViewerOpen(true);
                                                 }}
                                               >
                                                 <img
-                                                  src={img}
+                                                  src={imgSrc}
                                                   alt="evidence"
                                                   className="w-10 h-10 object-cover rounded border border-slate-200 shadow-sm"
                                                 />

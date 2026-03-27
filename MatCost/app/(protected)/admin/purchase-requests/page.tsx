@@ -23,6 +23,7 @@ import {
   Building2,
   AlertTriangle,
   MoreHorizontal,
+  MoreVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -893,25 +894,14 @@ export default function AdminPurchaseManagementPage() {
                                 <div className="flex justify-end items-center gap-2">
                                   {item.status === "ManagerConfirmed" ? (
                                     <>
-                                      <Button
-                                        size="sm"
-                                        onClick={() =>
-                                          handleCreatePRFromAlert(item.alertId)
-                                        }
-                                        className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-                                      >
-                                        <FileText className="w-4 h-4 mr-1.5" />
-                                        {t("Create PR")}
-                                      </Button>
-
-                                      <DropdownMenu>
+                                    <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                           <Button
-                                            variant="outline"
+                                            variant="ghost"
                                             size="icon"
                                             className="h-8 w-8 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-indigo-800"
                                           >
-                                            <MoreHorizontal className="w-4 h-4" />
+                                            <MoreVertical className="w-4 h-4" />
                                           </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
@@ -928,6 +918,16 @@ export default function AdminPurchaseManagementPage() {
                                           </DropdownMenuItem>
                                         </DropdownMenuContent>
                                       </DropdownMenu>
+                                      <Button
+                                        size="sm"
+                                        onClick={() =>
+                                          handleCreatePRFromAlert(item.alertId)
+                                        }
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm min-w-[200px]"
+                                      >
+                                        <FileText className="w-4 h-4 mr-1.5" />
+                                        {t("Create PR")}
+                                      </Button>
                                     </>
                                   ) : (
                                     <Button

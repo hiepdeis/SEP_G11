@@ -68,7 +68,7 @@ export default function ManagerReceiptDetailPage() {
         toast.error(
           error.response?.data?.message || t("Receipt not found.")
         );
-        router.push("/manager/inbound-request");
+        router.push("/manager/inbound-requests");
       } finally {
         setIsLoading(false);
       }
@@ -87,7 +87,7 @@ export default function ManagerReceiptDetailPage() {
       toast.success(t("Receipt stamped successfully!"));
       setIsStampModalOpen(false);
       
-      router.push("/manager/inbound-request"); 
+      router.push("/manager/inbound-requests"); 
     } catch (error: any) {
       console.error(error);
       toast.error(

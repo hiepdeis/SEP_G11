@@ -152,6 +152,7 @@ export default function ReceiveGoodsPage() {
     );
   };
 
+
   const handleSubmit = () => {
     if (items.length === 0) {
       return toast.error(t("There are no items to receive."));
@@ -186,14 +187,17 @@ export default function ReceiveGoodsPage() {
 
               return {
                 materialId: i.materialId,
-                actualQuantity: i.actualQuantity,
-                passQuantity: i.passQuantity,
-                failQuantity: i.failQuantity,
+                actualQuantity: Number(i.actualQuantity.toFixed(3)),
+                passQuantity: Number(i.passQuantity.toFixed(3)),
+                failQuantity: Number(i.failQuantity.toFixed(3)),
                 failReason: isFailed ? i.failReason.trim() : undefined,
                 result: isFailed ? "Fail" : "Pass",
               };
             }),
           };
+
+          console.log(payload);
+          
 
           const res =
             await staffReceiptsApi.receiveGoodsFromPurchaseOrder(payload);

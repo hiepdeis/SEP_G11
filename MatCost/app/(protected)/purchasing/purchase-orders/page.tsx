@@ -23,6 +23,7 @@ import {
   Building2,
   AlertTriangle,
   MoreHorizontal,
+  MoreVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -907,34 +908,15 @@ export default function PurchasingDashboardPage() {
                               </TableCell>
                               <TableCell className="text-right pr-6">
                                 <div className="flex justify-end items-center gap-2">
-                                  <Button
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleReviewPR(item.requestId);
-                                    }}
-                                    disabled={loadingId === item.requestId}
-                                    variant="default"
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-                                  >
-                                    {loadingId === item.requestId ? (
-                                      <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                      <>
-                                        {t("Create PO Draft")}{" "}
-                                        <ArrowRight className="w-4 h-4 ml-1.5" />
-                                      </>
-                                    )}
-                                  </Button>
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button
-                                        variant="outline"
+                                        variant="ghost"
                                         size="icon"
                                         className="h-8 w-8 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-indigo-800"
                                         onClick={(e) => e.stopPropagation()}
                                       >
-                                        <MoreHorizontal className="w-4 h-4" />
+                                        <MoreVertical className="w-4 h-4" />
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
@@ -949,6 +931,25 @@ export default function PurchasingDashboardPage() {
                                       </DropdownMenuItem>
                                     </DropdownMenuContent>
                                   </DropdownMenu>
+                                  <Button
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleReviewPR(item.requestId);
+                                    }}
+                                    disabled={loadingId === item.requestId}
+                                    variant="default"
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm min-w-[200px]"
+                                  >
+                                    {loadingId === item.requestId ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <>
+                                        {t("Create PO Draft")}{" "}
+                                        <ArrowRight className="w-4 h-4 ml-1.5" />
+                                      </>
+                                    )}
+                                  </Button>
                                 </div>
                               </TableCell>
                             </TableRow>

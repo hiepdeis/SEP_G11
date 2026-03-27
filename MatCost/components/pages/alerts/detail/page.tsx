@@ -394,7 +394,7 @@ export default function AlertDetailPage({ role = "manager" }) {
                   {!isPending && alert.confirmedAt && (
                     <div className="pt-4 border-t border-slate-100 flex flex-col gap-1">
                       <span className="text-xs font-medium text-slate-500">
-                        {t("Confirmed By")}: Manager ID {alert.confirmedBy}
+                        {t("Confirmed By")}: Manager {alert.confirmedByName}
                       </span>
                       <span className="text-xs font-medium text-slate-500">
                         {t("Confirmed At")}: {formatDate(alert.confirmedAt)}

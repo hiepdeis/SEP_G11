@@ -33,7 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { staffReceiptApi, WarehouseCardDto } from "@/services/receipt-service";
+import { staffReceiptsApi, WarehouseCardDto } from "@/services/import-service";
 import {
   Select,
   SelectContent,
@@ -87,7 +87,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
     const fetchCards = async () => {
       setIsLoading(true);
       try {
-        const res = await staffReceiptApi.getWarehouseCards({});
+        const res = await staffReceiptsApi.getWarehouseCards({});
         setCards(res.data);
       } catch (error) {
         console.error("Failed to fetch warehouse cards", error);

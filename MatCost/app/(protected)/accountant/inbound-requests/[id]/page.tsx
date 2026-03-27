@@ -172,7 +172,7 @@ export default function AccountantReceiptDetailPage() {
                 onClick={() => router.push("/accountant/inbound-requests")}
                 className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to Ledger")}
+                <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to list")}
               </Button>
               <div className="hidden md:flex items-center gap-3 border-l border-slate-200 pl-4">
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900">
@@ -317,7 +317,7 @@ export default function AccountantReceiptDetailPage() {
             {/* CỘT PHẢI: BẢNG SỐ LIỆU */}
             <div className="lg:col-span-2 space-y-6">
               {/* TABLE 1: WAREHOUSE CARDS (THẺ KHO) */}
-              <Card className="border-slate-200 shadow-sm bg-white flex flex-col gap-0">
+              <Card className="border-slate-200 shadow-sm bg-white flex flex-col gap-0 pb-0">
                 <CardHeader className="border-b border-slate-100 py-4 flex flex-row items-center justify-between shrink-0 ">
                   <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pb-2">
                     <ClipboardList className="w-5 h-5 text-indigo-600" />
@@ -410,7 +410,7 @@ export default function AccountantReceiptDetailPage() {
                   </Table>
                   {/* Pagination Cards */}
                   {totalCardsPages > 1 && (
-                    <div className="px-6 py-2 flex items-center justify-between border-t border-slate-100 bg-slate-50">
+                    <div className="px-6 py-2 flex items-center justify-between border-t border-slate-100 bg-slate-50 rounded-b-xl">
                       <span className="text-xs text-slate-500">
                         {startCardsIndex + 1}-
                         {Math.min(startCardsIndex + cardsPerPage, totalCards)}{" "}
@@ -448,7 +448,7 @@ export default function AccountantReceiptDetailPage() {
               </Card>
 
               {/* TABLE 2: INVENTORY CURRENTS (TỒN KHO HIỆN TẠI) */}
-              <Card className="border-slate-200 shadow-sm bg-white flex flex-col gap-0">
+              <Card className="border-slate-200 shadow-sm bg-white flex flex-col gap-0 pb-0">
                 <CardHeader className="border-b border-slate-100 py-4 flex flex-row items-center justify-between shrink-0">
                   <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pb-2">
                     <Database className="w-5 h-5 text-indigo-600" />
@@ -475,7 +475,7 @@ export default function AccountantReceiptDetailPage() {
                           {t("Batch Code")}
                         </TableHead>
                         <TableHead className="w-[20%] pr-6 text-right">
-                          {t("Current Qty")}
+                          {t("Current Quantity")}
                         </TableHead>
                       </TableRow>
                     </TableHeader>
@@ -525,7 +525,7 @@ export default function AccountantReceiptDetailPage() {
                   </Table>
                   {/* Pagination Inventory */}
                   {totalInventoryPages > 1 && (
-                    <div className="px-6 py-2 flex items-center justify-between border-t border-slate-100 bg-slate-50">
+                    <div className="px-6 py-2 flex items-center justify-between border-t border-slate-100 bg-slate-50 rounded-b-xl">
                       <span className="text-xs text-slate-500">
                         {startInventoryIndex + 1}-
                         {Math.min(

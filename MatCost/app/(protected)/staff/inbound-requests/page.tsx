@@ -20,6 +20,7 @@ import {
   TriangleAlert,
   ShieldCheck,
   ArrowRight,
+  MoreVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +56,12 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { formatPascalCase } from "@/lib/format-pascal-case";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function InboundReceiptsPage() {
   const router = useRouter();
@@ -65,7 +72,7 @@ export default function InboundReceiptsPage() {
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [filterStatus, setFilterStatus] = useState<string>("QCPassed");
+  const [filterStatus, setFilterStatus] = useState<string>("All");
 
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
@@ -301,6 +308,14 @@ export default function InboundReceiptsPage() {
                       <SelectValue placeholder={t("Filter by status")} />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="All">
+                        <Badge
+                          variant="outline"
+                          className="bg-slate-50 text-slate-700 border-slate-200"
+                        >
+                          {t("All")}
+                        </Badge>
+                      </SelectItem>
                       <SelectItem value="QCPassed">
                         <Badge
                           variant="outline"
@@ -339,14 +354,6 @@ export default function InboundReceiptsPage() {
                           className="bg-yellow-50 text-yellow-700 border-yellow-200"
                         >
                           {t("Pending Incident")}
-                        </Badge>
-                      </SelectItem>
-                      <SelectItem value="All">
-                        <Badge
-                          variant="outline"
-                          className="bg-slate-50 text-slate-700 border-slate-200"
-                        >
-                          {t("All")}
                         </Badge>
                       </SelectItem>
                     </SelectContent>
@@ -525,7 +532,7 @@ export default function InboundReceiptsPage() {
                             const selection = window.getSelection();
                             if (selection && selection.toString().length > 0)
                               return;
-                            handleAction(item.receiptId, "PendingIncident");
+                            handleAction(item.receiptId, item.status);
                           }}
                         >
                           <TableCell className="pl-6">
@@ -571,47 +578,83 @@ export default function InboundReceiptsPage() {
                           </TableCell>
 
                           <TableCell className="text-right pr-6">
-                            <Button
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAction(item.receiptId, item.status);
-                              }}
-                              disabled={loadingId === item.receiptId}
-                              variant={
-                                item.status === "PendingIncident"
-                                  ? "default"
-                                  : "outline"
-                              }
-                              className={
-                                item.status === "PendingIncident"
-                                  ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm min-w-[200px]"
-                                  : item.status === "ReadyForPutaway" ||
-                                      item.status === "QCPassed"
-                                    ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm min-w-[200px]"
-                                    : "text-indigo-600 border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 min-w-[200px]"
-                              }
-                            >
-                              {loadingId === item.receiptId ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : item.status === "PendingIncident" ? (
-                                <>
-                                  <TriangleAlert className="w-4 h-4 mr-1.5" />
-                                  {t("Review Incident")}
-                                </>
-                              ) : item.status === "ReadyForPutaway" ||
-                                item.status === "QCPassed" ? (
-                                <>
-                                  <ArrowRight className="w-4 h-4 mr-1.5" />
-                                  {t("Putaway")}
-                                </>
-                              ) : (
-                                <>
-                                  <Eye className="w-4 h-4 mr-1.5" />
-                                  {t("View")}
-                                </>
+                            <div className="flex items-center justify-end gap-2">
+                              {(item.status === "PendingIncident" ||
+                                item.status === "ReadyForPutaway" ||
+                                item.status === "QCPassed") && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <MoreVertical className="w-4 h-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent
+                                    align="end"
+                                    className="w-40"
+                                  >
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAction(item.receiptId);
+                                        toast.info(
+                                          "Navigate to view detail...",
+                                        );
+                                      }}
+                                      className="cursor-pointer text-slate-700"
+                                    >
+                                      <Eye className="w-4 h-4 mr-2 text-slate-400" />
+                                      {t("View Details")}
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               )}
-                            </Button>
+                              <Button
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAction(item.receiptId, item.status);
+                                }}
+                                disabled={loadingId === item.receiptId}
+                                variant={
+                                  item.status === "PendingIncident"
+                                    ? "default"
+                                    : "outline"
+                                }
+                                className={
+                                  item.status === "PendingIncident"
+                                    ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm min-w-[200px]"
+                                    : item.status === "ReadyForPutaway" ||
+                                        item.status === "QCPassed"
+                                      ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm min-w-[200px]"
+                                      : "text-indigo-600 border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 min-w-[200px]"
+                                }
+                              >
+                                {loadingId === item.receiptId ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : item.status === "PendingIncident" ? (
+                                  <>
+                                    <TriangleAlert className="w-4 h-4 mr-1.5" />
+                                    {t("Review Incident")}
+                                  </>
+                                ) : item.status === "ReadyForPutaway" ||
+                                  item.status === "QCPassed" ? (
+                                  <>
+                                    <ArrowRight className="w-4 h-4 mr-1.5" />
+                                    {t("Putaway")}
+                                  </>
+                                ) : (
+                                  <>
+                                    <Eye className="w-4 h-4 mr-1.5" />
+                                    {t("View")}
+                                  </>
+                                )}
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))

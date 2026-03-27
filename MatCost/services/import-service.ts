@@ -238,6 +238,8 @@ export interface AccountantReceiptCloseResultDto {
 export interface ManagerIncidentItemSummaryDto {
   materialId: number;
   materialName?: string;
+  orderedQuantity?: number;
+  actualQuantity?: number;
   passQuantity: number;
   failQuantity: number;
   failReason?: string;
@@ -365,6 +367,8 @@ export interface ConfirmDeliveryDto {
 export interface PurchasingIncidentItemSummaryDto {
   materialId: number;
   materialName?: string;
+  orderedQuantity?: number;
+  actualQuantity?: number;
   passQuantity: number;
   failQuantity: number;
   failReason?: string;
@@ -636,6 +640,7 @@ export interface IncidentReportDetailDto {
   actualQuantity: number;
   issueType: string;
   notes?: string | null;
+  evidenceImages: any[] | null;
 }
 
 export interface IncidentReportDto {
@@ -720,7 +725,24 @@ export interface ReceiptBatchLookupDto {
   mfgDate?: string | null;
   expiryDate?: string | null;
   materialName: string;
-} // ==========================================
+} 
+
+export interface PendingPutawayReceiptDto {
+  receiptId: number;
+  purchaseOrderCode: string;
+  supplierName: string;
+  status: string;
+  items: PendingPutawayItemDto[];
+}
+
+export interface PendingPutawayItemDto {
+  materialId: number;
+  materialName: string;
+  quantityToPutaway: number;
+  note?: string | null;
+}
+
+// ==========================================
 // ACCOUNTANT
 // ==========================================
 export const accountantPurchaseOrderApi = {
@@ -1077,6 +1099,13 @@ export const staffReceiptsApi = {
     );
   },
 };
+
+export const getPendingPutawayReceipts = () => {
+  return axiosClient.get<PendingPutawayReceiptDto[]>(
+    "/staff/receipts/pending-putaway"
+  );
+};
+
 
 // ==========================================
 // INTERNAL

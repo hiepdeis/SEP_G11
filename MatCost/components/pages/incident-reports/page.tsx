@@ -133,8 +133,6 @@ export default function IncidentsListPage({ role = "manager" }: { role?: "manage
 
     let matchesDate = true;
     if (dateRange.from || dateRange.to) {
-      // Vì DTO manager dùng 'submittedAt', còn purchasing dùng 'createdAt'
-      // Ta lấy cái nào tồn tại để lọc ngày
       const dateString = (item as ManagerIncidentSummaryDto).submittedAt || (item as PurchasingIncidentSummaryDto).createdAt;
       
       if (!dateString) {
@@ -468,7 +466,7 @@ export default function IncidentsListPage({ role = "manager" }: { role?: "manage
                             <TableCell className="text-center">
                               <Badge
                                 variant="outline"
-                                className={role === "purchase" ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-amber-50 text-amber-700 border-amber-200"}
+                                className={role === "purchase" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-amber-50 text-amber-700 border-amber-200"}
                               >
                                 {role === "purchase" ? t("Pending Action") : t("Pending Review")}
                               </Badge>
@@ -482,7 +480,7 @@ export default function IncidentsListPage({ role = "manager" }: { role?: "manage
                                   handleReview(item.incidentId);
                                 }}
                                 disabled={loadingId === item.incidentId}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm min-w-[90px]"
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm min-w-[200px]"
                               >
                                 {loadingId === item.incidentId ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />

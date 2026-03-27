@@ -229,7 +229,7 @@ export default function SharedReceiptsListPage({
       case "Closed":
         return "bg-slate-100 text-slate-700 border-slate-200";
       default:
-        return "bg-indigo-50 text-indigo-700 border-indigo-200";
+        return "bg-amber-50 text-amber-700 border-amber-200";
     }
   };
 
@@ -342,7 +342,7 @@ export default function SharedReceiptsListPage({
                         <SelectItem value="ReadyForStamp">
                           <Badge
                             variant="outline"
-                            className="bg-indigo-50 text-indigo-700 border-indigo-200"
+                            className="bg-amber-50 text-amber-700 border-amber-200"
                           >
                             {t("Ready For Stamp")}
                           </Badge>
@@ -361,7 +361,7 @@ export default function SharedReceiptsListPage({
                         <SelectItem value="Stamped">
                           <Badge
                             variant="outline"
-                            className="bg-indigo-50 text-indigo-700 border-indigo-200"
+                            className="bg-amber-50 text-amber-700 border-amber-200"
                           >
                             {t("Stamped")}
                           </Badge>

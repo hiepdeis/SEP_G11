@@ -72,16 +72,6 @@ export function Sidebar() {
       icon: Package,
       href: "/dashboard/inventory",
     },
-    {
-      label: t("sidebar.import_materials"),
-      icon: Download,
-      href: "/dashboard/import",
-    },
-    {
-      label: t("sidebar.export_materials"),
-      icon: Upload,
-      href: "/dashboard/export",
-    },
   ];
 
   const outboundTabs = [
