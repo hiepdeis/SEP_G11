@@ -51,5 +51,7 @@
 
         /// <summary>"Import" | "Export" | null (all)</summary>
         public string? TransactionType { get; set; }
+
+        public int? CardId { get; set; }
     }
 }

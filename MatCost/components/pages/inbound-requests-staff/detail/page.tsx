@@ -187,18 +187,25 @@ export default function StaffInboundDetailPage({
               <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back")}
             </Button>
 
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (role == "staff")
-                  router.push(`/${rolePath}/inbound-requests/${id}/detail`);
-                else if (role == "manager")
-                  router.push(`/${rolePath}/inbound-requests/staff-portal/${id}/detail`);
-              }}
-              className="text-indigo-600 border-indigo-200 hover:text-indigo-700 hover:bg-indigo-50 shadow-sm"
-            >
-              <Eye className="w-4 h-4 mr-2" /> {t("View Detail")}
-            </Button>
+            {(request.status === "PartiallyPutaway" ||
+              request.status === "ReadyForStamp" ||
+              request.status === "Stamped" ||
+              request.status === "Closed") && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (role == "staff")
+                    router.push(`/${rolePath}/inbound-requests/${id}/detail`);
+                  else if (role == "manager")
+                    router.push(
+                      `/${rolePath}/inbound-requests/staff-portal/${id}/detail`,
+                    );
+                }}
+                className="text-indigo-600 border-indigo-200 hover:text-indigo-700 hover:bg-indigo-50 shadow-sm"
+              >
+                <Eye className="w-4 h-4 mr-2" /> {t("View Putaway Detail")}
+              </Button>
+            )}
           </div>
 
           <Card className="border-slate-200 shadow-sm bg-white mb-6">
@@ -399,8 +406,10 @@ export default function StaffInboundDetailPage({
                           <TableHead className="text-center w-[10%]">
                             {t("Actual")}
                           </TableHead>
-                          {request.status === "ReadyForStamp" ||
-                          request.status === "PartiallyPutaway" ? (
+                          {request.status === "PartiallyPutaway" ||
+                          request.status === "ReadyForStamp" ||
+                          request.status === "Stamped" ||
+                          request.status === "Closed" ? (
                             <></>
                           ) : (
                             <TableHead className="text-center w-[15%] pr-6">
@@ -460,8 +469,10 @@ export default function StaffInboundDetailPage({
                                 {item.actualQuantity?.toLocaleString("vi-VN")}
                               </span>
                             </TableCell>
-                            {request.status === "ReadyForStamp" ||
-                            request.status === "PartiallyPutaway" ? (
+                            {request.status === "PartiallyPutaway" ||
+                            request.status === "ReadyForStamp" ||
+                            request.status === "Stamped" ||
+                            request.status === "Closed" ? (
                               <></>
                             ) : (
                               <TableCell className="text-center pr-6">

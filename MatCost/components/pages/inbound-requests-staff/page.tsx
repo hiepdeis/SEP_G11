@@ -112,10 +112,12 @@ export default function InboundReceiptsPage({
         return "bg-yellow-50 text-yellow-700 border-yellow-200";
       case "ReadyForStamp":
         return "bg-amber-50 text-amber-700 border-amber-200";
-      case "ReadyForPutaway":
       case "PartiallyPutaway":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      case "Stamped":
+      case "Closed":
+        return "bg-indigo-50 text-indigo-700 border-indigo-200";
       case "QCPassed":
+      case "ReadyForPutaway":
         return "bg-green-50 text-green-700 border-green-200";
       case "PendingManagerReview":
         return "bg-rose-50 text-rose-700 border-rose-200";
@@ -212,7 +214,22 @@ export default function InboundReceiptsPage({
 
   const filteredData = listItems.filter((item) => {
     if (item.status === "PendingIncident") return false;
-    let matchesStatus = filterStatus === "All" || item.status === filterStatus;
+    let matchesStatus = false;
+
+    if (filterStatus === "All") {
+      matchesStatus = true;
+    } else if (filterStatus === "Putaway") {
+      matchesStatus = [
+        "PartiallyPutaway",
+        "ReadyForStamped",
+        "Stamped",
+        "Closed",
+      ].includes(item.status);
+    } else if (filterStatus === "ReadyForPutaway") {
+      matchesStatus = ["Ready For Putaway", "QCPassed"].includes(item.status);
+    } else {
+      matchesStatus = item.status === filterStatus;
+    }
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch =
       item.code.toLowerCase().includes(searchLower) ||
@@ -270,7 +287,9 @@ export default function InboundReceiptsPage({
     setLoadingId(item.id.toString());
 
     const basePath =
-      role === "manager" ? "/manager/inbound-requests/staff-portal" : "/staff/inbound-requests";
+      role === "manager"
+        ? "/manager/inbound-requests/staff-portal"
+        : "/staff/inbound-requests";
 
     if (isSecondaryAction) {
       router.push(`${basePath}/${item.id}`);
@@ -355,14 +374,6 @@ export default function InboundReceiptsPage({
                       {t("All")}
                     </Badge>
                   </SelectItem>
-                  <SelectItem value="QCPassed">
-                    <Badge
-                      variant="outline"
-                      className="bg-green-50 text-green-700 border-green-200"
-                    >
-                      {t("QC Passed")}
-                    </Badge>
-                  </SelectItem>
                   <SelectItem value="ReadyForPutaway">
                     <Badge
                       variant="outline"
@@ -371,12 +382,12 @@ export default function InboundReceiptsPage({
                       {t("Ready For Putaway")}
                     </Badge>
                   </SelectItem>
-                  <SelectItem value="PartiallyPutaway">
+                  <SelectItem value="Putaway">
                     <Badge
                       variant="outline"
-                      className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                      className="bg-indigo-50 text-indigo-700 border-indigo-200"
                     >
-                      {t("Partially Putaway")}
+                      {t("Putaway")}
                     </Badge>
                   </SelectItem>
                 </SelectContent>
@@ -594,7 +605,13 @@ export default function InboundReceiptsPage({
                         >
                           {item.status === "ReadyForStamp"
                             ? "Pending Stamp"
-                            : t(formatPascalCase(item.status))}
+                            : item.status === "Stamped" ||
+                                item.status === "Closed" ||
+                                item.status === "PartiallyPutaway"
+                              ? "Putaway"
+                              : item.status === "QCPassed"
+                                ? "Ready For Putaway"
+                                : t(formatPascalCase(item.status))}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right pr-6">

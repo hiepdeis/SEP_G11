@@ -19,6 +19,7 @@ import {
   ArrowRight,
   Receipt,
   PackageX,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -250,14 +251,20 @@ export default function IncidentsListPage({
                 </p>
               </div>
               {role === "manager" && (
-                <TabsList className="grid w-full md:w-[350px] grid-cols-2">
-                  <TabsTrigger value="manager">
-                    {t("Manager Portal")}
-                  </TabsTrigger>
-                  <TabsTrigger value="warehouse">
-                    {t("Staff Portal")}
-                  </TabsTrigger>
-                </TabsList>
+                <div className="flex flex-col md:items-end gap-1.5 w-full md:w-auto">
+                  <TabsList className="grid w-full md:w-[350px] grid-cols-2">
+                    <TabsTrigger value="manager">
+                      {t("Manager Portal")}
+                    </TabsTrigger>
+                    <TabsTrigger value="warehouse">
+                      {t("Staff Portal")}
+                    </TabsTrigger>
+                  </TabsList>
+                  <div className="text-[11px] text-slate-400 flex items-center justify-center md:justify-end gap-1.5 pr-1">
+                    <Info className="w-3.5 h-3.5" />
+                    <span>{t("Switch tabs to view specific role tasks")}</span>
+                  </div>
+                </div>
               )}
             </div>
             <TabsContent value="warehouse" className="mt-6 flex-1 outline-none">

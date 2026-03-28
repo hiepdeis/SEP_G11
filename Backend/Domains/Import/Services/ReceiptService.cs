@@ -37,6 +37,7 @@ namespace Backend.Domains.Import.Services
                                                          r.Status == "PendingManagerReview" ||
                                                             //r.Status == "QCPassed" ||
                                                              r.Status == "PartiallyPutaway" || r.Status == "ReadyForStamp" ||
+                                                             r.Status == "Stamped" || r.Status == "Closed" ||
                                                              r.IncidentReports.Any(i => i.Status == "PendingManagerReview"))
                             .OrderByDescending(r => r.ApprovedAt)
                             .Select(r => new GetInboundRequestListDto
