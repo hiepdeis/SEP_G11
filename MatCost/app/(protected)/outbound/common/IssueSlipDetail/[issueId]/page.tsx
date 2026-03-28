@@ -406,8 +406,8 @@ export default function CommonIssueSlipDetail() {
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
         <Header title={`${t("Issue Slip")} #${detail.issueCode}`} />
 
-        <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
-          <div className="flex items-center justify-between">
+        <div className="flex-grow overflow-y-auto p-4 sm:p-6 lg:p-10 space-y-4 sm:space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <Button variant="ghost" onClick={() => router.back()} className="pl-0 hover:bg-transparent hover:text-indigo-600">
               <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}
             </Button>
@@ -638,12 +638,12 @@ export default function CommonIssueSlipDetail() {
 
               {role === "WarehouseStaff" && detail.status === "Picking_In_Progress" && (
                 <Card className="border-blue-300 shadow-md bg-white overflow-hidden mt-6">
-                  <CardHeader className="bg-blue-50 border-b border-blue-100 py-4 flex flex-row items-center justify-between">
+                  <CardHeader className="bg-blue-50 border-b border-blue-100 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                       <CardTitle className="text-lg font-bold flex items-center gap-2 text-blue-800">
                         <ClipboardList className="w-5 h-5" /> Danh sách nhặt hàng (Picking List)
                       </CardTitle>
-                      <p className="text-sm text-blue-600/80 mt-1">Dựa theo kệ để tối ưu đường đi trong kho</p>
+                      <p className="text-xs sm:text-sm text-blue-600/80 mt-1">Dựa theo kệ để tối ưu đường đi trong kho</p>
                     </div>
                     <Button 
                       variant={hidePicked ? "default" : "outline"}
@@ -653,8 +653,8 @@ export default function CommonIssueSlipDetail() {
                       {hidePicked ? <><EyeOff className="w-4 h-4 mr-2" /> Đang ẩn mục đã nhặt</> : <><Eye className="w-4 h-4 mr-2" /> Hiển thị tất cả</>}
                     </Button>
                   </CardHeader>
-                  <CardContent className="p-0">
-                    <Table>
+                  <CardContent className="p-0 overflow-x-auto w-full">
+                    <Table className="min-w-[500px]">
                       <TableHeader>
                         <TableRow className="bg-slate-50">
                           <TableHead className="w-[120px]">Kệ (Bin)</TableHead>
@@ -686,7 +686,7 @@ export default function CommonIssueSlipDetail() {
                               <TableCell className="text-center">
                                 <input 
                                   type="checkbox" 
-                                  className="w-6 h-6 accent-emerald-500 cursor-pointer rounded border-slate-300"
+                                  className="w-8 h-8 accent-emerald-500 cursor-pointer rounded border-slate-300"
                                   checked={pick.isPicked}
                                   onChange={() => handleTogglePick(pick.pickingId)}
                                 />
@@ -700,7 +700,7 @@ export default function CommonIssueSlipDetail() {
                   <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
                      <Button 
                         size="lg" 
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                        className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                         onClick={handleCompletePicking}
                         disabled={reviewing || pickingList.filter(i => !i.isPicked).length > 0}
                      >
