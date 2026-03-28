@@ -5,7 +5,7 @@ import PendingPOSCreatePage from "@/components/pages/pending-pos/create/page";
 export default function StaffMaterialManagementPage() {
   return (
     <>
-      <PendingPOSCreatePage role="staff" />
+      <PendingPOSCreatePage role="manager" />
     </>
   );
 }

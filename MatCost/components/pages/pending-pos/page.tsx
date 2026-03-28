@@ -64,9 +64,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 
-export default function PendingDeliveriesPage() {
+export default function PendingDeliveriesPage({ role = "staff" }: { role: string }) {
   const router = useRouter();
   const { t } = useTranslation();
+  const rolePath = role === "manager" ? "manager" : "staff";
 
   const [orders, setOrders] = useState<PendingPurchaseOrderDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -192,8 +193,11 @@ export default function PendingDeliveriesPage() {
 
   const handleReceiveGoods = (id: number, supId: number | null) => {
     setLoadingId(id);
-    if (supId !== null) router.push(`/staff/pending-pos/create?poId=${id}&supId=${supId}`);
-    else router.push(`/staff/pending-pos/create?poId=${id}`);
+    if (supId !== null) {
+      router.push(`/${rolePath}/pending-pos/create?poId=${id}&supId=${supId}`);
+    } else {
+      router.push(`/${rolePath}/pending-pos/create?poId=${id}`);
+    }
   };
 
   const formatDateTime = (dateString?: string | null) => {

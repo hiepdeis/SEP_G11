@@ -44,15 +44,15 @@ interface ReceiveItemInput {
   failReason: string;
 }
 
-export default function ReceiveGoodsPage() {
+export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useTranslation();
+  const rolePath = role === "manager" ? "manager" : "staff";
 
   const poIdParam = searchParams.get("poId");
   const supIdParam = searchParams.get("supId");
 
-  // Dùng type any để chứa được cả PurchaseOrderDto và PendingPurchaseOrderDto
   const [order, setOrder] = useState<any>(null);
   const [items, setItems] = useState<ReceiveItemInput[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,7 +61,7 @@ export default function ReceiveGoodsPage() {
   useEffect(() => {
     if (!poIdParam && !supIdParam) {
       toast.error(t("No Purchase Order or Supplementary selected."));
-      router.push("/staff/pending-pos");
+      router.push(`/${rolePath}/pending-pos`);
       return;
     }
 
@@ -108,7 +108,7 @@ export default function ReceiveGoodsPage() {
         toast.error(
           error.response?.data?.message || t("Order details not found."),
         );
-        router.push("/staff/pending-pos");
+        router.push(`/${rolePath}/pending-pos`);
       } finally {
         setIsLoading(false);
       }
@@ -228,10 +228,13 @@ export default function ReceiveGoodsPage() {
                 "Receipt created with failed items. Please proceed with Incident Report.",
               ),
             );
-            router.push(`/staff/incident-reports/${res.data.receiptId}`);
+            if(role == "staff")router.push(`/${rolePath}/incident-reports/staff-p/${res.data.receiptId}`);
+            else if(role == "manager")router.push(`/${rolePath}/incident-reports/staff-portal/${res.data.receiptId}`);
           } else {
             toast.success(t("Receipt and QC completed successfully!"));
-            router.push(`/staff/inbound-requests/${res.data.receiptId}/putaway`);
+            
+            if(role == "staff")router.push(`/${rolePath}/inbound-requests/${res.data.receiptId}/putaway`);
+            else if(role == "manager")router.push(`/${rolePath}/inbound-requests/staff-portal/${res.data.receiptId}/putaway`);
           }
         } catch (error: any) {
           console.error(error);

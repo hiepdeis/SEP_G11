@@ -139,6 +139,10 @@ export function Sidebar() {
       href: "/manager",
       subItems: [
         {
+          label: t("sidebar.tabs.pending_pos"),
+          href: "/manager/pending-pos",
+        },
+        {
           label: t("sidebar.tabs.stock_shortage_alerts"),
           href: "/manager/alerts",
         },
@@ -169,7 +173,7 @@ export function Sidebar() {
           href: "/staff/incident-reports",
         },
       ],
-    }
+    },
   ];
 
   const auditTabs = [
