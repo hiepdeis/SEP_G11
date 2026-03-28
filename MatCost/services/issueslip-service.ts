@@ -227,7 +227,12 @@ export const issueSlipApi = {
   getWarehouseStaff: async (): Promise<warehousestaffuser[]> => {
     const res = await axiosClient.get("/IssueSlips/warehouse-staff");
     return res.data;
-  }
+  },
+
+  getPickingList: async (issueId: number) => {
+    const response = await axiosClient.get(`/IssueSlips/${issueId}/picking-list`);
+    return response.data;
+  },
   
 };
 

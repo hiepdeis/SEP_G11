@@ -8,7 +8,7 @@ import { FifoBatch, issueSlipApi, IssueSlipDetail, IssueSlipDetailItem } from "@
 import axiosClient from "@/lib/axios-client";
 import {
   ArrowLeft, Calendar, Loader2, PackageSearch, ClipboardList,
-  CheckCircle2, XCircle, AlertCircle, FileText, User, ChevronLeft, ChevronRight
+  CheckCircle2, XCircle, AlertCircle, FileText, User, ChevronLeft, ChevronRight, EyeOff, Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
@@ -49,6 +49,9 @@ export default function CommonIssueSlipDetail() {
   const [selectedPicker, setSelectedPicker] = useState<string>("");
   const [pickers, setPickers] = useState<any[]>([]);
 
+  const [pickingList, setPickingList] = useState<any[]>([]);
+  const [hidePicked, setHidePicked] = useState(true);
+
   useEffect(() => {
     const fetchPickers = async () => {
       const data = await issueSlipApi.getWarehouseStaff();
@@ -76,6 +79,10 @@ export default function CommonIssueSlipDetail() {
         setDetail(data);
         if (data.generatedSlips) {
            setGeneratedSlips(data.generatedSlips);
+        }
+        if (role === "WarehouseStaff" && data.status === "Picking_In_Progress") {
+           const pickData = await issueSlipApi.getPickingList(issueId);
+           setPickingList(pickData.pickingItems || []);
         }
       } catch (error) {
         toast.error(t("Không thể tải chi tiết phiếu xuất."));
@@ -349,6 +356,30 @@ export default function CommonIssueSlipDetail() {
     }
   };
 
+  // 1. Đảo trạng thái isPicked của 1 món hàng
+  const handleTogglePick = (pickingId: number) => {
+    setPickingList(prev => prev.map(item => item.pickingId === pickingId ? { ...item, isPicked: !item.isPicked } : item));
+  };
+
+  // 2. Chốt hoàn thành nhặt hàng
+  const handleCompletePicking = async () => {
+    const unpickedCount = pickingList.filter(i => !i.isPicked).length;
+    if (unpickedCount > 0) return toast.error(`Vẫn còn ${unpickedCount} mục chưa nhặt xong!`);
+    try {
+      setReviewing(true);
+      await issueSlipApi.changeStatus(issueId, { action: "Ready_For_Delivery", reason: "Nhân viên kho đã nhặt xong hàng." });
+      toast.success("Tuyệt vời! Đã hoàn tất việc nhặt hàng.");
+      window.location.reload();
+    } catch (e) {
+      toast.error("Lỗi khi chốt nhặt hàng.");
+    } finally {
+      setReviewing(false);
+    }
+  };
+
+  // 3. Tính toán dữ liệu hiển thị (Lọc bỏ các món đã nhặt nếu hidePicked đang bật)
+  const displayedPickingItems = hidePicked ? pickingList.filter(item => !item.isPicked) : pickingList;
+
   if (loading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
@@ -604,6 +635,82 @@ export default function CommonIssueSlipDetail() {
                   )}
                 </CardContent>
               </Card>
+
+              {role === "WarehouseStaff" && detail.status === "Picking_In_Progress" && (
+                <Card className="border-blue-300 shadow-md bg-white overflow-hidden mt-6">
+                  <CardHeader className="bg-blue-50 border-b border-blue-100 py-4 flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle className="text-lg font-bold flex items-center gap-2 text-blue-800">
+                        <ClipboardList className="w-5 h-5" /> Danh sách nhặt hàng (Picking List)
+                      </CardTitle>
+                      <p className="text-sm text-blue-600/80 mt-1">Dựa theo kệ để tối ưu đường đi trong kho</p>
+                    </div>
+                    <Button 
+                      variant={hidePicked ? "default" : "outline"}
+                      className={hidePicked ? "bg-blue-600 text-white" : "text-blue-600 border-blue-300"}
+                      onClick={() => setHidePicked(!hidePicked)}
+                    >
+                      {hidePicked ? <><EyeOff className="w-4 h-4 mr-2" /> Đang ẩn mục đã nhặt</> : <><Eye className="w-4 h-4 mr-2" /> Hiển thị tất cả</>}
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50">
+                          <TableHead className="w-[120px]">Kệ (Bin)</TableHead>
+                          <TableHead>Vật tư</TableHead>
+                          <TableHead>Lô (Batch)</TableHead>
+                          <TableHead className="text-right">SL Cần lấy</TableHead>
+                          <TableHead className="text-center w-[100px]">Trạng thái</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {displayedPickingItems.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="h-32 text-center text-slate-500">
+                              {hidePicked ? "Tuyệt vời! Bạn đã nhặt xong tất cả." : "Không có hàng nào cần nhặt."}
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          displayedPickingItems.map((pick, idx) => (
+                            <TableRow key={pick.pickingId || idx} className={`${pick.isPicked ? "bg-emerald-50/50 opacity-60" : "hover:bg-blue-50/30"}`}>
+                              <TableCell className="font-bold text-slate-700">{pick.binLocation}</TableCell>
+                              <TableCell>
+                                <div className="font-medium text-slate-900">{pick.materialName}</div>
+                                <div className="text-xs text-slate-500">Mã: {pick.materialCode}</div>
+                              </TableCell>
+                              <TableCell className="text-slate-600 text-sm">📦 {pick.batchCode}</TableCell>
+                              <TableCell className="text-right font-bold text-blue-700 text-lg">
+                                {pick.qtyToPick} <span className="text-sm font-normal text-slate-500">{pick.unit}</span>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <input 
+                                  type="checkbox" 
+                                  className="w-6 h-6 accent-emerald-500 cursor-pointer rounded border-slate-300"
+                                  checked={pick.isPicked}
+                                  onChange={() => handleTogglePick(pick.pickingId)}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                  <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+                     <Button 
+                        size="lg" 
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                        onClick={handleCompletePicking}
+                        disabled={reviewing || pickingList.filter(i => !i.isPicked).length > 0}
+                     >
+                       {reviewing ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <CheckCircle2 className="w-5 h-5 mr-2" />}
+                       Hoàn tất nhặt hàng
+                     </Button>
+                  </div>
+                </Card>
+              )}
+
             </div>
 
             <div className="space-y-6">
