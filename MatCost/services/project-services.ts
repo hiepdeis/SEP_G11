@@ -8,6 +8,7 @@ export interface ProjectDto {
   startDate: string | null;
   endDate: string | null;
   status: string | null;
+  budget: number | null;
 }
 
 export const projectApi = {
@@ -20,4 +21,9 @@ export const projectApi = {
         const response = await axiosClient.get(`/Projects/${projectId}`);
         return response.data;
     },
+
+    createProject: async (project: Omit<ProjectDto, "projectId">): Promise<ProjectDto> => {
+        const response = await axiosClient.post("/Projects", project);
+        return response.data;
+    }
 };

@@ -20,6 +20,9 @@ public partial class Project
     [StringLength(255)]
     public string Name { get; set; } = null!;
 
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal? OverBudgetAllowance { get; set; }
+
     [Column(TypeName = "datetime")]
     public DateTime? StartDate { get; set; }
 
@@ -33,9 +36,23 @@ public partial class Project
     [Unicode(false)]
     public string? Status { get; set; }
 
+    [Column(TypeName = "decimal(18, 2)")]
+    public decimal? BudgetUsed { get; set; }
+
+    [NotMapped]
+    public decimal? BudgetRemaining => Budget.HasValue && BudgetUsed.HasValue
+    ? Budget - BudgetUsed
+    : null;
+
     [InverseProperty("Project")]
     public virtual ICollection<IssueSlip> IssueSlips { get; set; } = new List<IssueSlip>();
 
     [InverseProperty("Project")]
     public virtual ICollection<MaterialLossNorm> MaterialLossNorms { get; set; } = new List<MaterialLossNorm>();
+
+    [InverseProperty("Project")]
+    public virtual ICollection<PurchaseRequest> PurchaseRequests { get; set; } = new List<PurchaseRequest>();
+
+    [InverseProperty("Project")]
+    public virtual ICollection<PurchaseOrder> PurchaseOrders { get; set; } = new List<PurchaseOrder>();
 }

@@ -29,6 +29,7 @@ public partial class Material
     public decimal? MassPerUnit { get; set; }
 
     public int? MinStockLevel { get; set; }
+    public int? MaxStockLevel { get; set; }
     public int? CategoryId { get; set; }
     public decimal? UnitPrice { get; set; }
 
@@ -54,6 +55,15 @@ public partial class Material
 
     [InverseProperty("Material")]
     public virtual ICollection<ReceiptDetail> ReceiptDetails { get; set; } = new List<ReceiptDetail>();
+
+    [InverseProperty("Material")]
+    public virtual ICollection<PurchaseRequestItem> PurchaseRequestItems { get; set; } = new List<PurchaseRequestItem>();
+
+    [InverseProperty("Material")]
+    public virtual ICollection<PurchaseOrderItem> PurchaseOrderItems { get; set; } = new List<PurchaseOrderItem>();
+
+    [InverseProperty("Material")]
+    public virtual ICollection<StockShortageAlert> StockShortageAlerts { get; set; } = new List<StockShortageAlert>();
 
     [InverseProperty("Material")]
     public virtual ICollection<StockTakeDetail> StockTakeDetails { get; set; } = new List<StockTakeDetail>();

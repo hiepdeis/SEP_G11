@@ -55,6 +55,9 @@ public partial class User
     [InverseProperty("User")]
     public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 
+    [InverseProperty("ConfirmedByUser")]
+    public virtual ICollection<StockShortageAlert> StockShortageAlertsConfirmedByNavigations { get; set; } = new List<StockShortageAlert>();
+
     [InverseProperty("CreatedByNavigation")]
     public virtual ICollection<Receipt> Receipts { get; set; } = new List<Receipt>();
 

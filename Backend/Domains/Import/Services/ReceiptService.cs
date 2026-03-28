@@ -1,13 +1,8 @@
 ﻿using Backend.Data;
-using Backend.Domains.Import.DTOs.Accountants;
-using Backend.Domains.Import.DTOs.Construction;
-using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.DTOs.Staff;
 using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
 using Microsoft.EntityFrameworkCore;
-using OfficeOpenXml;
-using System.Text.RegularExpressions;
 
 namespace Backend.Domains.Import.Services
 {
@@ -645,6 +640,7 @@ namespace Backend.Domains.Import.Services
                            .Include(r => r.Warehouse)
                                         .Include(r => r.ReceiptDetails)
                                         .ThenInclude(rd => rd.Material)
+                                        .Include(r => r.CreatedByNavigation)
                                         .Include(r => r.ReceiptDetails)
                                         .ThenInclude(rd => rd.Supplier)
                             .Where(r => r.Status == "Approved" || r.Status == "GoodsArrived" || r.Status == "Completed")
@@ -654,10 +650,9 @@ namespace Backend.Domains.Import.Services
                                 ReceiptId = r.ReceiptId,
                                 ReceiptCode = r.ReceiptCode,
                                 WarehouseId = r.WarehouseId,
-                                WarehouseName = r.Warehouse != null ? r.Warehouse.Name : null,
+                                WarehouseName = r.Warehouse != null ? r.Warehouse.Name : string.Empty,
                                 ReceiptApprovalDate = r.ApprovedAt,
                                 TotalQuantity = r.ReceiptDetails.Sum(rd => rd.Quantity),
-                                ConfirmedBy = r.ConfirmedBy,
                                 Status = r.Status,
                                 Items = r.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
                                 {
@@ -693,15 +688,31 @@ namespace Backend.Domains.Import.Services
                 throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
             }
 
+            var userMap = await BuildUserNameMapAsync(
+                receipt.SubmittedBy,
+                receipt.ApprovedBy,
+                receipt.ConfirmedBy);
+
             return new GetInboundRequestListDto
             {
                 ReceiptId = receipt.ReceiptId,
                 ReceiptCode = receipt.ReceiptCode,
                 WarehouseId = receipt.WarehouseId,
-                WarehouseName = receipt.Warehouse != null ? receipt.Warehouse.Name : null,
+                WarehouseName = receipt.Warehouse != null ? receipt.Warehouse.Name : string.Empty,
                 ReceiptApprovalDate = receipt.ApprovedAt,
                 TotalQuantity = receipt.ReceiptDetails.Sum(rd => rd.Quantity),
-                ConfirmedBy = receipt.ConfirmedBy,
+                CreatedByName = receipt.CreatedByNavigation != null
+                                ? receipt.CreatedByNavigation.FullName ?? receipt.CreatedByNavigation.Email
+                                : "Unknown",
+                CreatedDate = receipt.ReceiptDate,
+                SubmittedByName = ResolveUserName(userMap, receipt.SubmittedBy),
+                SubmittedDate = receipt.SubmittedAt,
+                ApprovedByName = ResolveUserName(userMap, receipt.ApprovedBy),
+                ApprovedDate = receipt.ApprovedAt,
+                RejectedByName = ResolveUserName(userMap, receipt.RejectedBy),
+                RejectedDate = receipt.RejectedAt,
+                ConfirmedByName = ResolveUserName(userMap, receipt.ConfirmedBy),
+                ConfirmedDate = receipt.ConfirmedAt,
                 Status = receipt.Status,
                 Items = receipt.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
                 {
@@ -858,9 +869,12 @@ namespace Backend.Domains.Import.Services
                         ParentRequestId = receiptId,
                         Status = "Backorder",
                         WarehouseId = receipt.WarehouseId,
+                        PurchaseOrderId = receipt.PurchaseOrderId,
                         ConfirmedBy = receipt.ConfirmedBy,
+                        ConfirmedAt = receipt.ConfirmedAt,
                         ReceiptDate = today,
                         BackorderReason = $"Auto-generated backorder from receipt {receipt.ReceiptCode}",
+                        CreatedBy = staffId
                     };
 
                     _context.Receipts.Add(childReceipt);
@@ -886,11 +900,213 @@ namespace Backend.Domains.Import.Services
                 }
 
                 // STEP 4: Finalize
+                if (receipt.PurchaseOrderId.HasValue)
+                {
+                    var purchaseOrder = await _context.PurchaseOrders
+                        .Include(o => o.Items)
+                        .FirstOrDefaultAsync(o => o.PurchaseOrderId == receipt.PurchaseOrderId.Value);
+
+                    if (purchaseOrder != null)
+                    {
+                        var totalOrdered = purchaseOrder.Items.Sum(i => i.OrderedQuantity);
+                        var totalActual = receipt.ReceiptDetails.Sum(rd => rd.ActualQuantity ?? 0);
+
+                        if (totalActual == totalOrdered)
+                            purchaseOrder.Status = "FullyReceived";
+                        else if (totalActual < totalOrdered)
+                            purchaseOrder.Status = "PartiallyReceived";
+                        else
+                            purchaseOrder.Status = "OverReceived";
+                    }
+                }
+
                 receipt.Status = "Completed";
                 receipt.ConfirmedBy = staffId;
+                receipt.ConfirmedAt = today;
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public async Task<ReceiveGoodsFromPoResultDto> ReceiveGoodsFromPOAsync(long purchaseOrderId, List<ReceiveGoodsFromPoItemDto> items, int staffId)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                if (items == null || items.Count == 0)
+                    throw new ArgumentException("Items list cannot be empty");
+
+                var purchaseOrder = await _context.PurchaseOrders
+                    .Include(o => o.Items)
+                        .ThenInclude(i => i.Material)
+                    .FirstOrDefaultAsync(o => o.PurchaseOrderId == purchaseOrderId);
+
+                if (purchaseOrder == null)
+                    throw new KeyNotFoundException($"PurchaseOrder with ID {purchaseOrderId} not found");
+
+                var allowedStatuses = new[] { "AdminApproved", "SentToSupplier" };
+                if (!allowedStatuses.Contains(purchaseOrder.Status))
+                    throw new InvalidOperationException(
+                        $"Cannot receive goods for PO {purchaseOrderId} with status '{purchaseOrder.Status}'");
+
+                var warehouse = await _context.Warehouses
+                    .OrderBy(w => w.WarehouseId)
+                    .FirstOrDefaultAsync();
+
+                if (warehouse == null)
+                    throw new InvalidOperationException("No warehouse found to receive goods");
+
+                var binLocation = await _context.BinLocations
+                    .Where(b => b.WarehouseId == warehouse.WarehouseId)
+                    .OrderBy(b => b.BinId)
+                    .FirstOrDefaultAsync();
+
+                if (binLocation == null)
+                    throw new InvalidOperationException("No bin location found for receiving warehouse");
+
+                var poItemMap = purchaseOrder.Items.ToDictionary(i => i.MaterialId, i => i);
+                var requestedMaterialIds = items.Select(i => i.MaterialId).Distinct().ToList();
+
+                var extraMaterials = requestedMaterialIds.Except(poItemMap.Keys).ToList();
+                if (extraMaterials.Count > 0)
+                    throw new ArgumentException("Receipt items contain materials not in PO");
+
+                foreach (var item in items)
+                {
+                    if (item.ActualQuantity < 0)
+                        throw new ArgumentException("ActualQuantity must be >= 0");
+                }
+
+                var receiptCode = await GenerateReceiptCodeAsync();
+                var now = DateTime.UtcNow;
+
+                var receipt = new Receipt
+                {
+                    ReceiptCode = receiptCode,
+                    WarehouseId = warehouse.WarehouseId,
+                    PurchaseOrderId = purchaseOrderId,
+                    CreatedBy = staffId,
+                    ReceiptDate = now,
+                    Status = "Completed"
+                };
+
+                _context.Receipts.Add(receipt);
+                await _context.SaveChangesAsync();
+
+                decimal totalAmount = 0;
+                decimal totalActual = 0;
+
+                foreach (var item in items)
+                {
+                    var poItem = poItemMap[item.MaterialId];
+                    var batch = await GetOrCreateBatchAsync(item.MaterialId, null, null, null);
+                    var lineTotal = item.ActualQuantity * (poItem.UnitPrice ?? 0);
+
+                    var detail = new ReceiptDetail
+                    {
+                        ReceiptId = receipt.ReceiptId,
+                        MaterialId = item.MaterialId,
+                        SupplierId = poItem.SupplierId ?? purchaseOrder.SupplierId,
+                        Quantity = poItem.OrderedQuantity,
+                        ActualQuantity = item.ActualQuantity,
+                        UnitPrice = poItem.UnitPrice,
+                        LineTotal = lineTotal,
+                        BinLocationId = binLocation.BinId,
+                        BatchId = batch.BatchId
+                    };
+
+                    _context.ReceiptDetails.Add(detail);
+                    totalAmount += lineTotal;
+                    totalActual += item.ActualQuantity;
+
+                    var inventory = await _context.InventoryCurrents
+                        .FirstOrDefaultAsync(i =>
+                            i.WarehouseId == warehouse.WarehouseId &&
+                            i.MaterialId == item.MaterialId &&
+                            i.BinId == binLocation.BinId &&
+                            i.BatchId == batch.BatchId);
+
+                    decimal qtyBefore = inventory?.QuantityOnHand ?? 0;
+                    decimal qtyAfter = qtyBefore + item.ActualQuantity;
+
+                    if (inventory == null)
+                    {
+                        inventory = new InventoryCurrent
+                        {
+                            WarehouseId = warehouse.WarehouseId,
+                            MaterialId = item.MaterialId,
+                            BinId = binLocation.BinId,
+                            BatchId = batch.BatchId,
+                            QuantityOnHand = item.ActualQuantity,
+                            LastUpdated = now
+                        };
+                        _context.InventoryCurrents.Add(inventory);
+                    }
+                    else
+                    {
+                        inventory.QuantityOnHand = qtyAfter;
+                        inventory.LastUpdated = now;
+                    }
+
+                    var cardCode = await GenerateWarehouseCardCodeAsync(now);
+                    var warehouseCard = new WarehouseCard
+                    {
+                        CardCode = cardCode,
+                        WarehouseId = warehouse.WarehouseId,
+                        MaterialId = item.MaterialId,
+                        BinId = binLocation.BinId,
+                        BatchId = batch.BatchId,
+                        TransactionType = "Import",
+                        ReferenceId = receipt.ReceiptId,
+                        ReferenceType = "Receipt",
+                        TransactionDate = now,
+                        Quantity = item.ActualQuantity,
+                        QuantityBefore = qtyBefore,
+                        QuantityAfter = qtyAfter,
+                        CreatedBy = staffId
+                    };
+                    _context.WarehouseCards.Add(warehouseCard);
+                }
+
+                receipt.TotalAmount = totalAmount;
+
+                var totalOrdered = purchaseOrder.Items.Sum(i => i.OrderedQuantity);
+                var isPartialList = requestedMaterialIds.Count < poItemMap.Count;
+
+                if (isPartialList)
+                {
+                    purchaseOrder.Status = "PartiallyReceived";
+                }
+                else if (totalActual == totalOrdered)
+                {
+                    purchaseOrder.Status = "FullyReceived";
+                }
+                else if (totalActual < totalOrdered)
+                {
+                    purchaseOrder.Status = "PartiallyReceived";
+                }
+                else
+                {
+                    purchaseOrder.Status = "OverReceived";
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return new ReceiveGoodsFromPoResultDto
+                {
+                    ReceiptId = receipt.ReceiptId,
+                    PurchaseOrderId = purchaseOrderId,
+                    PoStatus = purchaseOrder.Status,
+                    ActualQuantity = totalActual,
+                    OrderedQuantity = totalOrdered
+                };
             }
             catch
             {
@@ -916,12 +1132,12 @@ namespace Backend.Domains.Import.Services
             if (material == null)
                 throw new KeyNotFoundException($"Material with ID {materialId} not found");
 
-            //var newBatchCode = batchCode ?? $"BATCH-{material.Code}-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 6).ToUpper()}";
+            var newBatchCode = batchCode ?? $"BATCH-{material.Code}-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
 
             var batch = new Batch
             {
                 MaterialId = materialId,
-                BatchCode = batchCode,
+                BatchCode = newBatchCode,
                 MfgDate = mfgDate,
                 CertificateImage = certificateImage,
                 CreatedDate = DateTime.UtcNow
@@ -1414,5 +1630,62 @@ namespace Backend.Domains.Import.Services
 
         #endregion
 
+        #region Helper Methods
+
+        private async Task<Dictionary<int, string>> BuildUserNameMapAsync(params int?[] userIds)
+        {
+            var id = userIds.Where(id => id.HasValue)
+                            .Select(id => id!.Value)
+                            .Distinct()
+                            .ToList();
+
+            if (!id.Any())
+                return new Dictionary<int, string>();
+
+            return await _context.Users
+                .Where(u => id.Contains(u.UserId))
+                .ToDictionaryAsync(u => u.UserId, u => u.FullName ?? u.Email ?? $"User {u.UserId}");
+        }
+
+        private async Task<string> GenerateReceiptCodeAsync()
+        {
+            var today = DateTime.UtcNow;
+            var prefix = $"RC{today:yyyyMMdd}"; // RC20250208
+
+            // Get today's receipts count
+            var count = await _context.Receipts
+                .Where(r => r.ReceiptCode!.StartsWith(prefix))
+                .CountAsync();
+
+            // Format: RC20250208-0001
+            return $"{prefix}-{(count + 1):D4}";
+        }
+
+        private async Task<string> GenerateWarehouseCardCodeAsync(DateTime today)
+        {
+            var prefix = $"WC-{today:yyyyMMdd}-";
+            var lastCard = await _context.WarehouseCards
+                .Where(w => w.CardCode.StartsWith(prefix))
+                .OrderByDescending(w => w.CardId)
+                .FirstOrDefaultAsync();
+
+            var nextSeq = 1;
+            if (lastCard != null)
+            {
+                var parts = lastCard.CardCode.Split('-');
+                if (parts.Length > 0 && int.TryParse(parts[^1], out var lastSeq))
+                    nextSeq = lastSeq + 1;
+            }
+
+            return $"{prefix}{nextSeq:D4}";
+        }
+
+        private static string? ResolveUserName(Dictionary<int, string> userMap, int? userId)
+        {
+            if (!userId.HasValue) return null;
+            return userMap.TryGetValue(userId.Value, out var name) ? name : null;
+        }
+
+        #endregion
     }
 }

@@ -18,6 +18,8 @@ import Link from "next/link";
 import { authApi } from "@/services/auth-service";
 import i18n from "@/lib/i18n";
 import { useTranslation } from "react-i18next";
+import { showConfirmToast } from "@/hooks/confirm-toast";
+
 interface UserDropdownProps {
   trigger: React.ReactNode;
   align?: "center" | "start" | "end";
@@ -60,7 +62,7 @@ export function UserDropdown({
         className="w-56 rounded-xl shadow-xl border-slate-100"
       >
         <div className="px-2 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-          Account
+          {t("Account")}
         </div>
 
         <DropdownMenuItem asChild>
@@ -69,14 +71,14 @@ export function UserDropdown({
             className="cursor-pointer rounded-lg group focus:bg-indigo-600 focus:text-white flex items-center w-full"
           >
             <User className="mr-2 h-4 w-4 text-slate-500 group-focus:text-white transition-colors" />
-            <span>Profile</span>
+            <span>{t("Profile")}</span>
           </Link>
         </DropdownMenuItem>
 
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className="cursor-pointer rounded-lg group focus:bg-indigo-600 focus:text-white">
             <Globe className="mr-2 h-4 w-4 text-slate-500 group-focus:text-white transition-colors" />
-            <span>{t("Language") || "Language"}</span>
+            <span>{t("Language")}</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent className="min-w-[150px] rounded-xl shadow-lg">
@@ -100,10 +102,17 @@ export function UserDropdown({
 
         <DropdownMenuItem
           className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 rounded-lg"
-          onClick={handleLogout}
+          onClick={() => {
+            showConfirmToast({
+              title: t("Sign out?"),
+              description: t("Are you sure you want to sign out?"),
+              confirmLabel: t("Yes, Sign out"),
+              onConfirm: () => handleLogout(),
+            });
+          }}
         >
           <LogOut className="mr-2 h-4 w-4" />
-          <span>Sign out</span>
+          <span>{t("Sign out")}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

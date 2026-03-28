@@ -1,5 +1,6 @@
 import { toast } from "sonner";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface ConfirmToastProps {
   title?: string;
@@ -10,7 +11,6 @@ interface ConfirmToastProps {
   onCancel?: () => void;
 }
 
-// Component riêng để xử lý logic click outside và giao diện
 const ConfirmToast = ({
   id,
   title,
@@ -21,17 +21,18 @@ const ConfirmToast = ({
   onCancel,
 }: ConfirmToastProps & { id: string | number }) => {
   const ref = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
+  
+  const [isActionPending, setIsActionPending] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // Nếu click ra ngoài ref của toast thì đóng toast
       if (ref.current && !ref.current.contains(event.target as Node)) {
         toast.dismiss(id);
         if (onCancel) onCancel();
       }
     };
 
-    // Thêm delay nhỏ để tránh sự kiện click mở toast kích hoạt luôn việc đóng
     const timeoutId = setTimeout(() => {
       document.addEventListener("mousedown", handleClickOutside);
     }, 0);
@@ -43,13 +44,23 @@ const ConfirmToast = ({
   }, [id, onCancel]);
 
   const handleConfirm = async () => {
-    await onConfirm();
-    toast.dismiss(id);
+    if (isActionPending) return;
+    setIsActionPending(true);
+
+    setTimeout(async () => {
+      await onConfirm();
+      toast.dismiss(id);
+    }, 10);
   };
 
   const handleCancel = () => {
-    if (onCancel) onCancel();
-    toast.dismiss(id);
+    if (isActionPending) return;
+    setIsActionPending(true);
+
+    setTimeout(() => {
+      if (onCancel) onCancel();
+      toast.dismiss(id);
+    }, 10);
   };
 
   return (
@@ -59,24 +70,26 @@ const ConfirmToast = ({
     >
       <div className="flex flex-col gap-1">
         <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-50">
-          {title}
+          {title || t("Are you sure?")}
         </h3>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          {description}
+          {description || t("This action cannot be undone.")}
         </p>
       </div>
       <div className="flex gap-2 justify-end mt-1">
         <button
           onClick={handleCancel}
-          className="text-xs font-medium px-3 py-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-zinc-600 dark:text-zinc-300 cursor-pointer"
+          disabled={isActionPending}
+          className="text-xs font-medium px-3 py-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-zinc-600 dark:text-zinc-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {cancelLabel}
+          {cancelLabel || t("Cancel")}
         </button>
         <button
           onClick={handleConfirm}
-          className="text-xs font-medium px-3 py-2 rounded-md bg-primary text-white hover:bg-indigo-500 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors cursor-pointer"
+          disabled={isActionPending}
+          className="text-xs font-medium px-3 py-2 rounded-md bg-primary text-white hover:bg-indigo-500 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {confirmLabel}
+          {confirmLabel || t("Confirm")}
         </button>
       </div>
     </div>
@@ -84,14 +97,13 @@ const ConfirmToast = ({
 };
 
 export const showConfirmToast = ({
-  title = "Are you sure?",
-  description = "This action cannot be undone.",
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  title,
+  description,
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   onCancel,
 }: ConfirmToastProps) => {
-  // Sử dụng toast.custom thay vì toast thường
   toast.custom((id) => (
     <ConfirmToast
       id={id}
@@ -103,6 +115,6 @@ export const showConfirmToast = ({
       onCancel={onCancel}
     />
   ), {
-    duration: Infinity, // Giữ vô hạn cho đến khi click (hoặc click ra ngoài)
+    duration: Infinity,
   });
 };

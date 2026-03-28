@@ -39,7 +39,7 @@ builder.Configuration
 builder.Services.AddDbContext<MyDbContext>(options =>
               options.UseSqlServer(
                   builder.Configuration.GetConnectionString("DefaultConnection")
-                 //ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
+              //ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
               ));
 // Add services to the container.
 
@@ -59,6 +59,13 @@ builder.Services.AddScoped<IStockTakeReviewService, StockTakeReviewService>();
 builder.Services.AddScoped<IStockTakeCountingService, StockTakeCountingService>();
 builder.Services.AddScoped<IStockTakeLockService, StockTakeLockService>();
 builder.Services.AddScoped<IStockTakeCountingService, StockTakeCountingService>();
+//  Import services
+builder.Services.AddScoped<IStockShortageAlertService, StockShortageAlertService>();
+builder.Services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
+builder.Services.AddScoped<IReceiptService, ReceiptService>();
+builder.Services.AddScoped<IPurchaseRequestService, PurchaseRequestService>();
+
+
 // Configure Swagger to support file uploads
 builder.Services.AddSwaggerGen(c =>
 {
@@ -98,12 +105,10 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IWarehouseService, WarehouseService>();
 builder.Services.AddScoped<IBinLocationService, BinLocationService>();
 builder.Services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
 builder.Services.AddScoped<GoogleLoginHandler>();
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IReceiptService, ReceiptService>();
 builder.Services.AddScoped<IAuthorizationHandler, ActiveUserAuthorizationHandler>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();

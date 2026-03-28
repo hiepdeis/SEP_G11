@@ -55,7 +55,7 @@ import {
   materialApi,
   MaterialDto,
   CreateMaterialDto,
-} from "@/services/material-service";
+} from "@/services/materials-service";
 import { Header } from "@/components/ui/custom/header";
 
 export default function ManagerMaterialManagement() {

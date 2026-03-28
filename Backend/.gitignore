@@ -16,6 +16,10 @@ appsettings.*.json
 appsettings.Development.json
 appsettings.Production.json
 BUSINESS_lOGIC_INBOUND.txt
+import_warehouse_business_logic.md
+IMPORT_WORKFLOW_API_ENDPOINTS.md
+IMPORT_WORKFLOW_MANUAL_TEST_CASES.md
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 

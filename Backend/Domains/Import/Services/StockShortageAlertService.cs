@@ -1,0 +1,293 @@
+using Backend.Data;
+using Backend.Domains.Import.DTOs.Internal;
+using Backend.Domains.Import.Interfaces;
+using Backend.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace Backend.Domains.Import.Services
+{
+    public class StockShortageAlertService : IStockShortageAlertService
+    {
+        private readonly MyDbContext _context;
+
+        public StockShortageAlertService(MyDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<List<StockShortageAlert>> GetStockShortageAlertsAsync()
+        {
+            return await _context.StockShortageAlerts
+                .Include(a => a.Material)
+                .Include(a => a.Warehouse)
+                .OrderByDescending(a => a.CreatedAt)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task<StockShortageAlert?> GetStockShortageAlertAsync(long alertId)
+        {
+            return await _context.StockShortageAlerts
+                .Include(a => a.Material)
+                .Include(a => a.Warehouse)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.AlertId == alertId);
+        }
+
+        public async Task<StockShortageDetectResultDto> DetectShortagesAsync(int? warehouseId = null)
+        {
+            var activeStatuses = new[] { "Pending", "ManagerConfirmed", "PRCreated" };
+
+            var activeAlerts = await _context.StockShortageAlerts
+                .Where(a => activeStatuses.Contains(a.Status))
+                .ToListAsync();
+
+            var activeAlertMap = activeAlerts
+                .ToDictionary(a => (a.MaterialId, a.WarehouseId));
+
+            var inventoryQuery = _context.InventoryCurrents.AsQueryable();
+            if (warehouseId.HasValue)
+                inventoryQuery = inventoryQuery.Where(i => i.WarehouseId == warehouseId.Value);
+
+            var inventoryGroups = await inventoryQuery
+                .GroupBy(i => new { i.MaterialId, i.WarehouseId })
+                .Select(g => new
+                {
+                    g.Key.MaterialId,
+                    g.Key.WarehouseId,
+                    QuantityOnHand = g.Sum(x => x.QuantityOnHand ?? 0)
+                })
+                .ToListAsync();
+
+            var materialMap = await _context.Materials
+                .Where(m => m.MinStockLevel.HasValue)
+                .ToDictionaryAsync(m => m.MaterialId, m => m);
+
+            var now = DateTime.UtcNow;
+            var newAlerts = new List<StockShortageAlert>();
+            var updatedAlerts = 0;
+
+            foreach (var group in inventoryGroups)
+            {
+
+                if (!materialMap.TryGetValue(group.MaterialId, out var material))
+                    continue;
+
+                var minStock = material.MinStockLevel ?? 0;
+                if (group.QuantityOnHand >= minStock)
+                    continue;
+
+                var suggestedQuantity = CalculateSuggestedQuantity(material, group.QuantityOnHand);
+                var priority = CalculatePriority(group.QuantityOnHand, minStock);
+
+                var key = (group.MaterialId, group.WarehouseId);
+                if (activeAlertMap.TryGetValue(key, out var existingAlert))
+                {
+                    var hasChanges = false;
+
+                    if (existingAlert.CurrentQuantity != group.QuantityOnHand)
+                    {
+                        existingAlert.CurrentQuantity = group.QuantityOnHand;
+                        hasChanges = true;
+                    }
+
+                    if (existingAlert.MinStockLevel != material.MinStockLevel)
+                    {
+                        existingAlert.MinStockLevel = material.MinStockLevel;
+                        hasChanges = true;
+                    }
+
+                    if (existingAlert.SuggestedQuantity != suggestedQuantity)
+                    {
+                        existingAlert.SuggestedQuantity = suggestedQuantity;
+                        hasChanges = true;
+                    }
+
+                    if (existingAlert.Priority != priority)
+                    {
+                        existingAlert.Priority = priority;
+                        hasChanges = true;
+                    }
+
+                    if (hasChanges)
+                        updatedAlerts++;
+
+                    continue;
+                }
+
+                var alert = new StockShortageAlert
+                {
+                    MaterialId = group.MaterialId,
+                    WarehouseId = group.WarehouseId,
+                    CurrentQuantity = group.QuantityOnHand,
+                    MinStockLevel = material.MinStockLevel,
+                    SuggestedQuantity = suggestedQuantity,
+                    Priority = priority,
+                    Status = "Pending",
+                    CreatedAt = now
+                };
+
+                newAlerts.Add(alert);
+            }
+
+            if (newAlerts.Count > 0)
+                _context.StockShortageAlerts.AddRange(newAlerts);
+
+            if (newAlerts.Count > 0 || updatedAlerts > 0)
+                await _context.SaveChangesAsync();
+
+            if (newAlerts.Count > 0)
+                await CreateManagerNotificationsAsync(newAlerts, materialMap, now);
+
+            return new StockShortageDetectResultDto
+            {
+                TotalScanned = inventoryGroups.Count,
+                NewAlerts = newAlerts.Count,
+                UpdatedAlerts = updatedAlerts,
+                Alerts = newAlerts
+            };
+        }
+
+        public Task<StockShortageDetectResultDto> CalculateStockShortageAsync(int? warehouseId = null)
+        {
+            return DetectShortagesAsync(warehouseId);
+        }
+
+        public async Task<List<StockShortageAlert>> GetPendingAlertsAsync()
+        {
+            return await _context.StockShortageAlerts
+                .Include(a => a.Material)
+                .Include(a => a.Warehouse)
+                .Where(a => a.Status == "Pending")
+                .OrderByDescending(a => a.CreatedAt)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task<StockShortageAlert> ConfirmAlertAsync(long alertId, int managerId, decimal? adjustedQuantity, string? notes)
+        {
+            var alert = await _context.StockShortageAlerts
+                .Include(a => a.Material)
+                .Include(a => a.Warehouse)
+                .FirstOrDefaultAsync(a => a.AlertId == alertId);
+
+            if (alert == null)
+                throw new KeyNotFoundException($"Alert with ID {alertId} not found");
+
+            alert.Status = "ManagerConfirmed";
+            alert.ConfirmedBy = managerId;
+            alert.ConfirmedAt = DateTime.UtcNow;
+
+            if (adjustedQuantity.HasValue)
+                alert.SuggestedQuantity = adjustedQuantity.Value;
+
+            if (!string.IsNullOrWhiteSpace(notes))
+                alert.Notes = notes;
+
+            await CreateAdminNotificationsAsync(alert, DateTime.UtcNow);
+            await _context.SaveChangesAsync();
+
+            return alert;
+        }
+
+        private static decimal? CalculateSuggestedQuantity(Material material, decimal currentQuantity)
+        {
+            if (material.MaxStockLevel.HasValue && material.MaxStockLevel.Value > currentQuantity)
+            {
+                return material.MaxStockLevel.Value - currentQuantity;
+            }
+
+            if (material.MinStockLevel.HasValue && material.MinStockLevel.Value > currentQuantity)
+            {
+                return material.MinStockLevel.Value - currentQuantity;
+            }
+
+            return null;
+        }
+
+        private static string? CalculatePriority(decimal currentQuantity, int minStockLevel)
+        {
+            if (minStockLevel <= 0)
+                return null;
+
+            if (currentQuantity == 0)
+                return "Critical";
+
+            var half = minStockLevel * 0.5m;
+            if (currentQuantity < half)
+                return "High";
+
+            if (currentQuantity < minStockLevel)
+                return "Medium";
+
+            return null;
+        }
+
+        private async Task<List<int>> GetUserIdsByRoleAsync(string roleName)
+        {
+            return await _context.Users
+                .Where(u => u.Role.RoleName == roleName)
+                .Select(u => u.UserId)
+                .ToListAsync();
+        }
+
+        private async Task CreateManagerNotificationsAsync(
+            List<StockShortageAlert> alerts,
+            Dictionary<int, Material> materialMap,
+            DateTime now)
+        {
+            var managerIds = await GetUserIdsByRoleAsync("Manager");
+            if (managerIds.Count == 0)
+                return;
+
+            foreach (var alert in alerts)
+            {
+                var materialName = materialMap.TryGetValue(alert.MaterialId, out var material)
+                    ? material.Name
+                    : $"Material {alert.MaterialId}";
+
+                var message = $"New stock shortage alert for {materialName}.";
+                if (alert.WarehouseId.HasValue)
+                    message += $" Warehouse {alert.WarehouseId}.";
+
+                foreach (var managerId in managerIds)
+                {
+                    _context.Notifications.Add(new Notification
+                    {
+                        UserId = managerId,
+                        Message = message,
+                        RelatedEntityType = "StockShortageAlert",
+                        RelatedEntityId = alert.AlertId,
+                        IsRead = false,
+                        CreatedAt = now
+                    });
+                }
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task CreateAdminNotificationsAsync(StockShortageAlert alert, DateTime now)
+        {
+            var adminIds = await GetUserIdsByRoleAsync("Admin");
+            if (adminIds.Count == 0)
+                return;
+
+            var materialName = alert.Material?.Name ?? $"Material {alert.MaterialId}";
+            var message = $"Alert {alert.AlertId} for {materialName} was confirmed by manager.";
+
+            foreach (var adminId in adminIds)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    UserId = adminId,
+                    Message = message,
+                    RelatedEntityType = "StockShortageAlert",
+                    RelatedEntityId = alert.AlertId,
+                    IsRead = false,
+                    CreatedAt = now
+                });
+            }
+        }
+    }
+}

@@ -42,7 +42,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/components/providers/auth-provider";
-import { userApi, UserDto } from "@/services/user-service"; 
+import { userApi, UserDto } from "@/services/user-service";
 // CÁC IMPORT CẦN THIẾT CHO DATE FILTER
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -52,14 +52,16 @@ import {
 } from "@/components/ui/popover";
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   role?: "staff" | "manager";
 }
 
 export default function WarehouseCardPage({ role = "staff" }: Props) {
+  const { t } = useTranslation();
   const router = useRouter();
-  const { user } = useAuth(); 
+  const { user } = useAuth();
 
   const [cards, setCards] = useState<WarehouseCardDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -102,11 +104,11 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
       if (role?.toLowerCase() === "manager") {
         try {
           const res = await userApi.getAll(1, 100);
-          
+
           const staffs = res.data.users.filter(
-            (u) => u.roleName.toLowerCase() === "staff"
+            (u) => u.roleName.toLowerCase() === "staff",
           );
-          
+
           setStaffList(staffs);
         } catch (error) {
           console.error("Failed to fetch staff list", error);
@@ -136,10 +138,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
     let matchesStaff = true;
     if (role?.toLowerCase() === "staff") {
       matchesStaff = item.createdBy === user?.id;
-    } else if (
-      role?.toLowerCase() === "manager" &&
-      selectedStaffId !== "All"
-    ) {
+    } else if (role?.toLowerCase() === "manager" && selectedStaffId !== "All") {
       matchesStaff = item.createdBy.toString() === selectedStaffId;
     }
 
@@ -157,9 +156,16 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
         matchesDate = false;
       } else {
         const itemDate = new Date(item.transactionDate);
-        const fromDate = dateRange.from ? startOfDay(dateRange.from) : new Date(2000, 0, 1);
-        const toDate = dateRange.to ? endOfDay(dateRange.to) : new Date(2100, 0, 1);
-        matchesDate = isWithinInterval(itemDate, { start: fromDate, end: toDate });
+        const fromDate = dateRange.from
+          ? startOfDay(dateRange.from)
+          : new Date(2000, 0, 1);
+        const toDate = dateRange.to
+          ? endOfDay(dateRange.to)
+          : new Date(2100, 0, 1);
+        matchesDate = isWithinInterval(itemDate, {
+          start: fromDate,
+          end: toDate,
+        });
       }
     }
 
@@ -207,7 +213,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title="Import/Export Reports" />
+        <Header title={t("Import/Export Reports")} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6 ">
           <div className="flex items-start gap-3">
@@ -222,11 +228,12 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
 
             <div className="flex flex-col gap-1">
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                Warehouse Cards
+                {t("Warehouse Cards")}
               </h1>
               <p className="text-sm text-slate-500">
-                Track historical inventory movements, including imports and
-                exports.
+                {t(
+                  "Track historical inventory movements, including imports and exports.",
+                )}
               </p>
             </div>
           </div>
@@ -240,14 +247,14 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    Total Imports
+                    {t("Total Imports")}
                   </p>
                   <div className="flex items-baseline gap-2">
                     <h3 className="text-2xl font-bold text-slate-900">
                       {importCards.length}
                     </h3>
                     <span className="text-xs font-medium text-emerald-600">
-                      +{totalImportQty.toLocaleString("vi-VN")} items
+                      +{totalImportQty.toLocaleString("vi-VN")} {t("items")}
                     </span>
                   </div>
                 </div>
@@ -261,14 +268,14 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    Total Exports
+                    {t("Total Exports")}
                   </p>
                   <div className="flex items-baseline gap-2">
                     <h3 className="text-2xl font-bold text-slate-900">
                       {exportCards.length}
                     </h3>
                     <span className="text-xs font-medium text-rose-600">
-                      -{totalExportQty.toLocaleString("vi-VN")} items
+                      -{totalExportQty.toLocaleString("vi-VN")} {t("items")}
                     </span>
                   </div>
                 </div>
@@ -282,7 +289,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    Total Transactions
+                    {t("Total Transactions")}
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
                     {filteredData.length}
@@ -304,24 +311,25 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                 className="w-full"
               >
                 <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-                  {/* TABS LIST */}
                   <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
                     <TabsTrigger
                       value="Import"
                       className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
                     >
-                      Inbound (Import)
+                      {t("Inbound (Import)")}
                     </TabsTrigger>
                     <TabsTrigger
                       value="Export"
                       className="data-[state=active]:bg-rose-500 data-[state=active]:text-white"
                     >
-                      Outbound (Export)
+                      {t("Outbound (Export)")}
                     </TabsTrigger>
                   </TabsList>
 
                   <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3">
-                    
+                    <span className="text-sm font-medium text-slate-500 hidden md:block">
+                      {t("Filters")}:
+                    </span>
                     <div className="flex items-center gap-2">
                       <Popover>
                         <PopoverTrigger asChild>
@@ -329,18 +337,24 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                             variant="outline"
                             className={cn(
                               "justify-start text-left font-normal h-9 bg-white shadow-sm",
-                              !dateRange.from && "text-slate-500"
+                              !dateRange.from && "text-slate-500",
                             )}
                           >
                             <CalendarDays className="mr-2 h-4 w-4" />
-                            {dateRange.from ? format(dateRange.from, "dd/MM/yyyy") : <span>From Date</span>}
+                            {dateRange.from ? (
+                              format(dateRange.from, "dd/MM/yyyy")
+                            ) : (
+                              <span>{t("From Date")}</span>
+                            )}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
                             selected={dateRange.from}
-                            onSelect={(date) => setDateRange(prev => ({ ...prev, from: date }))}
+                            onSelect={(date) =>
+                              setDateRange((prev) => ({ ...prev, from: date }))
+                            }
                             initialFocus
                           />
                         </PopoverContent>
@@ -354,56 +368,65 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                             variant="outline"
                             className={cn(
                               "justify-start text-left font-normal h-9 bg-white shadow-sm",
-                              !dateRange.to && "text-slate-500"
+                              !dateRange.to && "text-slate-500",
                             )}
                           >
                             <CalendarDays className="mr-2 h-4 w-4" />
-                            {dateRange.to ? format(dateRange.to, "dd/MM/yyyy") : <span>To Date</span>}
+                            {dateRange.to ? (
+                              format(dateRange.to, "dd/MM/yyyy")
+                            ) : (
+                              <span>{t("To Date")}</span>
+                            )}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
                             selected={dateRange.to}
-                            onSelect={(date) => setDateRange(prev => ({ ...prev, to: date }))}
+                            onSelect={(date) =>
+                              setDateRange((prev) => ({ ...prev, to: date }))
+                            }
                             initialFocus
-                            disabled={(date) => dateRange.from ? date < dateRange.from : false}
+                            disabled={(date) =>
+                              dateRange.from ? date < dateRange.from : false
+                            }
                           />
                         </PopoverContent>
                       </Popover>
 
                       {(dateRange.from || dateRange.to) && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="h-8 text-xs text-slate-500 px-2"
-                          onClick={() => setDateRange({ from: undefined, to: undefined })}
+                          onClick={() =>
+                            setDateRange({ from: undefined, to: undefined })
+                          }
                         >
-                          <Delete className="h-4 w-4"/>
+                          <Delete className="h-4 w-4" />
                         </Button>
                       )}
                     </div>
 
-                    {/* HIỂN THỊ DROPDOWN LỌC STAFF NẾU ROLE LÀ MANAGER */}
                     {role?.toLowerCase() === "manager" && (
                       <Select
                         value={selectedStaffId}
                         onValueChange={(val) => setSelectedStaffId(val)}
                       >
-                        <SelectTrigger className="w-full sm:w-[150px] bg-white shadow-sm border-slate-200 h-9">
+                        <SelectTrigger className="bg-white shadow-sm border-slate-200 h-9">
                           <div className="flex items-center gap-2">
                             <User className="w-4 h-4 text-slate-500" />
                             <span className="truncate">
                               {selectedStaffId === "All"
-                                ? "All Staffs"
+                                ? t("All Staffs")
                                 : staffList.find(
                                     (s) => s.id.toString() === selectedStaffId,
-                                  )?.fullName || "Unknown Staff"}
+                                  )?.fullName || t("Unknown Staff")}
                             </span>
                           </div>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="All">All Staffs</SelectItem>
+                          <SelectItem value="All">{t("All Staffs")}</SelectItem>
                           {staffList.map((staff) => (
                             <SelectItem
                               key={staff.id}
@@ -419,7 +442,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                     <div className="relative w-full sm:w-64">
                       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                       <Input
-                        placeholder="Search Material or Card Code..."
+                        placeholder={t("Search Material or Card Code...")}
                         className="pl-9 h-9 shadow-sm"
                         maxLength={50}
                         value={searchTerm}
@@ -436,18 +459,20 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                   <TableHeader>
                     <TableRow className="bg-slate-50">
                       <TableHead className="pl-6 w-[220px]">
-                        Transaction
+                        {t("Transaction")}
                       </TableHead>
-                      <TableHead>Material Details</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Warehouse</TableHead>
+                      <TableHead>{t("Material Details")}</TableHead>
+                      <TableHead>{t("Location")}</TableHead>
+                      <TableHead>{t("Warehouse")}</TableHead>
                       <TableHead className="text-right">
-                        Quantity Before
+                        {t("Quantity Before")}
                       </TableHead>
                       <TableHead className="text-center w-[120px]">
-                        Change
+                        {t("Change")}
                       </TableHead>
-                      <TableHead className="text-right pr-6">Total</TableHead>
+                      <TableHead className="text-right pr-6">
+                        {t("Total")}
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -455,8 +480,8 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                       <TableRow>
                         <TableCell colSpan={7} className="h-40 text-center">
                           <div className="flex justify-center items-center gap-2 text-indigo-600">
-                            <Loader2 className="w-6 h-6 animate-spin" /> Loading
-                            stock cards...
+                            <Loader2 className="w-6 h-6 animate-spin" />{" "}
+                            {t("Loading stock cards...")}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -468,7 +493,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                         >
                           <div className="flex flex-col items-center justify-center gap-2">
                             <AlertCircle className="w-8 h-8 text-slate-300" />
-                            <p>No transaction records found.</p>
+                            <p>{t("No transaction records found.")}</p>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -478,7 +503,6 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                           key={item.cardId}
                           className="group hover:bg-slate-50/50 transition-colors align-top"
                         >
-                          {/* Transaction Date & Ref */}
                           <TableCell className="pl-6 py-3">
                             <div className="flex flex-col gap-1">
                               <span className="font-semibold text-slate-700 text-sm">
@@ -494,16 +518,16 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                               >
                                 {item.referenceType} #{item.referenceId}
                               </Badge>
-                              {/* Hiển thị thêm người tạo nếu đang đứng dưới role Manager */}
                               {role?.toLowerCase() === "manager" && (
                                 <span className="text-[10px] text-slate-400 mt-0.5 font-medium">
-                                  by: {item.createdByName || `ID: ${item.createdBy}`}
+                                  {t("by")}:{" "}
+                                  {item.createdByName ||
+                                    `ID: ${item.createdBy}`}
                                 </span>
                               )}
                             </div>
                           </TableCell>
 
-                          {/* Material */}
                           <TableCell className="py-3">
                             <div className="flex flex-col gap-1">
                               <span className="text-slate-800 font-medium">
@@ -515,16 +539,15 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                             </div>
                           </TableCell>
 
-                          {/* Location (Bin & Batch) */}
                           <TableCell className="py-3">
                             <div className="flex flex-col gap-1.5">
                               <span className="text-xs font-medium text-indigo-700 bg-indigo-50 w-fit px-2 py-0.5 rounded border border-indigo-100 flex items-center gap-1">
-                                <Hash className="w-3 h-3" /> Bin:{" "}
-                                {item.binCode || "N/A"}
+                                <Hash className="w-3 h-3" /> {t("Bin")}:{" "}
+                                {item.binCode || t("N/A")}
                               </span>
                               {item.batchCode && (
                                 <span className="text-xs text-slate-500 flex items-center gap-1">
-                                  <Package className="w-3 h-3" /> Batch:{" "}
+                                  <Package className="w-3 h-3" /> {t("Batch")}:{" "}
                                   {item.batchCode}
                                 </span>
                               )}
@@ -535,12 +558,10 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                             {item.warehouseName}
                           </TableCell>
 
-                          {/* Qty Before */}
                           <TableCell className="text-right py-3 text-slate-500">
                             {item.quantityBefore.toLocaleString("vi-VN")}
                           </TableCell>
 
-                          {/* Change (Dấu + hoặc -) */}
                           <TableCell className="text-center py-3">
                             <Badge
                               variant="outline"
@@ -557,7 +578,6 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                             </Badge>
                           </TableCell>
 
-                          {/* Balance (Qty After) */}
                           <TableCell className="text-right pr-6 py-3">
                             <div className="flex flex-col items-end gap-0.5">
                               <span className="font-bold text-slate-800 text-md">
@@ -575,30 +595,28 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                 </Table>
               </div>
 
-              {/* Phân trang */}
               {!isLoading && filteredData.length > 0 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 mt-auto gap-4">
                   <div className="text-sm text-slate-500">
-                    Showing{" "}
+                    {t("Showing")}{" "}
                     <span className="font-medium text-slate-900">
                       {startIndex + 1}
                     </span>{" "}
-                    to{" "}
+                    {t("to")}{" "}
                     <span className="font-medium text-slate-900">
                       {Math.min(endIndex, filteredData.length)}
                     </span>{" "}
-                    of{" "}
+                    {t("of")}{" "}
                     <span className="font-medium text-slate-900">
                       {filteredData.length}
                     </span>{" "}
-                    records
+                    {t("records")}
                   </div>
 
                   <div className="flex items-center gap-6">
-                    {/* Chọn số lượng item */}
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-slate-500 whitespace-nowrap">
-                        Rows per page:
+                        {t("Rows per page")}:
                       </span>
                       <Select
                         value={itemsPerPage.toString()}
@@ -613,12 +631,11 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                           <SelectItem value="20">20</SelectItem>
                           <SelectItem value="50">50</SelectItem>
                           <SelectItem value="100">100</SelectItem>
-                          <SelectItem value="-1">All</SelectItem>
+                          <SelectItem value="-1">{t("All")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
-                    {/* Các nút chuyển trang */}
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
@@ -629,10 +646,10 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                         disabled={currentPage === 1}
                         className="h-8"
                       >
-                        <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                        <ChevronLeft className="w-4 h-4 mr-1" /> {t("Previous")}
                       </Button>
                       <div className="text-sm font-medium text-slate-600 px-2 min-w-[80px] text-center">
-                        Page {currentPage} of {totalPages}
+                        {t("Page")} {currentPage} {t("of")} {totalPages}
                       </div>
                       <Button
                         variant="outline"
@@ -645,7 +662,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                         disabled={currentPage === totalPages}
                         className="h-8"
                       >
-                        Next <ChevronRight className="w-4 h-4 ml-1" />
+                        {t("Next")} <ChevronRight className="w-4 h-4 ml-1" />
                       </Button>
                     </div>
                   </div>

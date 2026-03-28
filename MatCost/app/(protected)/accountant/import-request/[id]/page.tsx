@@ -16,6 +16,8 @@ import {
   History,
   ChevronRight,
   ChevronLeft,
+  Check,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,7 +140,7 @@ export default function ReceiptReviewPage() {
         setItems(formItems);
       } catch (error) {
         console.error("Error loading receipt", error);
-        toast.error("Failed to load receipt data");
+        toast.error(t("Failed to load receipt data"));
       } finally {
         setIsLoading(false);
       }
@@ -268,7 +270,7 @@ export default function ReceiptReviewPage() {
   const handleSaveDraft = async () => {
     if (!selectedWarehouseId && hasAllSupplierMissing) {
       return toast.error(
-        "Please select a warehouse or a supplier to save draft",
+        t("Please select a warehouse or a supplier to save draft"),
       );
     }
     setIsSaving(true);
@@ -280,7 +282,7 @@ export default function ReceiptReviewPage() {
       } else {
         await receiptApi.updateDraft(id, payload);
       }
-      toast.success("Draft saved successfully!");
+      toast.success(t("Draft saved successfully!"));
     } catch (error: any) {
       console.error(error);
       const msg = error.response?.data?.message || "Failed to save draft";
@@ -302,7 +304,7 @@ export default function ReceiptReviewPage() {
         await receiptApi.updateDraft(id, payload);
       }
       await receiptApi.submitForApproval(id);
-      toast.success("Submitted successfully!");
+      toast.success(t("Submitted successfully!"));
       router.push("/accountant/import-request");
     } catch (error: any) {
       console.error(error);
@@ -313,7 +315,8 @@ export default function ReceiptReviewPage() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedWarehouseId) return toast.error("Please select a warehouse");
+    if (!selectedWarehouseId)
+      return toast.error(t("Please select a warehouse"));
 
     const newErrors = { ...errors };
     let localMissingCheck = false;
@@ -328,19 +331,22 @@ export default function ReceiptReviewPage() {
     setErrors(newErrors);
     if (localMissingCheck) {
       setHasMissingSupplier(true);
-      return toast.error("Please select a supplier for all items.");
+      return toast.error(t("Please select a supplier for all items."));
     }
     const hasOtherErrors = Object.values(newErrors).some((e) => e !== "");
-    if (hasOtherErrors) return toast.error("Please fix validation errors.");
+    if (hasOtherErrors) return toast.error(t("Please fix validation errors."));
     if (items.some((i) => Number(i.unitPrice) <= 0)) {
-      return toast.error("All items must have a valid unit price > 0.");
+      return toast.error(
+        t("All items must have a valid unit price larger than 0."),
+      );
     }
 
     showConfirmToast({
-      title: "Submit for Approval?",
-      description:
+      title: t("Submit for Approval?"),
+      description: t(
         "You are about to submit this receipt. You cannot edit it afterwards.",
-      confirmLabel: "Yes, Submit",
+      ),
+      confirmLabel: t("Yes, Submit"),
       onConfirm: () => executeSubmit(),
     });
   };
@@ -383,6 +389,17 @@ export default function ReceiptReviewPage() {
     startTableIndex,
     startTableIndex + tableItemsPerPage,
   );
+
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return null;
+    return new Date(dateString).toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   if (isLoading)
     return (
@@ -438,6 +455,122 @@ export default function ReceiptReviewPage() {
               </div>
             )}
           </div>
+
+          <Card className="border-slate-200 shadow-sm bg-white mb-6">
+            <CardContent className="">
+              <div className="relative">
+                <div className="absolute left-[16%] right-[16%] top-5 h-1 bg-slate-200 z-10 rounded-full" />
+
+                <div
+                  className={`absolute left-[16%] top-5 h-1 rounded-full z-10 transition-all duration-500 ${
+                    receipt.submittedDate ? "bg-indigo-600" : "bg-transparent"
+                  }`}
+                  style={{
+                    width: receipt.rejectedDate
+                      ? "68%"
+                      : receipt.submittedDate
+                        ? "35%"
+                        : "0%",
+                  }}
+                />
+
+                <div className="flex justify-between w-full">
+                  <div className="flex flex-col items-center relative z-10 w-1/3">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
+                        receipt.createdDate
+                          ? "bg-indigo-600 text-white"
+                          : "bg-slate-200 text-slate-400"
+                      }`}
+                    >
+                      <Check className="w-5 h-5" />
+                    </div>
+                    <div className="text-center mt-3 bg-white px-2">
+                      <p className="text-sm font-semibold text-slate-800">
+                        {t("Create Receipt")}
+                      </p>
+                      {receipt.createdByName && (
+                        <p className="text-xs font-medium text-slate-600 mt-0.5">
+                          {receipt.createdByName}
+                        </p>
+                      )}
+                      {receipt.createdDate && (
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {formatDate(receipt.createdDate)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center relative z-10 w-1/3">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
+                        receipt.submittedDate
+                          ? "bg-indigo-600 text-white"
+                          : "bg-slate-200 text-slate-400"
+                      }`}
+                    >
+                      <Check className="w-5 h-5" />
+                    </div>
+                    <div className="text-center mt-3 bg-white px-2">
+                      <p className="text-sm font-semibold text-slate-800">
+                        {t("Submit Receipt")}
+                      </p>
+                      {receipt.submittedByName ? (
+                        <p className="text-xs font-medium text-slate-600 mt-0.5">
+                          {receipt.submittedByName}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-slate-400 italic mt-0.5">
+                          {t("Pending")}
+                        </p>
+                      )}
+                      {receipt.submittedDate && (
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {formatDate(receipt.submittedDate)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center relative z-10 w-1/3">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
+                        receipt.rejectedDate && receipt.status !== "Submitted"
+                          ? "bg-red-500 text-white"
+                          : "bg-slate-200 text-slate-400"
+                      }`}
+                    >
+                      {receipt.rejectedDate && receipt.status !== "Submitted" ? (
+                        <X className="w-5 h-5" />
+                      ) : (
+                        <Check className="w-5 h-5" />
+                      )}
+                    </div>
+                    <div className="text-center mt-3 bg-white px-2">
+                      <p className="text-sm font-semibold text-slate-800">
+                        {receipt.rejectedDate && receipt.status !== "Submitted" ? t("Rejected") : t("Review Receipt")}
+                      </p>
+                      {receipt.rejectedByName && receipt.status !== "Submitted" ? (
+                        <p className="text-xs font-medium text-slate-600 mt-0.5">
+                          {receipt.rejectedByName}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-slate-400 italic mt-0.5">
+                          {t("Pending")}
+                        </p>
+                      )}
+                      {receipt.rejectedDate && receipt.status !== "Submitted" && (
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {formatDate(receipt.rejectedDate)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
@@ -695,7 +828,7 @@ export default function ReceiptReviewPage() {
                               : ""
                       }`}
                     >
-                      {t(receipt.status)}
+                      {receipt.status != null && t(receipt.status)}
                     </Badge>
                   </div>
 
@@ -787,7 +920,8 @@ export default function ReceiptReviewPage() {
                 <Card className="border-red-200 shadow-sm bg-red-50/40">
                   <CardHeader className="pb-3 border-b border-red-100">
                     <CardTitle className="text-sm font-bold text-red-800 uppercase tracking-wide flex items-center gap-2">
-                      <History className="w-4 h-4" /> {t("Rejection Feedback")}
+                      <History className="w-4 h-4" />{" "}
+                      {t("Rejection Feedback Timeline")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-5">

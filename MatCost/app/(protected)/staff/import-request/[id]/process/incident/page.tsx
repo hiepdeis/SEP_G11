@@ -126,7 +126,7 @@ export default function StaffIncidentPage() {
 
         setIncidentItems(itemsToReport);
       } catch (error) {
-        toast.error("Failed to load data for incident report");
+        toast.error(t("Failed to load data for incident report"));
       } finally {
         setIsLoading(false);
       }
@@ -144,15 +144,15 @@ export default function StaffIncidentPage() {
 
   const handleSubmitIncident = async () => {
     if (!incidentDescription.trim())
-      return toast.error("Please provide an overall incident description.");
+      return toast.error(t("Please provide an overall incident description."));
 
     const invalidQty = incidentItems.filter((i) => i.actualQty === "");
     if (invalidQty.length > 0)
-      return toast.error("Enter Actual Quantity for all failed items.");
+      return toast.error(t("Enter Actual Quantity for all failed items."));
 
     const missingIssue = incidentItems.filter((i) => !i.issueType);
     if (missingIssue.length > 0)
-      return toast.error("Select Issue Type for all failed items.");
+      return toast.error(t("Select Issue Type for all failed items."));
 
     setIsSubmitting(true);
     try {
@@ -169,12 +169,11 @@ export default function StaffIncidentPage() {
       };
 
       await staffReceiptApi.createIncidentReport(id, payload);
-      toast.success("Incident Report created successfully!");
-      // Chuyển tới màn hình Confirm
+      toast.success(t("Incident Report created successfully!"));
       router.push(`/staff/import-request/${id}/process/confirm`);
     } catch (error: any) {
       toast.error(
-        error.response?.data?.message || "Failed to create incident report",
+        error.response?.data?.message || t("Failed to create incident report"),
       );
     } finally {
       setIsSubmitting(false);

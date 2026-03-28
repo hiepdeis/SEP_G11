@@ -38,16 +38,15 @@ public partial class Receipt
     public DateTime? ApprovedAt { get; set; }
     public int? RejectedBy { get; set; }
     public DateTime? RejectedAt { get; set; }
-
     public int? ConfirmedBy { get; set; }
-
+    public DateTime? ConfirmedAt { get; set; }
     public string? ImportedCompleteNote { get; set; }
-
     public string? RejectionReason { get; set; }
-
     public string? AccountantNotes { get; set; }
-
     public string? BackorderReason { get; set; }
+
+    [Column("PurchaseOrderID")]
+    public long? PurchaseOrderId { get; set; }
 
     [Column("ParentRequestID")]
     public long? ParentRequestId { get; set; }
@@ -59,6 +58,10 @@ public partial class Receipt
     [ForeignKey("ParentRequestId")]
     [InverseProperty("ChildRequests")]
     public virtual Receipt? ParentRequest { get; set; }
+
+    [ForeignKey("PurchaseOrderId")]
+    [InverseProperty("Receipts")]
+    public virtual PurchaseOrder? PurchaseOrder { get; set; }
 
     [InverseProperty("ParentRequest")]
     public virtual ICollection<Receipt> ChildRequests { get; set; } = new List<Receipt>();

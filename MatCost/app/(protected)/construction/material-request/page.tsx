@@ -41,7 +41,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 export default function RequestListPage() {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   const router = useRouter();
   const [requests, setRequests] = useState<CreateImportRequestDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,6 +75,11 @@ export default function RequestListPage() {
     (currentPage - 1) * (isAll ? requests.length : itemsPerPage);
   const endIndex = isAll ? requests.length : startIndex + itemsPerPage;
   const paginatedData = requests.slice(startIndex, endIndex);
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString("vi-VN");
+  };
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
@@ -124,6 +129,9 @@ export default function RequestListPage() {
                           <TableHead className="text-slate-700">
                             {t("Total Items")}
                           </TableHead>
+                          <TableHead className="text-slate-700 text-center">
+                            {t("Created Date")}
+                          </TableHead>
                           <TableHead className="text-right pr-6 text-slate-700">
                             {t("Actions")}
                           </TableHead>
@@ -155,6 +163,9 @@ export default function RequestListPage() {
                                   {req.items.length} {t("materials")}
                                 </span>
                               </TableCell>
+                              <TableCell className="text-center font-medium text-slate-700">
+                                {formatDate(req.createdDate)}
+                              </TableCell>
                               <TableCell className="text-right pr-6">
                                 <Dialog
                                   onOpenChange={(open) => {
@@ -177,6 +188,29 @@ export default function RequestListPage() {
                                         {t("Request Details")}
                                       </DialogTitle>
                                     </DialogHeader>
+
+                                    <div className="mt-4 flex flex-col sm:flex-row sm:justify-between gap-2 text-sm bg-slate-50 p-3 rounded-md border border-slate-100">
+                                      <div>
+                                        <span className="text-slate-500">
+                                          {t("Created By")}:
+                                        </span>{" "}
+                                        <span className="font-medium text-slate-800">
+                                          {req.createdByName || t("Unknown")}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="text-slate-500">
+                                          {t("Date")}:
+                                        </span>{" "}
+                                        <span className="font-medium text-slate-800">
+                                          {req.createdDate
+                                            ? new Date(
+                                                req.createdDate,
+                                              ).toLocaleDateString("vi-VN") 
+                                            : "--"}
+                                        </span>
+                                      </div>
+                                    </div>
 
                                     <div className="mt-4 border rounded-md overflow-hidden">
                                       <Table>

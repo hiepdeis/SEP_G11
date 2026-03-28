@@ -34,12 +34,13 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 
-const REPORTS = [
+const REPORTS_CONFIG = [
   {
     id: "RPT-001",
-    title: "Quantity Report (Inventory Summary)",
-    desc: "Current stock levels across all warehouses with value estimation.",
+    titleKey: "reports.list.stock_title",
+    descKey: "reports.list.stock_desc",
     icon: FileBarChart,
     color: "text-blue-600",
     bg: "bg-blue-100",
@@ -47,8 +48,8 @@ const REPORTS = [
   },
   {
     id: "RPT-002",
-    title: "Import / Export History",
-    desc: "Detailed log of all material movements within a date range.",
+    titleKey: "reports.list.history_title",
+    descKey: "reports.list.history_desc",
     icon: FileSpreadsheet,
     color: "text-green-600",
     bg: "bg-green-100",
@@ -56,8 +57,8 @@ const REPORTS = [
   },
   {
     id: "RPT-003",
-    title: "Irregularity / Quality Report",
-    desc: "List of failed QC inspections and damaged goods reported.",
+    titleKey: "reports.list.quality_title",
+    descKey: "reports.list.quality_desc",
     icon: FileWarning,
     color: "text-red-600",
     bg: "bg-red-100",
@@ -65,8 +66,8 @@ const REPORTS = [
   },
   {
     id: "RPT-004",
-    title: "Post-Audit Discrepancy",
-    desc: "Variance analysis between system stock and physical count.",
+    titleKey: "reports.list.audit_title",
+    descKey: "reports.list.audit_desc",
     icon: FileBarChart,
     color: "text-orange-600",
     bg: "bg-orange-100",
@@ -75,6 +76,7 @@ const REPORTS = [
 ];
 
 export default function ReportCenterPage({ role }: { role: string }) {
+  const { t } = useTranslation();
   const [isExporting, setIsExporting] = useState(false);
   const router = useRouter();
 
@@ -82,8 +84,8 @@ export default function ReportCenterPage({ role }: { role: string }) {
     setIsExporting(true);
     setTimeout(() => {
       setIsExporting(false);
-      toast.success(`Report exported as ${type.toUpperCase()} successfully.`);
-      alert(`Report exported as ${type.toUpperCase()} successfully.`);
+      const msg = t("reports.export_success", { type: type.toUpperCase() });
+      toast.success(msg);
     }, 1500);
   };
 
@@ -94,7 +96,7 @@ export default function ReportCenterPage({ role }: { role: string }) {
         <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-sm flex-shrink-0">
           <div className="bg-white px-6 lg:px-8 h-16 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">
-              Report Center
+              {t("reports.center_title")}
             </h2>
             <div className="flex items-center gap-4 ml-auto">
               <button className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-600 relative">
@@ -119,15 +121,15 @@ export default function ReportCenterPage({ role }: { role: string }) {
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-8">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">
-              Available Reports
+              {t("reports.available_reports")}
             </h1>
             <p className="text-sm text-slate-500">
-              Select a report to view or export data.
+              {t("reports.select_desc")}
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {REPORTS.map((rpt) => (
+            {REPORTS_CONFIG.map((rpt) => (
               <Card
                 key={rpt.id}
                 className="hover:shadow-md transition-shadow border-slate-200"
@@ -139,10 +141,10 @@ export default function ReportCenterPage({ role }: { role: string }) {
                     </div>
                     <div>
                       <h3 className="font-bold text-lg text-slate-900">
-                        {rpt.title}
+                        {t(rpt.titleKey)}
                       </h3>
                       <p className="text-sm text-slate-500 mt-1 leading-relaxed">
-                        {rpt.desc}
+                        {t(rpt.descKey)}
                       </p>
                     </div>
                   </div>
@@ -151,17 +153,19 @@ export default function ReportCenterPage({ role }: { role: string }) {
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button variant="outline" className="text-slate-600">
-                          View Options
+                          {t("reports.view_options")}
                         </Button>
                       </DialogTrigger>
                       <DialogContent>
                         <DialogHeader>
-                          <DialogTitle>Export Options: {rpt.title}</DialogTitle>
+                          <DialogTitle>
+                            {t("reports.export_options")}: {t(rpt.titleKey)}
+                          </DialogTitle>
                         </DialogHeader>
                         <div className="py-4 space-y-4">
                           <div className="space-y-2">
                             <label className="text-sm font-medium">
-                              Date Range
+                              {t("reports.date_range")}
                             </label>
                             <Select defaultValue="this_month">
                               <SelectTrigger>
@@ -169,20 +173,20 @@ export default function ReportCenterPage({ role }: { role: string }) {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="this_month">
-                                  This Month
+                                  {t("reports.this_month")}
                                 </SelectItem>
                                 <SelectItem value="last_month">
-                                  Last Month
+                                  {t("reports.last_month")}
                                 </SelectItem>
                                 <SelectItem value="custom">
-                                  Custom Range
+                                  {t("reports.custom_range")}
                                 </SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
                           <div className="space-y-2">
                             <label className="text-sm font-medium">
-                              Warehouse
+                              {t("reports.warehouse")}
                             </label>
                             <Select defaultValue="all">
                               <SelectTrigger>
@@ -190,10 +194,10 @@ export default function ReportCenterPage({ role }: { role: string }) {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="all">
-                                  All Warehouses
+                                  {t("reports.all_warehouses")}
                                 </SelectItem>
                                 <SelectItem value="wh1">
-                                  Central Storage
+                                  {t("reports.central_storage")}
                                 </SelectItem>
                               </SelectContent>
                             </Select>
@@ -232,7 +236,7 @@ export default function ReportCenterPage({ role }: { role: string }) {
                       className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                       onClick={() => router.push(rpt.url)}
                     >
-                      View Report <ArrowRight className="w-4 h-4 ml-2" />
+                      {t("reports.view_report")} <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   </div>
                 </CardContent>
