@@ -7,6 +7,7 @@ namespace Backend.Domains.Audit.Interfaces
         Task<(List<AuditListItemDto> items, int total)> GetAllAuditsAsync(
             int skip,
             int take,
+            int? stockTakeId,
             string? status,
             int? warehouseId,
             DateTime? fromDate,
@@ -64,16 +65,6 @@ namespace Backend.Domains.Audit.Interfaces
             int stockTakeId,
             int managerId,
             CompleteAuditRequest request,
-            CancellationToken ct);
-
-        Task<(bool success, string message)> LockAuditScopeAsync(
-            int stockTakeId,
-            int userId,
-            CancellationToken ct);
-
-        Task<(bool success, string message)> UnlockAuditScopeAsync(
-            int stockTakeId,
-            int userId,
             CancellationToken ct);
     }
 }

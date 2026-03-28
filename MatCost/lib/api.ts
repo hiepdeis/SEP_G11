@@ -2,7 +2,20 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5000/
 
 async function parseResponse<T>(res: Response, method: string, endpoint: string): Promise<T> {
   if (!res.ok) {
-    const text = await res.text();
+    let text = await res.text();
+    try {
+      const errJson = JSON.parse(text);
+      if (errJson.errors && typeof errJson.errors === "object") {
+        const msgs = Object.values(errJson.errors).flat();
+        if (msgs.length > 0) text = msgs.join("\n");
+      } else if (errJson.title) {
+        text = errJson.title;
+      } else if (errJson.message) {
+        text = errJson.message;
+      }
+    } catch {
+      // ignores parse errors
+    }
     throw new Error(text || `${method} ${endpoint} failed`);
   }
 

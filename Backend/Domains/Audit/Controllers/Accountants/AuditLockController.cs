@@ -1,5 +1,5 @@
-﻿using System.Security.Claims;
 using Backend.Domains.Audit.Interfaces;
+using Backend.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,7 +7,7 @@ namespace Backend.Controllers
 {
     [ApiController]
     [Route("api/manager/audits")]
-    //[Authorize]
+    [Authorize(Roles = "Manager")]
     public class AuditLockController : ControllerBase
     {
         private readonly IStockTakeLockService _service;
@@ -19,7 +19,7 @@ namespace Backend.Controllers
 
         private int GetCurrentUserId()
         {
-            return 7;
+            return User.GetRequiredUserId();
         }
 
         [HttpPost("{stockTakeId:int}/lock")]

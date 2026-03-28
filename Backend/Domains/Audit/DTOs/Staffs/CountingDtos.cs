@@ -40,6 +40,9 @@ public sealed class MaterialBatchDto
     public int MaterialId { get; set; }
     public string MaterialName { get; set; } = null!;
 
+    public int BinId { get; set; }
+    public string? BinCode { get; set; }
+
     public int BatchId { get; set; }
     public string BatchCode { get; set; } = null!;
 }

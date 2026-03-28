@@ -9,10 +9,14 @@ namespace Backend.Domains.Audit.Services
     public class StockTakeCountingService : IStockTakeCountingService
     {
         private readonly MyDbContext _db;
+        private readonly IStockTakeLockService _stockTakeLockService;
 
-        public StockTakeCountingService(MyDbContext db)
+        public StockTakeCountingService(
+            MyDbContext db,
+            IStockTakeLockService stockTakeLockService)
         {
             _db = db;
+            _stockTakeLockService = stockTakeLockService;
         }
 
         private async Task<List<int>> GetAssignedBinIdsAsync(int stockTakeId, CancellationToken ct)
@@ -52,6 +56,25 @@ namespace Backend.Domains.Audit.Services
                             (isWarehouseScopeAudit || x.BinId == currentBinId))
                     ), ct);
         }
+
+        private async Task<(bool success, string? message)> EnsureScopeLockedAsync(
+            int stockTakeId,
+            int userId,
+            CancellationToken ct)
+        {
+            if (await HasActiveLockForCurrentAuditAsync(stockTakeId, ct))
+                return (true, null);
+
+            var lockResult = await _stockTakeLockService.LockScopeAsync(stockTakeId, userId, ct);
+            if (lockResult.success)
+                return (true, null);
+
+            // Another request may have locked the same audit scope concurrently.
+            if (await HasActiveLockForCurrentAuditAsync(stockTakeId, ct))
+                return (true, null);
+
+            return (false, lockResult.message);
+        }
      
         public async Task<bool> IsTeamMemberAsync(int stockTakeId, int userId, CancellationToken ct)
         {
@@ -59,6 +82,20 @@ namespace Backend.Domains.Audit.Services
                 .AsNoTracking()
                 .AnyAsync(x => x.StockTakeId == stockTakeId && x.UserId == userId && (x.IsActive || x.MemberCompletedAt != null), ct);
         }
+
+        private IQueryable<InventoryCurrent> BuildScopedInventoryQuery(int stockTakeId, int warehouseId)
+        {
+            var assignedBinIds = _db.StockTakeBinLocations
+                .AsNoTracking()
+                .Where(x => x.StockTakeId == stockTakeId)
+                .Select(x => x.BinId);
+
+            return _db.InventoryCurrents
+                .AsNoTracking()
+                .Where(x => x.WarehouseId == warehouseId &&
+                           (!assignedBinIds.Any() || assignedBinIds.Contains(x.BinId)));
+        }
+
         private async Task EnsureAssignedAsync(int stockTakeId, int userId, CancellationToken ct)
         {
             var isAssigned = await _db.StockTakeTeamMembers
@@ -123,22 +160,28 @@ namespace Backend.Domains.Audit.Services
         {
             await EnsureAssignedAsync(stockTakeId, userId, ct);
 
+            var st = await _db.StockTakes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
+
+            if (st == null)
+                throw new ArgumentException("Audit not found.");
+
             if (take <= 0) take = 50;
             if (take > 200) take = 200;
             if (skip < 0) skip = 0;
 
             var q =
-                from stBin in _db.StockTakeBinLocations.AsNoTracking()
-                where stBin.StockTakeId == stockTakeId
-
-                join inv in _db.InventoryCurrents.AsNoTracking()
-                    on stBin.BinId equals inv.BinId
+                from inv in BuildScopedInventoryQuery(stockTakeId, st.WarehouseId)
 
                 join m in _db.Materials.AsNoTracking()
                     on inv.MaterialId equals m.MaterialId
 
                 join b in _db.Batches.AsNoTracking()
                     on inv.BatchId equals b.BatchId
+
+                join bin in _db.BinLocations.AsNoTracking()
+                    on inv.BinId equals bin.BinId
 
                 join d in _db.StockTakeDetails.AsNoTracking().Where(x => x.StockTakeId == stockTakeId)
                     on new
@@ -162,6 +205,8 @@ namespace Backend.Domains.Audit.Services
                 {
                     inv.MaterialId,
                     MaterialName = m.Name,
+                    BinId = inv.BinId,
+                    BinCode = bin.Code,
                     BatchId = inv.BatchId,
                     BatchCode = b.BatchCode
                 };
@@ -170,12 +215,15 @@ namespace Backend.Domains.Audit.Services
                 .Distinct()
                 .OrderBy(x => x.MaterialName)
                 .ThenBy(x => x.BatchCode)
+                .ThenBy(x => x.BinCode)
                 .Skip(skip)
                 .Take(take)
                 .Select(x => new MaterialBatchDto
                 {
                     MaterialId = x.MaterialId,
                     MaterialName = x.MaterialName,
+                    BinId = x.BinId,
+                    BinCode = x.BinCode,
                     BatchId = x.BatchId,
                     BatchCode = x.BatchCode
                 })
@@ -190,22 +238,28 @@ namespace Backend.Domains.Audit.Services
         {
             await EnsureAssignedAsync(stockTakeId, userId, ct);
 
+            var st = await _db.StockTakes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
+
+            if (st == null)
+                throw new ArgumentException("Audit not found.");
+
             if (take <= 0) take = 50;
             if (take > 200) take = 200;
             if (skip < 0) skip = 0;
 
             var q =
-                from stBin in _db.StockTakeBinLocations.AsNoTracking()
-                where stBin.StockTakeId == stockTakeId
-
-                join inv in _db.InventoryCurrents.AsNoTracking()
-                    on stBin.BinId equals inv.BinId
+                from inv in BuildScopedInventoryQuery(stockTakeId, st.WarehouseId)
 
                 join m in _db.Materials.AsNoTracking()
                     on inv.MaterialId equals m.MaterialId
 
                 join b in _db.Batches.AsNoTracking()
                     on inv.BatchId equals b.BatchId
+
+                join bin in _db.BinLocations.AsNoTracking()
+                    on inv.BinId equals bin.BinId
 
                 join d in _db.StockTakeDetails.AsNoTracking().Where(x => x.StockTakeId == stockTakeId)
                     on new
@@ -229,6 +283,8 @@ namespace Backend.Domains.Audit.Services
                 {
                     inv.MaterialId,
                     MaterialName = m.Name,
+                    BinId = inv.BinId,
+                    BinCode = bin.Code,
                     BatchId = inv.BatchId,
                     BatchCode = b.BatchCode
                 };
@@ -238,12 +294,15 @@ namespace Backend.Domains.Audit.Services
                 .Distinct()
                 .OrderBy(x => x.MaterialName)
                 .ThenBy(x => x.BatchCode)
+                .ThenBy(x => x.BinCode)
                 .Skip(skip)
                 .Take(take)
                 .Select(x => new MaterialBatchDto
                 {
                     MaterialId = x.MaterialId,
                     MaterialName = x.MaterialName,
+                    BinId = x.BinId,
+                    BinCode = x.BinCode,
                     BatchId = x.BatchId,
                     BatchCode = x.BatchCode
                 })
@@ -389,8 +448,13 @@ namespace Backend.Domains.Audit.Services
             if (st == null)
                 return (false, "Audit not found.");
 
-            // if (st.CreatedBy != managerUserId)
-            //     return (false, "You do not have permission to update this audit.");
+            var manager = await _db.Users
+                .AsNoTracking()
+                .Include(x => x.Role)
+                .FirstOrDefaultAsync(x => x.UserId == managerUserId, ct);
+
+            if (manager == null || !string.Equals(manager.Role.RoleName, "Manager", StringComparison.OrdinalIgnoreCase))
+                return (false, "You do not have permission to update this audit.");
 
             var member = await _db.StockTakeTeamMembers
                 .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId && x.UserId == targetUserId, ct);
@@ -398,11 +462,12 @@ namespace Backend.Domains.Audit.Services
             if (member == null)
                 return (false, "This user has never joined this audit.");
 
-            if (member.IsActive)
+            if (member.IsActive && member.MemberCompletedAt == null)
                 return (true, "User is already active in this audit.");
 
             member.IsActive = true;
             member.RemovedAt = null;
+            member.MemberCompletedAt = null;
 
             if (string.Equals(st.Status, "Planned", StringComparison.OrdinalIgnoreCase))
                 st.Status = "Assigned";
@@ -559,9 +624,9 @@ namespace Backend.Domains.Audit.Services
             if (!isWarehouseScopeAudit && !assignedBinIds.Contains(binId))
                 return (false, "BinLocation is outside assigned scope of this audit.");
 
-            var hasActiveLock = await HasActiveLockForCurrentAuditAsync(stockTakeId, ct);
-            if (!hasActiveLock)
-                return (false, "Audit scope is not locked yet.");
+            var lockResult = await EnsureScopeLockedAsync(stockTakeId, userId, ct);
+            if (!lockResult.success)
+                return (false, lockResult.message ?? "Unable to lock audit scope.");
 
             var hasConflict = await HasConflictingLockForBinAsync(
                 st.WarehouseId,
@@ -700,9 +765,9 @@ namespace Backend.Domains.Audit.Services
             if (!isWarehouseScopeAudit && !assignedBinIds.Contains(binId))
                 return (false, "BinLocation is outside assigned scope of this audit.");
 
-            var hasActiveLock = await HasActiveLockForCurrentAuditAsync(stockTakeId, ct);
-            if (!hasActiveLock)
-                return (false, "Audit scope is not locked yet.");
+            var lockResult = await EnsureScopeLockedAsync(stockTakeId, userId, ct);
+            if (!lockResult.success)
+                return (false, lockResult.message ?? "Unable to lock audit scope.");
 
             var hasConflict = await HasConflictingLockForBinAsync(
                 st.WarehouseId,

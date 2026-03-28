@@ -21,6 +21,12 @@ import {
   deleteWarehouse,
 } from "@/services/admin-warehouses";
 import { createBin, deleteBin, getBins, updateBin } from "@/services/admin-bins";
+import {
+  getProjects,
+  createProject,
+  updateProject,
+  deleteProject,
+} from "@/services/admin-projects";
 // ─── Tabs ───
 const tabs = [
   { key: "roles", label: "Vai trò", icon: Shield },
@@ -1344,51 +1350,269 @@ function BinsTab() {
 }
 // ═══════════ PROJECTS ═══════════
 // DB: Projects(ProjectID, Code, Name, StartDate, EndDate, Budget, Status)
-interface ProjectItem extends BaseItem { code: string; name: string; startDate: string; endDate: string; budget: number | null; status: string; }
-const mockProjects: ProjectItem[] = [
-  { _id: 1, code: "PRJ-001", name: "Nhà máy thép Hòa Phát", startDate: "2026-01-15", endDate: "2026-12-31", budget: 5000000000, status: "Active" },
-  { _id: 2, code: "PRJ-002", name: "Cầu Thủ Thiêm 4", startDate: "2025-06-01", endDate: "2027-06-30", budget: 12000000000, status: "Active" },
-  { _id: 3, code: "PRJ-003", name: "Khu dân cư Vạn Phúc", startDate: "2025-03-01", endDate: "2026-03-01", budget: 3000000000, status: "Completed" },
-  { _id: 4, code: "PRJ-004", name: "Mở rộng KCN Long Hậu", startDate: "2026-04-01", endDate: "2027-12-31", budget: 8000000000, status: "Planned" },
-];
-const statusProjCls: Record<string, string> = { Active: "bg-emerald-50 text-emerald-700", Completed: "bg-blue-50 text-blue-700", Planned: "bg-amber-50 text-amber-700", Cancelled: "bg-red-50 text-red-700" };
-const statusProjLabel: Record<string, string> = { Active: "Đang thực hiện", Completed: "Hoàn thành", Planned: "Kế hoạch", Cancelled: "Hủy" };
+// ═══════════ PROJECTS ═══════════
+// DB: Projects(ProjectID, Code, Name, StartDate, EndDate, Budget, Status)
+interface ProjectItem extends BaseItem {
+  code: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  budget: number | null;
+  status: string;
+}
+
+const statusProjCls: Record<string, string> = {
+  Active: "bg-emerald-50 text-emerald-700",
+  Completed: "bg-blue-50 text-blue-700",
+  Planned: "bg-amber-50 text-amber-700",
+  Cancelled: "bg-red-50 text-red-700",
+};
+
+const statusProjLabel: Record<string, string> = {
+  Active: "Đang thực hiện",
+  Completed: "Hoàn thành",
+  Planned: "Kế hoạch",
+  Cancelled: "Hủy",
+};
 
 function ProjectsTab() {
-  const [items, setItems] = useState(mockProjects);
+  const [items, setItems] = useState<ProjectItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadProjects = async () => {
+      try {
+        const data = await getProjects();
+        const rows = Array.isArray(data) ? data : (data.items ?? []);
+
+        if (!mounted) return;
+
+        setItems(
+          rows.map((p) => ({
+            _id: Number(p.projectId ?? 0),
+            code: p.code ?? "",
+            name: p.name ?? "",
+            startDate: p.startDate ? String(p.startDate).slice(0, 10) : "",
+            endDate: p.endDate ? String(p.endDate).slice(0, 10) : "",
+            budget: p.budget ?? null,
+            status: p.status ?? "Planned",
+          }))
+        );
+      } catch (error) {
+        console.error(error);
+        toast.error("Không tải được danh sách dự án");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    loadProjects();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  if (loading) {
+    return <div className="text-sm text-gray-500">Đang tải dự án...</div>;
+  }
+
   return (
-    <GenericTable items={items} setItems={setItems} idGen={() => Date.now()}
-     searchFn={(i, q) => {
-  const name = String(i.name ?? "").toLowerCase();
-  const code = String(i.code ?? "").toLowerCase();
-  return name.includes(q) || code.includes(q);
-}}
+    <GenericTable
+      items={items}
+      setItems={setItems}
+      idGen={() => Date.now()}
+      searchFn={(i, q) => {
+        const name = String(i.name ?? "").toLowerCase();
+        const code = String(i.code ?? "").toLowerCase();
+        return name.includes(q) || code.includes(q);
+      }}
+      onSaveItem={async (item) => {
+        const code = item.code?.trim().toUpperCase();
+        const name = item.name?.trim();
+        const startDate = item.startDate?.trim() || "";
+        const endDate = item.endDate?.trim() || "";
+        const budget = item.budget ?? null;
+        const status = item.status?.trim() || "Planned";
+
+        if (!code) {
+          throw new Error("Mã dự án không được để trống");
+        }
+
+        if (!name) {
+          throw new Error("Tên dự án không được để trống");
+        }
+
+        const payload = {
+          code,
+          name,
+          startDate: startDate || null,
+          endDate: endDate || null,
+          budget,
+          status,
+        };
+
+        if (item._id) {
+          await updateProject(item._id, payload);
+
+          return {
+            _id: item._id,
+            code,
+            name,
+            startDate,
+            endDate,
+            budget,
+            status,
+          };
+        }
+
+        const created = await createProject(payload);
+
+        return {
+          _id: created.projectId,
+          code: created.code ?? code,
+          name: created.name ?? name,
+          startDate: created.startDate ? String(created.startDate).slice(0, 10) : startDate,
+          endDate: created.endDate ? String(created.endDate).slice(0, 10) : endDate,
+          budget: created.budget ?? budget,
+          status: created.status ?? status,
+        };
+      }}
+      onDeleteItem={async (id) => {
+        await deleteProject(id);
+      }}
       columns={[
-        { key: "code", label: "Mã dự án", render: (i) => <span className="px-2 py-0.5 bg-gray-100 rounded text-xs">{i.code}</span> },
+        {
+          key: "code",
+          label: "Mã dự án",
+          render: (i) => (
+            <span className="px-2 py-0.5 bg-gray-100 rounded text-xs">
+              {i.code}
+            </span>
+          ),
+        },
         { key: "name", label: "Tên dự án", render: (i) => i.name },
-        { key: "start", label: "Ngày bắt đầu", render: (i) => i.startDate },
-        { key: "end", label: "Ngày kết thúc", render: (i) => i.endDate },
-        { key: "budget", label: "Ngân sách", render: (i) => i.budget ? `${(i.budget / 1e9).toFixed(1)} tỷ` : "—" },
-        { key: "status", label: "Trạng thái", render: (i) => <span className={`px-2 py-0.5 rounded-full text-xs ${statusProjCls[i.status] || "bg-gray-100 text-gray-600"}`}>{statusProjLabel[i.status] || i.status}</span> },
+        { key: "start", label: "Ngày bắt đầu", render: (i) => i.startDate || "—" },
+        { key: "end", label: "Ngày kết thúc", render: (i) => i.endDate || "—" },
+        {
+          key: "budget",
+          label: "Ngân sách",
+          render: (i) => (i.budget != null ? `${(i.budget / 1e9).toFixed(1)} tỷ` : "—"),
+        },
+        {
+          key: "status",
+          label: "Trạng thái",
+          render: (i) => (
+            <span
+              className={`px-2 py-0.5 rounded-full text-xs ${
+                statusProjCls[i.status] || "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {statusProjLabel[i.status] || i.status}
+            </span>
+          ),
+        },
       ]}
       renderForm={(item, onChange) => {
         const p = item as Partial<ProjectItem>;
+
         return (
           <>
             <div className="grid grid-cols-2 gap-4">
-              <div><label className="block text-sm text-gray-600 mb-1">Mã dự án *</label><input value={p.code || ""} onChange={(e) => onChange({ code: e.target.value.toUpperCase() } as Partial<ProjectItem>)} className={inputCls} /></div>
-              <div><label className="block text-sm text-gray-600 mb-1">Trạng thái</label>
-                <select value={p.status || "Active"} onChange={(e) => onChange({ status: e.target.value } as Partial<ProjectItem>)} className={inputCls}>
-                  <option value="Active">Đang thực hiện</option><option value="Planned">Kế hoạch</option><option value="Completed">Hoàn thành</option><option value="Cancelled">Hủy</option>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">
+                  Mã dự án *
+                </label>
+                <input
+                  value={p.code || ""}
+                  onChange={(e) =>
+                    onChange({
+                      code: e.target.value.toUpperCase(),
+                    } as Partial<ProjectItem>)
+                  }
+                  className={inputCls}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">
+                  Trạng thái
+                </label>
+                <select
+                  value={p.status || "Active"}
+                  onChange={(e) =>
+                    onChange({ status: e.target.value } as Partial<ProjectItem>)
+                  }
+                  className={inputCls}
+                >
+                  <option value="Active">Đang thực hiện</option>
+                  <option value="Planned">Kế hoạch</option>
+                  <option value="Completed">Hoàn thành</option>
+                  <option value="Cancelled">Hủy</option>
                 </select>
               </div>
             </div>
-            <div><label className="block text-sm text-gray-600 mb-1">Tên dự án *</label><input value={p.name || ""} onChange={(e) => onChange({ name: e.target.value } as Partial<ProjectItem>)} className={inputCls} /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><label className="block text-sm text-gray-600 mb-1">Ngày bắt đầu</label><input type="date" value={p.startDate || ""} onChange={(e) => onChange({ startDate: e.target.value } as Partial<ProjectItem>)} className={inputCls} /></div>
-              <div><label className="block text-sm text-gray-600 mb-1">Ngày kết thúc</label><input type="date" value={p.endDate || ""} onChange={(e) => onChange({ endDate: e.target.value } as Partial<ProjectItem>)} className={inputCls} /></div>
+
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                Tên dự án *
+              </label>
+              <input
+                value={p.name || ""}
+                onChange={(e) =>
+                  onChange({ name: e.target.value } as Partial<ProjectItem>)
+                }
+                className={inputCls}
+              />
             </div>
-            <div><label className="block text-sm text-gray-600 mb-1">Ngân sách (VNĐ)</label><input type="number" value={p.budget ?? ""} onChange={(e) => onChange({ budget: e.target.value ? Number(e.target.value) : null } as Partial<ProjectItem>)} className={inputCls} /></div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">
+                  Ngày bắt đầu
+                </label>
+                <input
+                  type="date"
+                  value={p.startDate || ""}
+                  onChange={(e) =>
+                    onChange({ startDate: e.target.value } as Partial<ProjectItem>)
+                  }
+                  className={inputCls}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">
+                  Ngày kết thúc
+                </label>
+                <input
+                  type="date"
+                  value={p.endDate || ""}
+                  onChange={(e) =>
+                    onChange({ endDate: e.target.value } as Partial<ProjectItem>)
+                  }
+                  className={inputCls}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                Ngân sách (VNĐ)
+              </label>
+              <input
+                type="number"
+                value={p.budget ?? ""}
+                onChange={(e) =>
+                  onChange({
+                    budget: e.target.value ? Number(e.target.value) : null,
+                  } as Partial<ProjectItem>)
+                }
+                className={inputCls}
+              />
+            </div>
           </>
         );
       }}
