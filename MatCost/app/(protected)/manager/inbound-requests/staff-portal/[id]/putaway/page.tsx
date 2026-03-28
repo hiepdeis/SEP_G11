@@ -2,10 +2,10 @@
 
 import InboundRequestPutawayPage from "@/components/pages/inbound-requests-staff/detail/putaway/page";
 
-export default function StaffInboundRequestPutawayPage() {
+export default function ManagerInboundRequestPutawayPage() {
   return (
     <>
-      <InboundRequestPutawayPage role="staff" />
+      <InboundRequestPutawayPage role="manager" />
     </>
   );
 }

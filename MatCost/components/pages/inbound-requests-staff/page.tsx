@@ -270,20 +270,19 @@ export default function InboundReceiptsPage({
     setLoadingId(item.id.toString());
 
     const basePath =
-      role === "manager" ? "/manager/inbound-requests/staff-portal" : "/staff";
+      role === "manager" ? "/manager/inbound-requests/staff-portal" : "/staff/inbound-requests";
 
     if (isSecondaryAction) {
-      router.push(`${basePath}/inbound-requests/${item.id}`);
+      router.push(`${basePath}/${item.id}`);
     } else {
       if (item.status === "PendingIncident") {
-        router.push(`${basePath}/incident-reports/${item.id}`);
       } else if (
         item.status === "ReadyForPutaway" ||
         item.status === "QCPassed"
       ) {
-        router.push(`${basePath}/inbound-requests/${item.id}/putaway`);
+        router.push(`${basePath}/${item.id}/putaway`);
       } else {
-        router.push(`${basePath}/inbound-requests/${item.id}`);
+        router.push(`${basePath}/${item.id}`);
       }
     }
   };

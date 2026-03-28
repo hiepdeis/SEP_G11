@@ -292,15 +292,20 @@ export default function IncidentReportsPage({
         ? "/manager/incident-reports/staff-portal"
         : "/staff/incident-reports";
 
+    const inboundRoutePrefix =
+      role === "manager"
+        ? "/manager/inbound-requests/staff-portal"
+        : "/staff/inbound-requests";
+
     if (item.type === "Incident") {
       if (isSecondaryAction) {
-        router.push(`/${rolePath}/inbound-requests/${item.originalId}`);
+        router.push(`${inboundRoutePrefix}/${item.originalId}`);
       } else {
         router.push(`${incidentRoutePrefix}/${item.originalId}`);
       }
     } else if (item.type === "PendingReceipt") {
       if (isSecondaryAction) {
-        router.push(`/${rolePath}/inbound-requests/${item.originalId}`);
+        router.push(`/${inboundRoutePrefix}/${item.originalId}`);
       } else {
         router.push(`${incidentRoutePrefix}/${item.originalId}`);
       }

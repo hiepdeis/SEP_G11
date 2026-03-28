@@ -249,15 +249,19 @@ export default function IncidentsListPage({
                       )}
                 </p>
               </div>
-              <TabsList className="grid w-full md:w-[350px] grid-cols-2">
-                <TabsTrigger value="manager">{t("Manager Portal")}</TabsTrigger>
-                <TabsTrigger value="warehouse">
-                  {t("Staff Portal")}
-                </TabsTrigger>
-              </TabsList>
+              {role === "manager" && (
+                <TabsList className="grid w-full md:w-[350px] grid-cols-2">
+                  <TabsTrigger value="manager">
+                    {t("Manager Portal")}
+                  </TabsTrigger>
+                  <TabsTrigger value="warehouse">
+                    {t("Staff Portal")}
+                  </TabsTrigger>
+                </TabsList>
+              )}
             </div>
             <TabsContent value="warehouse" className="mt-6 flex-1 outline-none">
-              <StaffIncidentReports role = "manager" />
+              <StaffIncidentReports role="manager" />
             </TabsContent>
             <TabsContent
               value="manager"

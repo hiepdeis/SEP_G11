@@ -2,10 +2,10 @@
 
 import InboundRequestDetailDetailPage from "@/components/pages/inbound-requests-staff/detail/detail/page";
 
-export default function StaffDetailDetailInboundRequestPage() {
+export default function ManagerDetailDetailInboundRequestPage() {
   return (
     <>
-      <InboundRequestDetailDetailPage role="staff" />
+      <InboundRequestDetailDetailPage role="manager" />
     </>
   );
 }

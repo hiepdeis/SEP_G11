@@ -2,10 +2,10 @@
 
 import IncidentReportDetailPage from "@/components/pages/incident-reports-staff/detail/page";
 
-export default function StaffDetailIncidentReportPage() {
+export default function ManagerDetailIncidentReportPage() {
   return (
     <>
-      <IncidentReportDetailPage role="staff" />
+      <IncidentReportDetailPage role="manager" />
     </>
   );
 }
