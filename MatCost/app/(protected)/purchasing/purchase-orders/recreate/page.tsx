@@ -13,10 +13,17 @@ import {
   Calculator,
   ChevronRight,
   ChevronLeft,
+  RefreshCw,
+  History,
+  Clock,
+  XCircle,
+  Hash,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -35,42 +42,45 @@ import {
 import {
   purchasingPurchaseOrderApi,
   purchasingPurchaseRequestApi,
-  PurchaseRequestDto,
+  PurchaseOrderDto,
+  PurchaseOrderHistoryItemDto,
 } from "@/services/import-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { showConfirmToast } from "@/hooks/confirm-toast";
+import { formatPascalCase } from "@/lib/format-pascal-case";
 
 interface OrderItemInput {
   id: string;
   materialId: number;
   materialCode: string;
   materialName: string;
-  prQuantity: number;
   orderedQuantity: string;
   unitPrice: string;
   supplierId: string;
 }
 
-export default function CreatePurchaseOrderPage() {
+export default function RecreatePurchaseOrderPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useTranslation();
 
-  const requestIdParam = searchParams.get("requestId");
+  const parentPOIdParam = searchParams.get("parentPOId");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
-  const [requests, setRequests] = useState<PurchaseRequestDto[]>([]);
+  const [originalOrder, setOriginalOrder] = useState<PurchaseOrderDto | null>(
+    null,
+  );
   const [suppliers, setSuppliers] = useState<
     { supplierId: number; name: string }[]
   >([]);
+  const [poHistory, setPoHistory] = useState<PurchaseOrderHistoryItemDto[]>([]);
 
-  const [selectedRequestId, setSelectedRequestId] = useState<string>(
-    requestIdParam || "",
-  );
   const [globalSupplierId, setGlobalSupplierId] = useState<string>("");
+  const [revisionNote, setRevisionNote] = useState<string>("");
   const [items, setItems] = useState<OrderItemInput[]>([]);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -83,54 +93,62 @@ export default function CreatePurchaseOrderPage() {
 
   useEffect(() => {
     const fetchInitialData = async () => {
+      if (!parentPOIdParam) {
+        toast.error(t("Missing Parent PO ID. Cannot recreate order."));
+        router.push("/purchasing/purchase-orders");
+        return;
+      }
+
       setIsLoadingData(true);
       try {
-        const [prRes, suppliersRes] = await Promise.all([
-          purchasingPurchaseRequestApi.getRequests(),
+        const [suppliersRes, poRes] = await Promise.all([
           purchasingPurchaseOrderApi.getSuppliers(),
+          purchasingPurchaseOrderApi.getOrder(Number(parentPOIdParam)),
         ]);
 
-        setRequests(prRes.data);
         setSuppliers(suppliersRes.data);
+        const po = poRes.data;
+        setOriginalOrder(po);
+
+        const defaultSupplierStr = po.supplierId?.toString() || "";
+        setGlobalSupplierId(defaultSupplierStr);
+
+        const mappedItems: OrderItemInput[] = (po.items || []).map((i) => ({
+          id: crypto.randomUUID(),
+          materialId: i.materialId,
+          materialCode: i.materialCode,
+          materialName: i.materialName,
+          orderedQuantity: i.orderedQuantity.toString(),
+          unitPrice: i.unitPrice?.toString() || "",
+          supplierId: defaultSupplierStr,
+        }));
+        setItems(mappedItems);
+
+        if (po.requestId) {
+          setIsLoadingHistory(true);
+          try {
+            const historyRes = await purchasingPurchaseRequestApi.getPoHistory(
+              po.requestId,
+            );
+            setPoHistory(historyRes.data.poChain || []);
+          } catch (error) {
+            console.error("Failed to load PO history", error);
+            setPoHistory([]);
+          } finally {
+            setIsLoadingHistory(false);
+          }
+        }
       } catch (error) {
-        console.error("Failed to load initial data", error);
-        toast.error(t("Failed to load initial data."));
+        console.error("Failed to load original PO data", error);
+        toast.error(t("Failed to load original PO data."));
+        router.back();
       } finally {
         setIsLoadingData(false);
       }
     };
+
     fetchInitialData();
-  }, [t]);
-
-  useEffect(() => {
-    const loadPrDetails = async () => {
-      if (selectedRequestId && requests.length > 0) {
-        const pr = requests.find(
-          (r) => r.requestId.toString() === selectedRequestId,
-        );
-        if (pr && pr.items) {
-          const mappedItems: OrderItemInput[] = pr.items.map((i) => ({
-            id: crypto.randomUUID(),
-            materialId: i.materialId,
-            materialCode: i.materialCode,
-            materialName: i.materialName,
-            prQuantity: i.quantity,
-            orderedQuantity: i.quantity.toString(),
-            unitPrice: "",
-            supplierId: "",
-          }));
-          setItems(mappedItems);
-          setCurrentPage(1);
-          setGlobalSupplierId("");
-        }
-      } else {
-        setItems([]);
-        setGlobalSupplierId("");
-      }
-    };
-
-    loadPrDetails();
-  }, [selectedRequestId, requests]);
+  }, [parentPOIdParam, router, t]);
 
   const handleItemChange = (
     id: string,
@@ -150,9 +168,24 @@ export default function CreatePurchaseOrderPage() {
     return val.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
   };
 
+  const formatDateTime = (dateString?: string | null) => {
+    if (!dateString) return "N/A";
+    let safeDateString = dateString;
+    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
+      safeDateString = safeDateString.replace(" ", "T") + "Z";
+    }
+    return new Date(safeDateString).toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   const handleSubmit = () => {
-    if (!selectedRequestId) {
-      return toast.error(t("Please select a Purchase Request."));
+    if (!originalOrder?.requestId) {
+      return toast.error(t("Original order is missing Request ID mapping."));
     }
 
     if (items.length === 0) {
@@ -178,19 +211,27 @@ export default function CreatePurchaseOrderPage() {
       return toast.error(t("Please assign a unit price for all items."));
     }
 
+    if (!revisionNote.trim()) {
+      return toast.error(
+        t("Please provide a revision note explaining the changes."),
+      );
+    }
+
     showConfirmToast({
-      title: t("Create Purchase Order Draft?"),
+      title: t("Recreate Purchase Order?"),
       description: t(
-        "Are you sure you want to create a Purchase Order draft with these details?",
+        "Are you sure you want to submit this revised Purchase Order?",
       ),
-      confirmLabel: t("Yes, Create Draft"),
+      confirmLabel: t("Yes, Submit Revision"),
       onConfirm: async () => {
         setIsSubmitting(true);
 
         try {
           const payload = {
-            requestId: Number(selectedRequestId),
+            requestId: Number(originalOrder.requestId),
             supplierId: globalSupplierId ? Number(globalSupplierId) : undefined,
+            parentPOId: Number(parentPOIdParam),
+            revisionNote: revisionNote.trim(),
             items: items.map((i) => ({
               materialId: i.materialId,
               orderedQuantity: Number(i.orderedQuantity),
@@ -200,7 +241,7 @@ export default function CreatePurchaseOrderPage() {
           };
 
           await purchasingPurchaseOrderApi.createDraft(payload);
-          toast.success(t("Purchase Order draft created successfully!"));
+          toast.success(t("Revised Purchase Order submitted successfully!"));
           router.push("/purchasing/purchase-orders");
         } catch (error: any) {
           console.error(error);
@@ -240,7 +281,7 @@ export default function CreatePurchaseOrderPage() {
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title={t("Create Purchase Order Draft")} />
+        <Header title={t("Recreate Purchase Order")} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6 mx-auto w-full">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -254,7 +295,8 @@ export default function CreatePurchaseOrderPage() {
               </Button>
               <div>
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                  {t("New Purchase Order Draft")}
+                  <RefreshCw className="w-6 h-6 text-indigo-600" />
+                  {t("Recreate Rejected Order")}
                 </h1>
               </div>
             </div>
@@ -269,7 +311,7 @@ export default function CreatePurchaseOrderPage() {
               ) : (
                 <Save className="w-4 h-4 mr-2" />
               )}
-              {t("Confirm Purchase Order")}
+              {t("Submit Revised Order")}
             </Button>
           </div>
 
@@ -280,44 +322,41 @@ export default function CreatePurchaseOrderPage() {
                 <CardHeader className="border-b border-slate-100 pb-4">
                   <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pt-2">
                     <FileText className="w-5 h-5 text-indigo-600" />
-                    {t("Order Setup")}
+                    {t("Original Order Info")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-6 space-y-5">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">
-                      {t("Source Purchase Request")}{" "}
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <Select
-                      value={selectedRequestId}
-                      onValueChange={setSelectedRequestId}
-                    >
-                      <SelectTrigger className="w-full bg-slate-50 min-h-[60px] py-2 border-slate-300">
-                        <SelectValue placeholder={t("Select a PR...")} />
-                      </SelectTrigger>
-                      <SelectContent className="w-[var(--radix-select-trigger-width)]">
-                        {requests
-                          .filter((r) => r.status !== "DraftPO")
-                          .map((r) => (
-                            <SelectItem
-                              key={r.requestId}
-                              value={r.requestId.toString()}
-                              className="group focus:bg-indigo-600 cursor-pointer"
-                            >
-                              <div className="flex flex-col text-left">
-                                <span className="font-medium text-slate-800 group-focus:text-white">
-                                  {r.requestCode}
-                                </span>
-                                <span className="text-xs text-slate-500 mt-0.5 group-focus:text-indigo-100">
-                                  {t("Project")}: {r.projectName} | {t("Items")}
-                                  : {r.items?.length || 0}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="space-y-4">
+                    <div>
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                        {t("Rejected Order Code")}
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className="font-mono text-md px-3 py-1 text-rose-600 bg-rose-50 border-rose-200"
+                      >
+                        {originalOrder?.purchaseOrderCode}
+                      </Badge>
+                    </div>
+
+                    <div>
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                        {t("Source Request")}
+                      </span>
+                      <span className="font-medium text-slate-800 flex items-center gap-1.5 bg-slate-50 p-2 rounded-md border border-slate-100">
+                        <Hash className="w-3.5 h-3.5 text-indigo-500" />
+                        {t("PR ID")}: {originalOrder?.requestId}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                        {t("Project Name")}
+                      </span>
+                      <p className="text-sm font-medium text-slate-700">
+                        {originalOrder?.projectName}
+                      </p>
+                    </div>
                   </div>
 
                   <div className="space-y-2 pt-4 border-t border-slate-100">
@@ -350,8 +389,133 @@ export default function CreatePurchaseOrderPage() {
                       )}
                     </p>
                   </div>
+
+                  <div className="space-y-2 pt-4 border-t border-slate-100">
+                    <label className="text-sm font-medium text-slate-700">
+                      {t("Revision Note")}{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <Textarea
+                      placeholder={t(
+                        "Explain the adjustments made (e.g., Updated unit price)...",
+                      )}
+                      value={revisionNote}
+                      onChange={(e) => setRevisionNote(e.target.value)}
+                      className="min-h-[80px] resize-none focus-visible:ring-indigo-600"
+                    />
+                  </div>
                 </CardContent>
               </Card>
+
+              {/* THẺ LỊCH SỬ PO - Nằm dưới cùng cột trái */}
+              {isLoadingHistory ? (
+                <div className="flex items-center justify-center p-4">
+                  <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+                </div>
+              ) : (
+                poHistory.length > 0 && (
+                  <Card className="border-slate-200 shadow-sm bg-white gap-0 flex-1 min-h-[300px] flex flex-col">
+                    <CardHeader className="border-b border-slate-100 pb-4 shrink-0">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pt-2">
+                        <History className="w-5 h-5 text-indigo-600" />
+                        {t("PO Revision History")}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-5 overflow-y-auto flex-1 relative">
+                      <div className="absolute left-[35px] top-6 bottom-6 w-[2px] bg-slate-100"></div>
+
+                      <div className="space-y-6">
+                        {poHistory
+                          .filter((historyItem) =>
+                            historyItem.status.includes("Rejected"),
+                          )
+                          .map((historyItem) => (
+                            <div
+                              key={historyItem.poId}
+                              className="relative pl-10"
+                            >
+                              <div className="absolute left-[-11px] top-1 w-4 h-4 rounded-full border-2 border-white bg-indigo-100 ring-1 ring-indigo-200 z-10 flex items-center justify-center">
+                                <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                              </div>
+
+                              <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-semibold text-sm text-slate-800">
+                                    Rev {historyItem.revisionNumber}
+                                  </span>
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      historyItem.status.includes("Rejected")
+                                        ? "text-rose-600 bg-rose-50 border-rose-200"
+                                        : "text-slate-600 bg-slate-50"
+                                    }
+                                  >
+                                    {formatPascalCase(historyItem.status)}
+                                  </Badge>
+                                </div>
+
+                                <div className="text-xs text-slate-500 flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {formatDateTime(historyItem.createdAt)}
+                                </div>
+
+                                <div className="bg-slate-50 rounded-md p-3 text-sm space-y-2 border border-slate-100 mt-1">
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-500">
+                                      {t("Supplier")}:
+                                    </span>
+                                    <span
+                                      className="font-medium text-slate-700 truncate max-w-[120px]"
+                                      title={historyItem.supplierName}
+                                    >
+                                      {historyItem.supplierName}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-500">
+                                      {t("Amount")}:
+                                    </span>
+                                    <span className="font-medium text-slate-700">
+                                      {historyItem.totalAmount
+                                        ? formatCurrency(
+                                            historyItem.totalAmount,
+                                          )
+                                        : "N/A"}
+                                    </span>
+                                  </div>
+
+                                  {historyItem.revisionNote && (
+                                    <div className="pt-2 border-t border-slate-100">
+                                      <span className="text-xs font-medium text-indigo-600 block mb-1">
+                                        {t("Revision Note")}:
+                                      </span>
+                                      <p className="text-slate-600 text-xs italic">
+                                        "{historyItem.revisionNote}"
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {historyItem.rejectionReason && (
+                                    <div className="pt-2 border-t border-slate-100">
+                                      <span className="text-xs font-medium text-rose-600 flex items-center gap-1 mb-1">
+                                        <XCircle className="w-3 h-3" />{" "}
+                                        {t("Rejection Reason")}:
+                                      </span>
+                                      <p className="text-rose-600 text-xs italic">
+                                        "{historyItem.rejectionReason}"
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              )}
             </div>
 
             {/* DANH SÁCH VẬT TƯ & ĐƠN GIÁ (CỘT PHẢI) */}
@@ -372,7 +536,7 @@ export default function CreatePurchaseOrderPage() {
                             {t("Material")}
                           </TableHead>
                           <TableHead className="w-[15%] text-center">
-                            {t("Requested")}
+                            {t("Order Quantity")}
                           </TableHead>
                           <TableHead className="w-[15%]">
                             {t("Supplier")} *
@@ -386,12 +550,10 @@ export default function CreatePurchaseOrderPage() {
                         {items.length === 0 ? (
                           <TableRow>
                             <TableCell
-                              colSpan={5}
+                              colSpan={4}
                               className="h-40 text-center text-slate-500"
                             >
-                              {t(
-                                "Please select a Purchase Request to load materials.",
-                              )}
+                              {t("No items found in original order.")}
                             </TableCell>
                           </TableRow>
                         ) : (
@@ -410,8 +572,7 @@ export default function CreatePurchaseOrderPage() {
                                   </span>
                                 </div>
                               </TableCell>
-
-                              <TableCell className="align-top py-4 text-center">
+                              <TableCell className="align-top py-5 text-center flex align-center justify-center">
                                 <span className="font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded">
                                   {item.orderedQuantity}
                                 </span>

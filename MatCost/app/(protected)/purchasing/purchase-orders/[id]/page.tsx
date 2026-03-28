@@ -143,7 +143,7 @@ export default function PurchaseOrderDetailPage() {
         try {
           await new Promise((resolve) => setTimeout(resolve, 500));
           router.push(
-            `/purchasing/purchase-orders/create?requestId=${order.requestId}&parentPOId=${order.purchaseOrderId}`,
+            `/purchasing/purchase-orders/recreate?requestId=${order.requestId}&parentPOId=${order.purchaseOrderId}`,
           );
         } catch (error: any) {
           console.error(error);

@@ -641,7 +641,7 @@ export default function PutawayPage() {
                                           "quantity",
                                           e.target.value === ""
                                             ? ""
-                                            : Number(e.target.value),
+                                            : Number(e.target.value.replace(/-/g, "").slice(0,12)),
                                         )
                                       }
                                     />

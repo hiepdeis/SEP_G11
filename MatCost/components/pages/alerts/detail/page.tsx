@@ -353,7 +353,7 @@ export default function AlertDetailPage({ role = "manager" }) {
                       min="1"
                       className="text-lg font-semibold h-12 focus-visible:ring-indigo-600"
                       value={adjustedQuantity}
-                      onChange={(e) => setAdjustedQuantity(e.target.value)}
+                      onChange={(e) => setAdjustedQuantity(e.target.value.replace(/-/g, "").slice(0,12))}
                       disabled={!isPending}
                       placeholder={t("Enter quantity to restock...")}
                     />

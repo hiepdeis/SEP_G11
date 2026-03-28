@@ -460,7 +460,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                                 onChange={(e) =>
                                   handleActualChange(
                                     item.materialId,
-                                    e.target.value,
+                                    e.target.value.replace(/-/g, "").slice(0,12),
                                   )
                                 }
                               />
@@ -477,7 +477,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                                 onChange={(e) =>
                                   handlePassChange(
                                     item.materialId,
-                                    e.target.value,
+                                    e.target.value.replace(/-/g, "").slice(0,12),
                                   )
                                 }
                               />

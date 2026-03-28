@@ -535,7 +535,7 @@ export default function CreatePurchaseRequestPage() {
                                     handleItemChange(
                                       item.id,
                                       "quantity",
-                                      newValue.slice(0, 9),
+                                      newValue.replace(/-/g, "").slice(0, 12),
                                     );
                                   }}
                                 />

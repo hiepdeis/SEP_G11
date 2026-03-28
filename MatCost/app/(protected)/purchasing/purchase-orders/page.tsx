@@ -259,7 +259,7 @@ export default function PurchasingDashboardPage() {
     setLoadingId(id);
     if (status === "AccountantRejected" || status === "AdminRejected")
       router.push(
-        `/purchasing/purchase-orders/create?requestId=${requestId}&parentPOId=${id}`,
+        `/purchasing/purchase-orders/recreate?requestId=${requestId}&parentPOId=${id}`,
       );
     else router.push(`/purchasing/purchase-orders/${id}`);
   };

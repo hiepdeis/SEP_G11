@@ -642,7 +642,7 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                                           "quantity",
                                           e.target.value === ""
                                             ? ""
-                                            : Number(e.target.value),
+                                            : Number(e.target.value.replace(/-/g, "").slice(0,12)),
                                         )
                                       }
                                     />
