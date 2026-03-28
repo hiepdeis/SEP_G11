@@ -416,293 +416,346 @@ export default function CommonIssueSlipDetail() {
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="xl:col-span-2 space-y-6">
-              <Card className="border-slate-200 shadow-sm gap-0 flex flex-col min-h-[400px]">
-                <CardHeader className="bg-white border-b border-slate-100 py-4">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
-                    <PackageSearch className="w-5 h-5 text-indigo-600" /> {t("Requested Materials")}
-                  </CardTitle>
-                  {canViewPrice && (
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm mt-4">
-                      <div className="bg-slate-50 rounded-lg p-3">
-                        <div className="text-xs text-slate-500">{t("Total Budget")}</div>
-                        <div className="font-semibold">{detail.projectInfo.totalBudget.toLocaleString()}</div>
-                      </div>
-                      <div className="bg-rose-50 rounded-lg p-3">
-                        <div className="text-xs text-slate-500">{t("Used")}</div>
-                        <div className="font-semibold text-rose-600">{detail.projectInfo.budgetUsed.toLocaleString()}</div>
-                      </div>
-                      <div className="bg-emerald-50 rounded-lg p-3">
-                        <div className="text-xs text-slate-500">{t("Remaining")}</div>
-                        <div className="font-semibold text-emerald-600">{detail.projectInfo.budgetRemaining.toLocaleString()}</div>
-                      </div>
-                      <div className="bg-indigo-50 rounded-lg p-3">
-                        <div className="text-xs text-slate-500">{t("Request Cost")}</div>
-                        <div className="font-semibold text-indigo-600">{detail.projectInfo.totalRequestCost.toLocaleString()}</div>
-                      </div>
-                      <div className={`rounded-lg p-3 ${detail.projectInfo.isOverBudget ? "bg-rose-100" : "bg-emerald-100"}`}>
-                        <div className="text-xs text-slate-500">{t("After Issue")}</div>
-                        <div className={`font-bold ${detail.projectInfo.isOverBudget ? "text-rose-700" : "text-emerald-700"}`}>
-                          {detail.projectInfo.remainingAfterIssue.toLocaleString()}
+              {!(role === "WarehouseStaff" && detail.status === "Picking_In_Progress") && (
+                <Card className="border-slate-200 shadow-sm gap-0 flex flex-col min-h-[400px]">
+                  <CardHeader className="bg-white border-b border-slate-100 py-4">
+                    <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                      <PackageSearch className="w-5 h-5 text-indigo-600" /> {t("Requested Materials")}
+                    </CardTitle>
+                    {canViewPrice && (
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm mt-4">
+                        <div className="bg-slate-50 rounded-lg p-3">
+                          <div className="text-xs text-slate-500">{t("Total Budget")}</div>
+                          <div className="font-semibold">{detail.projectInfo.totalBudget.toLocaleString()}</div>
+                        </div>
+                        <div className="bg-rose-50 rounded-lg p-3">
+                          <div className="text-xs text-slate-500">{t("Used")}</div>
+                          <div className="font-semibold text-rose-600">{detail.projectInfo.budgetUsed.toLocaleString()}</div>
+                        </div>
+                        <div className="bg-emerald-50 rounded-lg p-3">
+                          <div className="text-xs text-slate-500">{t("Remaining")}</div>
+                          <div className="font-semibold text-emerald-600">{detail.projectInfo.budgetRemaining.toLocaleString()}</div>
+                        </div>
+                        <div className="bg-indigo-50 rounded-lg p-3">
+                          <div className="text-xs text-slate-500">{t("Request Cost")}</div>
+                          <div className="font-semibold text-indigo-600">{detail.projectInfo.totalRequestCost.toLocaleString()}</div>
+                        </div>
+                        <div className={`rounded-lg p-3 ${detail.projectInfo.isOverBudget ? "bg-rose-100" : "bg-emerald-100"}`}>
+                          <div className="text-xs text-slate-500">{t("After Issue")}</div>
+                          <div className={`font-bold ${detail.projectInfo.isOverBudget ? "text-rose-700" : "text-emerald-700"}`}>
+                            {detail.projectInfo.remainingAfterIssue.toLocaleString()}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                  {canViewPrice && detail.projectInfo.isOverBudget && (
-                    <div className="flex items-center gap-2 text-rose-600 text-sm font-medium mt-2">
-                      <AlertCircle className="w-4 h-4" />
-                      {t("Over budget!")}
-                    </div>
-                  )}
-                </CardHeader>
+                    )}
+                    {canViewPrice && detail.projectInfo.isOverBudget && (
+                      <div className="flex items-center gap-2 text-rose-600 text-sm font-medium mt-2">
+                        <AlertCircle className="w-4 h-4" />
+                        {t("Over budget!")}
+                      </div>
+                    )}
+                  </CardHeader>
 
-                <CardContent className="p-0 bg-white flex flex-col justify-between flex-1">
-                  <div className="overflow-x-auto relative">
-                    <Table>
-                      
-                      <TableHeader>
-                        <TableRow className="bg-slate-50/50">
-                          <TableHead className="w-[60px] text-center pl-4">{t("No.")}</TableHead>
-                          <TableHead>{t("Material Code")}</TableHead>
-                          <TableHead>{t("Material Name")}</TableHead>
-                          <TableHead className="text-center">{t("Unit")}</TableHead>
-                          <TableHead className="text-right">{t("Requested Qty")}</TableHead>
-                          <TableHead className="text-right">{t("Current Stock")}</TableHead>
-                          {canViewPrice && (
-                            <>
-                              <TableHead className="text-center">{t("Availability")}</TableHead>
-                              <TableHead className="text-right">{t("Unit Price")}</TableHead>
-                              {/* <TableHead className="text-center">{t("Availability")}</TableHead> */}
-                              {detail.status === "Approved" && (
-                                <TableHead className="min-w-[180px]">{t("Chi tiết Nguồn xuất (FIFO)")}</TableHead>
-                              )}
-                              <TableHead className="text-right">{t("Line Total")}</TableHead>
-                            </>
-                          )}
-                          {detail.status === "Approved" && (
-                            <TableHead className="text-center w-[180px]">{t("Phương án xử lý")}</TableHead>
-                          )}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {paginatedDetails.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={10} className="h-32 text-center text-slate-500">
-                              {t("No materials found in this request.")}
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          paginatedDetails.map((item, index) => (
-                            <TableRow key={item.detailId} className="hover:bg-slate-50/50">
-                              <TableCell className="text-center font-medium text-slate-500 pl-4">{startIndex + index + 1}</TableCell>
-                              <TableCell className="font-medium text-slate-700">{item.code}</TableCell>
-                              <TableCell className="font-medium text-slate-700">{item.name}</TableCell>
-                              <TableCell className="text-center text-slate-500">{item.unit}</TableCell>
-                              <TableCell className="text-right font-bold text-slate-900">{item.requestedQuantity}</TableCell>
-                              <TableCell className={`text-right ${!item.isStockSufficient ? "text-rose-600 font-bold" : "text-slate-500"}`}>{item.availableQuantity}</TableCell>
-                              <TableCell className="text-center">
-                                {item.isStockSufficient ? (
-                                  <Badge className="bg-emerald-50 text-emerald-600 border-emerald-200 font-normal"><CheckCircle2 className="w-3 h-3 mr-1" /> {t("Enough")}</Badge>
-                                ) : (
-                                  <Badge className="bg-rose-50 text-rose-600 border-rose-200 font-normal"><XCircle className="w-3 h-3 mr-1" /> {t("Shortage")}</Badge>
+                  <CardContent className="p-0 bg-white flex flex-col justify-between flex-1">
+                    <div className="overflow-x-auto relative">
+                      <Table>
+                        
+                        <TableHeader>
+                          <TableRow className="bg-slate-50/50">
+                            <TableHead className="w-[60px] text-center pl-4">{t("No.")}</TableHead>
+                            <TableHead>{t("Material Code")}</TableHead>
+                            <TableHead>{t("Material Name")}</TableHead>
+                            <TableHead className="text-center">{t("Unit")}</TableHead>
+                            <TableHead className="text-right">{t("Requested Qty")}</TableHead>
+                            <TableHead className="text-right">{t("Current Stock")}</TableHead>
+                            {canViewPrice && (
+                              <>
+                                <TableHead className="text-center">{t("Availability")}</TableHead>
+                                <TableHead className="text-right">{t("Unit Price")}</TableHead>
+                                {/* <TableHead className="text-center">{t("Availability")}</TableHead> */}
+                                {detail.status === "Approved" && (
+                                  <TableHead className="min-w-[180px]">{t("Chi tiết Nguồn xuất (FIFO)")}</TableHead>
                                 )}
+                                <TableHead className="text-right">{t("Line Total")}</TableHead>
+                              </>
+                            )}
+                            {detail.status === "Approved" && (
+                              <TableHead className="text-center w-[180px]">{t("Phương án xử lý")}</TableHead>
+                            )}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedDetails.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={10} className="h-32 text-center text-slate-500">
+                                {t("No materials found in this request.")}
                               </TableCell>
-                                {canViewPrice && (
-                                <>
-                                  <TableCell className="text-right text-slate-600">{item.unitPrice.toLocaleString()} đ</TableCell>
-                                  
-                                  {/* CỘT CHI TIẾT LÔ (UI MỚI SIÊU GỌN GÀNG) */}
-                                  {detail.status === "Approved" && (
-                                    <TableCell>
-                                      <div className="flex flex-col gap-1.5 min-w-[160px]">
-                                        {(customBatchAllocations[item.detailId] || item.fifoSuggestedBatches || []).map((b, idx) => (
-                                          <div key={idx} className="bg-white border border-slate-200 shadow-sm px-2 py-1.5 rounded flex justify-between items-center group hover:border-indigo-300 transition-colors">
-                                            <div className="flex flex-col">
-                                              <span className="font-semibold text-slate-700 text-[11px] tracking-tight">📦 {b.batchCode}</span>
-                                              {/* Hiển thị đơn giá của riêng lô này (nếu có) */}
-                                              <span className="text-[10px] text-slate-400 font-medium">
-                                                {(b.unitPrice || item.unitPrice).toLocaleString()} đ
+                            </TableRow>
+                          ) : (
+                            paginatedDetails.map((item, index) => (
+                              <TableRow key={item.detailId} className="hover:bg-slate-50/50">
+                                <TableCell className="text-center font-medium text-slate-500 pl-4">{startIndex + index + 1}</TableCell>
+                                <TableCell className="font-medium text-slate-700">{item.code}</TableCell>
+                                <TableCell className="font-medium text-slate-700">{item.name}</TableCell>
+                                <TableCell className="text-center text-slate-500">{item.unit}</TableCell>
+                                <TableCell className="text-right font-bold text-slate-900">{item.requestedQuantity}</TableCell>
+                                <TableCell className={`text-right ${!item.isStockSufficient ? "text-rose-600 font-bold" : "text-slate-500"}`}>{item.availableQuantity}</TableCell>
+                                <TableCell className="text-center">
+                                  {item.isStockSufficient ? (
+                                    <Badge className="bg-emerald-50 text-emerald-600 border-emerald-200 font-normal"><CheckCircle2 className="w-3 h-3 mr-1" /> {t("Enough")}</Badge>
+                                  ) : (
+                                    <Badge className="bg-rose-50 text-rose-600 border-rose-200 font-normal"><XCircle className="w-3 h-3 mr-1" /> {t("Shortage")}</Badge>
+                                  )}
+                                </TableCell>
+                                  {canViewPrice && (
+                                  <>
+                                    <TableCell className="text-right text-slate-600">{item.unitPrice.toLocaleString()} đ</TableCell>
+                                    
+                                    {/* CỘT CHI TIẾT LÔ (UI MỚI SIÊU GỌN GÀNG) */}
+                                    {detail.status === "Approved" && (
+                                      <TableCell>
+                                        <div className="flex flex-col gap-1.5 min-w-[160px]">
+                                          {(customBatchAllocations[item.detailId] || item.fifoSuggestedBatches || []).map((b, idx) => (
+                                            <div key={idx} className="bg-white border border-slate-200 shadow-sm px-2 py-1.5 rounded flex justify-between items-center group hover:border-indigo-300 transition-colors">
+                                              <div className="flex flex-col">
+                                                <span className="font-semibold text-slate-700 text-[11px] tracking-tight">📦 {b.batchCode}</span>
+                                                {/* Hiển thị đơn giá của riêng lô này (nếu có) */}
+                                                <span className="text-[10px] text-slate-400 font-medium">
+                                                  {(b.unitPrice || item.unitPrice).toLocaleString()} đ
+                                                </span>
+                                              </div>
+                                              <span className="text-indigo-600 font-bold text-xs bg-indigo-50 px-1.5 py-0.5 rounded">
+                                                {b.qtyToTake} {item.unit}
                                               </span>
                                             </div>
-                                            <span className="text-indigo-600 font-bold text-xs bg-indigo-50 px-1.5 py-0.5 rounded">
-                                              {b.qtyToTake} {item.unit}
-                                            </span>
-                                          </div>
-                                        ))}
-                                        {/* Nút Đổi lô chỉ hiện khi vật tư đó có tồn kho > 0 */}
-                                        {item.availableQuantity > 0 && (
-                                          <button 
-                                            onClick={() => handleEditBatchClick(item)} 
-                                            className="text-[11px] text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-0.5 justify-end font-medium transition-colors"
-                                          >
-                                            ✏️ Đổi lô
-                                          </button>
-                                        )}
-                                      </div>
+                                          ))}
+                                          {/* Nút Đổi lô chỉ hiện khi vật tư đó có tồn kho > 0 */}
+                                          {item.availableQuantity > 0 && (
+                                            <button 
+                                              onClick={() => handleEditBatchClick(item)} 
+                                              className="text-[11px] text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-0.5 justify-end font-medium transition-colors"
+                                            >
+                                              ✏️ Đổi lô
+                                            </button>
+                                          )}
+                                        </div>
+                                      </TableCell>
+                                    )}
+
+                                    {/* CỘT LINE TOTAL (TÍNH TOÁN ĐỘNG KHI ĐỔI LÔ) */}
+                                    <TableCell className="text-right font-bold text-indigo-600 bg-indigo-50/30">
+                                      {(() => {
+                                        const allocations = customBatchAllocations[item.detailId] || item.fifoSuggestedBatches || [];
+                                        
+                                        if (allocations.length > 0) {
+                                          // 1. Tính tổng tiền của những lô đã chọn trong kho
+                                          const stockCost = allocations.reduce((sum, b) => sum + (b.qtyToTake * (b.unitPrice || item.unitPrice)), 0);
+                                          
+                                          // 2. Tính tiền của phần thiếu (Sẽ bị đẩy sang Mua ngoài - DirectPO)
+                                          const selectedQty = allocations.reduce((sum, b) => sum + b.qtyToTake, 0);
+                                          const missingQty = Math.max(0, item.requestedQuantity - selectedQty);
+                                          const missingCost = missingQty * item.unitPrice; // Mua ngoài tính giá gốc mặc định
+                                          
+                                          return (stockCost + missingCost).toLocaleString() + " đ";
+                                        }
+                                        
+                                        // Mặc định nếu chưa load được lô (cháy kho 100%)
+                                        return item.lineTotal.toLocaleString() + " đ";
+                                      })()}
                                     </TableCell>
-                                  )}
-
-                                  {/* CỘT LINE TOTAL (TÍNH TOÁN ĐỘNG KHI ĐỔI LÔ) */}
-                                  <TableCell className="text-right font-bold text-indigo-600 bg-indigo-50/30">
-                                    {(() => {
-                                      const allocations = customBatchAllocations[item.detailId] || item.fifoSuggestedBatches || [];
+                                  </>
+                                )}
+                                {detail.status === "Approved" && (
+                                <TableCell className="text-center">
+                                  <Select 
+                                    value={inventoryDecisions[item.detailId] || ""} 
+                                    onValueChange={(val) => setInventoryDecisions(prev => ({ ...prev, [item.detailId]: val }))}
+                                  >
+                                    <SelectTrigger className="h-8 w-full bg-white border-slate-200">
+                                      <SelectValue placeholder="Chọn..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {/* CASE 1: HẾT SẠCH HÀNG -> Chỉ có 1 option */}
+                                      {item.availableQuantity === 0 && (
+                                        <SelectItem value="DirectPO" className="text-rose-600 font-medium">Mua thẳng (Hết hàng)</SelectItem>
+                                      )}
                                       
-                                      if (allocations.length > 0) {
-                                        // 1. Tính tổng tiền của những lô đã chọn trong kho
-                                        const stockCost = allocations.reduce((sum, b) => sum + (b.qtyToTake * (b.unitPrice || item.unitPrice)), 0);
-                                        
-                                        // 2. Tính tiền của phần thiếu (Sẽ bị đẩy sang Mua ngoài - DirectPO)
-                                        const selectedQty = allocations.reduce((sum, b) => sum + b.qtyToTake, 0);
-                                        const missingQty = Math.max(0, item.requestedQuantity - selectedQty);
-                                        const missingCost = missingQty * item.unitPrice; // Mua ngoài tính giá gốc mặc định
-                                        
-                                        return (stockCost + missingCost).toLocaleString() + " đ";
-                                      }
-                                      
-                                      // Mặc định nếu chưa load được lô (cháy kho 100%)
-                                      return item.lineTotal.toLocaleString() + " đ";
-                                    })()}
-                                  </TableCell>
-                                </>
-                              )}
-                              {detail.status === "Approved" && (
-                              <TableCell className="text-center">
-                                <Select 
-                                  value={inventoryDecisions[item.detailId] || ""} 
-                                  onValueChange={(val) => setInventoryDecisions(prev => ({ ...prev, [item.detailId]: val }))}
-                                >
-                                  <SelectTrigger className="h-8 w-full bg-white border-slate-200">
-                                    <SelectValue placeholder="Chọn..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {/* CASE 1: HẾT SẠCH HÀNG -> Chỉ có 1 option */}
-                                    {item.availableQuantity === 0 && (
-                                      <SelectItem value="DirectPO" className="text-rose-600 font-medium">Mua thẳng (Hết hàng)</SelectItem>
-                                    )}
-                                    
-                                    {/* CASE 2: THIẾU HÀNG -> Cho chọn Tách hoặc Mua toàn bộ */}
-                                    {item.availableQuantity > 0 && item.availableQuantity < item.requestedQuantity && (
-                                      <>
-                                        <SelectItem value="Split" className="text-amber-600 font-medium">Tách phiếu (Xuất {item.availableQuantity})</SelectItem>
-                                        <SelectItem value="DirectPO" className="text-rose-600 font-medium">Mua xuất thẳng (Cả {item.requestedQuantity})</SelectItem>
-                                      </>
-                                    )}
+                                      {/* CASE 2: THIẾU HÀNG -> Cho chọn Tách hoặc Mua toàn bộ */}
+                                      {item.availableQuantity > 0 && item.availableQuantity < item.requestedQuantity && (
+                                        <>
+                                          <SelectItem value="Split" className="text-amber-600 font-medium">Tách phiếu (Xuất {item.availableQuantity})</SelectItem>
+                                          <SelectItem value="DirectPO" className="text-rose-600 font-medium">Mua xuất thẳng (Cả {item.requestedQuantity})</SelectItem>
+                                        </>
+                                      )}
 
-                                    {/* CASE 3: ĐỦ HÀNG -> Cho chọn Xuất kho hoặc Mua chỉ định */}
-                                    {item.availableQuantity >= item.requestedQuantity && (
-                                      <>
-                                        <SelectItem value="Stock" className="text-emerald-600 font-medium">Xuất từ kho</SelectItem>
-                                        <SelectItem value="DirectPO" className="text-indigo-600 font-medium">Mua thẳng (Giữ tồn kho)</SelectItem>
-                                      </>
-                                    )}
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                              )}
+                                      {/* CASE 3: ĐỦ HÀNG -> Cho chọn Xuất kho hoặc Mua chỉ định */}
+                                      {item.availableQuantity >= item.requestedQuantity && (
+                                        <>
+                                          <SelectItem value="Stock" className="text-emerald-600 font-medium">Xuất từ kho</SelectItem>
+                                          <SelectItem value="DirectPO" className="text-indigo-600 font-medium">Mua thẳng (Giữ tồn kho)</SelectItem>
+                                        </>
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                )}
 
 
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-
-                  {detailsList.length > 0 && (
-                    <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 gap-4 mt-auto">
-                      <div className="text-sm text-slate-500">
-                        {t("Showing")} <span className="font-medium text-slate-900">{startIndex + 1}</span> {t("to")} <span className="font-medium text-slate-900">{Math.min(endIndex, detailsList.length)}</span> {t("of")} <span className="font-medium text-slate-900">{detailsList.length}</span>
-                      </div>
-                      <div className="flex items-center gap-6">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-slate-500">{t("Rows per page:")}</span>
-                          <Select value={itemsPerPage.toString()} onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}>
-                            <SelectTrigger className="h-8 w-[70px] bg-white border-slate-200"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="5">5</SelectItem>
-                              <SelectItem value="10">10</SelectItem>
-                              <SelectItem value="20">20</SelectItem>
-                              <SelectItem value="-1">{t("All")}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="h-8"><ChevronLeft className="w-4 h-4" /></Button>
-                          <div className="text-sm font-medium text-slate-600 px-2">{t("Page")} {currentPage} {t("of")} {totalPages}</div>
-                          <Button variant="outline" size="sm" onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="h-8"><ChevronRight className="w-4 h-4" /></Button>
-                        </div>
-                      </div>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
 
+                    {detailsList.length > 0 && (
+                      <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 gap-4 mt-auto">
+                        <div className="text-sm text-slate-500">
+                          {t("Showing")} <span className="font-medium text-slate-900">{startIndex + 1}</span> {t("to")} <span className="font-medium text-slate-900">{Math.min(endIndex, detailsList.length)}</span> {t("of")} <span className="font-medium text-slate-900">{detailsList.length}</span>
+                        </div>
+                        <div className="flex items-center gap-6">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-slate-500">{t("Rows per page:")}</span>
+                            <Select value={itemsPerPage.toString()} onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}>
+                              <SelectTrigger className="h-8 w-[70px] bg-white border-slate-200"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="5">5</SelectItem>
+                                <SelectItem value="10">10</SelectItem>
+                                <SelectItem value="20">20</SelectItem>
+                                <SelectItem value="-1">{t("All")}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="h-8"><ChevronLeft className="w-4 h-4" /></Button>
+                            <div className="text-sm font-medium text-slate-600 px-2">{t("Page")} {currentPage} {t("of")} {totalPages}</div>
+                            <Button variant="outline" size="sm" onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="h-8"><ChevronRight className="w-4 h-4" /></Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* DANH SÁCH NHẶT HÀNG */}
               {role === "WarehouseStaff" && detail.status === "Picking_In_Progress" && (
-                <Card className="border-blue-300 shadow-md bg-white overflow-hidden mt-6">
-                  <CardHeader className="bg-blue-50 border-b border-blue-100 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <Card className="border-slate-200 shadow-sm bg-white overflow-hidden mt-0 sm:mt-6">
+                  <CardHeader className="bg-white border-b border-slate-100 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                      <CardTitle className="text-lg font-bold flex items-center gap-2 text-blue-800">
-                        <ClipboardList className="w-5 h-5" /> Danh sách nhặt hàng (Picking List)
+                      <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                        <ClipboardList className="w-5 h-5 text-indigo-600" /> Picking List
                       </CardTitle>
-                      <p className="text-xs sm:text-sm text-blue-600/80 mt-1">Dựa theo kệ để tối ưu đường đi trong kho</p>
+                      <p className="text-xs sm:text-sm text-slate-500 mt-1">Dựa theo kệ để tối ưu đường đi trong kho</p>
                     </div>
                     <Button 
                       variant={hidePicked ? "default" : "outline"}
-                      className={hidePicked ? "bg-blue-600 text-white" : "text-blue-600 border-blue-300"}
+                      className={`w-full sm:w-auto shadow-sm ${hidePicked ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "text-indigo-600 border-indigo-200 hover:bg-indigo-50"}`}
                       onClick={() => setHidePicked(!hidePicked)}
                     >
                       {hidePicked ? <><EyeOff className="w-4 h-4 mr-2" /> Đang ẩn mục đã nhặt</> : <><Eye className="w-4 h-4 mr-2" /> Hiển thị tất cả</>}
                     </Button>
                   </CardHeader>
-                  <CardContent className="p-0 overflow-x-auto w-full">
-                    <Table className="min-w-[500px]">
-                      <TableHeader>
-                        <TableRow className="bg-slate-50">
-                          <TableHead className="w-[120px]">Kệ (Bin)</TableHead>
-                          <TableHead>Vật tư</TableHead>
-                          <TableHead>Lô (Batch)</TableHead>
-                          <TableHead className="text-right">SL Cần lấy</TableHead>
-                          <TableHead className="text-center w-[100px]">Trạng thái</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {displayedPickingItems.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={5} className="h-32 text-center text-slate-500">
-                              {hidePicked ? "Tuyệt vời! Bạn đã nhặt xong tất cả." : "Không có hàng nào cần nhặt."}
-                            </TableCell>
+                  <CardContent className="p-0 w-full">
+                    
+                    {/* --- GIAO DIỆN 1: DÀNH CHO MÁY TÍNH --- */}
+                    <div className="hidden sm:block overflow-x-auto w-full">
+                      <Table className="min-w-[600px]">
+                        <TableHeader>
+                          <TableRow className="bg-slate-50/50">
+                            <TableHead className="w-[60px] text-center pl-4">STT</TableHead>
+                            <TableHead className="w-[140px]">Bin</TableHead>
+                            <TableHead>Vật tư</TableHead>
+                            <TableHead>Batch</TableHead>
+                            <TableHead className="text-right">SL Cần lấy</TableHead>
+                            <TableHead className="text-center w-[100px] pr-4">Xác nhận</TableHead>
                           </TableRow>
-                        ) : (
-                          displayedPickingItems.map((pick, idx) => (
-                            <TableRow key={pick.pickingId || idx} className={`${pick.isPicked ? "bg-emerald-50/50 opacity-60" : "hover:bg-blue-50/30"}`}>
-                              <TableCell className="font-bold text-slate-700">{pick.binLocation}</TableCell>
-                              <TableCell>
-                                <div className="font-medium text-slate-900">{pick.materialName}</div>
-                                <div className="text-xs text-slate-500">Mã: {pick.materialCode}</div>
-                              </TableCell>
-                              <TableCell className="text-slate-600 text-sm">📦 {pick.batchCode}</TableCell>
-                              <TableCell className="text-right font-bold text-blue-700 text-lg">
-                                {pick.qtyToPick} <span className="text-sm font-normal text-slate-500">{pick.unit}</span>
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <input 
-                                  type="checkbox" 
-                                  className="w-8 h-8 accent-emerald-500 cursor-pointer rounded border-slate-300"
-                                  checked={pick.isPicked}
-                                  onChange={() => handleTogglePick(pick.pickingId)}
-                                />
+                        </TableHeader>
+                        <TableBody>
+                          {displayedPickingItems.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="h-32 text-center text-slate-500">
+                                {hidePicked ? "Tuyệt vời! Bạn đã nhặt xong tất cả." : "Không có hàng nào cần nhặt."}
                               </TableCell>
                             </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
+                          ) : (
+                            displayedPickingItems.map((pick, idx) => (
+                              <TableRow key={pick.pickingId || idx} className={`${pick.isPicked ? "bg-indigo-50/40 opacity-70" : "hover:bg-slate-50/50"} transition-colors`}>
+                                <TableCell className="text-center font-medium text-slate-500 pl-4">{idx + 1}</TableCell>
+                                <TableCell className="font-bold text-slate-700">{pick.binLocation}</TableCell>
+                                <TableCell>
+                                  <div className="font-medium text-slate-700">{pick.materialName}</div>
+                                  <div className="text-xs text-slate-500">Mã: {pick.materialCode}</div>
+                                </TableCell>
+                                <TableCell className="text-slate-600 text-sm">📦 {pick.batchCode}</TableCell>
+                                <TableCell className="text-right font-bold text-indigo-600 text-base">
+                                  {pick.qtyToPick} <span className="text-sm font-normal text-slate-500">{pick.unit}</span>
+                                </TableCell>
+                                <TableCell className="text-center pr-4">
+                                  <input 
+                                    type="checkbox" 
+                                    className="w-6 h-6 accent-indigo-500 cursor-pointer rounded border-slate-300 shadow-sm"
+                                    checked={pick.isPicked}
+                                    onChange={() => handleTogglePick(pick.pickingId)}
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* --- GIAO DIỆN 2: DÀNH CHO ĐIỆN THOẠI --- */}
+                    <div className="sm:hidden flex flex-col gap-3 p-3 bg-slate-50/50">
+                      {displayedPickingItems.length === 0 ? (
+                        <div className="py-10 text-center text-slate-500 text-sm">
+                          {hidePicked ? "Tuyệt vời! Bạn đã nhặt xong tất cả." : "Không có hàng nào cần nhặt."}
+                        </div>
+                      ) : (
+                        displayedPickingItems.map((pick, idx) => (
+                          <div 
+                            key={pick.pickingId || idx} 
+                            className={`flex items-center gap-3 p-4 rounded-xl border shadow-sm transition-colors ${pick.isPicked ? "bg-indigo-50 border-indigo-200 opacity-70" : "bg-white border-slate-200"}`}
+                          >
+                            <div className="shrink-0 flex items-center justify-center">
+                              <input 
+                                type="checkbox" 
+                                className="w-8 h-8 accent-indigo-500 cursor-pointer rounded border-slate-300 shadow-sm"
+                                checked={pick.isPicked}
+                                onChange={() => handleTogglePick(pick.pickingId)}
+                              />
+                            </div>
+                            <div className="flex-1 flex flex-col min-w-0">
+                              <div className="flex justify-between items-start mb-1">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                  📍 {pick.binLocation}
+                                </span>
+                                <span className="font-bold text-indigo-600 text-base">
+                                  {pick.qtyToPick} <span className="text-xs font-normal text-slate-500">{pick.unit}</span>
+                                </span>
+                              </div>
+                              <h4 className="font-medium text-slate-700 text-sm leading-tight mb-1 truncate">
+                                {pick.materialName}
+                              </h4>
+                              <div className="flex items-center gap-2 text-xs text-slate-500">
+                                <span>Mã: {pick.materialCode}</span>
+                                <span>•</span>
+                                <span className="font-medium text-slate-600">📦 {pick.batchCode}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
                   </CardContent>
-                  <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+                  <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
                      <Button 
                         size="lg" 
-                        className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                        className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-11 shadow-sm"
                         onClick={handleCompletePicking}
-                        disabled={reviewing || pickingList.filter(i => !i.isPicked).length > 0}
+                        disabled={reviewing || (pickingList || []).filter(i => !i.isPicked).length > 0}
                      >
                        {reviewing ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <CheckCircle2 className="w-5 h-5 mr-2" />}
                        Hoàn tất nhặt hàng

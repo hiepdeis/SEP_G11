@@ -62,7 +62,7 @@ builder.Services.AddScoped<IStockTakeCountingService, StockTakeCountingService>(
 //  Import services
 builder.Services.AddScoped<IStockShortageAlertService, StockShortageAlertService>();
 builder.Services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
-builder.Services.AddScoped<IReceiptService, ReceiptService>();
+//builder.Services.AddScoped<IReceiptService, ReceiptService>();
 builder.Services.AddScoped<IPurchaseRequestService, PurchaseRequestService>();
 
 

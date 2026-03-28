@@ -45,7 +45,8 @@ namespace Backend.Domains.Projects.Services
                 StartDate = request.StartDate,
                 EndDate = request.EndDate,
                 Budget = request.Budget,
-                Status = string.IsNullOrWhiteSpace(request.Status) ? ProjectStatus.Active : request.Status
+               // Status = string.IsNullOrWhiteSpace(request.Status) ? ProjectStatus.Active : request.Status
+                Status = request.Status
             };
 
             _db.Projects.Add(project);
