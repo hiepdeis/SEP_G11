@@ -9,11 +9,9 @@ import {
   MapPin,
   Package,
   Truck,
-  ArrowRight,
   Building2,
   Loader2,
   CheckCircle2,
-  LoaderPinwheel,
   ChevronLeft,
   ChevronRight,
   FileWarning,
@@ -36,7 +34,7 @@ import {
 } from "@/components/ui/table";
 import {
   staffReceiptsApi,
-  staffIncidentApi, 
+  staffIncidentApi,
   GetInboundRequestListDto,
 } from "@/services/import-service";
 import { toast } from "sonner";
@@ -178,10 +176,10 @@ export default function StaffInboundDetailPage() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <Button
               variant="ghost"
-              onClick={() => router.push("/staff/inbound-requests")}
+              onClick={() => router.back()}
               className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}
+               <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back")}
             </Button>
 
             <Button
@@ -393,7 +391,8 @@ export default function StaffInboundDetailPage() {
                           <TableHead className="text-center w-[10%]">
                             {t("Actual")}
                           </TableHead>
-                          {request.status === "ReadyForStamp" ? (
+                          {request.status === "ReadyForStamp" ||
+                          request.status === "PartiallyPutaway" ? (
                             <></>
                           ) : (
                             <TableHead className="text-center w-[15%] pr-6">
@@ -453,7 +452,8 @@ export default function StaffInboundDetailPage() {
                                 {item.actualQuantity?.toLocaleString("vi-VN")}
                               </span>
                             </TableCell>
-                            {request.status === "ReadyForStamp" ? (
+                            {request.status === "ReadyForStamp" ||
+                            request.status === "PartiallyPutaway" ? (
                               <></>
                             ) : (
                               <TableCell className="text-center pr-6">

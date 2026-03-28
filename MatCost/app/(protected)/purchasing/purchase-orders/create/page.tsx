@@ -430,86 +430,92 @@ export default function RecreatePurchaseOrderPage() {
                       <div className="absolute left-[35px] top-6 bottom-6 w-[2px] bg-slate-100"></div>
 
                       <div className="space-y-6">
-                        {poHistory.map((historyItem) => (
-                          <div
-                            key={historyItem.poId}
-                            className="relative pl-10"
-                          >
-                            <div className="absolute left-[-11px] top-1 w-4 h-4 rounded-full border-2 border-white bg-indigo-100 ring-1 ring-indigo-200 z-10 flex items-center justify-center">
-                              <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                            </div>
-
-                            <div className="flex flex-col gap-1.5">
-                              <div className="flex items-center justify-between">
-                                <span className="font-semibold text-sm text-slate-800">
-                                  Rev {historyItem.revisionNumber}
-                                </span>
-                                <Badge
-                                  variant="outline"
-                                  className={
-                                    historyItem.status.includes("Rejected")
-                                      ? "text-rose-600 bg-rose-50 border-rose-200"
-                                      : "text-slate-600 bg-slate-50"
-                                  }
-                                >
-                                  {formatPascalCase(historyItem.status)}
-                                </Badge>
+                        {poHistory
+                          .filter((historyItem) =>
+                            historyItem.status.includes("Rejected"),
+                          )
+                          .map((historyItem) => (
+                            <div
+                              key={historyItem.poId}
+                              className="relative pl-10"
+                            >
+                              <div className="absolute left-[-11px] top-1 w-4 h-4 rounded-full border-2 border-white bg-indigo-100 ring-1 ring-indigo-200 z-10 flex items-center justify-center">
+                                <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
                               </div>
 
-                              <div className="text-xs text-slate-500 flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {formatDateTime(historyItem.createdAt)}
-                              </div>
-
-                              <div className="bg-slate-50 rounded-md p-3 text-sm space-y-2 border border-slate-100 mt-1">
-                                <div className="flex justify-between">
-                                  <span className="text-slate-500">
-                                    {t("Supplier")}:
+                              <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-semibold text-sm text-slate-800">
+                                    Rev {historyItem.revisionNumber}
                                   </span>
-                                  <span
-                                    className="font-medium text-slate-700 truncate max-w-[120px]"
-                                    title={historyItem.supplierName}
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      historyItem.status.includes("Rejected")
+                                        ? "text-rose-600 bg-rose-50 border-rose-200"
+                                        : "text-slate-600 bg-slate-50"
+                                    }
                                   >
-                                    {historyItem.supplierName}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-slate-500">
-                                    {t("Amount")}:
-                                  </span>
-                                  <span className="font-medium text-slate-700">
-                                    {historyItem.totalAmount
-                                      ? formatCurrency(historyItem.totalAmount)
-                                      : "N/A"}
-                                  </span>
+                                    {formatPascalCase(historyItem.status)}
+                                  </Badge>
                                 </div>
 
-                                {historyItem.revisionNote && (
-                                  <div className="pt-2 border-t border-slate-100">
-                                    <span className="text-xs font-medium text-indigo-600 block mb-1">
-                                      {t("Revision Note")}:
-                                    </span>
-                                    <p className="text-slate-600 text-xs italic">
-                                      "{historyItem.revisionNote}"
-                                    </p>
-                                  </div>
-                                )}
+                                <div className="text-xs text-slate-500 flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {formatDateTime(historyItem.createdAt)}
+                                </div>
 
-                                {historyItem.rejectionReason && (
-                                  <div className="pt-2 border-t border-slate-100">
-                                    <span className="text-xs font-medium text-rose-600 flex items-center gap-1 mb-1">
-                                      <XCircle className="w-3 h-3" />{" "}
-                                      {t("Rejection Reason")}:
+                                <div className="bg-slate-50 rounded-md p-3 text-sm space-y-2 border border-slate-100 mt-1">
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-500">
+                                      {t("Supplier")}:
                                     </span>
-                                    <p className="text-rose-600 text-xs italic">
-                                      "{historyItem.rejectionReason}"
-                                    </p>
+                                    <span
+                                      className="font-medium text-slate-700 truncate max-w-[120px]"
+                                      title={historyItem.supplierName}
+                                    >
+                                      {historyItem.supplierName}
+                                    </span>
                                   </div>
-                                )}
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-500">
+                                      {t("Amount")}:
+                                    </span>
+                                    <span className="font-medium text-slate-700">
+                                      {historyItem.totalAmount
+                                        ? formatCurrency(
+                                            historyItem.totalAmount,
+                                          )
+                                        : "N/A"}
+                                    </span>
+                                  </div>
+
+                                  {historyItem.revisionNote && (
+                                    <div className="pt-2 border-t border-slate-100">
+                                      <span className="text-xs font-medium text-indigo-600 block mb-1">
+                                        {t("Revision Note")}:
+                                      </span>
+                                      <p className="text-slate-600 text-xs italic">
+                                        "{historyItem.revisionNote}"
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {historyItem.rejectionReason && (
+                                    <div className="pt-2 border-t border-slate-100">
+                                      <span className="text-xs font-medium text-rose-600 flex items-center gap-1 mb-1">
+                                        <XCircle className="w-3 h-3" />{" "}
+                                        {t("Rejection Reason")}:
+                                      </span>
+                                      <p className="text-rose-600 text-xs italic">
+                                        "{historyItem.rejectionReason}"
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
                       </div>
                     </CardContent>
                   </Card>

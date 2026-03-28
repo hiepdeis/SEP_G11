@@ -186,7 +186,8 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
       case "AdminApproved":
       case "SentToSupplier":
         return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      case "Rejected":
+      case "AccountantRejected":
+      case "AdminRejected":
         return "bg-rose-50 text-rose-700 border-rose-200";
       default:
         return "bg-slate-100 text-slate-700 border-slate-200";

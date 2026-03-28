@@ -648,6 +648,7 @@ namespace Backend.Domains.Import.Services
                 IncidentId = supplementaryReceipt.IncidentId,
                 ReplacementQuantity = supplementaryReceipt.Items.Sum(i => i.SupplementaryQuantity),
                 OriginalFailReason = string.Join("; ", failReasons),
+                SupplierNote = supplementaryReceipt.SupplierNote,
                 Items = supplementaryReceipt.Items.Select(i => new PendingPurchaseOrderItemDto
                 {
                     MaterialId = i.MaterialId,

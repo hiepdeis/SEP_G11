@@ -103,7 +103,7 @@ export default function SharedReceiptsListPage({
 
   // Helper để lấy đúng trường ngày theo Role
   const getItemDate = (item: any) =>
-    role === "manager" ? item.putawayCompletedAt : item.receiptDate;
+    role === "manager" ? item.putawayCompletedAt : item.stampedAt;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -209,12 +209,24 @@ export default function SharedReceiptsListPage({
     router.push(`${basePath}/${id}`);
   };
 
-  const formatDateTime = (dateString: string | null | undefined) => {
+  const formatDateTime = (dateString?: string | null) => {
     if (!dateString) return "N/A";
-    return format(new Date(dateString), "dd/MM/yyyy HH:mm");
+
+    let safeDateString = dateString;
+    
+    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
+      safeDateString = safeDateString.replace(" ", "T") + "Z";
+    }
+
+    return new Date(safeDateString).toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
-  // Thống kê
   const pendingCloseCount = receipts.filter(
     (item) => item.status === "Completed",
   ).length;
@@ -492,7 +504,7 @@ export default function SharedReceiptsListPage({
                         <div className="flex items-center gap-1.5 select-none">
                           {role === "manager"
                             ? t("Putaway Date")
-                            : t("Receipt Date")}
+                            : t("Stamped Date")}
                           {sortConfig?.key === "date" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />

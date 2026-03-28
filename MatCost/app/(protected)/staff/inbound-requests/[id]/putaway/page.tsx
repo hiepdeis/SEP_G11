@@ -354,7 +354,7 @@ export default function PutawayPage() {
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
-                onClick={() => router.push("/staff/inbound-requests")}
+                onClick={() => router.back()}
                 className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back")}

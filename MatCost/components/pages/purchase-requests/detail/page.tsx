@@ -132,7 +132,7 @@ export default function PurchaseRequestDetailPage({ role = "admin" }) {
               }}
               className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}
+              <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back")}
             </Button>
 
             <div className="flex items-center gap-3">

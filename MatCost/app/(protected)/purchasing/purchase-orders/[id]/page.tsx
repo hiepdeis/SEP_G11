@@ -47,7 +47,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { DateTimePicker } from "@/components/ui/custom/date-time-picker";
 import { formatPascalCase } from "@/lib/format-pascal-case";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function PurchaseOrderDetailPage() {
   const params = useParams();
@@ -185,7 +191,7 @@ export default function PurchaseOrderDetailPage() {
     }
   };
 
- const formatDate = (dateString?: string | null) => {
+  const formatDate = (dateString?: string | null) => {
     if (!dateString) return "N/A";
     let safeDateString = dateString;
     if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
@@ -253,10 +259,10 @@ export default function PurchaseOrderDetailPage() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <Button
               variant="ghost"
-              onClick={() => router.push("/purchasing/purchase-orders")}
+              onClick={() => router.back()}
               className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}
+              <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back")}
             </Button>
 
             <div className="flex items-center gap-3">
@@ -672,8 +678,8 @@ export default function PurchaseOrderDetailPage() {
           </div>
         </div>
       </main>
-      <Dialog 
-        open={isConfirmDeliveryModalOpen} 
+      <Dialog
+        open={isConfirmDeliveryModalOpen}
         onOpenChange={(open) => {
           if (!open) {
             setIsConfirmDeliveryModalOpen(false);

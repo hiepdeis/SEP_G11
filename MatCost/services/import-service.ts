@@ -489,6 +489,7 @@ export interface PendingPurchaseOrderDto {
   incidentId?: number | null;
   replacementQuantity?: number | null;
   originalFailReason?: string | null;
+  supplierNote?: string | null;
   items: PendingPurchaseOrderItemDto[];
 }
 

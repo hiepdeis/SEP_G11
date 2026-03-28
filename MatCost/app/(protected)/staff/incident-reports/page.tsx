@@ -19,6 +19,7 @@ import {
   FileWarning,
   ShieldCheck,
   ClipboardList,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,8 +61,9 @@ import {
 import { MoreVertical } from "lucide-react";
 
 interface IncidentListItem {
-  incidentId: number;
-  receiptId: number;
+  id: string;
+  originalId: number;
+  type: "Incident" | "PendingReceipt";
   code: string;
   referenceCode?: string | null;
   date: string;
@@ -80,6 +82,7 @@ export default function IncidentReportsPage() {
     total: 0,
     open: 0,
     resolved: 0,
+    pendingReceipts: 0,
   });
 
   const [isLoading, setIsLoading] = useState(true);
@@ -106,6 +109,8 @@ export default function IncidentReportsPage() {
       case "Resolved":
         return "bg-emerald-50 text-emerald-700 border-emerald-200";
       case "Open":
+      case "PendingIncident":
+      case "PendingManagerReview":
       case "PendingManagerApproval":
       case "AwaitingSupplementaryGoods":
       case "PendingPurchasingAction":
@@ -131,31 +136,68 @@ export default function IncidentReportsPage() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const res = await staffReceiptsApi.getAllIncidentReports();
-        const rawIncidents = res.data || [];
+        const [incidentsRes, receiptsRes] = await Promise.all([
+          staffReceiptsApi.getAllIncidentReports(),
+          staffReceiptsApi.getAllReceiptsForWarehouse(),
+        ]);
 
-        const mappedList: IncidentListItem[] = rawIncidents.map((inc) => ({
-          incidentId: inc.incidentId,
-          receiptId: inc.receiptId,
-          code: inc.incidentCode,
-          referenceCode: inc.receiptCode,
-          date: inc.createdAt || "",
-          creatorName: inc.createdByName || "N/A",
-          warehouseName: inc.warehouseName || "N/A",
-          totalQuantity: inc.totalItems || 0,
-          status: inc.status || "Open",
-        }));
+        const rawIncidents = incidentsRes.data || [];
+        const rawReceipts = receiptsRes.data || [];
+
+        const incidentReceiptIds = new Set(
+          rawIncidents.map((inc: any) => inc.receiptId),
+        );
+
+        const pendingReceipts = rawReceipts.filter(
+          (r) =>
+            r.status === "PendingIncident" &&
+            !incidentReceiptIds.has(r.receiptId),
+        );
+
+        const mappedIncidents: IncidentListItem[] = rawIncidents.map(
+          (inc: any) => ({
+            id: `incident-${inc.incidentId}`,
+            originalId: inc.receiptId,
+            type: "Incident",
+            code: inc.incidentCode,
+            referenceCode: inc.receiptCode,
+            date: inc.createdAt || "",
+            creatorName: inc.createdByName || "N/A",
+            warehouseName: inc.warehouseName || "N/A",
+            totalQuantity: inc.totalItems || 0,
+            status: inc.status || "Open",
+          }),
+        );
+
+        const mappedPendingReceipts: IncidentListItem[] = pendingReceipts.map(
+          (r: any) => ({
+            id: `receipt-${r.receiptId}`,
+            originalId: r.receiptId,
+            type: "PendingReceipt",
+            code: r.receiptCode || `Receipt #${r.receiptId}`,
+            referenceCode: r.purchaseOrderCode,
+            date: r.createdDate || "",
+            creatorName: r.createdByName || "N/A",
+            warehouseName: r.warehouseName || "N/A",
+            totalQuantity: r.items.length || 0,
+            status: r.status || "PendingIncident",
+          }),
+        );
+
+        const combinedList = [...mappedPendingReceipts, ...mappedIncidents];
 
         setStats({
-          total: mappedList.length,
-          open: mappedList.filter((i) => i.status !== "Resolved").length,
-          resolved: mappedList.filter((i) => i.status === "Resolved").length,
+          total: mappedIncidents.length + mappedPendingReceipts.length,
+          open: mappedIncidents.filter((i) => i.status !== "Resolved").length,
+          resolved: mappedIncidents.filter((i) => i.status === "Resolved")
+            .length,
+          pendingReceipts: mappedPendingReceipts.length,
         });
 
-        setListItems(mappedList);
+        setListItems(combinedList);
       } catch (error) {
-        console.error("Failed to fetch incidents", error);
-        toast.error(t("Failed to fetch incident reports"));
+        console.error("Failed to fetch data", error);
+        toast.error(t("Failed to fetch reports"));
       } finally {
         setIsLoading(false);
       }
@@ -169,7 +211,21 @@ export default function IncidentReportsPage() {
   }, [searchTerm, filterStatus, sortConfig, itemsPerPage, dateRange]);
 
   const filteredData = listItems.filter((item) => {
-    let matchesStatus = filterStatus === "All" || item.status === filterStatus;
+    let matchesStatus = false;
+    if (filterStatus === "All") {
+      matchesStatus = true;
+    } else if (filterStatus === "PendingReview") {
+      matchesStatus = item.status === "PendingIncident";
+    } else if (filterStatus === "Reviewed") {
+      matchesStatus = [
+        "PendingManagerReview",
+        "PendingManagerApproval",
+        "PendingPurchasingAction",
+        "AwaitingSupplementaryGoods",
+      ].includes(item.status);
+    } else {
+      matchesStatus = item.status === filterStatus;
+    }
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch =
       item.code.toLowerCase().includes(searchLower) ||
@@ -224,11 +280,20 @@ export default function IncidentReportsPage() {
     item: IncidentListItem,
     isSecondaryAction: boolean = false,
   ) => {
-    setLoadingId(item.incidentId);
-    if (isSecondaryAction) {
-      router.push(`/staff/inbound-requests/${item.receiptId}`); // Xem Receipt
-    } else {
-      router.push(`/staff/incident-reports/${item.incidentId}`); // Xem Incident
+    setLoadingId(item.originalId);
+
+    if (item.type === "Incident") {
+      if (isSecondaryAction) {
+        router.push(`/staff/inbound-requests/${item.originalId}`);
+      } else {
+        router.push(`/staff/incident-reports/${item.originalId}`);
+      }
+    } else if (item.type === "PendingReceipt") {
+      if (isSecondaryAction) {
+        router.push(`/staff/inbound-requests/${item.originalId}`);
+      } else {
+        router.push(`/staff/incident-reports/${item.originalId}`);
+      }
     }
   };
 
@@ -319,14 +384,6 @@ export default function IncidentReportsPage() {
                       <SelectValue placeholder={t("Filter by status")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="All">
-                        <Badge
-                          variant="outline"
-                          className="bg-slate-50 text-slate-700 border-slate-200"
-                        >
-                          {t("All")}
-                        </Badge>
-                      </SelectItem>
                       <SelectItem value="Open">
                         <Badge
                           variant="outline"
@@ -343,29 +400,29 @@ export default function IncidentReportsPage() {
                           {t("Resolved")}
                         </Badge>
                       </SelectItem>
+                      <SelectItem value="All">
+                        <Badge
+                          variant="outline"
+                          className="bg-slate-50 text-slate-700 border-slate-200"
+                        >
+                          {t("All")}
+                        </Badge>
+                      </SelectItem>
                       <div className="h-px bg-slate-100 my-1 mx-2" />
-                      <SelectItem value="PendingManagerApproval">
+                      <SelectItem value="PendingReview">
                         <Badge
                           variant="outline"
                           className="bg-amber-50 text-amber-700 border-amber-200"
                         >
-                          {t("Pending Approval")}
+                          {t("Pending Review")}
                         </Badge>
                       </SelectItem>
-                      <SelectItem value="AwaitingSupplementaryGoods">
+                      <SelectItem value="Reviewed">
                         <Badge
                           variant="outline"
                           className="bg-amber-50 text-amber-700 border-amber-200"
                         >
-                          {t("Awaiting Goods")}
-                        </Badge>
-                      </SelectItem>
-                      <SelectItem value="PendingPurchasingAction">
-                        <Badge
-                          variant="outline"
-                          className="bg-amber-50 text-amber-700 border-amber-200"
-                        >
-                          {t("Pending Purchase")}
+                          {t("Reviewed")}
                         </Badge>
                       </SelectItem>
                     </SelectContent>
@@ -531,7 +588,7 @@ export default function IncidentReportsPage() {
                     ) : (
                       paginatedData.map((item) => (
                         <TableRow
-                          key={item.incidentId}
+                          key={item.id}
                           className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
                           onClick={() => {
                             const selection = window.getSelection();
@@ -581,7 +638,14 @@ export default function IncidentReportsPage() {
                               variant="outline"
                               className={getStatusBadge(item.status)}
                             >
-                              {t(formatPascalCase(item.status))}
+                              {item.status == "PendingIncident"
+                                ? "Pending Review"
+                                : item.status == "PendingManagerReview" ||
+                                    item.status == "PendingManagerApproval" ||
+                                    item.status == "PendingPurchasingAction" ||
+                                    item.status == "AwaitingSupplementaryGoods"
+                                  ? "Reviewed"
+                                  : t(formatPascalCase(item.status))}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right pr-6">
@@ -619,12 +683,25 @@ export default function IncidentReportsPage() {
                                   e.stopPropagation();
                                   handleAction(item);
                                 }}
-                                disabled={loadingId === item.incidentId}
-                                variant="outline"
-                                className="text-rose-600 border-rose-200 hover:text-rose-700 hover:bg-rose-50 min-w-[160px]"
+                                disabled={loadingId === item.originalId}
+                                variant={
+                                  item.status === "PendingIncident"
+                                    ? "default"
+                                    : "outline"
+                                } 
+                                className={
+                                  item.status === "PendingIncident"
+                                    ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm min-w-[160px]"
+                                    : "text-rose-600 border-rose-200 hover:text-rose-700 hover:bg-rose-50 min-w-[160px]"
+                                }
                               >
-                                {loadingId === item.incidentId ? (
+                                {loadingId === item.originalId ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : item.status === "PendingIncident" ? (
+                                  <>
+                                    <ArrowRight className="w-4 h-4 mr-1.5" />
+                                    {t("Review")}
+                                  </>
                                 ) : (
                                   <>
                                     <Eye className="w-4 h-4 mr-1.5" />

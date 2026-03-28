@@ -8,19 +8,19 @@ import {
   Search,
   Loader2,
   CalendarDays,
+  Package,
   ChevronLeft,
   ChevronRight,
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
   Delete,
-  ClipboardList,
-  Eye,
-  TriangleAlert,
-  ShieldCheck,
-  ArrowRight,
-  MoreVertical,
-  CheckCircle2,
+  Truck,
+  AlertCircle,
+  Clock,
+  Building2,
+  ListOrdered,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +34,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { staffReceiptsApi } from "@/services/import-service";
+import {
+  staffReceiptsApi,
+  PendingPurchaseOrderDto,
+} from "@/services/import-service";
 import { toast } from "sonner";
 import {
   Select,
@@ -43,7 +46,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { endOfDay, format, isWithinInterval, startOfDay } from "date-fns";
+import {
+  endOfDay,
+  format,
+  isWithinInterval,
+  startOfDay,
+  isBefore,
+  isToday,
+  isAfter,
+} from "date-fns";
 import {
   Popover,
   PopoverContent,
@@ -52,40 +63,20 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
-import { formatPascalCase } from "@/lib/format-pascal-case";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
-interface ReceiptListItem {
-  id: number;
-  code: string;
-  referenceCode?: string | null;
-  date: string;
-  creatorName: string;
-  warehouseName: string;
-  totalQuantity: number;
-  status: string;
-}
-
-export default function InboundReceiptsPage() {
+export default function PendingDeliveriesPage() {
   const router = useRouter();
   const { t } = useTranslation();
 
-  const [listItems, setListItems] = useState<ReceiptListItem[]>([]);
-  const [stats, setStats] = useState({
-    total: 0,
-    pendingPutaway: 0,
-    pendingIncident: 0,
-  });
-
+  const [orders, setOrders] = useState<PendingPurchaseOrderDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [loadingId, setLoadingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("All");
+
+  const [filterTimeframe, setFilterTimeframe] = useState<
+    "All" | "Overdue" | "Today" | "Upcoming"
+  >("All");
+
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
     to: Date | undefined;
@@ -96,30 +87,13 @@ export default function InboundReceiptsPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+
   const [sortConfig, setSortConfig] = useState<{
-    key: "date" | "quantity";
+    key: "date" | "items";
     direction: "asc" | "desc";
   } | null>(null);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "PendingIncident":
-        return "bg-yellow-50 text-yellow-700 border-yellow-200";
-      case "ReadyForStamp":
-        return "bg-amber-50 text-amber-700 border-amber-200";
-      case "ReadyForPutaway":
-      case "PartiallyPutaway":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      case "QCPassed":
-        return "bg-green-50 text-green-700 border-green-200";
-      case "PendingManagerReview":
-        return "bg-rose-50 text-rose-700 border-rose-200";
-      default:
-        return "bg-slate-100 text-slate-700 border-slate-200";
-    }
-  };
-
-  const handleSort = (key: "date" | "quantity") => {
+  const handleSort = (key: "date" | "items") => {
     let direction: "asc" | "desc" = "asc";
     if (
       sortConfig &&
@@ -135,64 +109,11 @@ export default function InboundReceiptsPage() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [receiptsRes, putawaysRes] = await Promise.all([
-          staffReceiptsApi.getAllReceiptsForWarehouse(),
-          staffReceiptsApi.getPendingPutawayReceipts(),
-        ]);
-
-        const rawReceipts = receiptsRes.data || [];
-        const rawPutaways = putawaysRes.data || [];
-
-        const unifiedList: ReceiptListItem[] = [];
-        const seenReceiptIds = new Set<number>();
-
-        rawPutaways.forEach((p) => {
-          if (!seenReceiptIds.has(p.receiptId)) {
-            seenReceiptIds.add(p.receiptId);
-            unifiedList.push({
-              id: p.receiptId,
-              code: p.receiptCode || `Receipt #${p.receiptId}`,
-              referenceCode: p.purchaseOrderCode,
-              date: p.createdAt,
-              creatorName: p.supplierName || "N/A",
-              warehouseName: "N/A",
-              totalQuantity: p.items?.length || 0,
-              status: p.status || "Unknown",
-            });
-          }
-        });
-
-        rawReceipts.forEach((r) => {
-          if (!seenReceiptIds.has(r.receiptId)) {
-            seenReceiptIds.add(r.receiptId);
-            unifiedList.push({
-              id: r.receiptId,
-              code: r.receiptCode || `Receipt #${r.receiptId}`,
-              referenceCode: r.purchaseOrderCode,
-              date: r.createdDate || "",
-              creatorName: r.createdByName || "N/A",
-              warehouseName: r.warehouseName || "N/A",
-              totalQuantity: r.items?.length || 0,
-              status: r.status || "Unknown",
-            });
-          }
-        });
-
-        setStats({
-          total: seenReceiptIds.size,
-          pendingPutaway: unifiedList.filter(
-            (i) =>
-              i.status === "ReadyForPutaway" || i.status === "PartiallyPutaway",
-          ).length,
-          pendingIncident: unifiedList.filter(
-            (i) => i.status === "PendingIncident",
-          ).length,
-        });
-
-        setListItems(unifiedList);
+        const res = await staffReceiptsApi.getPendingPurchaseOrders();
+        setOrders(res.data);
       } catch (error) {
-        console.error("Failed to fetch data", error);
-        toast.error(t("Failed to fetch receipt data"));
+        console.error("Failed to fetch pending deliveries", error);
+        toast.error(t("Failed to fetch pending deliveries"));
       } finally {
         setIsLoading(false);
       }
@@ -203,49 +124,60 @@ export default function InboundReceiptsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterStatus, sortConfig, itemsPerPage, dateRange]);
+  }, [searchTerm, filterTimeframe, sortConfig, itemsPerPage, dateRange]);
 
-  const filteredData = listItems.filter((item) => {
-    if (item.status === "PendingIncident") return false;
-    let matchesStatus = filterStatus === "All" || item.status === filterStatus;
+  const filteredData = orders.filter((item) => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch =
-      item.code.toLowerCase().includes(searchLower) ||
-      item.referenceCode?.toLowerCase().includes(searchLower) ||
-      item.creatorName.toLowerCase().includes(searchLower);
+      item.poCode?.toLowerCase().includes(searchLower) ||
+      item.supplierName?.toLowerCase().includes(searchLower);
 
-    let matchesDate = true;
-    if (dateRange.from || dateRange.to) {
-      if (!item.date) matchesDate = false;
-      else {
-        const itemDate = new Date(item.date);
-        const fromDate = dateRange.from
-          ? startOfDay(dateRange.from)
-          : new Date(2000, 0, 1);
-        const toDate = dateRange.to
-          ? endOfDay(dateRange.to)
-          : new Date(2100, 0, 1);
-        matchesDate = isWithinInterval(itemDate, {
-          start: fromDate,
-          end: toDate,
-        });
-      }
+    let matchesTimeframe = true;
+    const itemDate = new Date(item.expectedDeliveryDate);
+    const todayStart = startOfDay(new Date());
+    const todayEnd = endOfDay(new Date());
+
+    if (filterTimeframe === "Overdue") {
+      matchesTimeframe = isBefore(itemDate, todayStart);
+    } else if (filterTimeframe === "Today") {
+      matchesTimeframe = isToday(itemDate);
+    } else if (filterTimeframe === "Upcoming") {
+      matchesTimeframe = isAfter(itemDate, todayEnd);
     }
-    return matchesStatus && matchesSearch && matchesDate;
+
+    let matchesDateRange = true;
+    if (dateRange.from || dateRange.to) {
+      const fromDate = dateRange.from
+        ? startOfDay(dateRange.from)
+        : new Date(2000, 0, 1);
+      const toDate = dateRange.to
+        ? endOfDay(dateRange.to)
+        : new Date(2100, 0, 1);
+
+      matchesDateRange = isWithinInterval(itemDate, {
+        start: fromDate,
+        end: toDate,
+      });
+    }
+
+    return matchesSearch && matchesTimeframe && matchesDateRange;
   });
 
   const sortedData = [...filteredData].sort((a, b) => {
     if (!sortConfig) return 0;
+
     if (sortConfig.key === "date") {
-      const dateA = a.date ? new Date(a.date).getTime() : 0;
-      const dateB = b.date ? new Date(b.date).getTime() : 0;
+      const dateA = new Date(a.expectedDeliveryDate).getTime();
+      const dateB = new Date(b.expectedDeliveryDate).getTime();
       return sortConfig.direction === "asc" ? dateA - dateB : dateB - dateA;
     }
-    if (sortConfig.key === "quantity") {
-      return sortConfig.direction === "asc"
-        ? a.totalQuantity - b.totalQuantity
-        : b.totalQuantity - a.totalQuantity;
+
+    if (sortConfig.key === "items") {
+      const qtyA = a.items?.length || 0;
+      const qtyB = b.items?.length || 0;
+      return sortConfig.direction === "asc" ? qtyA - qtyB : qtyB - qtyA;
     }
+
     return 0;
   });
 
@@ -258,23 +190,10 @@ export default function InboundReceiptsPage() {
   const endIndex = isAll ? sortedData.length : startIndex + itemsPerPage;
   const paginatedData = sortedData.slice(startIndex, endIndex);
 
-  const handleAction = (
-    item: ReceiptListItem,
-    isSecondaryAction: boolean = false,
-  ) => {
-    setLoadingId(item.id.toString());
-    if (isSecondaryAction) {
-      router.push(`/staff/inbound-requests/${item.id}`);
-    } else {
-      if (item.status === "PendingIncident")
-        router.push(`/staff/incident-reports/${item.id}`);
-      else if (
-        item.status === "ReadyForPutaway" ||
-        item.status === "QCPassed"
-      ) {
-        router.push(`/staff/inbound-requests/${item.id}/putaway`);
-      } else router.push(`/staff/inbound-requests/${item.id}`);
-    }
+  const handleReceiveGoods = (id: number, supId: number | null) => {
+    setLoadingId(id);
+    if (supId !== null) router.push(`/staff/pending-pos/create?poId=${id}&supId=${supId}`);
+    else router.push(`/staff/pending-pos/create?poId=${id}`);
   };
 
   const formatDateTime = (dateString?: string | null) => {
@@ -283,59 +202,83 @@ export default function InboundReceiptsPage() {
     if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
       safeDateString = safeDateString.replace(" ", "T") + "Z";
     }
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return format(new Date(safeDateString), "dd/MM/yyyy HH:mm");
   };
+
+  const todayStart = startOfDay(new Date());
+
+  const totalPending = orders.length;
+  const todayCount = orders.filter((o) =>
+    isToday(new Date(o.expectedDeliveryDate)),
+  ).length;
+  const overdueCount = orders.filter((o) =>
+    isBefore(new Date(o.expectedDeliveryDate), todayStart),
+  ).length;
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title={t("Inbound Receipts")} />
+        <Header title={t("Inbound Management")} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              {t("Inbound Receipts")}
-            </h1>
-            <p className="text-sm text-slate-500">
-              {t(
-                "Manage received goods, perform QC checks, and putaway items.",
-              )}
-            </p>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                {t("Pending Deliveries")}
+              </h1>
+              <p className="text-sm text-slate-500">
+                {t(
+                  "Track incoming supplier deliveries and initiate receiving processes.",
+                )}
+              </p>
+            </div>
           </div>
 
+          {/* CARDS THỐNG KÊ */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg">
-                  <ClipboardList className="w-6 h-6" />
+                  <Truck className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    {t("Total Receipts")}
+                    {t("Total Inbound POs")}
                   </p>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    {stats.total}
+                    {totalPending}
                   </h3>
                 </div>
               </CardContent>
             </Card>
+
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 bg-emerald-100 text-emerald-600 rounded-lg">
-                  <CheckCircle2 className="w-6 h-6" />
+                  <CalendarDays className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-medium">
-                    {t("Pending Putaway")}
+                    {t("Expected Today")}
                   </p>
-                  <h3 className="text-2xl font-bold">{stats.pendingPutaway}</h3>
+                  <h3 className="text-2xl font-bold text-slate-900">
+                    {todayCount}
+                  </h3>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="p-3 bg-rose-100 text-rose-600 rounded-lg">
+                  <AlertCircle className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500 font-medium">
+                    {t("Overdue Deliveries")}
+                  </p>
+                  <h3 className="text-2xl font-bold">{overdueCount}</h3>
                 </div>
               </CardContent>
             </Card>
@@ -348,9 +291,15 @@ export default function InboundReceiptsPage() {
                   <span className="text-sm font-medium text-slate-500 hidden md:block">
                     {t("Filters")}:
                   </span>
-                  <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="w-[180px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
-                      <SelectValue placeholder={t("Filter by status")} />
+
+                  <Select
+                    value={filterTimeframe}
+                    onValueChange={(
+                      value: "All" | "Overdue" | "Today" | "Upcoming",
+                    ) => setFilterTimeframe(value)}
+                  >
+                    <SelectTrigger className="w-[170px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
+                      <SelectValue placeholder={t("Filter by timeframe")} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="All">
@@ -358,31 +307,31 @@ export default function InboundReceiptsPage() {
                           variant="outline"
                           className="bg-slate-50 text-slate-700 border-slate-200"
                         >
-                          {t("All")}
+                          {t("All Deliveries")}
                         </Badge>
                       </SelectItem>
-                      <SelectItem value="QCPassed">
+                      <SelectItem value="Overdue">
                         <Badge
                           variant="outline"
-                          className="bg-green-50 text-green-700 border-green-200"
+                          className="bg-rose-50 text-rose-700 border-rose-200"
                         >
-                          {t("QC Passed")}
+                          {t("Overdue")}
                         </Badge>
                       </SelectItem>
-                      <SelectItem value="ReadyForPutaway">
-                        <Badge
-                          variant="outline"
-                          className="bg-emerald-50 text-emerald-700 border-emerald-200"
-                        >
-                          {t("Ready For Putaway")}
-                        </Badge>
-                      </SelectItem>
-                      <SelectItem value="PartiallyPutaway">
+                      <SelectItem value="Today">
                         <Badge
                           variant="outline"
                           className="bg-emerald-50 text-emerald-700 border-emerald-200"
                         >
-                          {t("Partially Putaway")}
+                          {t("Expected Today")}
+                        </Badge>
+                      </SelectItem>
+                      <SelectItem value="Upcoming">
+                        <Badge
+                          variant="outline"
+                          className="bg-yellow-50 text-yellow-700 border-yellow-200"
+                        >
+                          {t("Upcoming")}
                         </Badge>
                       </SelectItem>
                     </SelectContent>
@@ -417,7 +366,9 @@ export default function InboundReceiptsPage() {
                         />
                       </PopoverContent>
                     </Popover>
+
                     <span className="text-slate-400">-</span>
+
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
@@ -449,6 +400,7 @@ export default function InboundReceiptsPage() {
                         />
                       </PopoverContent>
                     </Popover>
+
                     {(dateRange.from || dateRange.to) && (
                       <Button
                         variant="ghost"
@@ -463,10 +415,11 @@ export default function InboundReceiptsPage() {
                     )}
                   </div>
                 </div>
+
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                   <Input
-                    placeholder={t("Search Code, Creator...")}
+                    placeholder={t("Search PO Code, Supplier...")}
                     className="pl-9 h-9"
                     maxLength={50}
                     value={searchTerm}
@@ -475,7 +428,6 @@ export default function InboundReceiptsPage() {
                 </div>
               </div>
             </CardHeader>
-
             <CardContent className="p-0 flex flex-col justify-between flex-1">
               <div className="[&>div]:max-h-[450px] [&>div]:min-h-[450px] [&>div]:overflow-y-auto">
                 <Table>
@@ -486,7 +438,7 @@ export default function InboundReceiptsPage() {
                         onClick={() => handleSort("date")}
                       >
                         <div className="flex items-center gap-1.5 select-none">
-                          {t("Date & Code")}
+                          {t("Expected Delivery")}
                           {sortConfig?.key === "date" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
@@ -498,16 +450,18 @@ export default function InboundReceiptsPage() {
                           )}
                         </div>
                       </TableHead>
-                      <TableHead className="w-[20%]">
-                        {t("Supplier & PO Ref")}
+
+                      <TableHead className="w-[30%]">
+                        {t("Purchase Order & Supplier")}
                       </TableHead>
+
                       <TableHead
-                        className="cursor-pointer transition-colors w-[15%] text-center"
-                        onClick={() => handleSort("quantity")}
+                        className="cursor-pointer transition-colors w-[25%]"
+                        onClick={() => handleSort("items")}
                       >
-                        <div className="flex items-center justify-center gap-1.5 select-none">
-                          {t("Qty / Items")}
-                          {sortConfig?.key === "quantity" ? (
+                        <div className="flex items-center gap-1.5 select-none">
+                          {t("Materials to Receive")}
+                          {sortConfig?.key === "items" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
                             ) : (
@@ -518,10 +472,8 @@ export default function InboundReceiptsPage() {
                           )}
                         </div>
                       </TableHead>
-                      <TableHead className="w-[15%] text-center">
-                        {t("Status")}
-                      </TableHead>
-                      <TableHead className="text-right pr-6 w-[25%]">
+
+                      <TableHead className="text-right pr-6 w-[20%]">
                         {t("Action")}
                       </TableHead>
                     </TableRow>
@@ -529,162 +481,159 @@ export default function InboundReceiptsPage() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="h-32 text-center">
+                        <TableCell colSpan={4} className="h-32 text-center">
                           <div className="flex justify-center items-center gap-2 text-indigo-600">
                             <Loader2 className="w-6 h-6 animate-spin" />{" "}
-                            {t("Loading data...")}
+                            {t("Loading inbound deliveries...")}
                           </div>
                         </TableCell>
                       </TableRow>
                     ) : paginatedData.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={5}
+                          colSpan={4}
                           className="h-32 text-center text-slate-500"
                         >
-                          {t("No records found.")}
+                          {t("No pending deliveries found.")}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      paginatedData.map((item) => (
-                        <TableRow
-                          key={item.id}
-                          className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
-                          onClick={() => {
-                            const selection = window.getSelection();
-                            if (selection && selection.toString().length > 0) {
-                              return;
-                            }
-                            handleAction(item);
-                          }}
-                        >
-                          <TableCell className="pl-6">
-                            <div className="flex flex-col">
-                              <div className="flex items-center gap-2 mb-1">
-                                <ClipboardList className="w-4 h-4 text-indigo-500" />
-                                <span className="font-semibold text-slate-800">
-                                  {item.code}
+                      paginatedData.map((item) => {
+                        const expectedDate = new Date(
+                          item.expectedDeliveryDate,
+                        );
+                        const isLate = isBefore(expectedDate, todayStart);
+                        const isTdy = isToday(expectedDate);
+
+                        const isSupplementary =
+                          item.type === "Supplementary" ||
+                          item.supplementaryReceiptId != null;
+
+                        return (
+                          <TableRow
+                            key={`PO:${item.purchaseOrderId}${isSupplementary ? `-SupID:${item.supplementaryReceiptId}` : ""}`}
+                            className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
+                            onClick={() => {
+                              const selection = window.getSelection();
+                              if (selection && selection.toString().length > 0)
+                                return;
+                              handleReceiveGoods(
+                                item.purchaseOrderId,
+                                item.supplementaryReceiptId,
+                              );
+                            }}
+                          >
+                            <TableCell className="pl-6 align-top py-4">
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span
+                                    className={`font-semibold ${
+                                      isLate
+                                        ? "text-rose-600"
+                                        : isTdy
+                                          ? "text-emerald-600"
+                                          : "text-slate-800"
+                                    }`}
+                                  >
+                                    {formatDateTime(item.expectedDeliveryDate)}
+                                  </span>
+                                  {isLate && (
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-rose-50 text-rose-700 border-rose-200 px-1 py-0 uppercase text-[9px]"
+                                    >
+                                      {t("Overdue")}
+                                    </Badge>
+                                  )}
+                                  {isTdy && (
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-emerald-50 text-emerald-700 border-emerald-200 px-1 py-0 uppercase text-[9px]"
+                                    >
+                                      {t("Today")}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  {t("ETA")}
                                 </span>
                               </div>
-                              <span className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
-                                <CalendarDays className="w-3.5 h-3.5" />
-                                {formatDateTime(item.date)}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col text-left">
-                              {item.referenceCode ? (
-                                <span className="text-md text-slate-600 font-medium">
-                                  {item.referenceCode}
-                                </span>
-                              ) : (
-                                <span className="text-md text-slate-400 italic">
-                                  {t("N/A")}
-                                </span>
-                              )}
-                              <span className="text-xs text-slate-500 mt-0.5">
-                                {item.creatorName}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className="font-bold px-3 py-1 rounded-md bg-slate-100 text-slate-700">
-                              {item.totalQuantity.toLocaleString("vi-VN")}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Badge
-                              variant="outline"
-                              className={getStatusBadge(item.status)}
-                            >
-                              {item.status === "ReadyForStamp"
-                                ? "Pending Stamp"
-                                : t(formatPascalCase(item.status))}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right pr-6">
-                            <div className="flex items-center justify-end gap-2">
-                              {(item.status === "PendingIncident" ||
-                                item.status === "ReadyForPutaway" ||
-                                item.status === "QCPassed") && (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
-                                      onClick={(e) => e.stopPropagation()}
+                            </TableCell>
+
+                            <TableCell className="align-top py-4">
+                              <div className="flex flex-col text-left">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-slate-700">
+                                    {item.poCode}
+                                  </span>
+                                  {isSupplementary && (
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-amber-50 text-amber-700 border-amber-200"
                                     >
-                                      <MoreVertical className="w-4 h-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent
-                                    align="end"
-                                    className="w-40"
-                                  >
-                                    <DropdownMenuItem
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleAction(item, true);
-                                      }}
-                                      className="cursor-pointer text-slate-700"
-                                    >
-                                      <Eye className="w-4 h-4 mr-2 text-slate-400" />
-                                      {t("View Details")}
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              )}
+                                      <AlertTriangle className="w-3 h-3 mr-1" />
+                                      {t("Replacement")}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <span className="text-sm text-slate-600 flex items-center gap-1.5 mt-1 font-medium">
+                                  <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                                  {item.supplierName}
+                                </span>
+                              </div>
+                            </TableCell>
+
+                            <TableCell className="align-top py-4">
+                              <div className="flex flex-col items-start gap-2">
+                                <span className="font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100 flex items-center gap-1.5">
+                                  <ListOrdered className="w-3.5 h-3.5" />
+                                  {item.items?.length || 0} {t("Items")}
+                                </span>
+
+                                {isSupplementary && item.originalFailReason && (
+                                  <div className="mt-1 text-xs text-rose-600 bg-rose-50/50 p-2 border border-rose-100 rounded-md w-full">
+                                    <span className="font-semibold">
+                                      {t("Previous Issue")}:
+                                    </span>{" "}
+                                    {item.originalFailReason}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+
+                            <TableCell className="text-right pr-6 align-top py-4">
                               <Button
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleAction(item);
+                                  handleReceiveGoods(
+                                    item.purchaseOrderId,
+                                    item.supplementaryReceiptId,
+                                  );
                                 }}
-                                disabled={loadingId === item.id.toString()}
-                                variant={
-                                  item.status === "PendingIncident"
-                                    ? "default"
-                                    : "outline"
-                                }
-                                className={
-                                  item.status === "PendingIncident"
-                                    ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm min-w-[160px]"
-                                    : item.status === "ReadyForPutaway" ||
-                                        item.status === "QCPassed"
-                                      ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm min-w-[160px]"
-                                      : "text-indigo-600 border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 min-w-[160px]"
-                                }
+                                disabled={loadingId === item.purchaseOrderId}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-32 min-w-[200px]"
                               >
-                                {loadingId === item.id.toString() ? (
+                                {loadingId === item.purchaseOrderId ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : item.status === "PendingIncident" ? (
-                                  <>
-                                    <TriangleAlert className="w-4 h-4 mr-1.5" />
-                                    {t("Review Incident")}
-                                  </>
-                                ) : item.status === "ReadyForPutaway" ||
-                                  item.status === "QCPassed" ? (
-                                  <>
-                                    <ArrowRight className="w-4 h-4 mr-1.5" />
-                                    {t("Putaway")}
-                                  </>
                                 ) : (
                                   <>
-                                    <Eye className="w-4 h-4 mr-1.5" />
-                                    {t("View")}
+                                    <Package className="w-4 h-4 mr-2" />
+                                    {t("Receive")}
                                   </>
                                 )}
                               </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
               </div>
+
+              {/* PAGINATION */}
               {!isLoading && filteredData.length > 0 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 gap-4 mt-auto">
                   <div className="text-sm text-slate-500">
@@ -702,6 +651,7 @@ export default function InboundReceiptsPage() {
                     </span>{" "}
                     {t("results")}
                   </div>
+
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-slate-500 whitespace-nowrap">
@@ -723,6 +673,7 @@ export default function InboundReceiptsPage() {
                         </SelectContent>
                       </Select>
                     </div>
+
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"

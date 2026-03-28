@@ -112,7 +112,6 @@ export default function StaffIncidentPage() {
       try {
         const incRes = await staffReceiptsApi.getIncidentReport(id);
         existingIncidentData = incRes.data;
-        // CẬP NHẬT STATE Ở ĐÂY
         setIsHistoryView(true);
         setHistoricalIncidentData(existingIncidentData);
         setIncidentDescription(existingIncidentData.description || "");
@@ -120,7 +119,6 @@ export default function StaffIncidentPage() {
         if (error.response?.status !== 404) {
           console.error("Error fetching Incident Report:", error);
         } else {
-          // QUAN TRỌNG: NẾU KHÔNG TÌM THẤY (404), ĐẢM BẢO RESET STATE
           setIsHistoryView(false);
           setHistoricalIncidentData(null);
         }
@@ -341,7 +339,7 @@ export default function StaffIncidentPage() {
           );
           toast.success(t("Report submitted to manager successfully!"));
 
-          router.push(`/staff/inbound-requests`);
+          router.push(`/staff/incident-reports`);
         } catch (error: any) {
           toast.error(
             error.response?.data?.message || t("Failed to submit report"),
@@ -433,10 +431,10 @@ export default function StaffIncidentPage() {
             <div className="flex flex-col gap-1">
               <Button
                 variant="ghost"
-                onClick={() => router.push(`/staff/incident-reports`)}
+               onClick={() => router.back()}
                 className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit -ml-2 mb-1 h-8"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}
+                <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back")}
               </Button>
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold text-slate-900">
@@ -707,7 +705,6 @@ export default function StaffIncidentPage() {
                                               isLastVisible &&
                                               remainingCount > 0;
 
-                                            // Lấy base64 từ property imageData hoặc fallback lại nếu nó đang là dạng string do bạn vừa mới upload ở client
                                             const imgSrc =
                                               typeof imgObj === "string"
                                                 ? imgObj

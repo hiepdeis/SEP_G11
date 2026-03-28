@@ -225,10 +225,10 @@ export default function PurchasingIncidentDetailPage() {
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
-                onClick={() => router.push("/purchasing/incident-reports")}
+                onClick={() => router.back()}
                 className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}
+                <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back")}
               </Button>
               <div className="hidden md:flex items-center gap-3 border-l border-slate-200 pl-4">
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900">
