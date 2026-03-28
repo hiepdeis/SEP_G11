@@ -456,6 +456,7 @@ export interface GetInboundRequestListDto {
   warehouseId?: number;
   warehouseName: string;
   receiptApprovalDate?: string;
+  purchaseOrderCode?: string;
   totalQuantity: number;
   createdByName?: string;
   createdDate?: string;
@@ -596,8 +597,11 @@ export interface WarehouseCardDto {
 }
 
 export interface WarehouseCardQueryDto {
+  cardId?: number;
   warehouseId?: number;
   materialId?: number;
+  referenceId?: number;
+  referenceType?: string;
   binId?: number;
   fromDate?: string;
   toDate?: string;
@@ -726,6 +730,7 @@ export interface ReceiptBatchLookupDto {
   mfgDate?: string | null;
   expiryDate?: string | null;
   materialName: string;
+  certificateImage? :string;
 }
 
 export interface PendingPutawayReceiptDto {

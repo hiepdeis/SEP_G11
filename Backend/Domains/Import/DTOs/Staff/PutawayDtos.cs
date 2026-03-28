@@ -57,5 +57,7 @@ namespace Backend.Domains.Import.DTOs.Staff
         public DateTime? MfgDate { get; set; }
         public DateTime? ExpiryDate { get; set; }
         public string MaterialName { get; set; } = string.Empty;
+        public string? CertificateImage { get; set; }
+
     }
 }

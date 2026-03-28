@@ -604,7 +604,7 @@ export default function AccountantReceiptDetailPage() {
                 "By closing this receipt, you confirm that all accounting checks have been completed. This action will lock the receipt from further modifications.",
               )}
             </p>
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">
                 {t("Accounting Note (Optional)")}
               </label>
@@ -615,7 +615,7 @@ export default function AccountantReceiptDetailPage() {
                 onChange={(e) => setAccountingNote(e.target.value)}
                 autoFocus
               />
-            </div>
+            </div> */}
           </div>
 
           <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-white flex justify-end gap-2">

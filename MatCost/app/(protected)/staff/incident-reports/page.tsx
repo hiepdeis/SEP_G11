@@ -533,7 +533,13 @@ export default function IncidentReportsPage() {
                         <TableRow
                           key={item.incidentId}
                           className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
-                          onClick={() => handleAction(item)}
+                          onClick={() => {
+                            const selection = window.getSelection();
+                            if (selection && selection.toString().length > 0) {
+                              return;
+                            }
+                            handleAction(item);
+                          }}
                         >
                           <TableCell className="pl-6">
                             <div className="flex flex-col">

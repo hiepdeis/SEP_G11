@@ -18,6 +18,7 @@ import {
   ArrowLeft,
   User,
   Delete,
+  FileText,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -214,6 +215,11 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  const handleViewDetail = (e: React.MouseEvent, item: WarehouseCardDto) => {
+    e.stopPropagation();
+    router.push(`/${role}/reports/import-export/${item.cardId}`);
   };
 
   return (
@@ -480,6 +486,9 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                       <TableHead className="text-right pr-6">
                         {t("Total")}
                       </TableHead>
+                      <TableHead className="text-right pr-6 w-[100px]">
+                        {t("Action")}
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -594,6 +603,17 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                                 {item.materialUnit}
                               </span>
                             </div>
+                          </TableCell>
+                          <TableCell className="text-right pr-6 py-3">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-2 w-[100px]"
+                              onClick={(e) => handleViewDetail(e, item)}
+                            >
+                              <FileText className="w-4 h-4 mr-1.5" />
+                              {t("View")}
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))

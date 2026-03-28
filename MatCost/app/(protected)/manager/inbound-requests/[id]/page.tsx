@@ -353,7 +353,7 @@ const formatDate = (dateString?: string | null) => {
                 "You are about to stamp and officially confirm this receipt. This action will notify the Accounting team."
               )}
             </p>
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">
                 {t("Stamp Notes (Optional)")}
               </label>
@@ -364,7 +364,7 @@ const formatDate = (dateString?: string | null) => {
                 onChange={(e) => setStampNotes(e.target.value)}
                 autoFocus
               />
-            </div>
+            </div> */}
           </div>
 
           <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-white flex justify-end gap-2">

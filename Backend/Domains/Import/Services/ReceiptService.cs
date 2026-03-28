@@ -49,6 +49,7 @@ namespace Backend.Domains.Import.Services
                                 TotalQuantity = r.ReceiptDetails.Sum(rd => rd.Quantity),
                                 Status = r.Status,
                                 CreatedDate = r.ReceiptDate,
+                                PurchaseOrderCode = r.PurchaseOrder != null ? r.PurchaseOrder.PurchaseOrderCode : null,
                                 Items = r.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
                                 {
                                     DetailId = rd.DetailId,
@@ -59,7 +60,7 @@ namespace Backend.Domains.Import.Services
                                     UnitPrice = rd.UnitPrice,
                                     SupplierName = rd.Supplier != null ? rd.Supplier.Name : "",
                                     SupplierId = rd.SupplierId,
-                                    LineTotal = rd.Quantity * (rd.UnitPrice ?? 0)
+                                    LineTotal = rd.Quantity * (rd.UnitPrice ?? 0),
                                 }).ToList()
                             }).ToListAsync();
             return receipts;
@@ -1059,7 +1060,8 @@ namespace Backend.Domains.Import.Services
                     BatchCode = b.BatchCode,
                     MfgDate = b.MfgDate,
                     ExpiryDate = b.ExpiryDate,
-                    MaterialName = b.Material.Name
+                    MaterialName = b.Material.Name,
+                    CertificateImage = b.CertificateImage
                 })
                 .ToListAsync();
         }
@@ -1263,6 +1265,9 @@ namespace Backend.Domains.Import.Services
                 .Include(w => w.CreatedByNavigation)
                 .AsQueryable();
 
+            if (query.CardId.HasValue)
+                queryable = queryable.Where(w => w.CardId == query.CardId.Value);
+
             if (query.WarehouseId.HasValue)
                 queryable = queryable.Where(w => w.WarehouseId == query.WarehouseId.Value);
 
@@ -1271,6 +1276,12 @@ namespace Backend.Domains.Import.Services
 
             if (query.BinId.HasValue)
                 queryable = queryable.Where(w => w.BinId == query.BinId.Value);
+
+            if (query.ReferenceId.HasValue)
+                queryable = queryable.Where(w => w.ReferenceId == query.ReferenceId.Value);
+
+            if (!string.IsNullOrEmpty(query.ReferenceType))
+                queryable = queryable.Where(w => w.ReferenceType == query.ReferenceType);
 
             if (query.FromDate.HasValue)
                 queryable = queryable.Where(w => w.TransactionDate >= query.FromDate.Value);

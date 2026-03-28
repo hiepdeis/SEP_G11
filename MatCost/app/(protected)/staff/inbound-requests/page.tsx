@@ -269,8 +269,7 @@ export default function InboundReceiptsPage() {
         router.push(`/staff/incident-reports/${item.id}`);
       else if (
         item.status === "ReadyForPutaway" ||
-        item.status === "QCPassed" ||
-        item.status === "PartiallyPutaway"
+        item.status === "QCPassed"
       ) {
         router.push(`/staff/inbound-requests/${item.id}/putaway`);
       } else router.push(`/staff/inbound-requests/${item.id}`);
@@ -573,7 +572,13 @@ export default function InboundReceiptsPage() {
                         <TableRow
                           key={item.id}
                           className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
-                          onClick={() => handleAction(item)}
+                          onClick={() => {
+                            const selection = window.getSelection();
+                            if (selection && selection.toString().length > 0) {
+                              return;
+                            }
+                            handleAction(item);
+                          }}
                         >
                           <TableCell className="pl-6">
                             <div className="flex flex-col">
@@ -624,7 +629,6 @@ export default function InboundReceiptsPage() {
                             <div className="flex items-center justify-end gap-2">
                               {(item.status === "PendingIncident" ||
                                 item.status === "ReadyForPutaway" ||
-                                item.status === "PartiallyPutaway" ||
                                 item.status === "QCPassed") && (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>

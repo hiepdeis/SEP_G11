@@ -44,6 +44,8 @@
         public int? WarehouseId { get; set; }
         public int? MaterialId { get; set; }
         public int? BinId { get; set; }
+        public long? ReferenceId { get; set; }
+        public string? ReferenceType { get; set; }
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
 

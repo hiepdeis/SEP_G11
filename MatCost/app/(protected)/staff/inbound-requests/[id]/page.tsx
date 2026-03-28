@@ -21,6 +21,7 @@ import {
   Check,
   Send,
   Receipt,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
@@ -35,12 +36,13 @@ import {
 } from "@/components/ui/table";
 import {
   staffReceiptsApi,
-  staffIncidentApi, // Thêm API gọi Submit Incident
+  staffIncidentApi, 
   GetInboundRequestListDto,
 } from "@/services/import-service";
 import { toast } from "sonner";
 import { showConfirmToast } from "@/hooks/confirm-toast";
 import { useTranslation } from "react-i18next";
+import { formatPascalCase } from "@/lib/format-pascal-case";
 
 export default function StaffInboundDetailPage() {
   const { t } = useTranslation();
@@ -63,8 +65,7 @@ export default function StaffInboundDetailPage() {
       const requestData = res.data;
 
       setRequest(requestData);
-      
-      // Load QC/Incident if status is beyond GoodsArrived or if it's explicitly PendingManagerReview
+
       if (
         requestData.status === "Completed" ||
         requestData.status === "GoodsArrived" ||
@@ -101,7 +102,9 @@ export default function StaffInboundDetailPage() {
 
     showConfirmToast({
       title: t("Submit Incident to Manager?"),
-      description: t("Are you sure you want to submit this incident report? The manager will be notified for review."),
+      description: t(
+        "Are you sure you want to submit this incident report? The manager will be notified for review.",
+      ),
       confirmLabel: t("Yes, Submit"),
       onConfirm: async () => {
         setIsSubmittingToManager(true);
@@ -111,7 +114,9 @@ export default function StaffInboundDetailPage() {
           await fetchData(); // Tải lại trang để cập nhật status mới nhất
         } catch (error: any) {
           console.error(error);
-          toast.error(error.response?.data?.message || t("Failed to submit incident."));
+          toast.error(
+            error.response?.data?.message || t("Failed to submit incident."),
+          );
         } finally {
           setIsSubmittingToManager(false);
         }
@@ -119,11 +124,11 @@ export default function StaffInboundDetailPage() {
     });
   };
 
-const formatDate = (dateString?: string | null) => {
+  const formatDate = (dateString?: string | null) => {
     if (!dateString) return "N/A";
 
     let safeDateString = dateString;
-    
+
     if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
       safeDateString = safeDateString.replace(" ", "T") + "Z";
     }
@@ -162,7 +167,7 @@ const formatDate = (dateString?: string | null) => {
         <Button onClick={() => router.back()}>Go Back</Button>
       </div>
     );
-    
+
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
@@ -178,9 +183,18 @@ const formatDate = (dateString?: string | null) => {
             >
               <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}
             </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => {
+                router.push(`/staff/inbound-requests/${id}/detail`);
+              }}
+              className="text-indigo-600 border-indigo-200 hover:text-indigo-700 hover:bg-indigo-50 shadow-sm"
+            >
+              <Eye className="w-4 h-4 mr-2" /> {t("View Detail")}
+            </Button>
           </div>
 
-          {/* HORIZONTAL TIMELINE */}
           <Card className="border-slate-200 shadow-sm bg-white mb-6">
             <CardContent>
               <div className="relative max-w-2xl mx-auto pt-5 pb-2">
@@ -203,7 +217,8 @@ const formatDate = (dateString?: string | null) => {
                   <div className="flex flex-col items-center relative z-10 w-1/2">
                     <div
                       className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
-                        request.approvedDate || request.status === "PendingManagerReview"
+                        request.approvedDate ||
+                        request.status === "PendingManagerReview"
                           ? "bg-indigo-600 text-white"
                           : "bg-slate-200 text-slate-400"
                       }`}
@@ -230,8 +245,7 @@ const formatDate = (dateString?: string | null) => {
                   <div className="flex flex-col items-center relative z-10 w-1/2">
                     <div
                       className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
-                        request.confirmedDate ||
-                        request.status === "Completed"
+                        request.confirmedDate || request.status === "Completed"
                           ? "bg-emerald-500 text-white"
                           : "bg-slate-200 text-slate-400"
                       }`}
@@ -297,57 +311,15 @@ const formatDate = (dateString?: string | null) => {
                       <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                         {t("Receipt Status")}
                       </span>
-                      {request.status === "Completed" ? (
-                        <div className="flex items-start gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-1" />
-                          <div>
-                            <p className="font-medium text-slate-800">
-                              {t("Completed")}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {t("By Staff Team")} - {request.confirmedByName}
-                            </p>
-                          </div>
+                      <div className="flex items-start gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-1" />
+                        <div>
+                          <p className="font-medium text-slate-800">
+                            {request.status != null &&
+                              t(formatPascalCase(request.status))}
+                          </p>
                         </div>
-                      ) : request.status === "PendingManagerReview" ? (
-                        <div className="flex items-start gap-2">
-                          <FileWarning className="w-4 h-4 text-amber-500 mt-1" />
-                          <div>
-                            <p className="font-medium text-slate-800">
-                              {t("Incident Under Review")}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {t("Awaiting Manager Approval")}
-                            </p>
-                          </div>
-                        </div>
-                      ) : request.status === "Approved" ? (
-                        <div className="flex items-start gap-2">
-                          <LoaderPinwheel className="w-4 h-4 text-emerald-500 mt-1" />
-                          <div>
-                            <p className="font-medium text-slate-800">
-                              {t("Approved - Ready for QC Check")}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {t("Date")}:{" "}
-                              {formatDate(request.receiptApprovalDate)}
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-start gap-2">
-                          <LoaderPinwheel className="w-4 h-4 text-emerald-500 mt-1" />
-                          <div>
-                            <p className="font-medium text-slate-800">
-                              {t("QC Check Completed - Ready for Import")}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {t("Date")}:{" "}
-                              {formatDate(request.receiptApprovalDate)}
-                            </p>
-                          </div>
-                        </div>
-                      )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -380,7 +352,6 @@ const formatDate = (dateString?: string | null) => {
                         {request.totalQuantity.toLocaleString("vi-VN")}
                       </span>
                     </div>
-
                   </CardContent>
                 </Card>
               </div>
@@ -419,23 +390,11 @@ const formatDate = (dateString?: string | null) => {
                           <TableHead className="text-center w-[10%]">
                             {t("Expected")}
                           </TableHead>
-                          {request.status === "Completed" && (
-                            <TableHead className="text-center w-[10%]">
-                              {t("Actual")}
-                            </TableHead>
-                          )}
-                          {request.status === "Completed" ? (
-                            <>
-                              <TableHead className="text-center w-[15%]">
-                                {t("Bin Code")}
-                              </TableHead>
-                              <TableHead className="text-center w-[15%]">
-                                {t("Batch Code")}
-                              </TableHead>
-                              <TableHead className="text-center w-[20%] pr-6">
-                                {t("MFG Date")}
-                              </TableHead>
-                            </>
+                          <TableHead className="text-center w-[10%]">
+                            {t("Actual")}
+                          </TableHead>
+                          {request.status === "ReadyForStamp" ? (
+                            <></>
                           ) : (
                             <TableHead className="text-center w-[15%] pr-6">
                               {t("Status")}
@@ -483,47 +442,19 @@ const formatDate = (dateString?: string | null) => {
                                 {item.unit}
                               </span>
                             </TableCell>
-                            {request.status === "Completed" && (
-                              <TableCell className="text-center">
-                                <span
-                                  className={`font-bold ${
-                                    item.actualQuantity === item.quantity
-                                      ? "text-emerald-600"
-                                      : "text-amber-500"
-                                  }`}
-                                >
-                                  {item.actualQuantity?.toLocaleString("vi-VN")}
-                                </span>
-                              </TableCell>
-                            )}
-                            {request.status === "Completed" ? (
-                              <>
-                                <TableCell className="text-center">
-                                  <Badge
-                                    variant="outline"
-                                    className="border-slate-200 text-slate-500 font-normal text-xs"
-                                  >
-                                    {item.binCode || t("N/A")}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  <Badge
-                                    variant="outline"
-                                    className="border-slate-200 text-slate-500 font-normal text-xs"
-                                  >
-                                    {item.batchCode || t("N/A")}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-center pr-6">
-                                  <span className="text-slate-800">
-                                    {item.mfgDate
-                                      ? new Date(
-                                          item.mfgDate,
-                                        ).toLocaleDateString("vi-VN")
-                                      : t("N/A")}
-                                  </span>
-                                </TableCell>
-                              </>
+                            <TableCell className="text-center">
+                              <span
+                                className={`font-bold ${
+                                  item.actualQuantity === item.quantity
+                                    ? "text-emerald-600"
+                                    : "text-amber-500"
+                                }`}
+                              >
+                                {item.actualQuantity?.toLocaleString("vi-VN")}
+                              </span>
+                            </TableCell>
+                            {request.status === "ReadyForStamp" ? (
+                              <></>
                             ) : (
                               <TableCell className="text-center pr-6">
                                 <Badge
@@ -664,18 +595,23 @@ const formatDate = (dateString?: string | null) => {
                               {t(incidentData.status)}
                             </Badge>
                           </div>
-                          
+
                           {/* NÚT SUBMIT TO MANAGER (HIỂN THỊ NẾU ĐANG PENDING) */}
-                          {request.status === "PendingManagerReview" && incidentData.status === "Open" && (
-                             <Button 
-                               onClick={handleSubmitToManager}
-                               disabled={isSubmittingToManager}
-                               className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-                             >
-                               {isSubmittingToManager ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-                               {t("Submit to Manager")}
-                             </Button>
-                          )}
+                          {request.status === "PendingManagerReview" &&
+                            incidentData.status === "Open" && (
+                              <Button
+                                onClick={handleSubmitToManager}
+                                disabled={isSubmittingToManager}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                              >
+                                {isSubmittingToManager ? (
+                                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                ) : (
+                                  <Send className="w-4 h-4 mr-2" />
+                                )}
+                                {t("Submit to Manager")}
+                              </Button>
+                            )}
                         </div>
 
                         <div className="text-sm text-slate-600 space-y-2 flex-1 flex flex-col">

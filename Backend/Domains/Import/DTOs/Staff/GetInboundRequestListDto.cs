@@ -7,6 +7,7 @@
         public int? WarehouseId { get; set; }
         public string WarehouseName { get; set; }
         public DateTime? ReceiptApprovalDate { get; set; }
+        public string? PurchaseOrderCode { get; set; }
         public decimal TotalQuantity { get; set; }
         public string? CreatedByName { get; set; }
         public DateTime? CreatedDate { get; set; }

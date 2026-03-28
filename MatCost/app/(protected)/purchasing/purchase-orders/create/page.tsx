@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   Save,
   Loader2,
-  Building2,
   PackagePlus,
   FileText,
   Calculator,
@@ -18,6 +17,7 @@ import {
   History,
   Clock,
   XCircle,
+  Hash,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,13 +42,12 @@ import {
 import {
   purchasingPurchaseOrderApi,
   purchasingPurchaseRequestApi,
-  PurchaseRequestDto,
-  PurchaseOrderHistoryItemDto, // Thêm DTO này
+  PurchaseOrderDto, // Import DTO mới
+  PurchaseOrderHistoryItemDto,
 } from "@/services/import-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { showConfirmToast } from "@/hooks/confirm-toast";
-import { format } from "date-fns";
 import { formatPascalCase } from "@/lib/format-pascal-case";
 
 interface OrderItemInput {
@@ -56,33 +55,30 @@ interface OrderItemInput {
   materialId: number;
   materialCode: string;
   materialName: string;
-  prQuantity: number;
   orderedQuantity: string;
   unitPrice: string;
   supplierId: string;
 }
 
-export default function CreatePurchaseOrderPage() {
+export default function RecreatePurchaseOrderPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useTranslation();
 
-  const requestIdParam = searchParams.get("requestId");
   const parentPOIdParam = searchParams.get("parentPOId");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
-  const [requests, setRequests] = useState<PurchaseRequestDto[]>([]);
+  const [originalOrder, setOriginalOrder] = useState<PurchaseOrderDto | null>(
+    null,
+  );
   const [suppliers, setSuppliers] = useState<
     { supplierId: number; name: string }[]
   >([]);
-  const [poHistory, setPoHistory] = useState<PurchaseOrderHistoryItemDto[]>([]); // State lưu lịch sử PO
+  const [poHistory, setPoHistory] = useState<PurchaseOrderHistoryItemDto[]>([]);
 
-  const [selectedRequestId, setSelectedRequestId] = useState<string>(
-    requestIdParam || "",
-  );
   const [globalSupplierId, setGlobalSupplierId] = useState<string>("");
   const [revisionNote, setRevisionNote] = useState<string>("");
   const [items, setItems] = useState<OrderItemInput[]>([]);
@@ -97,67 +93,66 @@ export default function CreatePurchaseOrderPage() {
 
   useEffect(() => {
     const fetchInitialData = async () => {
+      if (!parentPOIdParam) {
+        toast.error(t("Missing Parent PO ID. Cannot recreate order."));
+        router.back();
+        return;
+      }
+
       setIsLoadingData(true);
       try {
-        const [prRes, suppliersRes] = await Promise.all([
-          purchasingPurchaseRequestApi.getRequests(),
+        // Fetch Suppliers và Thông tin PO gốc cùng lúc
+        const [suppliersRes, poRes] = await Promise.all([
           purchasingPurchaseOrderApi.getSuppliers(),
+          purchasingPurchaseOrderApi.getOrder(Number(parentPOIdParam)),
         ]);
 
-        setRequests(prRes.data);
         setSuppliers(suppliersRes.data);
+        const po = poRes.data;
+        setOriginalOrder(po);
+
+        // Thiết lập Global Supplier từ PO gốc
+        const defaultSupplierStr = po.supplierId?.toString() || "";
+        setGlobalSupplierId(defaultSupplierStr);
+
+        // Map items từ PO gốc vào form nhập liệu
+        const mappedItems: OrderItemInput[] = (po.items || []).map((i) => ({
+          id: crypto.randomUUID(),
+          materialId: i.materialId,
+          materialCode: i.materialCode,
+          materialName: i.materialName,
+          orderedQuantity: i.orderedQuantity.toString(),
+          unitPrice: i.unitPrice?.toString() || "",
+          supplierId: defaultSupplierStr,
+        }));
+        setItems(mappedItems);
+
+        // Fetch Lịch sử (PO Chain) nếu có request ID
+        if (po.requestId) {
+          setIsLoadingHistory(true);
+          try {
+            const historyRes = await purchasingPurchaseRequestApi.getPoHistory(
+              po.requestId,
+            );
+            setPoHistory(historyRes.data.poChain || []);
+          } catch (error) {
+            console.error("Failed to load PO history", error);
+            setPoHistory([]);
+          } finally {
+            setIsLoadingHistory(false);
+          }
+        }
       } catch (error) {
-        console.error("Failed to load initial data", error);
-        toast.error(t("Failed to load initial data."));
+        console.error("Failed to load original PO data", error);
+        toast.error(t("Failed to load original PO data."));
+        router.back();
       } finally {
         setIsLoadingData(false);
       }
     };
+
     fetchInitialData();
-  }, [t]);
-
-  useEffect(() => {
-    const loadPrDetailsAndHistory = async () => {
-      if (selectedRequestId && requests.length > 0) {
-        const pr = requests.find(
-          (r) => r.requestId.toString() === selectedRequestId,
-        );
-        if (pr && pr.items) {
-          const mappedItems: OrderItemInput[] = pr.items.map((i) => ({
-            id: crypto.randomUUID(),
-            materialId: i.materialId,
-            materialCode: i.materialCode,
-            materialName: i.materialName,
-            prQuantity: i.quantity,
-            orderedQuantity: i.quantity.toString(),
-            unitPrice: "",
-            supplierId: "",
-          }));
-          setItems(mappedItems);
-          setCurrentPage(1);
-        }
-
-        // Tải lịch sử PO (History)
-        setIsLoadingHistory(true);
-        try {
-          const historyRes = await purchasingPurchaseRequestApi.getPoHistory(
-            Number(selectedRequestId),
-          );
-          setPoHistory(historyRes.data.poChain || []);
-        } catch (error) {
-          console.error("Failed to load PO history", error);
-          setPoHistory([]);
-        } finally {
-          setIsLoadingHistory(false);
-        }
-      } else {
-        setItems([]);
-        setPoHistory([]);
-      }
-    };
-
-    loadPrDetailsAndHistory();
-  }, [selectedRequestId, requests]);
+  }, [parentPOIdParam, router, t]);
 
   const handleItemChange = (
     id: string,
@@ -179,13 +174,10 @@ export default function CreatePurchaseOrderPage() {
 
   const formatDateTime = (dateString?: string | null) => {
     if (!dateString) return "N/A";
-
     let safeDateString = dateString;
-    
     if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
       safeDateString = safeDateString.replace(" ", "T") + "Z";
     }
-
     return new Date(safeDateString).toLocaleString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
@@ -196,8 +188,8 @@ export default function CreatePurchaseOrderPage() {
   };
 
   const handleSubmit = () => {
-    if (!selectedRequestId) {
-      return toast.error(t("Please select a Purchase Request."));
+    if (!originalOrder?.requestId) {
+      return toast.error(t("Original order is missing Request ID mapping."));
     }
 
     if (items.length === 0) {
@@ -223,33 +215,27 @@ export default function CreatePurchaseOrderPage() {
       return toast.error(t("Please assign a unit price for all items."));
     }
 
-    if (parentPOIdParam && !revisionNote.trim()) {
+    if (!revisionNote.trim()) {
       return toast.error(
         t("Please provide a revision note explaining the changes."),
       );
     }
 
     showConfirmToast({
-      title: parentPOIdParam
-        ? t("Recreate Purchase Order?")
-        : t("Create Purchase Order Draft?"),
-      description: parentPOIdParam
-        ? t("Are you sure you want to submit this revised Purchase Order?")
-        : t(
-            "Are you sure you want to create a Purchase Order draft with these details?",
-          ),
-      confirmLabel: parentPOIdParam
-        ? t("Yes, Submit Revision")
-        : t("Yes, Create Draft"),
+      title: t("Recreate Purchase Order?"),
+      description: t(
+        "Are you sure you want to submit this revised Purchase Order?",
+      ),
+      confirmLabel: t("Yes, Submit Revision"),
       onConfirm: async () => {
         setIsSubmitting(true);
 
         try {
           const payload = {
-            requestId: Number(selectedRequestId),
+            requestId: Number(originalOrder.requestId),
             supplierId: globalSupplierId ? Number(globalSupplierId) : undefined,
-            parentPOId: parentPOIdParam ? Number(parentPOIdParam) : undefined,
-            revisionNote: revisionNote.trim() || undefined,
+            parentPOId: Number(parentPOIdParam),
+            revisionNote: revisionNote.trim(),
             items: items.map((i) => ({
               materialId: i.materialId,
               orderedQuantity: Number(i.orderedQuantity),
@@ -259,11 +245,7 @@ export default function CreatePurchaseOrderPage() {
           };
 
           await purchasingPurchaseOrderApi.createDraft(payload);
-          toast.success(
-            parentPOIdParam
-              ? t("Revised Purchase Order submitted successfully!")
-              : t("Purchase Order draft created successfully!"),
-          );
+          toast.success(t("Revised Purchase Order submitted successfully!"));
 
           router.push("/purchasing/purchase-orders");
         } catch (error: any) {
@@ -304,13 +286,7 @@ export default function CreatePurchaseOrderPage() {
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header
-          title={
-            parentPOIdParam
-              ? t("Recreate Purchase Order")
-              : t("Create Purchase Order Draft")
-          }
-        />
+        <Header title={t("Recreate Purchase Order")} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6 mx-auto w-full">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -324,14 +300,8 @@ export default function CreatePurchaseOrderPage() {
               </Button>
               <div>
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                  {parentPOIdParam ? (
-                    <>
-                      <RefreshCw className="w-6 h-6 text-indigo-600" />
-                      {t("Recreate Rejected Order")}
-                    </>
-                  ) : (
-                    t("New Purchase Order Draft")
-                  )}
+                  <RefreshCw className="w-6 h-6 text-indigo-600" />
+                  {t("Recreate Rejected Order")}
                 </h1>
               </div>
             </div>
@@ -346,9 +316,7 @@ export default function CreatePurchaseOrderPage() {
               ) : (
                 <Save className="w-4 h-4 mr-2" />
               )}
-              {parentPOIdParam
-                ? t("Submit Revised Order")
-                : t("Confirm Purchase Order")}
+              {t("Submit Revised Order")}
             </Button>
           </div>
 
@@ -359,45 +327,41 @@ export default function CreatePurchaseOrderPage() {
                 <CardHeader className="border-b border-slate-100 pb-4">
                   <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pt-2">
                     <FileText className="w-5 h-5 text-indigo-600" />
-                    {t("Order Setup")}
+                    {t("Original Order Info")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-6 space-y-5">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">
-                      {t("Source Purchase Request")}{" "}
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <Select
-                      value={selectedRequestId}
-                      onValueChange={setSelectedRequestId}
-                      disabled={!!parentPOIdParam}
-                    >
-                      <SelectTrigger
-                        className={`w-full bg-slate-50 min-h-[60px] py-2 ${parentPOIdParam ? "border-slate-200 opacity-70" : "border-slate-300"}`}
+                  <div className="space-y-4">
+                    <div>
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                        {t("Rejected Order Code")}
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className="font-mono text-md px-3 py-1 text-rose-600 bg-rose-50 border-rose-200"
                       >
-                        <SelectValue placeholder={t("Select a PR...")} />
-                      </SelectTrigger>
-                      <SelectContent className="w-[var(--radix-select-trigger-width)]">
-                        {requests.map((r) => (
-                          <SelectItem
-                            key={r.requestId}
-                            value={r.requestId.toString()}
-                            className="group focus:bg-indigo-600 cursor-pointer"
-                          >
-                            <div className="flex flex-col text-left">
-                              <span className="font-medium text-slate-800 group-focus:text-white">
-                                {r.requestCode}
-                              </span>
-                              <span className="text-xs text-slate-500 mt-0.5 group-focus:text-indigo-100">
-                                {t("Project")}: {r.projectName} | {t("Items")}:{" "}
-                                {r.items?.length || 0}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                        {originalOrder?.purchaseOrderCode}
+                      </Badge>
+                    </div>
+
+                    <div>
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                        {t("Source Request")}
+                      </span>
+                      <span className="font-medium text-slate-800 flex items-center gap-1.5 bg-slate-50 p-2 rounded-md border border-slate-100">
+                        <Hash className="w-3.5 h-3.5 text-indigo-500" />
+                        {t("PR ID")}: {originalOrder?.requestId}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                        {t("Project Name")}
+                      </span>
+                      <p className="text-sm font-medium text-slate-700">
+                        {originalOrder?.projectName}
+                      </p>
+                    </div>
                   </div>
 
                   <div className="space-y-2 pt-4 border-t border-slate-100">
@@ -431,22 +395,20 @@ export default function CreatePurchaseOrderPage() {
                     </p>
                   </div>
 
-                  {parentPOIdParam && (
-                    <div className="space-y-2 pt-4 border-t border-slate-100">
-                      <label className="text-sm font-medium text-slate-700">
-                        {t("Revision Note")}{" "}
-                        <span className="text-red-500">*</span>
-                      </label>
-                      <Textarea
-                        placeholder={t(
-                          "Explain the adjustments made (e.g., Updated unit price)...",
-                        )}
-                        value={revisionNote}
-                        onChange={(e) => setRevisionNote(e.target.value)}
-                        className="min-h-[80px] resize-none focus-visible:ring-indigo-600"
-                      />
-                    </div>
-                  )}
+                  <div className="space-y-2 pt-4 border-t border-slate-100">
+                    <label className="text-sm font-medium text-slate-700">
+                      {t("Revision Note")}{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <Textarea
+                      placeholder={t(
+                        "Explain the adjustments made (e.g., Updated unit price)...",
+                      )}
+                      value={revisionNote}
+                      onChange={(e) => setRevisionNote(e.target.value)}
+                      className="min-h-[80px] resize-none focus-visible:ring-indigo-600"
+                    />
+                  </div>
                 </CardContent>
               </Card>
 
@@ -573,10 +535,7 @@ export default function CreatePurchaseOrderPage() {
                             {t("Material")}
                           </TableHead>
                           <TableHead className="w-[15%] text-center">
-                            {t("Requested")}
-                          </TableHead>
-                          <TableHead className="w-[15%] text-center">
-                            {t("Order Quantity")} *
+                            {t("Order Quantity")}
                           </TableHead>
                           <TableHead className="w-[15%]">
                             {t("Supplier")} *
@@ -590,12 +549,10 @@ export default function CreatePurchaseOrderPage() {
                         {items.length === 0 ? (
                           <TableRow>
                             <TableCell
-                              colSpan={5}
+                              colSpan={4}
                               className="h-40 text-center text-slate-500"
                             >
-                              {t(
-                                "Please select a Purchase Request to load materials.",
-                              )}
+                              {t("No items found in original order.")}
                             </TableCell>
                           </TableRow>
                         ) : (
@@ -614,29 +571,10 @@ export default function CreatePurchaseOrderPage() {
                                   </span>
                                 </div>
                               </TableCell>
-
-                              <TableCell className="align-top pt-6 text-center">
+                              <TableCell className="align-top py-5 text-center flex align-center justify-center">
                                 <span className="font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded">
-                                  {item.prQuantity}
+                                  {item.orderedQuantity}
                                 </span>
-                              </TableCell>
-
-                              <TableCell className="align-top py-4">
-                                <Input
-                                  type="number"
-                                  min="1"
-                                  maxLength={5}
-                                  placeholder="Qty"
-                                  className="w-full text-right focus-visible:ring-indigo-600 text-center"
-                                  value={item.orderedQuantity}
-                                  onChange={(e) =>
-                                    handleItemChange(
-                                      item.id,
-                                      "orderedQuantity",
-                                      e.target.value.slice(0, 9),
-                                    )
-                                  }
-                                />
                               </TableCell>
                               <TableCell className="align-top py-4">
                                 <Select

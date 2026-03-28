@@ -219,7 +219,7 @@ export default function ReceiveGoodsPage() {
             toast.warning(
               t("Receipt created with failed items. Please proceed with Incident Report.")
             );
-            router.push(`/staff/incident-reports`);
+            router.push(`/staff/inbound-requests`);
           } else {
             toast.success(t("Receipt and QC completed successfully!"));
             router.push(`/staff/inbound-requests`);
