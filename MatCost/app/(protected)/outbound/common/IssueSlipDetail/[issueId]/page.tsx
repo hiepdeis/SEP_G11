@@ -1,6 +1,6 @@
 "use client";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
@@ -8,7 +8,7 @@ import { FifoBatch, issueSlipApi, IssueSlipDetail, IssueSlipDetailItem } from "@
 import axiosClient from "@/lib/axios-client";
 import {
   ArrowLeft, Calendar, Loader2, PackageSearch, ClipboardList,
-  CheckCircle2, XCircle, AlertCircle, FileText, User, ChevronLeft, ChevronRight, EyeOff, Eye
+  CheckCircle2, XCircle, AlertCircle, FileText, User, ChevronLeft, ChevronRight, EyeOff, Eye, FileSignature, Eraser, ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
@@ -20,9 +20,11 @@ import { useTranslation } from "react-i18next";
 import { ReviewIssueRequest} from "@/services/issueslip-service";
 type UserRole = "Admin" | "WarehouseManager" | "Accountant" | "WarehouseStaff" | "ConstructionTeam";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { BatchInStockDto, materialApi } from "@/services/materials-service";
+import ReactSignatureCanvas, { SignatureCanvas } from "react-signature-canvas";
+import { OTPInput } from "input-otp";
 
 
 export default function CommonIssueSlipDetail() {
@@ -51,6 +53,12 @@ export default function CommonIssueSlipDetail() {
 
   const [pickingList, setPickingList] = useState<any[]>([]);
   const [hidePicked, setHidePicked] = useState(true);
+
+  const [isAdminSigning, setIsAdminSigning] = useState(false);
+  const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
+  const [otp, setOtp] = useState("");
+  const sigCanvas = useRef<ReactSignatureCanvas>(null);
+  const [isSigned, setIsSigned] = useState(false);
 
   useEffect(() => {
     const fetchPickers = async () => {
@@ -112,6 +120,66 @@ export default function CommonIssueSlipDetail() {
   setInventoryDecisions(defaultDecisions);
 
 }, [detail]); // 👈 OK vì KHÔNG gọi API nữa
+
+const handleSignatureEnd = () => {
+    if (sigCanvas.current && !sigCanvas.current.isEmpty()) setIsSigned(true);
+  };
+
+  const clearSignature = () => {
+    if (sigCanvas.current) {
+      sigCanvas.current.clear();
+      setIsSigned(false);
+    }
+  };
+
+  const handleConfirmSignature = async () => {
+    if (!sigCanvas.current || sigCanvas.current.isEmpty()) return toast.error("Vui lòng ký xác nhận.");
+    try {
+      setReviewing(true);
+      // Lấy ảnh chữ ký dưới dạng base64 (Backend có thể cần để lưu lại bằng chứng)
+      // const signatureBase64 = sigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
+      
+      // TODO: GỌI API BACKEND YÊU CẦU GỬI OTP Ở ĐÂY
+      // await axiosClient.post(`/IssueSlips/${issueId}/send-otp`);
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      toast.success("Hệ thống đã gửi mã OTP đến số điện thoại của bạn.");
+      setIsAdminSigning(false); 
+      setIsOtpModalOpen(true);
+    } catch (error) {
+      toast.error("Lỗi khi gửi yêu cầu xác thực.");
+    } finally {
+      setReviewing(false);
+    }
+  };
+
+  const handleConfirmOtp = async () => {
+    if (otp.length !== 6) return toast.error("Vui lòng nhập đủ 6 số OTP.");
+    try {
+      setReviewing(true);
+      // const signatureBase64 = sigCanvas.current?.getTrimmedCanvas().toDataURL('image/png');
+      
+      // TODO: GỌI API BACKEND XÁC THỰC OTP VÀ APPROVE Ở ĐÂY
+      // await axiosClient.post(`/IssueSlips/${issueId}/approve-with-otp`, { otpCode: otp, signatureBase64 });
+      
+      // Giả lập API mất 1 giây
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      toast.success("Xác thực thành công! Đã duyệt vượt ngân sách.");
+      setIsOtpModalOpen(false);
+      setOtp("");
+      clearSignature();
+      
+      // Load lại dữ liệu
+      const data = await issueSlipApi.getIssueSlipDetail(issueId);
+      setDetail(data);
+    } catch (error) {
+      toast.error("Mã OTP không chính xác hoặc đã hết hạn.");
+    } finally {
+      setReviewing(false);
+    }
+  };
 
   const handleReview = async (action: "Approved" | "Rejected" | "Ready_to_Pick") => {
     let reason = "";
@@ -846,16 +914,22 @@ export default function CommonIssueSlipDetail() {
                 <Card className="border-rose-200 shadow-sm bg-rose-50/50 gap-0">
                   <CardHeader className="border-b border-rose-100 pt-4 pb-3">
                     <CardTitle className="text-base font-semibold flex items-center gap-2 text-rose-800">
-                      <AlertCircle className="w-5 h-5" /> {t("Admin Approval Required")}
+                      <ShieldCheck className="w-5 h-5" /> Duyệt Vượt Ngân Sách
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-6 flex flex-col gap-3">
                     <p className="text-sm text-rose-700/80 mb-2">
                       {t("This request exceeds the project budget. Please review carefully.")}
                     </p>
-                    <Button className="w-full bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow-sm h-11" onClick={() => handleReview("Approved")} disabled={reviewing}>
-                      {reviewing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />} {t("Approve Overage")}
+                    
+                    <Button 
+                      className="w-full bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow-sm h-11" 
+                      onClick={() => setIsAdminSigning(true)} 
+                      disabled={reviewing}
+                    >
+                      <FileSignature className="w-4 h-4 mr-2" /> Xác nhận & Ký duyệt
                     </Button>
+                    
                     <Button variant="outline" className="w-full text-rose-600 border-rose-200 hover:bg-rose-50 h-11" onClick={() => handleReview("Rejected")} disabled={reviewing}>
                       <XCircle className="w-4 h-4 mr-2" /> {t("Reject")}
                     </Button>
@@ -1123,6 +1197,114 @@ export default function CommonIssueSlipDetail() {
                     {/* BẤM NÚT NÀY MỚI THỰC SỰ GỌI executeProcessInventory() XUỐNG DB */}
                     <Button onClick={executeProcessInventory} className="bg-amber-600 hover:bg-amber-700 text-white">
                       Xác nhận Phân bổ & Xử lý
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* ================= MODAL KÝ TÊN CỦA ADMIN ================= */}
+              <Dialog open={isAdminSigning} onOpenChange={(open) => { 
+                setIsAdminSigning(open); 
+                if (!open && sigCanvas.current) { sigCanvas.current.clear(); setIsSigned(false); } 
+              }}>
+                <DialogContent className="sm:max-w-[450px]">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-rose-700">
+                      <FileSignature className="w-5 h-5" /> Chữ ký Admin
+                    </DialogTitle>                                                              
+                    <DialogDescription>
+                      Xác nhận phê duyệt cấp phát vật tư vượt quá ngân sách dự án.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-2">
+                    <div className="flex justify-between items-end mb-2">
+                      <label className="text-sm font-semibold text-slate-700">Ký tên tại đây <span className="text-red-500">*</span></label>
+                      {isSigned && (
+                        <button onClick={clearSignature} className="text-xs text-slate-500 hover:text-red-600 flex items-center gap-1 transition-colors">
+                          <Eraser className="w-3 h-3" /> Vẽ lại
+                        </button>
+                      )}
+                    </div>
+                    <div className="border-2 border-dashed border-slate-300 rounded-lg bg-slate-50 overflow-hidden relative group">
+                      <SignatureCanvas 
+                        ref={sigCanvas} 
+                        onEnd={handleSignatureEnd} 
+                        penColor="black" 
+                        canvasProps={{ className: "w-full h-32 cursor-crosshair bg-white" }}
+                      />
+                      {!isSigned && (
+                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-40">
+                          <span className="text-slate-400 select-none italic text-sm">Ký vào khung này...</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <DialogFooter className="gap-2 mt-4">
+                    <Button variant="outline" onClick={() => setIsAdminSigning(false)}>{t("Cancel")}</Button>
+                    <Button 
+                      className="bg-rose-600 hover:bg-rose-700 text-white" 
+                      onClick={handleConfirmSignature} 
+                      disabled={reviewing || !isSigned}
+                    >
+                      {reviewing ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <ShieldCheck className="w-4 h-4 mr-2"/>} 
+                      Xác nhận & Nhận mã OTP
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* ================= MODAL NHẬP OTP CỦA ADMIN ================= */}
+              <Dialog open={isOtpModalOpen} onOpenChange={setIsOtpModalOpen}>
+                <DialogContent className="sm:max-w-[400px]">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-rose-700">
+                      <ShieldCheck className="w-5 h-5" /> Xác thực bảo mật OTP
+                    </DialogTitle>
+                    <DialogDescription>
+                      Hệ thống đã gửi một mã bảo mật gồm 6 ký tự đến số điện thoại của bạn. Vui lòng kiểm tra tin nhắn.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-6 flex flex-col items-center justify-center space-y-4">
+                    <OTPInput
+                      maxLength={6}
+                      value={otp}
+                      onChange={setOtp}
+                      render={({ slots }) => (
+                        <div className="flex gap-2 sm:gap-3">
+                          {slots.map((slot, index) => (
+                            <div
+                              key={index}
+                              className={`relative w-12 h-14 flex items-center justify-center text-3xl font-bold border rounded-lg bg-white transition-all ${
+                                slot.isActive 
+                                  ? "border-rose-500 ring-2 ring-rose-100" // Hiệu ứng khi ô đang được trỏ vào
+                                  : "border-slate-300"
+                              }`}
+                            >
+                              {/* Hiển thị số người dùng nhập */}
+                              {slot.char}
+                              
+                              {/* Hiển thị thanh nháy (Caret) giả lập để người dùng biết đang ở ô nào */}
+                              {slot.hasFakeCaret && (
+                                <div className="absolute pointer-events-none inset-0 flex items-center justify-center animate-pulse">
+                                  <div className="w-[2px] h-8 bg-slate-900" />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    />
+                    <p className="text-xs text-slate-500">Mã OTP sẽ hết hạn trong 5 phút nữa.</p>
+                  </div>
+                  <DialogFooter className="gap-2">
+                    <Button variant="outline" onClick={() => setIsOtpModalOpen(false)}>Hủy</Button>
+                    <Button 
+                      className="bg-rose-600 hover:bg-rose-700 text-white" 
+                      onClick={handleConfirmOtp} 
+                      disabled={reviewing || otp.length !== 6}
+                    >
+                      {reviewing ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <CheckCircle2 className="w-4 h-4 mr-2"/>} 
+                      Hoàn tất phê duyệt
                     </Button>
                   </DialogFooter>
                 </DialogContent>
