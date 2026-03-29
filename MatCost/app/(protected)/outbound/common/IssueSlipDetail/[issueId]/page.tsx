@@ -60,6 +60,13 @@ export default function CommonIssueSlipDetail() {
   const sigCanvas = useRef<ReactSignatureCanvas>(null);
   const [isSigned, setIsSigned] = useState(false);
 
+  const [isPoSigningOpen, setIsPoSigningOpen] = useState(false);
+  const [isPoOtpOpen, setIsPoOtpOpen] = useState(false);
+  const [poOtp, setPoOtp] = useState("");
+  const poSigCanvas = useRef<ReactSignatureCanvas>(null);
+  const [isPoSigned, setIsPoSigned] = useState(false);
+  const [selectedPoId, setSelectedPoId] = useState<number | null>(null);
+
   useEffect(() => {
     const fetchPickers = async () => {
       const data = await issueSlipApi.getWarehouseStaff();
@@ -163,7 +170,6 @@ const handleSignatureEnd = () => {
       // TODO: GỌI API BACKEND XÁC THỰC OTP VÀ APPROVE Ở ĐÂY
       // await axiosClient.post(`/IssueSlips/${issueId}/approve-with-otp`, { otpCode: otp, signatureBase64 });
       
-      // Giả lập API mất 1 giây
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       toast.success("Xác thực thành công! Đã duyệt vượt ngân sách.");
@@ -171,7 +177,6 @@ const handleSignatureEnd = () => {
       setOtp("");
       clearSignature();
       
-      // Load lại dữ liệu
       const data = await issueSlipApi.getIssueSlipDetail(issueId);
       setDetail(data);
     } catch (error) {
@@ -179,6 +184,40 @@ const handleSignatureEnd = () => {
     } finally {
       setReviewing(false);
     }
+  };
+
+  const handlePoSignatureEnd = () => { if (poSigCanvas.current && !poSigCanvas.current.isEmpty()) setIsPoSigned(true); };
+  const clearPoSignature = () => { if (poSigCanvas.current) { poSigCanvas.current.clear(); setIsPoSigned(false); } };
+
+  const openPoSignModal = (poId: number) => {
+    setSelectedPoId(poId);
+    setIsPoSigningOpen(true);
+  };
+
+  const handleConfirmPoSignature = async () => {
+    if (!poSigCanvas.current || poSigCanvas.current.isEmpty()) return toast.error("Vui lòng ký xác nhận.");
+    try {
+      setReviewing(true);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Giả lập mạng 1s
+      toast.success("Hệ thống đã gửi mã OTP đến điện thoại của Kế toán.");
+      setIsPoSigningOpen(false);
+      setIsPoOtpOpen(true);
+    } catch (error) { toast.error("Lỗi khi gửi yêu cầu xác thực."); } finally { setReviewing(false); }
+  };
+
+  const handleConfirmPoOtp = async () => {
+    if (poOtp.length !== 6) return toast.error("Vui lòng nhập đủ 6 số OTP.");
+    if (!selectedPoId) return toast.error("Không tìm thấy mã PO.");
+    try {
+      setReviewing(true);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      await issueSlipApi.changeStatus(selectedPoId, { action: "Forwarded_To_Purchasing", reason: "" });
+      toast.success("Xác thực thành công! Đã chuyển lệnh Mua ngoài cho Thu mua.");
+      
+      setGeneratedSlips(prev => prev ? { ...prev, poSent: true } : null);
+      setIsPoOtpOpen(false); setPoOtp(""); clearPoSignature();
+    } catch (error) { toast.error("Mã OTP không chính xác."); } finally { setReviewing(false); }
   };
 
   const handleReview = async (action: "Approved" | "Rejected" | "Ready_to_Pick") => {
@@ -1036,12 +1075,12 @@ const handleSignatureEnd = () => {
                           <p className="text-xs text-slate-500 mt-1">Yêu cầu mua xuất thẳng cho các vật tư không đủ tồn kho.</p>
                         </div>
                         <Button 
-                          onClick={() => handleSendPO(generatedSlips.poId!)} 
+                          onClick={() => openPoSignModal(generatedSlips.poId!)} 
                           className="w-full bg-amber-500 hover:bg-amber-600 h-10 text-white"
                           disabled={reviewing || generatedSlips.poSent}
                         >
-                          {reviewing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                          Gửi phòng Mua hàng
+                          {reviewing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileSignature className="w-4 h-4 mr-2" />}
+                          Ký & Gửi phòng Mua hàng
                         </Button>
                       </div>
                     )}
@@ -1276,14 +1315,12 @@ const handleSignatureEnd = () => {
                               key={index}
                               className={`relative w-12 h-14 flex items-center justify-center text-3xl font-bold border rounded-lg bg-white transition-all ${
                                 slot.isActive 
-                                  ? "border-rose-500 ring-2 ring-rose-100" // Hiệu ứng khi ô đang được trỏ vào
+                                  ? "border-rose-500 ring-2 ring-rose-100" 
                                   : "border-slate-300"
                               }`}
                             >
-                              {/* Hiển thị số người dùng nhập */}
                               {slot.char}
                               
-                              {/* Hiển thị thanh nháy (Caret) giả lập để người dùng biết đang ở ô nào */}
                               {slot.hasFakeCaret && (
                                 <div className="absolute pointer-events-none inset-0 flex items-center justify-center animate-pulse">
                                   <div className="w-[2px] h-8 bg-slate-900" />
@@ -1305,6 +1342,111 @@ const handleSignatureEnd = () => {
                     >
                       {reviewing ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <CheckCircle2 className="w-4 h-4 mr-2"/>} 
                       Hoàn tất phê duyệt
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* ================= MODAL KÝ TÊN CỦA ACCOUNTANT (GỬI PO) ================= */}
+              <Dialog open={isPoSigningOpen} onOpenChange={(open) => { 
+                setIsPoSigningOpen(open); 
+                if (!open && poSigCanvas.current) { poSigCanvas.current.clear(); setIsPoSigned(false); } 
+              }}>
+                <DialogContent className="w-[95vw] sm:max-w-[450px] rounded-lg">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-amber-700">
+                      <FileSignature className="w-5 h-5" /> Chữ ký Kế toán
+                    </DialogTitle>
+                    <DialogDescription>
+                      Xác nhận phê duyệt gửi yêu cầu Mua ngoài (Direct PO) đến phòng Thu mua.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-2">
+                    <div className="flex justify-between items-end mb-2">
+                      <label className="text-sm font-semibold text-slate-700">Ký tên tại đây <span className="text-red-500">*</span></label>
+                      {isPoSigned && (
+                        <button onClick={clearPoSignature} className="text-xs text-slate-500 hover:text-red-600 flex items-center gap-1 transition-colors">
+                          <Eraser className="w-3 h-3" /> Vẽ lại
+                        </button>
+                      )}
+                    </div>
+                    <div className="border-2 border-dashed border-slate-300 rounded-lg bg-slate-50 overflow-hidden relative group">
+                      <SignatureCanvas 
+                        ref={poSigCanvas} 
+                        onEnd={handlePoSignatureEnd} 
+                        penColor="black" 
+                        canvasProps={{ className: "w-full h-32 cursor-crosshair bg-white" }}
+                      />
+                      {!isPoSigned && (
+                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-40">
+                          <span className="text-slate-400 select-none italic text-sm">Ký vào khung này...</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <DialogFooter className="gap-2 mt-4">
+                    <Button variant="outline" onClick={() => setIsPoSigningOpen(false)}>{t("Cancel")}</Button>
+                    <Button 
+                      className="bg-amber-600 hover:bg-amber-700 text-white" 
+                      onClick={handleConfirmPoSignature} 
+                      disabled={reviewing || !isPoSigned}
+                    >
+                      {reviewing ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <ShieldCheck className="w-4 h-4 mr-2"/>} 
+                      Xác nhận & Nhận mã OTP
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* ================= MODAL NHẬP OTP CỦA ACCOUNTANT (GỬI PO) ================= */}
+              <Dialog open={isPoOtpOpen} onOpenChange={setIsPoOtpOpen}>
+                <DialogContent className="w-[95vw] sm:max-w-[400px] rounded-lg">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-amber-700">
+                      <ShieldCheck className="w-5 h-5" /> Xác thực bảo mật OTP
+                    </DialogTitle>
+                    <DialogDescription>
+                      Hệ thống đã gửi một mã bảo mật gồm 6 chữ số đến số điện thoại của bạn. Vui lòng kiểm tra tin nhắn.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-6 flex flex-col items-center justify-center space-y-4">
+                    <OTPInput
+                      maxLength={6}
+                      value={poOtp}
+                      onChange={setPoOtp}
+                      render={({ slots }) => (
+                        <div className="flex gap-2 sm:gap-3">
+                          {slots.map((slot, index) => (
+                            <div
+                              key={index}
+                              className={`relative w-12 h-14 flex items-center justify-center text-3xl font-bold border rounded-lg bg-white transition-all ${
+                                slot.isActive 
+                                  ? "border-amber-500 ring-2 ring-amber-100" 
+                                  : "border-slate-300"
+                              }`}
+                            >
+                              {slot.char}
+                              {slot.hasFakeCaret && (
+                                <div className="absolute pointer-events-none inset-0 flex items-center justify-center animate-pulse">
+                                  <div className="w-[2px] h-8 bg-slate-900" />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    />
+                    <p className="text-xs text-slate-500">Mã OTP sẽ hết hạn trong 5 phút nữa.</p>
+                  </div>
+                  <DialogFooter className="gap-2">
+                    <Button variant="outline" onClick={() => setIsPoOtpOpen(false)}>Hủy</Button>
+                    <Button 
+                      className="bg-amber-600 hover:bg-amber-700 text-white" 
+                      onClick={handleConfirmPoOtp} 
+                      disabled={reviewing || poOtp.length !== 6}
+                    >
+                      {reviewing ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <CheckCircle2 className="w-4 h-4 mr-2"/>} 
+                      Hoàn tất gửi Đơn Mua
                     </Button>
                   </DialogFooter>
                 </DialogContent>
