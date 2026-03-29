@@ -227,7 +227,7 @@ export default function AdminLayout({ children }: { children?: React.ReactNode }
                   <div className="border-t border-gray-100 px-4 py-2.5 bg-gray-50">
                     <button
                       onClick={() => {
-                        router.push("/notifications");
+                        router.push("/admin/notifications");
                         setBellOpen(false);
                       }}
                       className="w-full text-center text-sm text-blue-600 hover:text-blue-800 transition-colors py-0.5"

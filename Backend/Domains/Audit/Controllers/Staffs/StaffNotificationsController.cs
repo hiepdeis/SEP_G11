@@ -1,46 +1,28 @@
-﻿using Backend.Data;
+using Backend.Data;
+using Backend.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace Backend.Domains.Notifications.Controllers.Staffs;
 
 [ApiController]
 [Route("api/staff/notifications")]
-//[Authorize(Roles = "Warehouse Staff")]
+[Authorize(Roles = "Staff")]
 public class StaffNotificationsController : ControllerBase
 {
     private readonly MyDbContext _db;
-    private readonly IWebHostEnvironment _env;
 
-    public StaffNotificationsController(MyDbContext db, IWebHostEnvironment env)
+    public StaffNotificationsController(MyDbContext db)
     {
         _db = db;
-        _env = env;
     }
 
     private int GetUserId()
     {
-        return 4;// FIX CỨNG để test
-        //var idStr =
-        //    User.FindFirstValue(ClaimTypes.NameIdentifier) ??
-        //    User.FindFirstValue("userId") ??
-        //    User.FindFirstValue("id") ??
-        //    User.FindFirstValue("sub");
-
-        //if (int.TryParse(idStr, out var uid)) return uid;
-
-        //// DEV fallback: cho phép set header X-Debug-UserId khi test swagger/local
-        //if (_env.IsDevelopment() && Request.Headers.TryGetValue("X-Debug-UserId", out var h))
-        //{
-        //    if (int.TryParse(h.ToString(), out uid)) return uid;
-        //}
-
-        //throw new UnauthorizedAccessException("Invalid user identity.");
+        return User.GetRequiredUserId();
     }
 
-    // GET /api/staff/notifications?unreadOnly=true&skip=0&take=50
     [HttpGet]
     public async Task<IActionResult> GetMyNotifications(
         [FromQuery] bool unreadOnly = false,
@@ -48,7 +30,6 @@ public class StaffNotificationsController : ControllerBase
         [FromQuery] int take = 50,
         CancellationToken ct = default)
     {
-        
         var userId = GetUserId();
 
         if (take <= 0) take = 50;
@@ -68,7 +49,7 @@ public class StaffNotificationsController : ControllerBase
             .Take(take)
             .Select(n => new
             {
-                notiId = n.NotiId,     // đổi theo entity bạn nếu khác
+                notiId = n.NotiId,
                 message = n.Message,
                 isRead = n.IsRead,
                 createdAt = n.CreatedAt
@@ -78,7 +59,6 @@ public class StaffNotificationsController : ControllerBase
         return Ok(data);
     }
 
-    // PUT /api/staff/notifications/{notiId}/read
     [HttpPut("{notiId:long}/read")]
     public async Task<IActionResult> MarkRead(long notiId, CancellationToken ct)
     {
@@ -98,7 +78,6 @@ public class StaffNotificationsController : ControllerBase
         return Ok(new { message = "Marked as read." });
     }
 
-    // (Optional) GET /api/staff/notifications/unread-count
     [HttpGet("unread-count")]
     public async Task<IActionResult> GetUnreadCount(CancellationToken ct)
     {

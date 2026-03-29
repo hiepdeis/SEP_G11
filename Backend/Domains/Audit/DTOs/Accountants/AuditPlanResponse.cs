@@ -6,8 +6,8 @@
         public int WarehouseId { get; set; }
         
         /// <summary>
-        /// Danh sách BinLocationIds kiểm kê.
-        /// Nếu rỗng, kiểm kê toàn bộ kho.
+        /// Danh sach BinLocationIds kiem ke.
+        /// Neu rong, audit dang o pham vi toan kho.
         /// </summary>
         public List<int> BinLocationIds { get; set; } = new();
         
