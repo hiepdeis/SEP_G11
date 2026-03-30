@@ -78,7 +78,6 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
             );
           orderData = res.data;
         } else {
-          // GỌI API CHO PO BÌNH THƯỜNG NẾU CÓ poId
           const res = await purchasingPurchaseOrderApi.getOrder(
             Number(poIdParam),
           );
@@ -122,12 +121,16 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
     setItems((prev) =>
       prev.map((item) => {
         if (item.materialId === id) {
+          const targetQuantity = Math.min(item.orderedQuantity, num);
+          const fail = Math.max(0, targetQuantity - num);
+
           return {
             ...item,
             actualQuantity: num,
             passQuantity: num,
-            failQuantity: 0,
-            failReason: "",
+            failQuantity: fail,
+            failReason:
+              fail > 0 || num < item.orderedQuantity ? item.failReason : "",
           };
         }
         return item;
@@ -143,9 +146,16 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
             item.actualQuantity,
             Math.max(0, Number(val) || 0),
           );
-          const fail = item.actualQuantity - pass;
+
+          const targetQuantity = Math.min(
+            item.orderedQuantity,
+            item.actualQuantity,
+          );
+          const fail = Math.max(0, targetQuantity - pass);
+
           const needsReason =
-            fail > 0 || item.orderedQuantity !== item.actualQuantity;
+            fail > 0 || item.actualQuantity < item.orderedQuantity;
+
           return {
             ...item,
             passQuantity: pass,
@@ -173,7 +183,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
 
     const invalidReasonItem = items.find(
       (i) =>
-        (i.failQuantity > 0 || i.orderedQuantity !== i.actualQuantity) &&
+        (i.failQuantity > 0 || i.actualQuantity < i.orderedQuantity) &&
         !i.failReason.trim(),
     );
 
@@ -195,7 +205,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
           const payload: any = {
             items: items.map((i) => {
               const isFailed =
-                i.failQuantity > 0 || i.orderedQuantity !== i.actualQuantity;
+                i.failQuantity > 0 || i.actualQuantity < i.orderedQuantity;
 
               return {
                 materialId: i.materialId,
@@ -228,13 +238,25 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                 "Receipt created with failed items. Please proceed with Incident Report.",
               ),
             );
-            if(role == "staff")router.push(`/${rolePath}/incident-reports/${res.data.receiptId}`);
-            else if(role == "manager")router.push(`/${rolePath}/incident-reports/staff-portal/${res.data.receiptId}`);
+            if (role == "staff")
+              router.push(
+                `/${rolePath}/incident-reports/${res.data.receiptId}`,
+              );
+            else if (role == "manager")
+              router.push(
+                `/${rolePath}/incident-reports/staff-portal/${res.data.receiptId}`,
+              );
           } else {
             toast.success(t("Receipt and QC completed successfully!"));
-            
-            if(role == "staff")router.push(`/${rolePath}/inbound-requests/${res.data.receiptId}/putaway`);
-            else if(role == "manager")router.push(`/${rolePath}/inbound-requests/staff-portal/${res.data.receiptId}/putaway`);
+
+            if (role == "staff")
+              router.push(
+                `/${rolePath}/inbound-requests/${res.data.receiptId}/putaway`,
+              );
+            else if (role == "manager")
+              router.push(
+                `/${rolePath}/inbound-requests/staff-portal/${res.data.receiptId}/putaway`,
+              );
           }
         } catch (error: any) {
           console.error(error);
@@ -460,7 +482,9 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                                 onChange={(e) =>
                                   handleActualChange(
                                     item.materialId,
-                                    e.target.value.replace(/-/g, "").slice(0,12),
+                                    e.target.value
+                                      .replace(/-/g, "")
+                                      .slice(0, 12),
                                   )
                                 }
                               />
@@ -477,7 +501,9 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                                 onChange={(e) =>
                                   handlePassChange(
                                     item.materialId,
-                                    e.target.value.replace(/-/g, "").slice(0,12),
+                                    e.target.value
+                                      .replace(/-/g, "")
+                                      .slice(0, 12),
                                   )
                                 }
                               />
@@ -499,7 +525,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                             {/* CỘT FAIL REASON */}
                             <TableCell className="align-top pt-4 pr-6">
                               {item.failQuantity > 0 ||
-                              item.orderedQuantity !== item.actualQuantity ? (
+                              item.actualQuantity < item.orderedQuantity ? (
                                 <Input
                                   placeholder={t(
                                     "Reason for failed or missing items...",
