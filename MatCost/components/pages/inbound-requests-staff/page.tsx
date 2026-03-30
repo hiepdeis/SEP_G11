@@ -102,7 +102,7 @@ export default function InboundReceiptsPage({
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
   const [sortConfig, setSortConfig] = useState<{
-    key: "date" | "quantity";
+    key: "date" | "quantity" | "poRef";
     direction: "asc" | "desc";
   } | null>(null);
 
@@ -504,14 +504,14 @@ export default function InboundReceiptsPage({
                     </div>
                   </TableHead>
                   <TableHead className="w-[20%]">
-                    {t("Supplier & PO Ref")}
+                    {t("PO Reference")}
                   </TableHead>
                   <TableHead
                     className="cursor-pointer transition-colors w-[15%] text-center"
                     onClick={() => handleSort("quantity")}
                   >
                     <div className="flex items-center justify-center gap-1.5 select-none">
-                      {t("Qty / Items")}
+                      {t("Items")}
                       {sortConfig?.key === "quantity" ? (
                         sortConfig.direction === "asc" ? (
                           <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
@@ -580,17 +580,14 @@ export default function InboundReceiptsPage({
                       <TableCell>
                         <div className="flex flex-col text-left">
                           {item.referenceCode ? (
-                            <span className="text-md text-slate-600 font-medium">
+                            <span className="text-md text-black font-medium">
                               {item.referenceCode}
                             </span>
                           ) : (
-                            <span className="text-md text-slate-400 italic">
+                            <span className="text-md text-black italic">
                               {t("N/A")}
                             </span>
                           )}
-                          <span className="text-xs text-slate-500 mt-0.5">
-                            {item.creatorName}
-                          </span>
                         </div>
                       </TableCell>
                       <TableCell className="text-center">

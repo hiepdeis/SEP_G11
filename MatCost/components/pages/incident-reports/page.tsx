@@ -253,10 +253,10 @@ export default function IncidentsListPage({
               {role === "manager" && (
                 <div className="flex flex-col md:items-end gap-1.5 w-full md:w-auto">
                   <TabsList className="grid w-full md:w-[350px] grid-cols-2">
-                    <TabsTrigger value="manager">
+                    <TabsTrigger value="manager" className="transition-all duration-300 ease-in-out">
                       {t("Manager Portal")}
                     </TabsTrigger>
-                    <TabsTrigger value="warehouse">
+                    <TabsTrigger value="warehouse" className="transition-all duration-300 ease-in-out">
                       {t("Staff Portal")}
                     </TabsTrigger>
                   </TabsList>

@@ -337,7 +337,9 @@ export interface ManagerReceiptBinAllocationDto {
 }
 
 export interface ManagerReceiptDetailItemDto {
+  materialId : number,
   materialName: string;
+  source: string;
   orderedQuantity: number;
   actualQuantity: number;
   passQuantity: number;
@@ -353,6 +355,7 @@ export interface ManagerReceiptDetailDto {
   purchaseOrderCode: string | null;
   supplierName: string | null;
   status: string;
+  totalQuantity : number;
   items: ManagerReceiptDetailItemDto[];
 }
 
@@ -436,6 +439,8 @@ export interface GetInboundRequestItemDto {
   materialId?: number;
   materialCode: string;
   materialName: string;
+  passQuantity?: number;
+  failQuantity?: number;
   quantity?: number;
   actualQuantity?: number;
   binLocationId?: number;
@@ -468,7 +473,7 @@ export interface GetInboundRequestListDto {
   confirmedDate?: string;
   rejectedByName?: string;
   rejectedDate?: string;
-  status?: string;
+  status: string;
   items: GetInboundRequestItemDto[];
 }
 

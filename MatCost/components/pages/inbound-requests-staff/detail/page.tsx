@@ -210,82 +210,169 @@ export default function StaffInboundDetailPage({
 
           <Card className="border-slate-200 shadow-sm bg-white mb-6">
             <CardContent>
-              <div className="relative max-w-2xl mx-auto pt-5 pb-2">
-                <div className="absolute left-[25%] right-[25%] top-10 h-1 bg-slate-200 z-10 rounded-full" />
-                <div
-                  className={`absolute left-[25%] top-10 h-1 rounded-full z-10 transition-all duration-500 ${
-                    request.confirmedDate || request.status === "Completed"
-                      ? "bg-indigo-600"
-                      : "bg-transparent"
-                  }`}
-                  style={{
-                    width:
-                      request.confirmedDate || request.status === "Completed"
-                        ? "50%"
-                        : "0%",
-                  }}
-                />
-
-                <div className="flex justify-between w-full">
-                  <div className="flex flex-col items-center relative z-10 w-1/2">
+              <div className="relative mx-auto px-4">
+                {request.status === "PartiallyPutaway" ? (
+                  <>
+                    <div className="absolute left-[25%] right-[25%] top-5 h-1 bg-slate-200 z-10 rounded-full " />
                     <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
-                        request.approvedDate ||
-                        request.status === "PendingManagerReview"
-                          ? "bg-indigo-600 text-white"
-                          : "bg-slate-200 text-slate-400"
-                      }`}
+                      className="absolute left-[25%] top-5 h-1 rounded-full z-10 transition-all duration-500 overflow-hidden bg-amber-500 "
+                      style={{ width: "50%" }}
                     >
-                      <Check className="w-5 h-5" />
+                      {" "}
+                      <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/70 to-transparent animate-shimmer-slide" />
                     </div>
-                    <div className="text-center mt-3 bg-white px-4">
-                      <p className="text-sm font-semibold text-slate-800">
-                        {t("Approved")}
-                      </p>
-                      {request.approvedByName && (
-                        <p className="text-xs font-medium text-slate-600 mt-0.5">
-                          {request.approvedByName}
-                        </p>
-                      )}
-                      {request.approvedDate && (
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          {formatDate(request.approvedDate)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
 
-                  <div className="flex flex-col items-center relative z-10 w-1/2">
+                    <div className="flex justify-between w-full">
+                      <div className="flex flex-col items-center relative z-10 w-1/2">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors bg-indigo-600 text-white">
+                          <Check className="w-5 h-5" />
+                        </div>
+                        <div className="text-center mt-3 bg-white px-4">
+                          <p className="text-sm font-semibold text-slate-800">
+                            {t("Created")}
+                          </p>
+                          {request.createdDate && (
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                              {formatDate(request.createdDate)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-center relative z-10 w-1/2">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors bg-amber-500 text-white">
+                          <Check className="w-5 h-5" />
+                        </div>
+                        <div className="text-center mt-3 bg-white px-4">
+                          <p className="text-sm font-semibold text-slate-800">
+                            {t("Partially Putaway")}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="absolute left-[12.5%] right-[12.5%] top-5 h-1 bg-slate-200 z-10 rounded-full" />
                     <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
-                        request.confirmedDate || request.status === "Completed"
-                          ? "bg-emerald-500 text-white"
-                          : "bg-slate-200 text-slate-400"
-                      }`}
+                      className="absolute left-[12.5%] top-5 h-1 rounded-full z-10 transition-all duration-500 overflow-hidden bg-indigo-600"
+                      style={{
+                        width:
+                          request.status === "Closed"
+                            ? "75%"
+                            : request.status === "Stamped" ||
+                                request.status === "Completed"
+                              ? "50%"
+                              : request.status === "ReadyForStamp"
+                                ? "25%"
+                                : "0%",
+                      }}
                     >
-                      <Check className="w-5 h-5" />
+                      <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/70 to-transparent animate-shimmer-slide" />
                     </div>
-                    <div className="text-center mt-3 bg-white px-4">
-                      <p className="text-sm font-semibold text-slate-800">
-                        {t("Confirmed")}
-                      </p>
-                      {request.confirmedByName ? (
-                        <p className="text-xs font-medium text-slate-600 mt-0.5">
-                          {request.confirmedByName}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-slate-400 italic mt-0.5">
-                          {t("Pending")}
-                        </p>
-                      )}
-                      {request.confirmedDate && (
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          {formatDate(request.confirmedDate)}
-                        </p>
-                      )}
+
+                    <div className="flex justify-between w-full">
+                      <div className="flex flex-col items-center relative z-10 w-1/4">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors bg-indigo-600 text-white">
+                          <Check className="w-5 h-5" />
+                        </div>
+                        <div className="text-center mt-3 bg-white px-2">
+                          <p className="text-sm font-semibold text-slate-800">
+                            {t("Created")}
+                          </p>
+                          {request.createdDate && (
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                              {formatDate(request.createdDate)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-center relative z-10 w-1/4">
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
+                            [
+                              "ReadyForStamp",
+                              "Stamped",
+                              "Completed",
+                              "Closed",
+                            ].includes(request.status)
+                              ? "bg-indigo-600 text-white"
+                              : "bg-slate-200 text-slate-400"
+                          }`}
+                        >
+                          <Check className="w-5 h-5" />
+                        </div>
+                        <div className="text-center mt-3 bg-white px-2">
+                          <p className="text-sm font-semibold text-slate-800">
+                            {t("Ready For Stamp")}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-center relative z-10 w-1/4">
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
+                            ["Stamped", "Completed", "Closed"].includes(
+                              request.status,
+                            )
+                              ? "bg-indigo-600 text-white"
+                              : "bg-slate-200 text-slate-400"
+                          }`}
+                        >
+                          <Check className="w-5 h-5" />
+                        </div>
+                        <div className="text-center mt-3 bg-white px-2">
+                          <p className="text-sm font-semibold text-slate-800">
+                            {t("Stamped")}
+                          </p>
+                          {request.stampedByName && (
+                            <p className="text-xs font-medium text-slate-600 mt-0.5">
+                              {request.stampedByName}
+                            </p>
+                          )}
+                          {request.stampedAt && (
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                              {formatDate(request.stampedAt)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Step 4: Closed */}
+                      <div className="flex flex-col items-center relative z-10 w-1/4">
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${
+                            request.status === "Closed"
+                              ? "bg-emerald-500 text-white"
+                              : "bg-slate-200 text-slate-400"
+                          }`}
+                        >
+                          <Check className="w-5 h-5" />
+                        </div>
+                        <div className="text-center mt-3 bg-white px-2">
+                          <p className="text-sm font-semibold text-slate-800">
+                            {t("Closed")}
+                          </p>
+                          {request.closedByAccountantName ? (
+                            <p className="text-xs font-medium text-slate-600 mt-0.5">
+                              {request.closedByAccountantName}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-slate-400 italic mt-0.5">
+                              {t("Pending")}
+                            </p>
+                          )}
+                          {request.closedAt && (
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                              {formatDate(request.closedAt)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -406,15 +493,19 @@ export default function StaffInboundDetailPage({
                           <TableHead className="text-center w-[10%]">
                             {t("Actual")}
                           </TableHead>
-                          {request.status === "PartiallyPutaway" ||
-                          request.status === "ReadyForStamp" ||
-                          request.status === "Stamped" ||
-                          request.status === "Closed" ? (
-                            <></>
-                          ) : (
+                          <TableHead className="text-center w-[10%]">
+                            {t("Passed")}
+                          </TableHead>
+                          <TableHead className="text-center w-[10%]">
+                            {t("Failed")}
+                          </TableHead>
+                          {request.status === "QCPassed" ||
+                          request.status === "ReadyForPutaway" ? (
                             <TableHead className="text-center w-[15%] pr-6">
                               {t("Status")}
                             </TableHead>
+                          ) : (
+                            <></>
                           )}
                         </TableRow>
                       </TableHeader>
@@ -469,12 +560,18 @@ export default function StaffInboundDetailPage({
                                 {item.actualQuantity?.toLocaleString("vi-VN")}
                               </span>
                             </TableCell>
-                            {request.status === "PartiallyPutaway" ||
-                            request.status === "ReadyForStamp" ||
-                            request.status === "Stamped" ||
-                            request.status === "Closed" ? (
-                              <></>
-                            ) : (
+                            <TableCell className="text-center">
+                              <span className={`font-bold text-emerald-600`}>
+                                {item.passQuantity?.toLocaleString("vi-VN")}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <span className={`font-bold text-rose-600`}>
+                                {item.failQuantity?.toLocaleString("vi-VN")}
+                              </span>
+                            </TableCell>
+                            {request.status === "QCPassed" ||
+                            request.status === "ReadyForPutaway" ? (
                               <TableCell className="text-center pr-6">
                                 <Badge
                                   variant="outline"
@@ -483,6 +580,8 @@ export default function StaffInboundDetailPage({
                                   {t("Pending")}
                                 </Badge>
                               </TableCell>
+                            ) : (
+                              <></>
                             )}
                           </TableRow>
                         ))}
