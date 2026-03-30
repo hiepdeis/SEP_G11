@@ -273,7 +273,9 @@ export default function PurchaseOrderDetailPage() {
                 variant="outline"
                 className={`px-3 py-1.5 text-sm font-medium ${getStatusBadge(order.status)}`}
               >
-                {t(formatPascalCase(order.status))}
+                {order.status === "SentToSupplier" && order.expectedDeliveryDate
+                  ? t("Delivery Confirmed")
+                  : t(formatPascalCase(order.status))}
               </Badge>
 
               {/* BADGE REVISION */}
@@ -300,8 +302,9 @@ export default function PurchaseOrderDetailPage() {
                   {t("Send to Supplier")}
                 </Button>
               )}
+
               {order.status === "SentToSupplier" &&
-                order.expectedDeliveryDate === null && (
+                !order.expectedDeliveryDate && (
                   <Button
                     onClick={() => setIsConfirmDeliveryModalOpen(true)}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm ml-2"
@@ -310,6 +313,18 @@ export default function PurchaseOrderDetailPage() {
                     {t("Confirm Delivery")}
                   </Button>
                 )}
+
+              {order.expectedDeliveryDate && (
+                <Badge
+                  variant="outline"
+                  className="px-3 py-1.5 text-sm font-medium bg-emerald-50 text-emerald-700 border-emerald-200"
+                >
+                  <CalendarDays className="w-4 h-4 mr-2" />
+                  {t("Expected")}:{" "}
+                  {formatDate(order.expectedDeliveryDate)}
+                </Badge>
+              )}
+
               {isRejected && (
                 <Button
                   onClick={handleRecreatePO}

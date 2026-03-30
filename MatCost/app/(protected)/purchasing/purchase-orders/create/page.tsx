@@ -411,7 +411,7 @@ export default function CreatePurchaseOrderPage() {
                                 </div>
                               </TableCell>
 
-                              <TableCell className="align-top py-4 text-center">
+                              <TableCell className="align-top py-4 text-center flex align-center justify-center">
                                 <span className="font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded">
                                   {item.orderedQuantity}
                                 </span>

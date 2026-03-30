@@ -226,7 +226,7 @@ export default function InboundReceiptsPage({
         "Closed",
       ].includes(item.status);
     } else if (filterStatus === "ReadyForPutaway") {
-      matchesStatus = ["Ready For Putaway", "QCPassed"].includes(item.status);
+      matchesStatus = ["ReadyForPutaway", "QCPassed"].includes(item.status);
     } else {
       matchesStatus = item.status === filterStatus;
     }

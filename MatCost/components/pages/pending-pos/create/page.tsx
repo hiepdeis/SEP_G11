@@ -228,7 +228,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                 "Receipt created with failed items. Please proceed with Incident Report.",
               ),
             );
-            if(role == "staff")router.push(`/${rolePath}/incident-reports/staff-p/${res.data.receiptId}`);
+            if(role == "staff")router.push(`/${rolePath}/incident-reports/${res.data.receiptId}`);
             else if(role == "manager")router.push(`/${rolePath}/incident-reports/staff-portal/${res.data.receiptId}`);
           } else {
             toast.success(t("Receipt and QC completed successfully!"));

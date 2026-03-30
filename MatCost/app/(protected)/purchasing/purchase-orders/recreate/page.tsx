@@ -422,27 +422,17 @@ export default function RecreatePurchaseOrderPage() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-5 overflow-y-auto flex-1 relative">
-                      <div className="absolute left-[35px] top-6 bottom-6 w-[2px] bg-slate-100"></div>
-
                       <div className="space-y-6">
                         {poHistory
                           .filter((historyItem) =>
-                            historyItem.status.includes("Rejected"),
+                            historyItem.status.includes("Rejected") &&  historyItem.poId === Number(parentPOIdParam)
                           )
                           .map((historyItem) => (
                             <div
                               key={historyItem.poId}
-                              className="relative pl-10"
                             >
-                              <div className="absolute left-[-11px] top-1 w-4 h-4 rounded-full border-2 border-white bg-indigo-100 ring-1 ring-indigo-200 z-10 flex items-center justify-center">
-                                <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                              </div>
-
                               <div className="flex flex-col gap-1.5">
                                 <div className="flex items-center justify-between">
-                                  <span className="font-semibold text-sm text-slate-800">
-                                    Rev {historyItem.revisionNumber}
-                                  </span>
                                   <Badge
                                     variant="outline"
                                     className={

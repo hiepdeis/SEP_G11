@@ -166,6 +166,15 @@ export default function PurchasingDashboardPage() {
         item.status === "AdminRejected" ||
         item.status === "AccountantRejected" ||
         item.status === "Rejected";
+    else if (filterStatus === "DeliveryConfirmed")
+      matchesStatus =
+        item.status === "SentToSupplier" && item.expectedDeliveryDate != null;
+    else if (filterStatus === "SentToSupplier")
+      matchesStatus =
+        item.status === "SentToSupplier" && item.expectedDeliveryDate == null;
+    else if (filterStatus === "Received")
+      matchesStatus =
+        item.status === "PartiallyReceived" || item.status === "FullyReceived";
     else matchesStatus = item.status === filterStatus;
 
     const matchesSearch = item.purchaseOrderCode
@@ -491,12 +500,20 @@ export default function PurchasingDashboardPage() {
                                 {t("Sent To Supplier")}
                               </Badge>
                             </SelectItem>
-                            <SelectItem value="PartiallyReceived">
+                            <SelectItem value="DeliveryConfirmed">
                               <Badge
                                 variant="outline"
-                                className="bg-amber-50 text-amber-700 border-amber-200"
+                                className="bg-blue-50 text-blue-700 border-blue-200"
                               >
-                                {t("Partially Received")}
+                                {t("Delivery Confirmed")}
+                              </Badge>
+                            </SelectItem>
+                            <SelectItem value="Received">
+                              <Badge
+                                variant="outline"
+                                className="bg-green-50 text-green-700 border-green-200"
+                              >
+                                {t("Received")}
                               </Badge>
                             </SelectItem>
                             <SelectItem value="All">
@@ -808,12 +825,17 @@ export default function PurchasingDashboardPage() {
                                         ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                         : item.status.includes("Reject")
                                           ? "bg-rose-50 text-rose-700 border-rose-200"
-                                          : item.status === "SentToSupplier"
-                                            ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                            : item.status ===
-                                                "PartiallyReceived"
-                                              ? "bg-amber-50 text-amber-700 border-amber-200"
-                                              : "bg-slate-50 text-slate-700 border-slate-200"
+                                          : item.status === "SentToSupplier" &&
+                                              item.expectedDeliveryDate != null
+                                            ? "bg-blue-50 text-blue-700 border-blue-200"
+                                            : item.status === "SentToSupplier"
+                                              ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                              : item.status ===
+                                                    "PartiallyReceived" ||
+                                                  item.status ===
+                                                    "FullyReceived"
+                                                ? "bg-green-50 text-green-700 border-green-200"
+                                                : "bg-slate-50 text-slate-700 border-slate-200"
                                   }
                                 >
                                   {item.status === "Draft" ||
@@ -821,7 +843,13 @@ export default function PurchasingDashboardPage() {
                                     ? "Pending Approval"
                                     : item.status === "AdminApproved"
                                       ? "Approved"
-                                      : t(formatPascalCase(item.status))}
+                                      : item.status === "SentToSupplier" &&
+                                          item.expectedDeliveryDate != null
+                                        ? "Delivery Confirmed"
+                                        : item.status === "PartiallyReceived" ||
+                                            item.status === "FullyReceived"
+                                          ? "Received"
+                                          : t(formatPascalCase(item.status))}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right pr-6">
