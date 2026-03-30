@@ -103,7 +103,8 @@ namespace Backend.Domains.Audit.Services
                 .AnyAsync(x =>
                     x.StockTakeId == stockTakeId &&
                     x.UserId == userId &&
-                    x.IsActive,
+                    x.IsActive &&
+                    x.MemberCompletedAt == null,
                     ct);
 
             if (!isAssigned)
@@ -428,7 +429,7 @@ namespace Backend.Domains.Audit.Services
                 {
                     UserId = tm.UserId,
                     FullName = u.FullName,
-                    IsActive = tm.IsActive,
+                    IsActive = tm.IsActive && tm.MemberCompletedAt == null,
                     AssignedAt = tm.AssignedAt,
                     RemovedAt = tm.RemovedAt
                 }
