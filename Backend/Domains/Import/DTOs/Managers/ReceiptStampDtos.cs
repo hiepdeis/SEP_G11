@@ -35,12 +35,15 @@ namespace Backend.Domains.Import.DTOs.Managers
         public string? PurchaseOrderCode { get; set; }
         public string? SupplierName { get; set; }
         public string Status { get; set; } = string.Empty;
+        public decimal TotalQuantity { get; set; }
         public List<ManagerReceiptDetailItemDto> Items { get; set; } = new();
     }
 
     public class ManagerReceiptDetailItemDto
     {
+        public int MaterialId { get; set; }
         public string MaterialName { get; set; } = string.Empty;
+        public string Source { get; set; } = string.Empty;
         public decimal OrderedQuantity { get; set; }
         public decimal ActualQuantity { get; set; }
         public decimal PassQuantity { get; set; }
