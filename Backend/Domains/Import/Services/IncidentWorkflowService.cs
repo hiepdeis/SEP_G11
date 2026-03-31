@@ -378,13 +378,75 @@ namespace Backend.Domains.Import.Services
             if (!incident.Receipt.WarehouseId.HasValue)
                 throw new InvalidOperationException("Incident receipt has no warehouse assigned");
 
-            // STEP 2: summarize quantities (no inventory changes here)
+            // STEP 2: summarize quantities and validate supplementary receipt
             if (incident.QCCheck == null)
                 throw new InvalidOperationException("QC check is required before approving supplementary receipt");
 
             var totalPassQuantity = incident.QCCheck.QCCheckDetails.Sum(d => d.PassQuantity);
             var supplementaryQuantityPending = supplementaryReceipt.Items.Sum(i => i.SupplementaryQuantity);
             var today = DateTime.UtcNow;
+
+            // Load incident details to validate supplementary quantities match required shortage
+            var incidentDetails = await _context.IncidentReportDetails
+                .Where(d => d.IncidentId == incidentId)
+                .ToListAsync();
+
+            if (incidentDetails.Any())
+            {
+                // Build map of required quantities by material (for Quantity issues only)
+                var requiredQtyByMaterial = new Dictionary<int, decimal>();
+                var purchaseOrder = await _context.PurchaseOrders
+                    .Include(o => o.Items)
+                    .FirstOrDefaultAsync(o => o.PurchaseOrderId == incident.Receipt.PurchaseOrderId.Value);
+
+                var orderedQtyByMaterial = purchaseOrder?.Items
+                    .GroupBy(i => i.MaterialId)
+                    .ToDictionary(g => g.Key, g => g.Sum(x => x.OrderedQuantity))
+                    ?? new Dictionary<int, decimal>();
+
+                foreach (var detail in incidentDetails)
+                {
+                    if (detail.IssueType == "Quantity")
+                    {
+                        // For Quantity issues: required = ordered - passed
+                        var qcDetail = incident.QCCheck.QCCheckDetails
+                            .FirstOrDefault(q => q.ReceiptDetailId == detail.ReceiptDetailId);
+                        if (qcDetail != null)
+                        {
+                            var orderedQty = orderedQtyByMaterial.TryGetValue(detail.MaterialId, out var qty) ? qty : 0m;
+                            var requiredQty = Math.Max(0, orderedQty - qcDetail.PassQuantity);
+                            if (requiredQty > 0)
+                                requiredQtyByMaterial[detail.MaterialId] = requiredQty;
+                        }
+                    }
+                }
+
+                // Validate: each supplementary item must match required quantity (strict policy)
+                var supplementaryByMaterial = supplementaryReceipt.Items
+                    .ToDictionary(i => i.MaterialId, i => i.SupplementaryQuantity);
+
+                var mismatches = new List<string>();
+                foreach (var material in requiredQtyByMaterial)
+                {
+                    var materialId = material.Key;
+                    var requiredQty = material.Value;
+
+                    if (!supplementaryByMaterial.TryGetValue(materialId, out var supplementaryQty))
+                    {
+                        mismatches.Add($"Material {materialId}: required {requiredQty} pcs but not in supplementary receipt");
+                    }
+                    else if (supplementaryQty != requiredQty)
+                    {
+                        mismatches.Add($"Material {materialId}: required {requiredQty} pcs but got {supplementaryQty} pcs");
+                    }
+                }
+
+                if (mismatches.Any())
+                {
+                    throw new InvalidOperationException(
+                        $"Supplementary receipt quantity mismatch: {string.Join("; ", mismatches)}");
+                }
+            }
 
             // STEP 3: transition statuses
             incident.Status = "AwaitingSupplementaryGoods";

@@ -1869,6 +1869,29 @@ namespace Backend.Domains.Import.Services
                         $"Material {materialName} không có lỗi QC để lập biên bản");
                 }
 
+                var orderedQty = orderedQtyMap.TryGetValue(d.MaterialId, out var qty)
+                    ? qty
+                    : 0m;
+
+                // Calculate fail quantity based on issue type
+                decimal failQuantity = 0m;
+                if (d.IssueType == "Quantity")
+                {
+                    // For Quantity issues: shortage = ordered - passed
+                    // Only create incident if there's actual shortage
+                    failQuantity = Math.Max(0, orderedQty - qcDetail.PassQuantity);
+                    if (failQuantity <= 0)
+                    {
+                        // Skip this material - enough passed or over-received
+                        continue;
+                    }
+                }
+                else
+                {
+                    // For Quality/Damage issues: use QC fail quantity
+                    failQuantity = qcDetail.FailQuantity;
+                }
+
                 var images = d.EvidenceImages?.Where(i => !string.IsNullOrWhiteSpace(i)).ToList()
                     ?? new List<string>();
 
@@ -1878,10 +1901,6 @@ namespace Backend.Domains.Import.Services
                     throw new InvalidOperationException(
                         $"Cần ít nhất 1 ảnh bằng chứng cho {materialName}");
                 }
-
-                var orderedQty = orderedQtyMap.TryGetValue(d.MaterialId, out var qty)
-                    ? qty
-                    : 0m;
 
                 var detail = new IncidentReportDetail
                 {
@@ -1906,6 +1925,14 @@ namespace Backend.Domains.Import.Services
                 }
             }
 
+            // Validate that at least one incident detail was created after processing
+            if (incidentDetails.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "No valid incident details created. All Quantity issues may have been skipped if passed quantities met or exceeded ordered quantities. " +
+                    "Please verify the quality/damage issues are reported correctly or check if QC results need revision.");
+            }
+
             var incident = new IncidentReport
             {
                 IncidentCode = $"{prefix}{nextSeq:D4}",
@@ -1926,7 +1953,23 @@ namespace Backend.Domains.Import.Services
 
             await _context.SaveChangesAsync();
 
-            var totalFailQuantity = failedQcDetails.Sum(d => d.FailQuantity);
+            // Calculate total fail/required quantity from created incident details
+            // For Quantity issues: sum of (orderedQty - passQty)
+            // For Quality/Damage issues: sum of QC fail quantities
+            var totalFailQuantity = incidentDetails.Sum(detail =>
+            {
+                if (detail.IssueType == "Quantity")
+                {
+                    return Math.Max(0, detail.ExpectedQuantity -
+                        (linkedQCCheck.QCCheckDetails
+                            .FirstOrDefault(q => q.ReceiptDetailId == detail.ReceiptDetailId)?.PassQuantity ?? 0));
+                }
+                else
+                {
+                    return linkedQCCheck.QCCheckDetails
+                        .FirstOrDefault(q => q.ReceiptDetailId == detail.ReceiptDetailId)?.FailQuantity ?? 0;
+                }
+            });
 
             return new IncidentReportCreateResultDto
             {
