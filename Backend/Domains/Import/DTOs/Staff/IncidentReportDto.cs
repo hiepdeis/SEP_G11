@@ -19,6 +19,10 @@ namespace Backend.Domains.Import.DTOs.Staff
         /// <summary>"Quantity" | "Quality" | "Damage"</summary>
         public string IssueType { get; set; } = string.Empty;
 
+        /// <summary>Fail quantity breakdown by issue type (required for Quality/Damage).
+        /// Sum of all breakdown quantities MUST equal total FailQuantity from QC check.</summary>
+        public decimal FailQuantity { get; set; }
+
         public string? EvidenceNote { get; set; }
 
         public List<string> EvidenceImages { get; set; } = new();

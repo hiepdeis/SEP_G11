@@ -394,27 +394,19 @@ namespace Backend.Domains.Import.Services
             if (incidentDetails.Any())
             {
                 // Build map of required quantities by material (for Quantity issues only)
+                // Use breakdown columns from QCCheckDetail for accuracy
                 var requiredQtyByMaterial = new Dictionary<int, decimal>();
-                var purchaseOrder = await _context.PurchaseOrders
-                    .Include(o => o.Items)
-                    .FirstOrDefaultAsync(o => o.PurchaseOrderId == incident.Receipt.PurchaseOrderId.Value);
-
-                var orderedQtyByMaterial = purchaseOrder?.Items
-                    .GroupBy(i => i.MaterialId)
-                    .ToDictionary(g => g.Key, g => g.Sum(x => x.OrderedQuantity))
-                    ?? new Dictionary<int, decimal>();
 
                 foreach (var detail in incidentDetails)
                 {
                     if (detail.IssueType == "Quantity")
                     {
-                        // For Quantity issues: required = ordered - passed
+                        // For Quantity issues: use FailQuantityQuantity (breakdown)
                         var qcDetail = incident.QCCheck.QCCheckDetails
                             .FirstOrDefault(q => q.ReceiptDetailId == detail.ReceiptDetailId);
-                        if (qcDetail != null)
+                        if (qcDetail != null && qcDetail.FailQuantityQuantity.HasValue)
                         {
-                            var orderedQty = orderedQtyByMaterial.TryGetValue(detail.MaterialId, out var qty) ? qty : 0m;
-                            var requiredQty = Math.Max(0, orderedQty - qcDetail.PassQuantity);
+                            var requiredQty = qcDetail.FailQuantityQuantity.Value;
                             if (requiredQty > 0)
                                 requiredQtyByMaterial[detail.MaterialId] = requiredQty;
                         }
@@ -433,11 +425,11 @@ namespace Backend.Domains.Import.Services
 
                     if (!supplementaryByMaterial.TryGetValue(materialId, out var supplementaryQty))
                     {
-                        mismatches.Add($"Material {materialId}: required {requiredQty} pcs but not in supplementary receipt");
+                        mismatches.Add($"Material {materialId}: required {requiredQty:F4} pcs but not in supplementary receipt");
                     }
-                    else if (supplementaryQty != requiredQty)
+                    else if (Math.Abs(supplementaryQty - requiredQty) > 0.0001m)
                     {
-                        mismatches.Add($"Material {materialId}: required {requiredQty} pcs but got {supplementaryQty} pcs");
+                        mismatches.Add($"Material {materialId}: required {requiredQty:F4} pcs but got {supplementaryQty:F4} pcs");
                     }
                 }
 
@@ -582,7 +574,11 @@ namespace Backend.Domains.Import.Services
                 ActualQuantity = d.ReceiptDetail.ActualQuantity,
                 PassQuantity = d.PassQuantity,
                 FailQuantity = d.FailQuantity,
-                FailReason = d.FailReason
+                FailReason = d.FailReason,
+                // Include breakdown columns
+                FailQuantityQuantity = d.FailQuantityQuantity,
+                FailQuantityQuality = d.FailQuantityQuality,
+                FailQuantityDamage = d.FailQuantityDamage
             }).ToList();
         }
 

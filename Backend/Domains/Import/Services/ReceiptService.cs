@@ -469,13 +469,23 @@ namespace Backend.Domains.Import.Services
                     QCCheckDetails = dto.Items.Select(d =>
                     {
                         var rd = detailMap[d.MaterialId];
+                        var poItem = poItemMap[d.MaterialId];
+
+                        // Calculate quantity shortage for breakdown
+                        var orderedQty = poItem.OrderedQuantity;
+                        var quantityShortage = Math.Max(0, orderedQty - d.PassQuantity);
+
                         return new QCCheckDetail
                         {
                             ReceiptDetailId = rd.DetailId,
                             Result = d.Result,
                             FailReason = d.FailReason,
                             PassQuantity = d.PassQuantity,
-                            FailQuantity = d.FailQuantity
+                            FailQuantity = d.FailQuantity,
+                            // Initialize breakdown: set Quantity shortage, leave Quality/Damage for incident creation
+                            FailQuantityQuantity = quantityShortage,
+                            FailQuantityQuality = null,
+                            FailQuantityDamage = null
                         };
                     }).ToList()
                 };
@@ -1873,23 +1883,61 @@ namespace Backend.Domains.Import.Services
                     ? qty
                     : 0m;
 
-                // Calculate fail quantity based on issue type
-                decimal failQuantity = 0m;
+                // Validate FE input breakdown
+                if (d.FailQuantity <= 0)
+                {
+                    throw new ArgumentException(
+                        $"FailQuantity must be > 0 for MaterialId {d.MaterialId}, IssueType {d.IssueType}");
+                }
+
+                // Calculate expected breakdown based on issue type
+                decimal expectedFailQty = 0m;
+                decimal quantityShortage = 0m;
+                decimal qualityDefect = 0m;
+                decimal damageDefect = 0m;
+
                 if (d.IssueType == "Quantity")
                 {
-                    // For Quantity issues: shortage = ordered - passed
-                    // Only create incident if there's actual shortage
-                    failQuantity = Math.Max(0, orderedQty - qcDetail.PassQuantity);
-                    if (failQuantity <= 0)
+                    // Quantity issue: shortage = ordered - passed
+                    quantityShortage = Math.Max(0, orderedQty - qcDetail.PassQuantity);
+                    if (quantityShortage <= 0)
                     {
-                        // Skip this material - enough passed or over-received
+                        // Skip: enough passed or over-received
                         continue;
                     }
+                    expectedFailQty = quantityShortage;
+
+                    // For Quantity issue, FE input should match calculated shortage
+                    if (Math.Abs(d.FailQuantity - quantityShortage) > 0.0001m)
+                    {
+                        throw new ArgumentException(
+                            $"MaterialId {d.MaterialId} (Quantity): " +
+                            $"shortage should be {quantityShortage:F4} but got {d.FailQuantity:F4}");
+                    }
                 }
-                else
+                else if (d.IssueType == "Quality" || d.IssueType == "Damage")
                 {
-                    // For Quality/Damage issues: use QC fail quantity
-                    failQuantity = qcDetail.FailQuantity;
+                    // Quality/Damage issue: FE provides the breakdown
+                    expectedFailQty = d.FailQuantity;
+
+                    if (d.IssueType == "Quality")
+                        qualityDefect = d.FailQuantity;
+                    else
+                        damageDefect = d.FailQuantity;
+                }
+
+                // UPDATE QCCheckDetail with breakdown (only if not already set from migration)
+                if (!qcDetail.FailQuantityQuantity.HasValue)
+                {
+                    qcDetail.FailQuantityQuantity = quantityShortage;
+                }
+                if (!qcDetail.FailQuantityQuality.HasValue && d.IssueType == "Quality")
+                {
+                    qcDetail.FailQuantityQuality = qualityDefect;
+                }
+                if (!qcDetail.FailQuantityDamage.HasValue && d.IssueType == "Damage")
+                {
+                    qcDetail.FailQuantityDamage = damageDefect;
                 }
 
                 var images = d.EvidenceImages?.Where(i => !string.IsNullOrWhiteSpace(i)).ToList()
@@ -1953,23 +2001,35 @@ namespace Backend.Domains.Import.Services
 
             await _context.SaveChangesAsync();
 
-            // Calculate total fail/required quantity from created incident details
-            // For Quantity issues: sum of (orderedQty - passQty)
-            // For Quality/Damage issues: sum of QC fail quantities
-            var totalFailQuantity = incidentDetails.Sum(detail =>
+            // Validate total breakdown = total FailQuantity (strict policy)
+            var totalQuantityShortage = incidentDetails
+                .Where(d => d.IssueType == "Quantity")
+                .Sum(d => linkedQCCheck.QCCheckDetails
+                    .FirstOrDefault(q => q.ReceiptDetailId == d.ReceiptDetailId)?.FailQuantityQuantity ?? 0);
+
+            var totalQualityDefect = incidentDetails
+                .Where(d => d.IssueType == "Quality")
+                .Sum(d => linkedQCCheck.QCCheckDetails
+                    .FirstOrDefault(q => q.ReceiptDetailId == d.ReceiptDetailId)?.FailQuantityQuality ?? 0);
+
+            var totalDamageDefect = incidentDetails
+                .Where(d => d.IssueType == "Damage")
+                .Sum(d => linkedQCCheck.QCCheckDetails
+                    .FirstOrDefault(q => q.ReceiptDetailId == d.ReceiptDetailId)?.FailQuantityDamage ?? 0);
+
+            var totalBreakdown = totalQuantityShortage + totalQualityDefect + totalDamageDefect;
+            var totalQCFailQuantity = linkedQCCheck.QCCheckDetails.Sum(q => q.FailQuantity);
+
+            // Sum must equal total QC fail quantity
+            if (Math.Abs(totalBreakdown - totalQCFailQuantity) > 0.0001m)
             {
-                if (detail.IssueType == "Quantity")
-                {
-                    return Math.Max(0, detail.ExpectedQuantity -
-                        (linkedQCCheck.QCCheckDetails
-                            .FirstOrDefault(q => q.ReceiptDetailId == detail.ReceiptDetailId)?.PassQuantity ?? 0));
-                }
-                else
-                {
-                    return linkedQCCheck.QCCheckDetails
-                        .FirstOrDefault(q => q.ReceiptDetailId == detail.ReceiptDetailId)?.FailQuantity ?? 0;
-                }
-            });
+                throw new InvalidOperationException(
+                    $"Incident detail breakdown mismatch: " +
+                    $"Quantity:{totalQuantityShortage:F4} + Quality:{totalQualityDefect:F4} + Damage:{totalDamageDefect:F4} = {totalBreakdown:F4}, " +
+                    $"but QC total is {totalQCFailQuantity:F4}. Sum of all breakdown must equal QC fail quantity.");
+            }
+
+            var totalFailQuantity = totalBreakdown;
 
             return new IncidentReportCreateResultDto
             {
