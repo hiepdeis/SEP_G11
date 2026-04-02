@@ -44,25 +44,49 @@ namespace Backend.Domains.Admin.Controllers
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateUserRequest request, CancellationToken ct)
         {
-            var ok = await _svc.UpdateAsync(id, request, ct);
-            if (!ok) return NotFound(new { message = "User không tồn tại." });
-            return Ok(new { message = "Cập nhật người dùng thành công." });
+            try
+            {
+                var ok = await _svc.UpdateAsync(id, request, ct);
+
+                if (!ok)
+                    return NotFound(new { message = "User không tồn tại." });
+
+                return Ok(new { message = "Cập nhật người dùng thành công." });
+            }
+            catch (ArgumentException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
         }
 
         [HttpPatch("{id:int}/status")]
         public async Task<IActionResult> ChangeStatus(int id, [FromBody] ChangeUserStatusRequest request, CancellationToken ct)
         {
-            var ok = await _svc.ChangeStatusAsync(id, request.Status, GetCurrentUserId(), ct);
-            if (!ok) return NotFound(new { message = "User không tồn tại." });
-            return Ok(new { message = request.Status ? "Kích hoạt người dùng thành công." : "Ngừng hoạt động người dùng thành công." });
+            try
+            {
+                var ok = await _svc.ChangeStatusAsync(id, request.Status, GetCurrentUserId(), ct);
+                if (!ok) return NotFound(new { message = "User không tồn tại." });
+                return Ok(new { message = request.Status ? "Kích hoạt người dùng thành công." : "Ngừng hoạt động người dùng thành công." });
+            }
+            catch (ArgumentException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
         }
 
         [HttpPatch("{id:int}/role")]
         public async Task<IActionResult> ChangeRole(int id, [FromBody] ChangeUserRoleRequest request, CancellationToken ct)
         {
-            var ok = await _svc.ChangeRoleAsync(id, request.RoleId, ct);
-            if (!ok) return NotFound(new { message = "User không tồn tại." });
-            return Ok(new { message = "Đổi vai trò thành công." });
+            try
+            {
+                var ok = await _svc.ChangeRoleAsync(id, request.RoleId, ct);
+                if (!ok) return NotFound(new { message = "User không tồn tại." });
+                return Ok(new { message = "Đổi vai trò thành công." });
+            }
+            catch (ArgumentException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
         }
         [HttpGet("roles")]
         public async Task<IActionResult> GetRoles(CancellationToken ct)

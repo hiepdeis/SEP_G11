@@ -2,13 +2,13 @@
 using Backend.Domains.Admin.Dtos;
 using Backend.Domains.Admin.Interface;
 using Backend.Entities;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Domains.Admin.Services
 {
     public sealed class AdminUserService : IAdminUserService
     {
+        private const string AdminRoleName = "Admin";
         private readonly MyDbContext _db;
 
 
@@ -23,6 +23,7 @@ namespace Backend.Domains.Admin.Services
             var q =
                 from u in _db.Users.AsNoTracking()
                 join r in _db.Roles.AsNoTracking() on u.RoleId equals r.RoleId
+                where r.RoleName.ToLower() != AdminRoleName.ToLower()
                 select new UserListItemDto
                 {
                     UserId = u.UserId,
@@ -104,6 +105,43 @@ namespace Backend.Domains.Admin.Services
             ).FirstOrDefaultAsync(ct);
         }
 
+        private async Task<int?> GetAdminRoleIdAsync(CancellationToken ct)
+        {
+            return await _db.Roles
+                .AsNoTracking()
+                .Where(x => x.RoleName.ToLower() == AdminRoleName.ToLower())
+                .Select(x => (int?)x.RoleId)
+                .FirstOrDefaultAsync(ct);
+        }
+
+        private async Task EnsureCannotAssignAdminRoleAsync(User user, int requestedRoleId, CancellationToken ct)
+        {
+            var adminRoleId = await GetAdminRoleIdAsync(ct);
+            if (!adminRoleId.HasValue)
+                return;
+
+            var isPromotingToAdmin = requestedRoleId == adminRoleId.Value && user.RoleId != adminRoleId.Value;
+            if (isPromotingToAdmin)
+                throw new ArgumentException("Không thể phân quyền Admin cho người dùng khác.");
+        }
+
+        private async Task EnsureActiveAdminStillExistsAsync(User user, int requestedRoleId, bool requestedStatus, CancellationToken ct)
+        {
+            var adminRoleId = await GetAdminRoleIdAsync(ct);
+            if (!adminRoleId.HasValue || user.RoleId != adminRoleId.Value)
+                return;
+
+            var keepsAdminRole = requestedRoleId == adminRoleId.Value;
+            if (keepsAdminRole && requestedStatus)
+                return;
+
+            var hasAnotherActiveAdmin = await _db.Users
+                .AnyAsync(x => x.UserId != user.UserId && x.RoleId == adminRoleId.Value && x.Status, ct);
+
+            if (!hasAnotherActiveAdmin)
+                throw new ArgumentException("Hệ thống phải luôn có ít nhất một tài khoản Admin đang hoạt động.");
+        }
+
 
 
         public async Task<bool> UpdateAsync(int userId, UpdateUserRequest request, CancellationToken ct)
@@ -112,18 +150,38 @@ namespace Backend.Domains.Admin.Services
             if (user == null) return false;
 
             var roleExists = await _db.Roles.AnyAsync(x => x.RoleId == request.RoleId, ct);
-            if (!roleExists) throw new ArgumentException("Role không tồn tại.");
+            if (!roleExists)
+                throw new ArgumentException("Role không tồn tại.");
 
-            if (!string.IsNullOrWhiteSpace(request.Email))
+            await EnsureCannotAssignAdminRoleAsync(user, request.RoleId, ct);
+            await EnsureActiveAdminStillExistsAsync(user, request.RoleId, request.Status, ct);
+
+            var normalizedPhoneNumber = request.PhoneNumber?.Trim();
+            if (!string.IsNullOrWhiteSpace(normalizedPhoneNumber))
             {
-                var emailExists = await _db.Users.AnyAsync(x => x.Email == request.Email && x.UserId != userId, ct);
-                if (emailExists) throw new ArgumentException("Email đã tồn tại.");
+                if (normalizedPhoneNumber.Length > 20)
+                    throw new ArgumentException("Số điện thoại không được vượt quá 20 ký tự.");
+
+                var phoneNumberExists = await _db.Users.AnyAsync(
+                    x => x.PhoneNumber == normalizedPhoneNumber && x.UserId != userId,
+                    ct);
+
+                if (phoneNumberExists)
+                    throw new ArgumentException("Số điện thoại đã tồn tại.");
+            }
+
+            var normalizedEmail = request.Email?.Trim();
+            if (!string.IsNullOrWhiteSpace(normalizedEmail))
+            {
+                var emailExists = await _db.Users.AnyAsync(x => x.Email == normalizedEmail && x.UserId != userId, ct);
+                if (emailExists)
+                    throw new ArgumentException("Email đã tồn tại.");
             }
 
             user.RoleId = request.RoleId;
             user.FullName = request.FullName.Trim();
-            user.Email = request.Email?.Trim();
-            user.PhoneNumber = request.PhoneNumber?.Trim();
+            user.Email = normalizedEmail;
+            user.PhoneNumber = normalizedPhoneNumber;
             user.Status = request.Status;
 
             await _db.SaveChangesAsync(ct);
@@ -138,6 +196,8 @@ namespace Backend.Domains.Admin.Services
             var user = await _db.Users.FirstOrDefaultAsync(x => x.UserId == userId, ct);
             if (user == null) return false;
 
+            await EnsureActiveAdminStillExistsAsync(user, user.RoleId, status, ct);
+
             user.Status = status;
             await _db.SaveChangesAsync(ct);
             return true;
@@ -149,7 +209,11 @@ namespace Backend.Domains.Admin.Services
             if (user == null) return false;
 
             var roleExists = await _db.Roles.AnyAsync(x => x.RoleId == roleId, ct);
-            if (!roleExists) throw new ArgumentException("Role không tồn tại.");
+            if (!roleExists)
+                throw new ArgumentException("Role không tồn tại.");
+
+            await EnsureCannotAssignAdminRoleAsync(user, roleId, ct);
+            await EnsureActiveAdminStillExistsAsync(user, roleId, user.Status, ct);
 
             user.RoleId = roleId;
             await _db.SaveChangesAsync(ct);
