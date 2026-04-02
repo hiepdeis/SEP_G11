@@ -51,6 +51,8 @@ namespace Backend.Domains.Import.Services
             // STEP 1: load incidents awaiting manager review with QC details
             var incidents = await _context.IncidentReports
                 .Include(i => i.Receipt)
+                .Include(i => i.IncidentReportDetails)
+                    .ThenInclude(d => d.EvidenceImages)
                 .Include(i => i.QCCheck)
                     .ThenInclude(q => q!.QCCheckDetails)
                         .ThenInclude(d => d.ReceiptDetail)
@@ -76,6 +78,8 @@ namespace Backend.Domains.Import.Services
             // STEP 1: load incident with QC details
             var incident = await _context.IncidentReports
                 .Include(i => i.Receipt)
+                .Include(i => i.IncidentReportDetails)
+                    .ThenInclude(d => d.EvidenceImages)
                 .Include(i => i.QCCheck)
                     .ThenInclude(q => q!.QCCheckDetails)
                         .ThenInclude(d => d.ReceiptDetail)
@@ -148,6 +152,8 @@ namespace Backend.Domains.Import.Services
             // STEP 1: load incidents awaiting purchasing action with QC details
             var incidents = await _context.IncidentReports
                 .Include(i => i.Receipt)
+                .Include(i => i.IncidentReportDetails)
+                    .ThenInclude(d => d.EvidenceImages)
                 .Include(i => i.QCCheck)
                     .ThenInclude(q => q!.QCCheckDetails)
                         .ThenInclude(d => d.ReceiptDetail)
@@ -173,7 +179,8 @@ namespace Backend.Domains.Import.Services
                         ActualQuantity = d.ActualQuantity,
                         PassQuantity = d.PassQuantity,
                         FailQuantity = d.FailQuantity,
-                        FailReason = d.FailReason
+                        FailReason = d.FailReason,
+                        EvidenceImages = d.EvidenceImages
                     })
                     .ToList()
             }).ToList();
@@ -184,6 +191,8 @@ namespace Backend.Domains.Import.Services
             // STEP 1: load incident with QC details
             var incident = await _context.IncidentReports
                 .Include(i => i.Receipt)
+                .Include(i => i.IncidentReportDetails)
+                    .ThenInclude(d => d.EvidenceImages)
                 .Include(i => i.QCCheck)
                     .ThenInclude(q => q!.QCCheckDetails)
                         .ThenInclude(d => d.ReceiptDetail)
@@ -218,7 +227,8 @@ namespace Backend.Domains.Import.Services
                         ActualQuantity = d.ActualQuantity,
                         PassQuantity = d.PassQuantity,
                         FailQuantity = d.FailQuantity,
-                        FailReason = d.FailReason
+                        FailReason = d.FailReason,
+                        EvidenceImages = d.EvidenceImages
                     })
                     .ToList()
             };
@@ -378,67 +388,13 @@ namespace Backend.Domains.Import.Services
             if (!incident.Receipt.WarehouseId.HasValue)
                 throw new InvalidOperationException("Incident receipt has no warehouse assigned");
 
-            // STEP 2: summarize quantities and validate supplementary receipt
+            // STEP 2: summarize quantities (no inventory changes here)
             if (incident.QCCheck == null)
                 throw new InvalidOperationException("QC check is required before approving supplementary receipt");
 
             var totalPassQuantity = incident.QCCheck.QCCheckDetails.Sum(d => d.PassQuantity);
             var supplementaryQuantityPending = supplementaryReceipt.Items.Sum(i => i.SupplementaryQuantity);
             var today = DateTime.UtcNow;
-
-            // Load incident details to validate supplementary quantities match required shortage
-            var incidentDetails = await _context.IncidentReportDetails
-                .Where(d => d.IncidentId == incidentId)
-                .ToListAsync();
-
-            if (incidentDetails.Any())
-            {
-                // Build map of required quantities by material (for Quantity issues only)
-                // Use breakdown columns from QCCheckDetail for accuracy
-                var requiredQtyByMaterial = new Dictionary<int, decimal>();
-
-                foreach (var detail in incidentDetails)
-                {
-                    if (detail.IssueType == "Quantity")
-                    {
-                        // For Quantity issues: use FailQuantityQuantity (breakdown)
-                        var qcDetail = incident.QCCheck.QCCheckDetails
-                            .FirstOrDefault(q => q.ReceiptDetailId == detail.ReceiptDetailId);
-                        if (qcDetail != null && qcDetail.FailQuantityQuantity.HasValue)
-                        {
-                            var requiredQty = qcDetail.FailQuantityQuantity.Value;
-                            if (requiredQty > 0)
-                                requiredQtyByMaterial[detail.MaterialId] = requiredQty;
-                        }
-                    }
-                }
-
-                // Validate: each supplementary item must match required quantity (strict policy)
-                var supplementaryByMaterial = supplementaryReceipt.Items
-                    .ToDictionary(i => i.MaterialId, i => i.SupplementaryQuantity);
-
-                var mismatches = new List<string>();
-                foreach (var material in requiredQtyByMaterial)
-                {
-                    var materialId = material.Key;
-                    var requiredQty = material.Value;
-
-                    if (!supplementaryByMaterial.TryGetValue(materialId, out var supplementaryQty))
-                    {
-                        mismatches.Add($"Material {materialId}: required {requiredQty:F4} pcs but not in supplementary receipt");
-                    }
-                    else if (Math.Abs(supplementaryQty - requiredQty) > 0.0001m)
-                    {
-                        mismatches.Add($"Material {materialId}: required {requiredQty:F4} pcs but got {supplementaryQty:F4} pcs");
-                    }
-                }
-
-                if (mismatches.Any())
-                {
-                    throw new InvalidOperationException(
-                        $"Supplementary receipt quantity mismatch: {string.Join("; ", mismatches)}");
-                }
-            }
 
             // STEP 3: transition statuses
             incident.Status = "AwaitingSupplementaryGoods";
@@ -564,6 +520,16 @@ namespace Backend.Domains.Import.Services
 
         private static List<ManagerIncidentItemSummaryDto> MapIncidentItems(IncidentReport incident)
         {
+            var evidenceByMaterial = incident.IncidentReportDetails
+                .GroupBy(d => d.MaterialId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.SelectMany(d => d.EvidenceImages)
+                        .Select(i => i.ImageData)
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Distinct()
+                        .ToList());
+
             var details = incident.QCCheck?.QCCheckDetails ?? new List<QCCheckDetail>();
 
             return details.Select(d => new ManagerIncidentItemSummaryDto
@@ -578,7 +544,10 @@ namespace Backend.Domains.Import.Services
                 // Include breakdown columns
                 FailQuantityQuantity = d.FailQuantityQuantity,
                 FailQuantityQuality = d.FailQuantityQuality,
-                FailQuantityDamage = d.FailQuantityDamage
+                FailQuantityDamage = d.FailQuantityDamage,
+                EvidenceImages = evidenceByMaterial.TryGetValue(d.ReceiptDetail.MaterialId, out var images)
+                    ? images
+                    : new List<string>()
             }).ToList();
         }
 

@@ -16,16 +16,23 @@ namespace Backend.Domains.Import.DTOs.Staff
     {
         public int MaterialId { get; set; }
 
-        /// <summary>"Quantity" | "Quality" | "Damage"</summary>
-        public string IssueType { get; set; } = string.Empty;
-
-        /// <summary>Fail quantity breakdown by issue type (required for Quality/Damage).
-        /// Sum of all breakdown quantities MUST equal total FailQuantity from QC check.</summary>
-        public decimal FailQuantity { get; set; }
+        /// <summary>
+        /// Breakdown lỗi theo từng nguyên nhân cho material.
+        /// Quantity = thiếu số lượng (ordered - pass).
+        /// Quality/Damage do FE nhập.
+        /// </summary>
+        public CreateIncidentBreakdownDto Breakdown { get; set; } = new();
 
         public string? EvidenceNote { get; set; }
 
         public List<string> EvidenceImages { get; set; } = new();
+    }
+
+    public class CreateIncidentBreakdownDto
+    {
+        public decimal Quantity { get; set; }
+        public decimal Quality { get; set; }
+        public decimal Damage { get; set; }
     }
 
     public class IncidentReportCreateResultDto

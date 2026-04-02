@@ -32,6 +32,9 @@ namespace Backend.Domains.Import.DTOs.Managers
 
         /// <summary>Fail quantity breakdown: damage (Damage issue)</summary>
         public decimal? FailQuantityDamage { get; set; }
+
+        /// <summary>Evidence image URLs/base64 attached from IncidentReportDetails by material.</summary>
+        public List<string> EvidenceImages { get; set; } = new();
     }
 
     public class ManagerIncidentDetailDto
