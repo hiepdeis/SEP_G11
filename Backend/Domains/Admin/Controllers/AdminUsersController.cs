@@ -102,13 +102,20 @@ namespace Backend.Domains.Admin.Controllers
             if (!ok) return NotFound();
             return NoContent();
         }
-
         [HttpDelete("roles/{roleId:int}")]
         public async Task<IActionResult> DeleteRole(int roleId, CancellationToken ct)
         {
-            var ok = await _svc.DeleteRoleAsync(roleId, ct);
-            if (!ok) return NotFound();
-            return NoContent();
+            try
+            {
+                var ok = await _svc.DeleteRoleAsync(roleId, ct);
+                if (!ok) return NotFound();
+
+                return NoContent();
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
         [HttpPost("roles")]
         public async Task<IActionResult> CreateRole(CreateRoleRequest request, CancellationToken ct)

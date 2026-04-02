@@ -22,12 +22,17 @@ export type UpsertWarehousePayload = {
   address?: string;
 };
 
+export type CreateWarehouseResponse = {
+  id: number;
+  message: string;
+};
+
 export function getWarehouses() {
   return apiGet<WarehouseResponse>("/admin/master-data/warehouses");
 }
 
 export function createWarehouse(body: UpsertWarehousePayload) {
-  return apiPost<WarehouseDto>("/admin/master-data/warehouses", body);
+  return apiPost<CreateWarehouseResponse>("/admin/master-data/warehouses", body);
 }
 
 export function updateWarehouse(id: number, body: UpsertWarehousePayload) {

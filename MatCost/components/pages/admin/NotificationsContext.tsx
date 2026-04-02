@@ -2,18 +2,19 @@
 
 import {
   createContext,
+  ReactNode,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
-  ReactNode,
 } from "react";
 import {
-  createNotificationsBulk,
+  createNotifications,
   deleteNotificationById,
   getNotifications,
   markNotificationAsRead,
+  NotificationCreateResult,
   NotificationItem,
 } from "@/services/admin-notifications";
 
@@ -35,7 +36,7 @@ interface NotificationsContextType {
     userId: number | "all",
     message: string,
     allUserIds?: number[]
-  ) => Promise<void>;
+  ) => Promise<NotificationCreateResult>;
   markAsRead: (notiId: number) => Promise<void>;
   markAllAsRead: (userId?: number) => Promise<void>;
   deleteNotification: (notiId: number) => Promise<void>;
@@ -58,6 +59,16 @@ const normalizeNotification = (item: NotificationItem): Notification => ({
   isRead: Boolean(item.isRead),
   createdAt: item.createdAt,
 });
+
+const emptyCreateResult: NotificationCreateResult = {
+  sentCount: 0,
+  notificationIds: [],
+  emailRequested: true,
+  emailConfigured: false,
+  emailSentCount: 0,
+  emailMissingAddressCount: 0,
+  emailFailedCount: 0,
+};
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -85,12 +96,26 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const addNotification = useCallback(
-    async (userId: number | "all", message: string, allUserIds: number[] = []) => {
-      const targetIds = userId === "all" ? allUserIds : [userId];
-      if (!targetIds.length) return;
+    async (
+      userId: number | "all",
+      message: string,
+      allUserIds: number[] = []
+    ): Promise<NotificationCreateResult> => {
+      const isAll = userId === "all";
 
-      await createNotificationsBulk(targetIds, message);
+      if (isAll && !allUserIds.length) {
+        return emptyCreateResult;
+      }
+
+      const result = await createNotifications({
+        targetMode: isAll ? "all" : "single",
+        userId: isAll ? undefined : userId,
+        message,
+        sendEmail: true,
+      });
+
       await refresh();
+      return result;
     },
     [refresh]
   );

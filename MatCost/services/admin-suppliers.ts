@@ -23,12 +23,17 @@ export type UpsertSupplierPayload = {
   address?: string;
 };
 
+export type CreateSupplierResponse = {
+  id: number;
+  message: string;
+};
+
 export function getSuppliers() {
   return apiGet<SupplierPagedResult>("/admin/master-data/suppliers");
 }
 
 export function createSupplier(body: UpsertSupplierPayload) {
-  return apiPost<SupplierDto>("/admin/master-data/suppliers", body);
+  return apiPost<CreateSupplierResponse>("/admin/master-data/suppliers", body);
 }
 
 export function updateSupplier(id: number, body: UpsertSupplierPayload) {

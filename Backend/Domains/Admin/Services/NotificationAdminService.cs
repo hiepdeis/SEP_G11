@@ -1,18 +1,32 @@
-﻿using Backend.Data;
+using System.Net;
+using Backend.Data;
 using Backend.Domains.Admin.Dtos;
 using Backend.Domains.Admin.Interface;
 using Backend.Entities;
+using Backend.Options;
+using Backend.Services.Email;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Backend.Domains.Admin.Services
 {
     public sealed class NotificationAdminService : INotificationAdminService
     {
         private readonly MyDbContext _db;
+        private readonly IEmailSender _emailSender;
+        private readonly EmailOptions _emailOptions;
+        private readonly ILogger<NotificationAdminService> _logger;
 
-        public NotificationAdminService(MyDbContext db)
+        public NotificationAdminService(
+            MyDbContext db,
+            IEmailSender emailSender,
+            IOptions<EmailOptions> emailOptions,
+            ILogger<NotificationAdminService> logger)
         {
             _db = db;
+            _emailSender = emailSender;
+            _emailOptions = emailOptions.Value;
+            _logger = logger;
         }
 
         public async Task<NotificationPagedResult<NotificationListItemDto>> GetNotificationsAsync(
@@ -109,18 +123,20 @@ namespace Backend.Domains.Admin.Services
                 throw new ArgumentException("Nội dung thông báo không được vượt quá 500 ký tự.");
 
             var mode = (request.TargetMode ?? "single").Trim().ToLowerInvariant();
-
-            List<int> targetUserIds;
+            List<NotificationTarget> targets;
 
             if (mode == "all")
             {
-                targetUserIds = await _db.Users
+                targets = await _db.Users
                     .AsNoTracking()
                     .Where(x => x.Status)
-                    .Select(x => x.UserId)
+                    .Select(x => new NotificationTarget(
+                        x.UserId,
+                        x.FullName ?? x.Username,
+                        x.Email))
                     .ToListAsync(ct);
 
-                if (targetUserIds.Count == 0)
+                if (targets.Count == 0)
                     throw new ArgumentException("Không có người dùng active để gửi thông báo.");
             }
             else if (mode == "single")
@@ -128,27 +144,36 @@ namespace Backend.Domains.Admin.Services
                 if (!request.UserId.HasValue)
                     throw new ArgumentException("UserId là bắt buộc khi gửi cho một người dùng.");
 
-                var userExists = await _db.Users
+                var user = await _db.Users
                     .AsNoTracking()
-                    .AnyAsync(x => x.UserId == request.UserId.Value, ct);
+                    .Where(x => x.UserId == request.UserId.Value)
+                    .Select(x => new NotificationTarget(
+                        x.UserId,
+                        x.FullName ?? x.Username,
+                        x.Email))
+                    .FirstOrDefaultAsync(ct);
 
-                if (!userExists)
+                if (user == null)
                     throw new ArgumentException("Người dùng không tồn tại.");
 
-                targetUserIds = new List<int> { request.UserId.Value };
+                targets = new List<NotificationTarget> { user };
             }
             else
             {
                 throw new ArgumentException("TargetMode chỉ chấp nhận 'single' hoặc 'all'.");
             }
 
+            var distinctTargets = targets
+                .GroupBy(x => x.UserId)
+                .Select(x => x.First())
+                .ToList();
+
             var now = DateTime.UtcNow;
 
-            var entities = targetUserIds
-                .Distinct()
-                .Select(userId => new Notification
+            var entities = distinctTargets
+                .Select(target => new Notification
                 {
-                    UserId = userId,
+                    UserId = target.UserId,
                     Message = message,
                     IsRead = false,
                     CreatedAt = now
@@ -158,10 +183,22 @@ namespace Backend.Domains.Admin.Services
             _db.Notifications.AddRange(entities);
             await _db.SaveChangesAsync(ct);
 
+            var emailResult = await SendNotificationEmailsAsync(
+                distinctTargets,
+                message,
+                request.SendEmail,
+                now,
+                ct);
+
             return new NotificationCreateResultDto
             {
                 SentCount = entities.Count,
-                NotificationIds = entities.Select(x => x.NotiId).ToList()
+                NotificationIds = entities.Select(x => x.NotiId).ToList(),
+                EmailRequested = request.SendEmail,
+                EmailConfigured = _emailSender.IsConfigured,
+                EmailSentCount = emailResult.EmailSentCount,
+                EmailMissingAddressCount = emailResult.EmailMissingAddressCount,
+                EmailFailedCount = emailResult.EmailFailedCount
             };
         }
 
@@ -203,6 +240,101 @@ namespace Backend.Domains.Admin.Services
             _db.Notifications.Remove(entity);
             await _db.SaveChangesAsync(ct);
             return true;
+        }
+
+        private async Task<NotificationEmailDispatchResult> SendNotificationEmailsAsync(
+            IReadOnlyCollection<NotificationTarget> targets,
+            string message,
+            bool sendEmail,
+            DateTime createdAtUtc,
+            CancellationToken ct)
+        {
+            if (!sendEmail || !_emailSender.IsConfigured)
+            {
+                return new NotificationEmailDispatchResult();
+            }
+
+            var result = new NotificationEmailDispatchResult();
+
+            foreach (var target in targets)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                if (string.IsNullOrWhiteSpace(target.Email))
+                {
+                    result.EmailMissingAddressCount++;
+                    continue;
+                }
+
+                try
+                {
+                    await _emailSender.SendAsync(
+                        BuildNotificationEmail(target, message, createdAtUtc),
+                        ct);
+                    result.EmailSentCount++;
+                }
+                catch (Exception ex)
+                {
+                    result.EmailFailedCount++;
+                    _logger.LogWarning(
+                        ex,
+                        "Failed to send notification email to user {UserId} ({Email})",
+                        target.UserId,
+                        target.Email);
+                }
+            }
+
+            return result;
+        }
+
+        private EmailMessage BuildNotificationEmail(
+            NotificationTarget target,
+            string message,
+            DateTime createdAtUtc)
+        {
+            var recipientName = string.IsNullOrWhiteSpace(target.DisplayName)
+                ? $"User #{target.UserId}"
+                : target.DisplayName.Trim();
+
+            var normalizedMessage = WebUtility.HtmlEncode(message)
+                .Replace("\r\n", "\n")
+                .Replace("\n", "<br />");
+
+            var createdAtText = createdAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+            var subject = string.IsNullOrWhiteSpace(_emailOptions.NotificationSubject)
+                ? "[MatCost] Thong bao moi"
+                : _emailOptions.NotificationSubject.Trim();
+
+            return new EmailMessage
+            {
+                ToAddress = target.Email!,
+                ToName = recipientName,
+                Subject = subject,
+                HtmlBody =
+                    $$"""
+                    <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1f2937;">
+                      <p>Xin chao {{WebUtility.HtmlEncode(recipientName)}},</p>
+                      <p>Ban vua nhan duoc mot thong bao moi tu he thong MatCost.</p>
+                      <div style="margin:16px 0;padding:12px 14px;border-left:4px solid #2563eb;background:#eff6ff;border-radius:8px;">
+                        {{normalizedMessage}}
+                      </div>
+                      <p>Thoi gian tao: {{createdAtText}}</p>
+                      <p>Vui long dang nhap vao he thong de xem them chi tiet.</p>
+                    </div>
+                    """
+            };
+        }
+
+        private sealed record NotificationTarget(
+            int UserId,
+            string DisplayName,
+            string? Email);
+
+        private sealed class NotificationEmailDispatchResult
+        {
+            public int EmailSentCount { get; set; }
+            public int EmailMissingAddressCount { get; set; }
+            public int EmailFailedCount { get; set; }
         }
     }
 }

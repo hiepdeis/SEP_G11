@@ -27,6 +27,11 @@ export type UpsertBinPayload = {
   type: string;
 };
 
+export type CreateBinResponse = {
+  id: number;
+  message: string;
+};
+
 export function getBins(params: GetBinsParams = {}) {
   const qs = new URLSearchParams();
 
@@ -41,7 +46,7 @@ export function getBins(params: GetBinsParams = {}) {
 }
 
 export function createBin(body: UpsertBinPayload) {
-  return apiPost<BinDto>("/admin/master-data/bin-locations", body);
+  return apiPost<CreateBinResponse>("/admin/master-data/bin-locations", body);
 }
 
 export function updateBin(id: number, body: UpsertBinPayload) {

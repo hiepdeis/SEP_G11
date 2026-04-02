@@ -27,12 +27,17 @@ export type UpsertProjectPayload = {
   status: string | null;
 };
 
+export type CreateProjectResponse = {
+  id: number;
+  message: string;
+};
+
 export function getProjects() {
   return apiGet<ProjectPagedResult>("/admin/master-data/projects");
 }
 
 export function createProject(payload: UpsertProjectPayload) {
-  return apiPost<ProjectItem>("/admin/master-data/projects", payload);
+  return apiPost<CreateProjectResponse>("/admin/master-data/projects", payload);
 }
 
 export function updateProject(projectId: number, payload: UpsertProjectPayload) {

@@ -67,7 +67,7 @@ function GenericTable<T extends BaseItem>({
   const [page, setPage] = useState(1);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const perPage = 7;
+  const perPage = 5;
 
   const filtered = useMemo(
     () => items.filter((i) => searchFn(i, search.toLowerCase())),
@@ -99,17 +99,22 @@ const save = async () => {
   try {
     setSaving(true);
 
-    const saved = onSaveItem ? await onSaveItem(editing) : editing;
+    const saved = (onSaveItem ? await onSaveItem(editing) : editing) ?? editing;
+    const resolved = { ...editing, ...saved } as T;
 
     if (editing._id) {
       setItems((prev) =>
         prev.map((i) =>
-          i._id === editing._id ? ({ ...i, ...saved } as T) : i
+          i._id === editing._id ? ({ ...i, ...resolved } as T) : i
         )
       );
       toast.success("Cập nhật thành công");
     } else {
-      setItems((prev) => [...prev, saved as T]);
+      if (typeof resolved._id !== "number" || Number.isNaN(resolved._id)) {
+        throw new Error("Khong nhan duoc ID ban ghi moi tu may chu");
+      }
+
+      setItems((prev) => [...prev, resolved]);
       toast.success("Thêm mới thành công");
     }
 
@@ -502,18 +507,18 @@ function CategoriesTab() {
           };
         }
 
-       const created = await createCategory({
-  code,
-  name,
-  description,
-});
+        const created = await createCategory({
+          code,
+          name,
+          description,
+        });
 
-return {
-  _id: created.categoryId,
-  code: created.code ?? code,
-  name: created.name ?? name,
-  description: created.description ?? description,
-};
+        return {
+          _id: created.id,
+          code,
+          name,
+          description,
+        };
       }}
       onDeleteItem={async (id) => {
         await deleteCategory(id);
@@ -690,11 +695,11 @@ function ReasonsTab() {
         });
 
         return {
-          _id: created.reasonId,
-          code: created.code ?? code,
-          name: created.name ?? name,
-          description: created.description ?? description,
-          isActive: created.isActive ?? isActive,
+          _id: created.id,
+          code,
+          name,
+          description,
+          isActive,
         };
       }}
       onDeleteItem={async (id) => {
@@ -908,11 +913,11 @@ function SuppliersTab() {
         });
 
         return {
-          _id: created.supplierId,
-          code: created.code ?? code,
-          name: created.name ?? name,
-          taxCode: created.taxCode ?? taxCode,
-          address: created.address ?? address,
+          _id: created.id,
+          code,
+          name,
+          taxCode,
+          address,
         };
       }}
       onDeleteItem={async (id) => {
@@ -1086,9 +1091,9 @@ function WarehousesTab() {
         });
 
         return {
-          _id: created.warehouseId,
-          name: created.name ?? name,
-          address: created.address ?? address,
+          _id: created.id,
+          name,
+          address,
         };
       }}
       onDeleteItem={async (id) => {
@@ -1264,10 +1269,10 @@ function BinsTab() {
         });
 
         return {
-          _id: created.binId,
-          warehouseId: created.warehouseId ?? warehouseId,
-          code: created.code ?? code,
-          type: created.type ?? type,
+          _id: created.id,
+          warehouseId,
+          code,
+          type,
         };
       }}
       onDeleteItem={async (id) => {
@@ -1471,13 +1476,13 @@ function ProjectsTab() {
         const created = await createProject(payload);
 
         return {
-          _id: created.projectId,
-          code: created.code ?? code,
-          name: created.name ?? name,
-          startDate: created.startDate ? String(created.startDate).slice(0, 10) : startDate,
-          endDate: created.endDate ? String(created.endDate).slice(0, 10) : endDate,
-          budget: created.budget ?? budget,
-          status: created.status ?? status,
+          _id: created.id,
+          code,
+          name,
+          startDate,
+          endDate,
+          budget,
+          status,
         };
       }}
       onDeleteItem={async (id) => {

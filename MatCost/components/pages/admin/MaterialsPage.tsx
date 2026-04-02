@@ -7,9 +7,16 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import {
+  MATERIAL_UNIT_OPTIONS,
+  getMaterialQuantityRuleText,
+  canonicalizeMaterialUnit,
+  getMaterialUnitLabel,
+  requiresWholeMaterialQuantity,
+} from "@/lib/material-units";
 import { getCategories, type CategoryItem } from "@/services/material-categories";
-import { getWarehouses, type WarehouseItem } from "@/services/admin-warehouses";
-import { getBins, type BinItem } from "@/services/admin-bins";
+import { getWarehouses, type WarehouseDto } from "@/services/admin-warehouses";
+import { getBins, type BinDto } from "@/services/admin-bins";
 import {
   getMaterials,
   createMaterial,
@@ -127,7 +134,7 @@ const getCategoryName = (id: number | null) =>
 const getWhName = (warehouseId: number) =>
   warehouses.find((w) => w.warehouseId === warehouseId)?.name || `Kho #${warehouseId}`;
 //warehouses
-const [warehouses, setWarehouses] = useState<WarehouseItem[]>([]);
+const [warehouses, setWarehouses] = useState<WarehouseDto[]>([]);
 const [warehousesLoading, setWarehousesLoading] = useState(true);
 useEffect(() => {
   const loadWarehouses = async () => {
@@ -147,7 +154,7 @@ useEffect(() => {
   loadWarehouses();
 }, []);
 //bins
-const [bins, setBins] = useState<BinItem[]>([]);
+const [bins, setBins] = useState<BinDto[]>([]);
 const [binsLoading, setBinsLoading] = useState(true);
 const getBin = (binId: number) => bins.find((b) => b.binId === binId);
 const getBinsByWarehouse = (warehouseId: number) =>
@@ -256,6 +263,7 @@ useEffect(() => {
   const [matModal, setMatModal] = useState(false);
   const [editMatId, setEditMatId] = useState<number | null>(null);
   const [matForm, setMatForm] = useState<MatForm>(emptyMatForm);
+  const [unitWarning, setUnitWarning] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const perPage = 6;
@@ -275,6 +283,16 @@ const [inventoryLoading, setInventoryLoading] = useState(false);
     () => bins.filter((b) => b.warehouseId === invForm.warehouseId),
     [invForm.warehouseId]
   );
+  const selectedInventoryMaterial = useMemo(
+    () => materials.find((m) => m.materialId === invMaterialId) ?? null,
+    [materials, invMaterialId]
+  );
+  const inventoryRequiresWholeQuantity = selectedInventoryMaterial
+    ? requiresWholeMaterialQuantity(selectedInventoryMaterial.unit)
+    : false;
+  const inventoryQuantityRuleText = selectedInventoryMaterial
+    ? getMaterialQuantityRuleText(selectedInventoryMaterial.unit)
+    : null;
 
   // ── Material totals (derived from state) ──
   const getTotalOnHand = (materialId: number) =>
@@ -317,18 +335,27 @@ const [inventoryLoading, setInventoryLoading] = useState(false);
     ...emptyMatForm,
     categoryId: categories[0]?.categoryId ?? null,
   });
+  setUnitWarning(null);
   setEditMatId(null);
   setMatModal(true);
 };
   const openEditMat = (m: Material) => {
-    setMatForm({ code: m.code, name: m.name, unit: m.unit, massPerUnit: m.massPerUnit, minStockLevel: m.minStockLevel, categoryId: m.categoryId, unitPrice: m.unitPrice, technicalStandard: m.technicalStandard, specification: m.specification });
+    const normalizedUnit = canonicalizeMaterialUnit(m.unit);
+    setMatForm({ code: m.code, name: m.name, unit: normalizedUnit ?? "", massPerUnit: m.massPerUnit, minStockLevel: m.minStockLevel, categoryId: m.categoryId, unitPrice: m.unitPrice, technicalStandard: m.technicalStandard, specification: m.specification });
+    setUnitWarning(
+      normalizedUnit
+        ? null
+        : (m.unit.trim()
+            ? `Đơn vị hiện tại "${m.unit}" không còn hợp lệ. Vui lòng chọn lại trước khi lưu.`
+            : "Vật tư này chưa có đơn vị tính hợp lệ. Vui lòng chọn lại trước khi lưu.")
+    );
     setEditMatId(m.materialId);
     setMatModal(true);
   };
- const toMaterialPayload = (): UpsertMaterialPayload => ({
+ const toMaterialPayload = (unit: string): UpsertMaterialPayload => ({
   code: matForm.code.trim().toUpperCase(),
   name: matForm.name.trim(),
-  unit: matForm.unit.trim(),
+  unit,
   massPerUnit: matForm.massPerUnit,
   minStockLevel: matForm.minStockLevel,
   categoryId: matForm.categoryId,
@@ -343,8 +370,31 @@ const saveMat = async () => {
     return;
   }
 
+  const normalizedUnit = canonicalizeMaterialUnit(matForm.unit);
+  if (!normalizedUnit) {
+    setUnitWarning("Vui lòng chọn đơn vị tính hợp lệ trong danh sách.");
+    toast.error("Đơn vị tính không hợp lệ");
+    return;
+  }
+
+  if (matForm.minStockLevel != null) {
+    if (matForm.minStockLevel < 0) {
+      toast.error("Tồn tối thiểu không được âm");
+      return;
+    }
+
+    if (!Number.isInteger(matForm.minStockLevel)) {
+      toast.error(
+        requiresWholeMaterialQuantity(normalizedUnit)
+          ? `Đơn vị tính "${normalizedUnit}" chỉ chấp nhận tồn tối thiểu là số nguyên`
+          : "Tồn tối thiểu hiện chỉ hỗ trợ số nguyên"
+      );
+      return;
+    }
+  }
+
   try {
-    const payload = toMaterialPayload();
+    const payload = toMaterialPayload(normalizedUnit);
 
     if (editMatId !== null) {
       await updateMaterial(editMatId, payload);
@@ -357,6 +407,7 @@ const saveMat = async () => {
     setMatModal(false);
     setEditMatId(null);
     setMatForm(emptyMatForm);
+    setUnitWarning(null);
     await loadMaterials();
   } catch (error) {
     console.error("Save material failed:", error);
@@ -446,6 +497,23 @@ const saveInv = async () => {
   if (invForm.quantityAllocated > invForm.quantityOnHand) {
     toast.error("Số lượng phân bổ không được vượt quá tồn kho");
     return;
+  }
+
+  if (invForm.quantityOnHand < 0 || invForm.quantityAllocated < 0) {
+    toast.error("Số lượng không được âm");
+    return;
+  }
+
+  if (selectedInventoryMaterial && inventoryRequiresWholeQuantity) {
+    if (!Number.isInteger(invForm.quantityOnHand)) {
+      toast.error(`Đơn vị tính "${getMaterialUnitLabel(selectedInventoryMaterial.unit)}" chỉ chấp nhận tồn kho là số nguyên`);
+      return;
+    }
+
+    if (!Number.isInteger(invForm.quantityAllocated)) {
+      toast.error(`Đơn vị tính "${getMaterialUnitLabel(selectedInventoryMaterial.unit)}" chỉ chấp nhận số lượng phân bổ là số nguyên`);
+      return;
+    }
   }
 
   try {
@@ -586,7 +654,7 @@ const saveInv = async () => {
                       <td className="px-4 py-3">
                         <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded">{getCategoryName(m.categoryId)}</span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{m.unit}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{getMaterialUnitLabel(m.unit)}</td>
                       <td className="px-4 py-3 text-sm text-gray-900">{m.unitPrice?.toLocaleString() ?? "—"}đ</td>
                       <td className="px-4 py-3 text-sm text-gray-900">{totalOnHand.toLocaleString()}</td>
                       <td className="px-4 py-3 text-sm text-orange-600">{totalAllocated.toLocaleString()}</td>
@@ -827,8 +895,23 @@ const saveInv = async () => {
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">Đơn vị tính</label>
-                  <input value={matForm.unit} onChange={(e) => setMatForm({ ...matForm, unit: e.target.value })} className={inputCls} placeholder="kg" />
+                  <label className="block text-sm text-gray-600 mb-1">Đơn vị tính *</label>
+                  <select
+                    value={matForm.unit}
+                    onChange={(e) => {
+                      setMatForm({ ...matForm, unit: e.target.value });
+                      setUnitWarning(null);
+                    }}
+                    className={inputCls}
+                  >
+                    <option value="">Chọn đơn vị tính</option>
+                    {MATERIAL_UNIT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {unitWarning && <p className="mt-1 text-xs text-amber-600">{unitWarning}</p>}
                 </div>
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Khối lượng/ĐVT</label>
@@ -836,7 +919,8 @@ const saveInv = async () => {
                 </div>
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Tồn tối thiểu</label>
-                  <input type="number" value={matForm.minStockLevel ?? ""} onChange={(e) => setMatForm({ ...matForm, minStockLevel: e.target.value ? Number(e.target.value) : null })} className={inputCls} />
+                  <input type="number" min={0} step={1} value={matForm.minStockLevel ?? ""} onChange={(e) => setMatForm({ ...matForm, minStockLevel: e.target.value ? Number(e.target.value) : null })} className={inputCls} />
+                  <p className="mt-1 text-xs text-gray-500">Tồn tối thiểu hiện chỉ nhận số nguyên.</p>
                 </div>
               </div>
               <div>
@@ -928,6 +1012,7 @@ const saveInv = async () => {
                   <input
                     type="number"
                     min={0}
+                    step={inventoryRequiresWholeQuantity ? 1 : "0.001"}
                     value={invForm.quantityOnHand}
                     onChange={(e) => setInvForm({ ...invForm, quantityOnHand: Number(e.target.value) })}
                     className={inputCls}
@@ -938,12 +1023,16 @@ const saveInv = async () => {
                   <input
                     type="number"
                     min={0}
+                    step={inventoryRequiresWholeQuantity ? 1 : "0.001"}
                     value={invForm.quantityAllocated}
                     onChange={(e) => setInvForm({ ...invForm, quantityAllocated: Number(e.target.value) })}
                     className={inputCls}
                   />
                 </div>
               </div>
+              {inventoryQuantityRuleText && (
+                <p className="text-xs text-gray-500">{inventoryQuantityRuleText}</p>
+              )}
 
               {/* Khả dụng preview */}
               <div className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2.5 border border-gray-100">

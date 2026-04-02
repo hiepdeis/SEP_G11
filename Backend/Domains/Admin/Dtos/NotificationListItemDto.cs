@@ -35,6 +35,8 @@
         /// </summary>
         public int? UserId { get; set; }
 
+        public bool SendEmail { get; set; } = true;
+
         public string Message { get; set; } = null!;
     }
 
@@ -50,6 +52,11 @@
     {
         public int SentCount { get; set; }
         public List<long> NotificationIds { get; set; } = new();
+        public bool EmailRequested { get; set; }
+        public bool EmailConfigured { get; set; }
+        public int EmailSentCount { get; set; }
+        public int EmailMissingAddressCount { get; set; }
+        public int EmailFailedCount { get; set; }
     }
 
     public sealed class NotificationUserLookupDto

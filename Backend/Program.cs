@@ -13,6 +13,8 @@ using Backend.Domains.user.Interface;
 using Backend.Domains.user.Service;
 using Backend.Entities;
 using Backend.Filters;
+using Backend.Options;
+using Backend.Services.Email;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -41,6 +43,8 @@ builder.Services.AddDbContext<MyDbContext>(options =>
               ));
 // Add services to the container.
 
+builder.Services.Configure<EmailOptions>(
+    builder.Configuration.GetSection(EmailOptions.SectionName));
 
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
@@ -107,6 +111,7 @@ builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<IMaterialService, MaterialService>();
 builder.Services.AddScoped<IMasterDataService, MasterDataService>();
 builder.Services.AddScoped<INotificationAdminService, NotificationAdminService>();
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {

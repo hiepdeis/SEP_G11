@@ -1,6 +1,7 @@
 ﻿using Backend.Data;
 using Backend.Domains.Admin.Dtos;
 using Backend.Domains.Admin.Interface;
+using Backend.Domains.Admin.Support;
 using Backend.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -157,13 +158,20 @@ namespace Backend.Domains.Admin.Services
 
         public async Task<int> CreateAsync(CreateMaterialRequest request, CancellationToken ct)
         {
-            await ValidateMaterialRequestAsync(request.Code, request.CategoryId, ct, null);
+            var normalizedUnit = await ValidateMaterialRequestAsync(
+                request.Code,
+                request.Name,
+                request.Unit,
+                request.MinStockLevel,
+                request.CategoryId,
+                ct,
+                null);
 
             var entity = new Material
             {
                 Code = request.Code.Trim().ToUpper(),
                 Name = request.Name.Trim(),
-                Unit = request.Unit.Trim(),
+                Unit = normalizedUnit,
                 MassPerUnit = request.MassPerUnit,
                 MinStockLevel = (int?)request.MinStockLevel,
                 CategoryId = request.CategoryId,
@@ -182,11 +190,18 @@ namespace Backend.Domains.Admin.Services
             var entity = await _db.Materials.FirstOrDefaultAsync(x => x.MaterialId == materialId, ct);
             if (entity == null) return false;
 
-            await ValidateMaterialRequestAsync(request.Code, request.CategoryId, ct, materialId);
+            var normalizedUnit = await ValidateMaterialRequestAsync(
+                request.Code,
+                request.Name,
+                request.Unit,
+                request.MinStockLevel,
+                request.CategoryId,
+                ct,
+                materialId);
 
             entity.Code = request.Code.Trim().ToUpper();
             entity.Name = request.Name.Trim();
-            entity.Unit = request.Unit.Trim();
+            entity.Unit = normalizedUnit;
             entity.MassPerUnit = request.MassPerUnit;
             entity.MinStockLevel = (int?)request.MinStockLevel;
             entity.CategoryId = request.CategoryId;
@@ -336,10 +351,37 @@ namespace Backend.Domains.Admin.Services
             return (true, "Xóa vị trí tồn kho thành công.");
         }
 
-        private async Task ValidateMaterialRequestAsync(string code, int? categoryId, CancellationToken ct, int? ignoreMaterialId)
+        private async Task<string> ValidateMaterialRequestAsync(
+            string code,
+            string name,
+            string unit,
+            decimal? minStockLevel,
+            int? categoryId,
+            CancellationToken ct,
+            int? ignoreMaterialId)
         {
             if (string.IsNullOrWhiteSpace(code))
                 throw new ArgumentException("Material code is required.");
+
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ArgumentException("Tên vật tư là bắt buộc.");
+
+            if (!MaterialUnitCatalog.TryNormalize(unit, out var normalizedUnit))
+                throw new ArgumentException("Đơn vị tính không hợp lệ. Vui lòng chọn đơn vị có sẵn.");
+
+            if (minStockLevel.HasValue)
+            {
+                if (minStockLevel.Value < 0)
+                    throw new ArgumentException("Tồn tối thiểu không được âm.");
+
+                if (!IsWholeNumber(minStockLevel.Value))
+                {
+                    if (MaterialUnitCatalog.RequiresWholeQuantity(normalizedUnit))
+                        throw new ArgumentException($"Đơn vị tính '{normalizedUnit}' chỉ chấp nhận tồn tối thiểu là số nguyên.");
+
+                    throw new ArgumentException("Tồn tối thiểu hiện chỉ hỗ trợ số nguyên.");
+                }
+            }
 
             var normalizedCode = code.Trim().ToUpper();
 
@@ -355,6 +397,8 @@ namespace Backend.Domains.Admin.Services
                 if (!categoryExists)
                     throw new ArgumentException("CategoryId không tồn tại.");
             }
+
+            return normalizedUnit;
         }
 
         private async Task ValidateInventoryRequestAsync(
@@ -366,9 +410,21 @@ namespace Backend.Domains.Admin.Services
      decimal quantityAllocated,
      CancellationToken ct)
         {
-            var materialExists = await _db.Materials.AnyAsync(x => x.MaterialId == materialId, ct);
-            if (!materialExists)
+            var material = await _db.Materials
+                .AsNoTracking()
+                .Where(x => x.MaterialId == materialId)
+                .Select(x => new
+                {
+                    x.MaterialId,
+                    x.Unit
+                })
+                .FirstOrDefaultAsync(ct);
+
+            if (material == null)
                 throw new ArgumentException("Material không tồn tại.");
+
+            if (!MaterialUnitCatalog.TryNormalize(material.Unit, out var normalizedUnit))
+                throw new ArgumentException("Đơn vị tính của vật tư không hợp lệ.");
 
             var warehouseExists = await _db.Warehouses.AnyAsync(x => x.WarehouseId == warehouseId, ct);
             if (!warehouseExists)
@@ -400,9 +456,24 @@ namespace Backend.Domains.Admin.Services
             if (quantityAllocated < 0)
                 throw new ArgumentException("QuantityAllocated không được âm.");
 
+            if (MaterialUnitCatalog.RequiresWholeQuantity(normalizedUnit))
+            {
+                if (!IsWholeNumber(quantityOnHand))
+                    throw new ArgumentException($"Đơn vị tính '{normalizedUnit}' chỉ chấp nhận tồn kho là số nguyên.");
+
+                if (!IsWholeNumber(quantityAllocated))
+                    throw new ArgumentException($"Đơn vị tính '{normalizedUnit}' chỉ chấp nhận số lượng phân bổ là số nguyên.");
+            }
+
             if (quantityAllocated > quantityOnHand)
                 throw new ArgumentException("Số lượng phân bổ không được vượt quá tồn kho.");
         }
+
+        private static bool IsWholeNumber(decimal value)
+        {
+            return value == decimal.Truncate(value);
+        }
+
         private async Task<int> ResolveBatchIdAsync(int materialId, int? batchId, string? batchCode, CancellationToken ct)
         {
             if (batchId.HasValue)

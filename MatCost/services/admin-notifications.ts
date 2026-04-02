@@ -8,6 +8,16 @@ export type NotificationItem = {
   createdAt: string;
 };
 
+export type NotificationCreateResult = {
+  sentCount: number;
+  notificationIds: number[];
+  emailRequested: boolean;
+  emailConfigured: boolean;
+  emailSentCount: number;
+  emailMissingAddressCount: number;
+  emailFailedCount: number;
+};
+
 export type NotificationPagedResult = {
   items: NotificationItem[];
   page: number;
@@ -25,8 +35,10 @@ export type GetNotificationsParams = {
 };
 
 export type CreateNotificationPayload = {
-  userId: number;
+  targetMode?: "single" | "all";
+  userId?: number;
   message: string;
+  sendEmail?: boolean;
 };
 
 export function getNotifications(params: GetNotificationsParams = {}) {
@@ -59,11 +71,11 @@ export function getNotifications(params: GetNotificationsParams = {}) {
 }
 
 export function createNotification(payload: CreateNotificationPayload) {
-  return apiPost<NotificationItem>("/admin/notifications", payload);
+  return apiPost<NotificationCreateResult>("/admin/notifications", payload);
 }
 
-export async function createNotificationsBulk(userIds: number[], message: string) {
-  await Promise.all(userIds.map((userId) => createNotification({ userId, message })));
+export function createNotifications(payload: CreateNotificationPayload) {
+  return createNotification(payload);
 }
 
 export function markNotificationAsRead(notiId: number) {
