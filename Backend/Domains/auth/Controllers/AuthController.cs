@@ -105,6 +105,8 @@ namespace Backend.Domains.auth.Controllers
 
                 return Ok(new AuthResponse
                 { 
+                    UserId = userFromDb.UserId,
+                    FullName = userFromDb.FullName ?? userFromDb.Username,
                     AccessToken = accessToken,
                     Status = userFromDb.Status,
                     RoleName = userFromDb.Role.RoleName

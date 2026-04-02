@@ -57,4 +57,13 @@ public partial class ReceiptDetail
     public virtual Receipt Receipt { get; set; } = null!;
 
     public virtual Supplier? Supplier { get; set; }
+
+    [InverseProperty("ReceiptDetail")]
+    public virtual ICollection<QCCheckDetail> QCCheckDetails { get; set; } = new List<QCCheckDetail>();
+
+    [InverseProperty("ReceiptDetail")]
+    public virtual ICollection<IncidentReportDetail> IncidentReportDetails { get; set; } = new List<IncidentReportDetail>();
+
+    [InverseProperty("ReceiptDetail")]
+    public virtual ICollection<ReceiptDetailBinAllocation> BinAllocations { get; set; } = new List<ReceiptDetailBinAllocation>();
 }

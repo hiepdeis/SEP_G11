@@ -27,8 +27,17 @@ public partial class Supplier
     [StringLength(500)]
     public string? Address { get; set; }
 
-  
+
     [InverseProperty("Supplier")]
     public virtual ICollection<SupplierQuotation> SupplierQuotations { get; set; } = new List<SupplierQuotation>();
     public virtual ICollection<ReceiptDetail> ReceiptDetails { get; set; } = new List<ReceiptDetail>();
+
+    [InverseProperty("Supplier")]
+    public virtual ICollection<SupplierContract> SupplierContracts { get; set; } = new List<SupplierContract>();
+
+    [InverseProperty("Supplier")]
+    public virtual ICollection<PurchaseOrder> PurchaseOrders { get; set; } = new List<PurchaseOrder>();
+
+    [InverseProperty("Supplier")]
+    public virtual ICollection<PurchaseOrderItem> PurchaseOrderItems { get; set; } = new List<PurchaseOrderItem>();
 }

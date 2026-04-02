@@ -55,6 +55,9 @@ public partial class User
     [InverseProperty("User")]
     public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 
+    [InverseProperty("ConfirmedByUser")]
+    public virtual ICollection<StockShortageAlert> StockShortageAlertsConfirmedByNavigations { get; set; } = new List<StockShortageAlert>();
+
     [InverseProperty("CreatedByNavigation")]
     public virtual ICollection<Receipt> Receipts { get; set; } = new List<Receipt>();
 
@@ -75,7 +78,7 @@ public partial class User
 
     public virtual ICollection<StockTakeDetail> StockTakeDetailResolvedByNavigations { get; set; } = new List<StockTakeDetail>();
 
-   
+
 
     public virtual ICollection<StockTakeSignature> StockTakeSignatures { get; set; } = new List<StockTakeSignature>();
 
@@ -94,5 +97,14 @@ public partial class User
 
     [InverseProperty(nameof(StockTakeLock.UnlockedByNavigation))]
     public virtual ICollection<StockTakeLock> StockTakeLockUnlockedByNavigations { get; set; } = new List<StockTakeLock>();
+
+    [InverseProperty("CheckedByNavigation")]
+    public virtual ICollection<QCCheck> QCChecks { get; set; } = new List<QCCheck>();
+
+    [InverseProperty("CreatedByNavigation")]
+    public virtual ICollection<IncidentReport> IncidentReportsCreated { get; set; } = new List<IncidentReport>();
+
+    [InverseProperty("ResolvedByNavigation")]
+    public virtual ICollection<IncidentReport> IncidentReportsResolved { get; set; } = new List<IncidentReport>();
 
 }

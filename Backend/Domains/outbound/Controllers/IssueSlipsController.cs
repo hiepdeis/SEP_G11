@@ -62,6 +62,10 @@ namespace Backend.Domains.outbound.Controllers
                 IssueDate = DateTime.UtcNow,
                 Status = "Pending",
                 Description = dto.Description,
+                WorkItem = dto.WorkItem,
+                Department = dto.Department,
+                DeliveryLocation = dto.DeliveryLocation,
+                ReferenceCode = dto.ReferenceCode
             };
 
             _context.IssueSlips.Add(issueSlip);

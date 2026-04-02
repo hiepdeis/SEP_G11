@@ -23,10 +23,13 @@ public partial class Material
     [StringLength(20)]
     public string? Unit { get; set; }
 
+    public bool IsDecimalUnit { get; set; } // Cho biết đơn vị có phải là đơn vị thập phân hay không
+
     [Column(TypeName = "decimal(10, 2)")]
     public decimal? MassPerUnit { get; set; }
 
     public int? MinStockLevel { get; set; }
+    public int? MaxStockLevel { get; set; }
     public int? CategoryId { get; set; }
     public decimal? UnitPrice { get; set; }
 
@@ -54,6 +57,15 @@ public partial class Material
     public virtual ICollection<ReceiptDetail> ReceiptDetails { get; set; } = new List<ReceiptDetail>();
 
     [InverseProperty("Material")]
+    public virtual ICollection<PurchaseRequestItem> PurchaseRequestItems { get; set; } = new List<PurchaseRequestItem>();
+
+    [InverseProperty("Material")]
+    public virtual ICollection<PurchaseOrderItem> PurchaseOrderItems { get; set; } = new List<PurchaseOrderItem>();
+
+    [InverseProperty("Material")]
+    public virtual ICollection<StockShortageAlert> StockShortageAlerts { get; set; } = new List<StockShortageAlert>();
+
+    [InverseProperty("Material")]
     public virtual ICollection<StockTakeDetail> StockTakeDetails { get; set; } = new List<StockTakeDetail>();
 
     [InverseProperty("Material")]
@@ -64,5 +76,11 @@ public partial class Material
 
     [InverseProperty("Material")]
     public virtual ICollection<WarehouseCard> WarehouseCards { get; set; } = new List<WarehouseCard>();
+
+    [InverseProperty("Material")]
+    public virtual ICollection<IncidentReportDetail> IncidentReportDetails { get; set; } = new List<IncidentReportDetail>();
+
+    [InverseProperty("Material")]
+    public virtual ICollection<SupplementaryReceiptItem> SupplementaryReceiptItems { get; set; } = new List<SupplementaryReceiptItem>();
 
 }

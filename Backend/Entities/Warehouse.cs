@@ -45,4 +45,10 @@ public partial class Warehouse
     [InverseProperty(nameof(StockTakeLock.Warehouse))]
     public virtual ICollection<StockTakeLock> StockTakeLocks { get; set; } = new List<StockTakeLock>();
 
+    [InverseProperty("Warehouse")]
+    public virtual ICollection<StockShortageAlert> StockShortageAlerts { get; set; } = new List<StockShortageAlert>();
+
+    [InverseProperty("Warehouse")]
+    public virtual ICollection<PurchaseRequestItem> PurchaseRequestItems { get; set; } = new List<PurchaseRequestItem>();
+
 }

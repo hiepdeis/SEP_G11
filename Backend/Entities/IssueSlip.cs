@@ -60,4 +60,18 @@ public partial class IssueSlip
 
     [Column(TypeName = "datetime")]
     public DateTime? ApprovedDate { get; set; }
+
+    [StringLength(255)]
+    public string? WorkItem { get; set; } // Hạng mục (lưu text)
+
+    [StringLength(200)]
+    public string? Department { get; set; } // Đơn vị yêu cầu
+
+    [StringLength(500)]
+    public string? DeliveryLocation { get; set; } // Nơi nhận
+
+    [StringLength(100)]
+    public string? ReferenceCode { get; set; } // Mã tham chiếu
+
+
 }

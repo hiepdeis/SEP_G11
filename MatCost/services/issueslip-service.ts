@@ -11,6 +11,10 @@ export interface IssueSlipDto {
   issueCode: string;
   userId: number;
   description: string;
+  WorkItem ?: string;
+  Department ?: string;
+  DeliveryLocation ?: string;
+  ReferenceCode ?: string;
 }
 
 export interface IssueSlip {
@@ -46,6 +50,10 @@ export interface IssueSlipDetail {
   createdBy: number;
   createdByName: string;
   description: string;
+  workItem?: string;
+  department?: string;
+  deliveryLocation?: string;
+  referenceCode?: string;
   details: IssueSlipDetailItem[];
 }
 

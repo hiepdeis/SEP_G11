@@ -5,9 +5,9 @@ import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { SidebarProvider } from "@/components/sidebar-context"
 import { Toaster } from "sonner"
-import 'antd/dist/reset.css'
 
-
+// import 'antd/dist/reset.css'
+import '../lib/i18n';
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
@@ -32,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="scroll-smooth">
       <body className={`font-sans antialiased`} suppressHydrationWarning>
         <SidebarProvider>{children}</SidebarProvider>
         <Toaster richColors position="top-right" />

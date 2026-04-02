@@ -1,5 +1,4 @@
-﻿using Backend.Domains.Import.DTOs.Constructions;
-using Backend.Entities;
+﻿using Backend.Entities;
 
 namespace Backend.Domains.Import.Interfaces
 {

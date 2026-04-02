@@ -1,50 +1,40 @@
-﻿using Backend.Domains.Import.DTOs.Managers;
+using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.Interfaces;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace Backend.Domains.Import.Controllers.Managers
 {
-    [Route("api/manager/[controller]")]
     [ApiController]
-  //  [Authorize]
+    [Route("api/manager/receipts")]
     public class ManagerReceiptsController : ControllerBase
     {
-        private readonly IReceiptService _receiptService;
+        private readonly IReceiptService _service;
 
-        public ManagerReceiptsController(
-            IReceiptService receiptService)
+        public ManagerReceiptsController(IReceiptService service)
         {
-            _receiptService = receiptService;
+            _service = service;
         }
 
-
-        [HttpGet("pending")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult<List<PendingReceiptDto>>> GetReceiptForManagerReview()
+        [HttpGet]
+        public async Task<IActionResult> GetReceipts([FromQuery] string? status)
         {
             try
             {
-                var receipts = await _receiptService.GetReceiptForManagerReviewAsync();
+                var receipts = await _service.GetReceiptsForManagerAsync(status);
                 return Ok(receipts);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Internal server error", detail = ex.Message });
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
             }
         }
 
-
-        [HttpGet("{id}")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<PendingReceiptDto>> GetReceiptDetailForManagerReview(long id)
+        [HttpGet("{receiptId:long}")]
+        public async Task<IActionResult> GetReceiptDetail(long receiptId)
         {
             try
             {
-                var receipt = await _receiptService.GetReceiptDetailForManagerReviewAsync(id);
+                var receipt = await _service.GetReceiptForManagerAsync(receiptId);
                 return Ok(receipt);
             }
             catch (KeyNotFoundException ex)
@@ -53,80 +43,18 @@ namespace Backend.Domains.Import.Controllers.Managers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Internal server error", detail = ex.Message });
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
             }
         }
 
-
-        [HttpPost("{id}/approve")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> ApproveReceipt(long id, [FromBody] ApproveReceiptDto dto)
+        [HttpPost("{receiptId:long}/stamp")]
+        public async Task<IActionResult> StampReceipt(long receiptId, [FromBody] ManagerReceiptStampDto dto)
         {
             try
             {
-                // Comment đoạn code lấy từ JWT
-                // var managerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-                // var managerName = User.FindFirst(ClaimTypes.Name)?.Value;
-
-                // Hardcode managerId = 2 (Manager theo SeedData)
-                var managerId = 2;
-                var managerName = "Project Manager";
-
-                await _receiptService.ApproveReceiptAsync(id, managerId, dto);
-
-                return Ok(new
-                {
-                    message = "Receipt approved successfully",
-                    receiptId = id,
-                    newStatus = "Approved",
-                    approvedBy = managerName,
-                    approvedDate = DateTime.UtcNow
-                });
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "Internal server error", detail = ex.Message });
-            }
-        }
-
-
-        [HttpPost("{id}/reject")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> RejectReceipt(long id, [FromBody] RejectReceiptDto dto)
-        {
-            try
-            {
-                // Comment đoạn code lấy từ JWT
-                // var managerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-                // var managerName = User.FindFirst(ClaimTypes.Name)?.Value;
-
-                // Hardcode managerId = 2 (Manager theo SeedData)
-                var managerId = 2;
-                var managerName = "Project Manager";
-
-                await _receiptService.RejectReceiptAsync(id, managerId, dto);
-
-                return Ok(new
-                {
-                    message = "Receipt rejected successfully",
-                    receiptId = id,
-                    newStatus = "Rejected",
-                    rejectedBy = managerName,
-                    rejectedDate = DateTime.UtcNow,
-                    reason = dto.RejectionReason
-                });
+                var managerId = 2; // TODO: replace with JWT claims
+                var result = await _service.StampReceiptAsync(receiptId, dto, managerId);
+                return Ok(result);
             }
             catch (KeyNotFoundException ex)
             {
@@ -142,7 +70,7 @@ namespace Backend.Domains.Import.Controllers.Managers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Internal server error", detail = ex.Message });
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
             }
         }
     }
