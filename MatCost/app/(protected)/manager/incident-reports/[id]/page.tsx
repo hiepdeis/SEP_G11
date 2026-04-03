@@ -54,6 +54,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ImageGallery } from "@/components/ui/custom/image-gallery";
 
 export default function ManagerIncidentDetailPage() {
   const { t } = useTranslation();
@@ -267,7 +268,7 @@ export default function ManagerIncidentDetailPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* CỘT TRÁI: THÔNG TIN CHUNG */}
             <div className="lg:col-span-1 space-y-6">
               <Card className="border-slate-200 shadow-sm bg-white gap-0 pb-0">
@@ -340,7 +341,7 @@ export default function ManagerIncidentDetailPage() {
             </div>
 
             {/* CỘT PHẢI: CHI TIẾT */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-3 space-y-6">
               {/* CARD: SUPPLEMENTARY RECEIPT */}
               {supplementaryReceipt && (
                 <Card className="shadow-sm flex flex-col gap-0 overflow-hidden">
@@ -463,22 +464,31 @@ export default function ManagerIncidentDetailPage() {
                     <Table>
                       <TableHeader className="bg-slate-50 sticky top-0 z-10">
                         <TableRow>
-                          <TableHead className="w-[35%] pl-6">
+                          <TableHead className="w-[20%] pl-6">
                             {t("Material")}
                           </TableHead>
-                          <TableHead className="w-[15%] text-center text-slate-700">
+                          <TableHead className="w-[10%] text-center text-slate-700">
                             {t("Ordered")}
                           </TableHead>
-                          <TableHead className="w-[15%] text-center text-slate-700">
+                          <TableHead className="w-[10%] text-center text-slate-700">
                             {t("Actual")}
                           </TableHead>
-                          <TableHead className="w-[15%] text-center text-emerald-700">
+                          <TableHead className="w-[10%] text-center text-emerald-700">
                             {t("Passed")}
                           </TableHead>
-                          <TableHead className="w-[15%] text-center text-rose-700 font-bold">
-                            {t("Failed")}
+                          <TableHead className="w-[10%] text-center text-rose-700 font-bold">
+                            {t("Quantity")}
                           </TableHead>
-                          <TableHead className="w-[35%] pr-6">
+                          <TableHead className="w-[10%] text-center text-rose-700 font-bold">
+                            {t("Quality")}
+                          </TableHead>
+                          <TableHead className="w-[10%] text-center text-rose-700 font-bold">
+                            {t("Damage")}
+                          </TableHead>
+                          <TableHead className="w-[10%] text-center text-rose-700 font-bold">
+                            {t("Total Failed")}
+                          </TableHead>
+                          <TableHead className="w-[40%] pr-6 text-center">
                             {t("Staff Reason")}
                           </TableHead>
                         </TableRow>
@@ -519,12 +529,34 @@ export default function ManagerIncidentDetailPage() {
                               </TableCell>
                               <TableCell className="text-center align-top pt-4">
                                 <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">
+                                  {item.failQuantityQuantity || 0}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center align-top pt-4">
+                                <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">
+                                  {item.failQuantityQuality || 0}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center align-top pt-4">
+                                <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">
+                                  {item.failQuantityDamage || 0}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center align-top pt-4">
+                                <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">
                                   {item.failQuantity}
                                 </Badge>
                               </TableCell>
                               <TableCell className="pr-6 align-top pt-4">
                                 <p className="text-sm text-slate-600 italic">
                                   {item.failReason || t("No specific reason")}
+                                  {item.evidenceImages !== null &&
+                                    item.evidenceImages.length > 0 && (
+                                      <ImageGallery
+                                        images={item.evidenceImages}
+                                        isReadOnly={true}
+                                      />
+                                    )}
                                 </p>
                               </TableCell>
                             </TableRow>

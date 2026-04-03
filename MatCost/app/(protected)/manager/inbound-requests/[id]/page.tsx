@@ -16,6 +16,7 @@ import {
   MapPin,
   ChevronLeft,
   ChevronRight,
+  FileInput,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -232,6 +233,17 @@ export default function ManagerReceiptDetailPage() {
                       {receipt.supplierName || t("Unknown Supplier")}
                     </div>
                   </div>
+                  {receipt.putawayCompletedAt && (
+                    <div className="space-y-1">
+                      <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
+                        {t("Putaway")}
+                      </span>
+                      <div className="flex items-center gap-2 text-slate-700 font-medium">
+                        <FileInput className="w-4 h-4 text-slate-400" />
+                        {receipt.putawayCompletedByName} - {formatDate(receipt.putawayCompletedAt)}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -356,31 +368,33 @@ export default function ManagerReceiptDetailPage() {
                             </TableCell>
 
                             <TableCell className="pr-6 py-4">
-                              {item.binAllocations.length === 0 ? (
-                                <span className="text-slate-400 text-sm italic text-center">
-                                  {t("No bins allocated")}
-                                </span>
-                              ) : (
-                                <div className="flex flex-wrap gap-2 justify-center">
-                                  {item.binAllocations.map((bin, binIdx) => (
-                                    <div
-                                      key={binIdx}
-                                      className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 px-2 py-1.5 rounded-md text-xs"
-                                    >
-                                      <MapPin className="w-3 h-3 text-indigo-500" />
-                                      <span className="font-semibold text-indigo-800">
-                                        {bin.binCode}
-                                      </span>
-                                      <span className="text-indigo-400 mx-0.5">
-                                        |
-                                      </span>
-                                      <span className="font-medium text-slate-700">
-                                        {t("Quantity")}: {bin.quantity}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
+                              <div className="flex flex-wrap gap-2 justify-center">
+                                {item.binAllocations.length === 0 ? (
+                                  <span className="text-slate-400 text-sm italic text-center">
+                                    {t("No bins allocated")}
+                                  </span>
+                                ) : (
+                                  <div className="flex flex-wrap gap-2 justify-center">
+                                    {item.binAllocations.map((bin, binIdx) => (
+                                      <div
+                                        key={binIdx}
+                                        className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 px-2 py-1.5 rounded-md text-xs"
+                                      >
+                                        <MapPin className="w-3 h-3 text-indigo-500" />
+                                        <span className="font-semibold text-indigo-800">
+                                          {bin.binCode}
+                                        </span>
+                                        <span className="text-indigo-400 mx-0.5">
+                                          |
+                                        </span>
+                                        <span className="font-medium text-slate-700">
+                                          {t("Quantity")}: {bin.quantity}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))

@@ -416,6 +416,20 @@ export default function StaffInboundDetailPage({
                           </p>
                         </div>
                       </div>
+                      {request.status === "Stamped" && (
+                        <div>
+                          <p className="font-medium text-slate-800">
+                            {request.stampedByName} - {request.stampedAt}
+                          </p>
+                        </div>
+                      )}
+                      {request.status === "Closed" && (
+                        <div>
+                          <p className="font-medium text-slate-800">
+                            {request.closedByName} - {request.closedAt}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

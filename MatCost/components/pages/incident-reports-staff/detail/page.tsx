@@ -53,6 +53,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatPascalCase } from "@/lib/format-pascal-case";
+import { ImageGallery } from "@/components/ui/custom/image-gallery";
 
 interface IncidentItemInput {
   materialId: number;
@@ -66,6 +67,11 @@ interface IncidentItemInput {
   issueType: string;
   notes: string;
   evidenceImages: string[];
+  breakdown: {
+    quantity: number;
+    quality: number;
+    damage: number;
+  };
 }
 
 export default function StaffIncidentPage({
@@ -91,10 +97,6 @@ export default function StaffIncidentPage({
 
   const [tablePage, setTablePage] = useState(1);
   const tableItemsPerPage = 5;
-
-  const [isViewerOpen, setIsViewerOpen] = useState(false);
-  const [viewerImages, setViewerImages] = useState<string[]>([]);
-  const [viewerIndex, setViewerIndex] = useState<number>(0);
 
   const [isSubmittingToManager, setIsSubmittingToManager] = useState(false);
 
@@ -153,6 +155,11 @@ export default function StaffIncidentPage({
               ? historyDetail.notes || ""
               : qcItem.failReason || "",
             evidenceImages: historyDetail?.evidenceImages || [],
+            breakdown: historyDetail?.breakdown || {
+              quantity: 0,
+              quality: 0,
+              damage: 0,
+            },
           };
         },
       );
@@ -208,20 +215,31 @@ export default function StaffIncidentPage({
               (d) => d.materialId === qcItem.materialId,
             );
 
+            const orderedQty = receiptItem?.quantity || 0;
+            const passQty = qcItem.passQuantity || 0;
+            const failQty = qcItem.failQuantity || 0;
+
+            const expectedQuantityShortage = Math.max(0, orderedQty - passQty);
+
             return {
               materialId: qcItem.materialId || 0,
               materialCode: receiptItem?.materialCode || "",
               materialName: receiptItem?.materialName || "",
               unit: receiptItem?.unit || "Unit",
-              orderedQuantity: receiptItem?.quantity || 0,
+              orderedQuantity: orderedQty,
               actualQuantity: receiptItem?.actualQuantity || 0,
-              passQuantity: qcItem.passQuantity,
-              failQuantity: qcItem.failQuantity,
-              issueType: historyDetail ? historyDetail.issueType : "",
+              passQuantity: passQty,
+              failQuantity: failQty,
+              issueType: "",
               notes: historyDetail
                 ? historyDetail.notes || ""
                 : qcItem.failReason || "",
               evidenceImages: historyDetail?.evidenceImages || [],
+              breakdown: historyDetail?.breakdown || {
+                quantity: expectedQuantityShortage,
+                quality: 0,
+                damage: 0,
+              },
             };
           },
         );
@@ -235,26 +253,6 @@ export default function StaffIncidentPage({
     };
     if (id) initData();
   }, [id, t]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isViewerOpen || viewerImages.length <= 1) return;
-
-      if (e.key === "ArrowLeft") {
-        setViewerIndex((prev) =>
-          prev > 0 ? prev - 1 : viewerImages.length - 1,
-        );
-      } else if (e.key === "ArrowRight") {
-        setViewerIndex((prev) =>
-          prev < viewerImages.length - 1 ? prev + 1 : 0,
-        );
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isViewerOpen, viewerImages.length]);
 
   const updateItem = (
     index: number,
@@ -272,12 +270,19 @@ export default function StaffIncidentPage({
     if (!incidentDescription.trim())
       return toast.error(t("Please provide an overall incident description."));
 
-    const missingIssue = incidentItems.filter((i) => !i.issueType);
-    if (missingIssue.length > 0)
-      return toast.error(
-        t("Please select an Issue Type for all failed items."),
-      );
+    const invalidBreakdownItem = incidentItems.find((i) => {
+      const sum =
+        i.breakdown.quantity + i.breakdown.quality + i.breakdown.damage;
+      return Math.abs(sum - i.failQuantity) > 0.0001;
+    });
 
+    if (invalidBreakdownItem) {
+      return toast.error(
+        t(
+          `Breakdown sum (Quantity + Quality + Damage) for ${invalidBreakdownItem.materialName} must exactly equal its Failed Quantity (${invalidBreakdownItem.failQuantity}).`,
+        ),
+      );
+    }
     const missingNotes = incidentItems.filter((i) => !i.notes.trim());
     if (missingNotes.length > 0)
       return toast.error(
@@ -303,12 +308,28 @@ export default function StaffIncidentPage({
         try {
           const payload: CreateIncidentReportDto = {
             description: incidentDescription.trim(),
-            details: incidentItems.map((i) => ({
-              materialId: i.materialId,
-              issueType: i.issueType,
-              evidenceNote: i.notes.trim(),
-              evidenceImages: i.evidenceImages,
-            })),
+            details: incidentItems.map((i) => {
+              const currentBreakdown =
+                i.breakdown.quantity === 0 &&
+                i.breakdown.quality === 0 &&
+                i.breakdown.damage === 0
+                  ? {
+                      quantity: i.issueType === "Quantity" ? i.failQuantity : 0,
+                      quality: i.issueType === "Quality" ? i.failQuantity : 0,
+                      damage: i.issueType === "Damage" ? i.failQuantity : 0,
+                    }
+                  : i.breakdown;
+
+              return {
+                materialId: i.materialId,
+                issueType: i.issueType,
+                failQuantity: i.failQuantity,
+                evidenceNote: i.notes.trim() || null,
+                evidenceImages:
+                  i.evidenceImages.length > 0 ? i.evidenceImages : null,
+                breakdown: currentBreakdown,
+              };
+            }),
           };
 
           await staffReceiptsApi.createIncidentReport(id, payload);
@@ -324,6 +345,51 @@ export default function StaffIncidentPage({
           setIsSubmitting(false);
         }
       },
+    });
+  };
+  const updateBreakdown = (
+    index: number,
+    field: "quantity" | "quality" | "damage",
+    value: string,
+  ) => {
+    if (isHistoryView) return;
+    const parsedValue = Math.max(0, Number(value) || 0);
+
+    setIncidentItems((prev) => {
+      const newItems = [...prev];
+      const item = newItems[index];
+      const total = item.failQuantity;
+
+      const primaryVal = Math.min(parsedValue, total);
+
+      let newQuantity = item.breakdown.quantity;
+      let newQuality = item.breakdown.quality;
+      let newDamage = item.breakdown.damage;
+
+      // Thuật toán bù trừ 3 chiều
+      if (field === "quantity") {
+        newQuantity = primaryVal;
+        newQuality = Math.min(newQuality, total - newQuantity);
+        newDamage = total - newQuantity - newQuality;
+      } else if (field === "quality") {
+        newQuality = primaryVal;
+        newQuantity = Math.min(newQuantity, total - newQuality);
+        newDamage = total - newQuality - newQuantity;
+      } else if (field === "damage") {
+        newDamage = primaryVal;
+        newQuantity = Math.min(newQuantity, total - newDamage);
+        newQuality = total - newDamage - newQuantity;
+      }
+
+      newItems[index] = {
+        ...item,
+        breakdown: {
+          quantity: newQuantity,
+          quality: newQuality,
+          damage: newDamage,
+        },
+      };
+      return newItems;
     });
   };
 
@@ -569,7 +635,7 @@ export default function StaffIncidentPage({
                         {t("Failed")}
                       </TableHead>
                       <TableHead className="w-[20%] text-center">
-                        {t("Issue Type")} *
+                        {t("Defect Breakdown")} *
                       </TableHead>
                       <TableHead className="pr-6 w-[25%]">
                         {t("Detailed Notes")}
@@ -631,32 +697,76 @@ export default function StaffIncidentPage({
                                   </Badge>
                                 </TableCell>
                                 <TableCell className="align-top pt-3">
-                                  <Select
-                                    value={item.issueType}
-                                    onValueChange={(val) =>
-                                      updateItem(absoluteIdx, "issueType", val)
-                                    }
-                                    disabled={isHistoryView}
-                                  >
-                                    <SelectTrigger
-                                      className={`h-9 w-full ${!item.issueType && !isHistoryView ? "border-rose-300 ring-1 ring-rose-100" : "border-slate-300"} ${isHistoryView ? "bg-slate-50 opacity-80" : ""}`}
-                                    >
-                                      <SelectValue
-                                        placeholder={t("Select type...")}
-                                      />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="Quantity">
+                                  <div className="flex flex-col gap-2 bg-slate-50 p-2.5 rounded-md border border-slate-200 shadow-sm">
+                                    <div className="flex items-center justify-between text-xs mb-1 border-b border-slate-200 pb-2">
+                                      <span className="font-semibold text-slate-700">
+                                        {t("Total Failed")}
+                                      </span>
+                                      <Badge className="bg-red-100 text-red-700 border-red-200 font-bold shadow-sm">
+                                        {item.failQuantity}
+                                      </Badge>
+                                    </div>
+
+                                    <div className="flex items-center justify-between text-xs gap-2 mt-1">
+                                      <span className="text-slate-500 font-medium">
                                         {t("Quantity")}
-                                      </SelectItem>
-                                      <SelectItem value="Quality">
+                                      </span>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        value={item.breakdown.quantity || ""}
+                                        onChange={(e) =>
+                                          updateBreakdown(
+                                            absoluteIdx,
+                                            "quantity",
+                                            e.target.value,
+                                          )
+                                        }
+                                        disabled={isHistoryView}
+                                        className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-white"
+                                      />
+                                    </div>
+
+                                    <div className="flex items-center justify-between text-xs gap-2">
+                                      <span className="text-slate-500 font-medium">
                                         {t("Quality")}
-                                      </SelectItem>
-                                      <SelectItem value="Damage">
+                                      </span>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        value={item.breakdown.quality || ""}
+                                        onChange={(e) =>
+                                          updateBreakdown(
+                                            absoluteIdx,
+                                            "quality",
+                                            e.target.value,
+                                          )
+                                        }
+                                        disabled={isHistoryView}
+                                        className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-white"
+                                      />
+                                    </div>
+
+                                    <div className="flex items-center justify-between text-xs gap-2">
+                                      <span className="text-slate-500 font-medium">
                                         {t("Damage")}
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
+                                      </span>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        value={item.breakdown.damage || ""}
+                                        onChange={(e) =>
+                                          updateBreakdown(
+                                            absoluteIdx,
+                                            "damage",
+                                            e.target.value,
+                                          )
+                                        }
+                                        disabled={isHistoryView}
+                                        className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-white"
+                                      />
+                                    </div>
+                                  </div>
                                 </TableCell>
                                 <TableCell className="pr-6 align-top pt-3">
                                   <div className="flex flex-col gap-2">
@@ -704,70 +814,13 @@ export default function StaffIncidentPage({
 
                                     {/* Thumbnail Preview (Tối đa 5 ảnh) */}
                                     {item.evidenceImages.length > 0 && (
-                                      <div className="flex flex-wrap gap-2 mt-2">
-                                        {item.evidenceImages
-                                          .slice(0, 5)
-                                          .map((imgObj, imgIdx) => {
-                                            const isLastVisible = imgIdx === 4;
-                                            const remainingCount =
-                                              item.evidenceImages.length - 5;
-                                            const showOverlay =
-                                              isLastVisible &&
-                                              remainingCount > 0;
-
-                                            const imgSrc =
-                                              typeof imgObj === "string"
-                                                ? imgObj
-                                                : imgObj.imageData;
-
-                                            return (
-                                              <div
-                                                key={imgIdx}
-                                                className="relative group cursor-pointer"
-                                                onClick={() => {
-                                                  const imageStrings =
-                                                    item.evidenceImages.map(
-                                                      (img) =>
-                                                        typeof img === "string"
-                                                          ? img
-                                                          : img.imageData,
-                                                    );
-                                                  setViewerImages(imageStrings);
-                                                  setViewerIndex(imgIdx);
-                                                  setIsViewerOpen(true);
-                                                }}
-                                              >
-                                                <img
-                                                  src={imgSrc}
-                                                  alt="evidence"
-                                                  className="w-10 h-10 object-cover rounded border border-slate-200 shadow-sm"
-                                                />
-
-                                                {/* Overlay "+ X" */}
-                                                {showOverlay && (
-                                                  <div className="absolute inset-0 bg-slate-900/60 rounded flex items-center justify-center text-white text-xs font-bold backdrop-blur-[1px]">
-                                                    +{remainingCount}
-                                                  </div>
-                                                )}
-
-                                                {!isHistoryView && (
-                                                  <button
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      removeImage(
-                                                        absoluteIdx,
-                                                        imgIdx,
-                                                      );
-                                                    }}
-                                                    className="absolute -top-1.5 -right-1.5 bg-slate-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-slate-600 shadow-sm z-10"
-                                                  >
-                                                    <X className="w-3 h-3" />
-                                                  </button>
-                                                )}
-                                              </div>
-                                            );
-                                          })}
-                                      </div>
+                                      <ImageGallery
+                                        images={item.evidenceImages}
+                                        isReadOnly={isHistoryView}
+                                        onRemove={(imgIdx) =>
+                                          removeImage(absoluteIdx, imgIdx)
+                                        }
+                                      />
                                     )}
                                   </div>
                                 </TableCell>
@@ -828,74 +881,6 @@ export default function StaffIncidentPage({
             </CardContent>
           </Card>
         </div>
-        {/* DIALOG XEM ẢNH PHÓNG TO (LIGHTBOX) */}
-        <Dialog open={isViewerOpen} onOpenChange={setIsViewerOpen}>
-          <DialogContent className="sm:max-w-4xl bg-transparent border-0 shadow-none p-0 flex flex-col items-center justify-center">
-            <DialogHeader className="">
-              <DialogTitle className=""></DialogTitle>
-            </DialogHeader>
-            {viewerImages.length > 0 && (
-              <div className="relative w-full flex flex-col items-center gap-4">
-                <div className="relative group flex items-center justify-center w-full">
-                  <img
-                    src={viewerImages[viewerIndex]}
-                    alt="Enlarged evidence"
-                    className="max-w-full max-h-[75vh] object-contain rounded-lg shadow-2xl"
-                  />
-
-                  {viewerImages.length > 1 && (
-                    <>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        className="absolute left-0 sm:-left-12 top-1/2 -translate-y-1/2 rounded-full bg-white/90 hover:bg-white text-slate-800 shadow-md transition-all opacity-0 group-hover:opacity-100"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setViewerIndex((prev) =>
-                            prev > 0 ? prev - 1 : viewerImages.length - 1,
-                          );
-                        }}
-                      >
-                        <ChevronLeft className="w-6 h-6" />
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        className="absolute right-0 sm:-right-12 top-1/2 -translate-y-1/2 rounded-full bg-white/90 hover:bg-white text-slate-800 shadow-md transition-all opacity-0 group-hover:opacity-100"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setViewerIndex((prev) =>
-                            prev < viewerImages.length - 1 ? prev + 1 : 0,
-                          );
-                        }}
-                      >
-                        <ChevronRight className="w-6 h-6" />
-                      </Button>
-                    </>
-                  )}
-                </div>
-
-                {viewerImages.length > 1 && (
-                  <div className="flex gap-2 overflow-x-auto max-w-full pb-2 px-2 snap-x">
-                    {viewerImages.map((img, idx) => (
-                      <img
-                        key={idx}
-                        src={img}
-                        alt={`thumb-${idx}`}
-                        onClick={() => setViewerIndex(idx)}
-                        className={`w-14 h-14 object-cover rounded-md cursor-pointer border-2 shrink-0 snap-center transition-all ${
-                          idx === viewerIndex
-                            ? "border-indigo-500 opacity-100 scale-105"
-                            : "border-transparent opacity-50 hover:opacity-100"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
       </main>
     </div>
   );

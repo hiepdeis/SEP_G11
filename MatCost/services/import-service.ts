@@ -243,6 +243,10 @@ export interface ManagerIncidentItemSummaryDto {
   passQuantity: number;
   failQuantity: number;
   failReason?: string;
+  failQuantityQuantity: number;
+  failQuantityQuality: number;
+  failQuantityDamage: number;
+  evidenceImages: string[] | null;
 }
 
 export interface ManagerIncidentSummaryDto {
@@ -327,7 +331,8 @@ export interface ManagerReceiptSummaryDto {
   supplierName: string | null;
   totalItems: number;
   totalQuantity: number;
-  putawayCompletedAt: string | null;
+  putawayCompletedAt?: string | null;
+  putawayCompletedByName?: string | null;
   status: string;
 }
 
@@ -337,7 +342,7 @@ export interface ManagerReceiptBinAllocationDto {
 }
 
 export interface ManagerReceiptDetailItemDto {
-  materialId : number,
+  materialId: number;
   materialName: string;
   source: string;
   orderedQuantity: number;
@@ -355,7 +360,9 @@ export interface ManagerReceiptDetailDto {
   purchaseOrderCode: string | null;
   supplierName: string | null;
   status: string;
-  totalQuantity : number;
+  totalQuantity: number;
+  putawayCompletedAt?: string | null;
+  putawayCompletedByName?: string | null;
   items: ManagerReceiptDetailItemDto[];
 }
 
@@ -375,6 +382,7 @@ export interface PurchasingIncidentItemSummaryDto {
   passQuantity: number;
   failQuantity: number;
   failReason?: string;
+  evidenceImages: string[] | null;
 }
 
 export interface PurchasingIncidentSummaryDto {
@@ -474,10 +482,10 @@ export interface GetInboundRequestListDto {
   rejectedByName?: string;
   rejectedDate?: string;
   status: string;
-  stampedByName: string,
-  stampedAt: string,
-  closedByName: string,
-  closedAt: string,
+  stampedByName: string;
+  stampedAt: string;
+  closedByName: string;
+  closedAt: string;
   items: GetInboundRequestItemDto[];
 }
 
@@ -618,11 +626,19 @@ export interface WarehouseCardQueryDto {
   transactionType?: string;
 }
 
+export interface CreateIncidentBreakdownDto {
+  quantity: number;
+  quality: number;
+  damage: number;
+}
+
 export interface CreateIncidentReportDetailDto {
   materialId: number;
   issueType: string;
+  failQuantity: number;
   evidenceNote?: string | null;
   evidenceImages: string[] | null;
+  breakdown: CreateIncidentBreakdownDto;
 }
 
 export interface CreateIncidentReportDto {
@@ -740,7 +756,7 @@ export interface ReceiptBatchLookupDto {
   mfgDate?: string | null;
   expiryDate?: string | null;
   materialName: string;
-  certificateImage? :string;
+  certificateImage?: string;
 }
 
 export interface PendingPutawayReceiptDto {
@@ -755,7 +771,7 @@ export interface PendingPutawayReceiptDto {
 
 export interface PendingPutawayItemDto {
   materialId: number;
-  materialCode: string,
+  materialCode: string;
   materialName: string;
   quantityToPutaway: number;
   note?: string | null;
