@@ -354,13 +354,9 @@ export default function StaffInboundDetailPage({
                           <p className="text-sm font-semibold text-slate-800">
                             {t("Closed")}
                           </p>
-                          {request.closedByAccountantName ? (
+                          {request.closedByName && (
                             <p className="text-xs font-medium text-slate-600 mt-0.5">
-                              {request.closedByAccountantName}
-                            </p>
-                          ) : (
-                            <p className="text-xs text-slate-400 italic mt-0.5">
-                              {t("Pending")}
+                              {request.closedByName}
                             </p>
                           )}
                           {request.closedAt && (

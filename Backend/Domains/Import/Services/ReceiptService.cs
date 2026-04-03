@@ -111,6 +111,10 @@ namespace Backend.Domains.Import.Services
                 ConfirmedByName = ResolveUserName(userMap, receipt.ConfirmedBy),
                 ConfirmedDate = receipt.ConfirmedAt,
                 Status = receipt.Status,
+                ClosedAt = receipt.ClosedAt,
+                ClosedByName = null,
+                StampedAt = receipt.StampedAt,
+                StampedByName = null,
                 Items = receipt.ReceiptDetails.Select(rd => new GetInboundRequestItemDto
                 {
                     DetailId = rd.DetailId,

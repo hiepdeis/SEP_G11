@@ -20,6 +20,10 @@
         public string? RejectedByName { get; set; }
         public DateTime? RejectedDate { get; set; }
         public string? Status { get; set; }
+        public string? StampedByName { get; set; }
+        public DateTime? StampedAt { get; set; }
+        public string? ClosedByName { get; set; }
+        public DateTime? ClosedAt { get; set; }
         public List<GetInboundRequestItemDto> Items { get; set; }
     }
 

@@ -474,6 +474,10 @@ export interface GetInboundRequestListDto {
   rejectedByName?: string;
   rejectedDate?: string;
   status: string;
+  stampedByName: string,
+  stampedAt: string,
+  closedByName: string,
+  closedAt: string,
   items: GetInboundRequestItemDto[];
 }
 
