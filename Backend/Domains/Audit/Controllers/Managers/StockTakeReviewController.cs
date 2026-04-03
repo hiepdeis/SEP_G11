@@ -1,43 +1,34 @@
 using Backend.Domains.Audit.DTOs.Managers;
 using Backend.Domains.Audit.Interfaces;
+using Backend.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace Backend.Domains.Audit.Controllers.Managers;
 
 [ApiController]
 [Route("api/manager/audits")]
-// [Authorize(Roles = "Warehouse Manager")]
+[Authorize]
 public class StockTakeReviewController : ControllerBase
 {
     private readonly IStockTakeReviewService _service;
-    private readonly IWebHostEnvironment _env;
+    private readonly IStockTakeCountingService _countingService;
 
-    public StockTakeReviewController(IStockTakeReviewService service, IWebHostEnvironment env)
+    public StockTakeReviewController(
+        IStockTakeReviewService service,
+        IStockTakeCountingService countingService)
     {
         _service = service;
-        _env = env;
+        _countingService = countingService;
     }
 
     private int GetUserId()
     {
-        // DEV: fix cứng cho test
-        if (_env.IsDevelopment()) return 1;
-
-        var idStr =
-            User.FindFirstValue(ClaimTypes.NameIdentifier) ??
-            User.FindFirstValue("userId") ??
-            User.FindFirstValue("id") ??
-            User.FindFirstValue("sub");
-
-        if (int.TryParse(idStr, out var uid)) return uid;
-        throw new UnauthorizedAccessException("Invalid user identity.");
+        return User.GetRequiredUserId();
     }
 
-    /// GET /api/manager/audits?skip=0&take=50&stockTakeId=1&status=InProgress&warehouseId=1&fromDate=2024-01-01&toDate=2024-12-31
-    /// Returns paginated list of all audits with quick metrics
     [HttpGet]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> GetAllAudits(
         [FromQuery] int skip = 0,
         [FromQuery] int take = 50,
@@ -51,14 +42,7 @@ public class StockTakeReviewController : ControllerBase
         try
         {
             var (audits, totalCount) = await _service.GetAllAuditsAsync(
-                skip, take, status, warehouseId, fromDate, toDate, ct);
-
-            // Filter by stockTakeId if provided
-            if (stockTakeId.HasValue && stockTakeId > 0)
-            {
-                audits = audits.Where(x => x.StockTakeId == stockTakeId).ToList();
-                totalCount = audits.Count;
-            }
+                skip, take, stockTakeId, status, warehouseId, fromDate, toDate, ct);
 
             return Ok(new
             {
@@ -74,9 +58,8 @@ public class StockTakeReviewController : ControllerBase
         }
     }
 
-    /// GET /api/manager/audits/{stockTakeId}/metrics
-    /// Returns overview metrics: Total, Counted, Uncounted, Matched, Discrepancies
     [HttpGet("{stockTakeId:int}/metrics")]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> GetMetrics(int stockTakeId, CancellationToken ct = default)
     {
         try
@@ -90,9 +73,8 @@ public class StockTakeReviewController : ControllerBase
         }
     }
 
-    /// GET /api/manager/audits/{stockTakeId}/variances?skip=0&take=50&resolved=false
-    /// Returns list of variance items (discrepancies) for review
     [HttpGet("{stockTakeId:int}/variances")]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> GetVariances(
         int stockTakeId,
         [FromQuery] int skip = 0,
@@ -116,9 +98,8 @@ public class StockTakeReviewController : ControllerBase
         }
     }
 
-    /// GET /api/manager/audits/{stockTakeId}/variances/details?resolved=false
-    /// Returns full list of variance details in one request (no pagination)
     [HttpGet("{stockTakeId:int}/variances/details")]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> GetVarianceDetails(
         int stockTakeId,
         [FromQuery] bool? resolved = null,
@@ -140,9 +121,8 @@ public class StockTakeReviewController : ControllerBase
         }
     }
 
-    /// GET /api/manager/audits/{stockTakeId}/variances/{detailId}
-    /// Returns detailed info for a specific variance item
     [HttpGet("{stockTakeId:int}/variances/{detailId:long}")]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> GetVarianceDetail(
         int stockTakeId,
         long detailId,
@@ -162,9 +142,8 @@ public class StockTakeReviewController : ControllerBase
         }
     }
 
-    /// PUT /api/manager/audits/{stockTakeId}/variances/{detailId}/resolve
-    /// Manager resolves a variance with action and reason
     [HttpPut("{stockTakeId:int}/variances/{detailId:long}/resolve")]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> ResolveVariance(
         int stockTakeId,
         long detailId,
@@ -180,9 +159,31 @@ public class StockTakeReviewController : ControllerBase
         return Ok(new { message = "Variance resolved successfully." });
     }
 
-    /// PUT /api/manager/audits/{stockTakeId}/variances/{detailId}/reason
-    /// Manager updates the reason for a variance (why it's missing/excess)
+    [HttpPut("{stockTakeId:int}/variances/{detailId:long}/request-recount")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> RequestRecount(
+        int stockTakeId,
+        long detailId,
+        [FromBody] RequestRecountRequest? req,
+        CancellationToken ct = default)
+    {
+        var userId = GetUserId();
+
+        var (success, message) = await _service.RequestRecountAsync(
+            stockTakeId,
+            detailId,
+            req ?? new RequestRecountRequest(),
+            userId,
+            ct);
+
+        if (!success)
+            return BadRequest(new { message });
+
+        return Ok(new { message });
+    }
+
     [HttpPut("{stockTakeId:int}/variances/{detailId:long}/reason")]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> UpdateVarianceReason(
         int stockTakeId,
         long detailId,
@@ -197,9 +198,8 @@ public class StockTakeReviewController : ControllerBase
         return Ok(new { message = "Variance reason updated successfully." });
     }
 
-    /// GET /api/manager/audits/{stockTakeId}/review-detail
-    /// Returns full review detail including signatures and current state
     [HttpGet("{stockTakeId:int}/review-detail")]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> GetReviewDetail(int stockTakeId, CancellationToken ct = default)
     {
         try
@@ -213,9 +213,8 @@ public class StockTakeReviewController : ControllerBase
         }
     }
 
-    /// POST /api/manager/audits/{stockTakeId}/sign-off
-    /// Manager/Staff signs off the audit review
     [HttpPost("{stockTakeId:int}/sign-off")]
+    [Authorize(Roles = "Manager,Staff")]
     public async Task<IActionResult> SignOff(
         int stockTakeId,
         [FromBody] SignOffRequest? req,
@@ -230,15 +229,45 @@ public class StockTakeReviewController : ControllerBase
         return Ok(new { message = "Audit signed off successfully.", signature });
     }
 
-    /// POST /api/manager/audits/{stockTakeId}/lock
-    /// Lock audit scope (assigned bins or whole warehouse)
-    [HttpPost("{stockTakeId:int}/lock")]
-    public async Task<IActionResult> LockAuditScope(
+    [HttpGet("{stockTakeId:int}/recount-candidates")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> GetRecountCandidates(
         int stockTakeId,
         CancellationToken ct = default)
     {
-        var userId = GetUserId();
-        var (success, message) = await _service.LockAuditScopeAsync(stockTakeId, userId, ct);
+        try
+        {
+            var result = await _countingService.GetRecountCandidatesAsync(stockTakeId, ct);
+            return Ok(new
+            {
+                total = result.Count,
+                items = result
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{stockTakeId:int}/recount-candidates/{targetUserId:int}/rejoin")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> RejoinForRecount(
+        int stockTakeId,
+        int targetUserId,
+        CancellationToken ct = default)
+    {
+        var managerUserId = GetUserId();
+
+        var (success, message) = await _countingService.RejoinForRecountAsync(
+            stockTakeId,
+            targetUserId,
+            managerUserId,
+            ct);
 
         if (!success)
             return BadRequest(new { message });
@@ -246,25 +275,8 @@ public class StockTakeReviewController : ControllerBase
         return Ok(new { message });
     }
 
-    /// POST /api/manager/audits/{stockTakeId}/unlock
-    /// Unlock audit scope
-    [HttpPost("{stockTakeId:int}/unlock")]
-    public async Task<IActionResult> UnlockAuditScope(
-        int stockTakeId,
-        CancellationToken ct = default)
-    {
-        var userId = GetUserId();
-        var (success, message) = await _service.UnlockAuditScopeAsync(stockTakeId, userId, ct);
-
-        if (!success)
-            return BadRequest(new { message });
-
-        return Ok(new { message });
-    }
-
-    /// POST /api/manager/audits/{stockTakeId}/complete
-    /// Manager completes the audit - final action
     [HttpPost("{stockTakeId:int}/complete")]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> CompleteAudit(
         int stockTakeId,
         [FromBody] CompleteAuditRequest? req,

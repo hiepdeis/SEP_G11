@@ -30,7 +30,7 @@ public sealed class AuditMetricsDto
 
     // === Lo?i v?t li?u (SKU) ===
     public int TotalMaterials { get; set; }      // T?ng lo?i v?t li?u trong kho
-    public int CountedMaterials { get; set; }    // Lo?i v?t li?u ?ã ??m ???c
+    public int CountedMaterials { get; set; }    // Lo?i v?t li?u ?ï¿½ ??m ???c
     public int UncountedMaterials { get; set; }  // Lo?i v?t li?u ch?a ??m
 
     // === S? l??ng items ===
@@ -40,15 +40,15 @@ public sealed class AuditMetricsDto
     public int MatchedItems { get; set; }
     public int DiscrepancyItems { get; set; }
 
-    // === Chênh l?ch (Variance) ===
+    // === Chï¿½nh l?ch (Variance) ===
     public decimal TotalSystemQty { get; set; }     // T?ng s? l??ng theo h? th?ng
     public decimal TotalCountedQty { get; set; }    // T?ng s? l??ng ??m ???c
-    public decimal TotalVarianceQty { get; set; }   // T?ng chênh l?ch = |SystemQty - CountedQty|
-    public decimal VariancePercentage { get; set; } // % chênh l?ch = (Variance / SystemQty) * 100
+    public decimal TotalVarianceQty { get; set; }   // T?ng chï¿½nh l?ch = |SystemQty - CountedQty|
+    public decimal VariancePercentage { get; set; } // % chï¿½nh l?ch = (Variance / SystemQty) * 100
 
     // === T? l? ===
     public decimal MaterialCountRate { get; set; }  // % lo?i v?t li?u ??m ???c
-    public decimal MatchRate { get; set; }          // % trùng kh?p
+    public decimal MatchRate { get; set; }          // % trï¿½ng kh?p
 }
 
 public sealed class VarianceItemDto
@@ -65,6 +65,8 @@ public sealed class VarianceItemDto
     public decimal? CountQty { get; set; }
     public decimal? Variance { get; set; }
     public string? DiscrepancyStatus { get; set; }
+
+    public int CountRound { get; set; }
 
     public int? CountedBy { get; set; }
     public string? CountedByName { get; set; }
@@ -183,7 +185,7 @@ public sealed class AuditDetailedReportDto
     public DateTime? PlannedEndDate { get; set; }
     public DateTime? LockedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
-    public TimeSpan? TotalDuration { get; set; } // T? lúc b?t ??u ??n hoàn thành
+    public TimeSpan? TotalDuration { get; set; } // T? lï¿½c b?t ??u ??n hoï¿½n thï¿½nh
     public TimeSpan? CountingDuration { get; set; } // Th?i gian ??m th?c t?
 
     // Key Metrics
@@ -212,7 +214,7 @@ public sealed class StaffAuditPerformanceDto
     // Counting metrics
     public int ItemsAssigned { get; set; }
     public int ItemsCounted { get; set; }
-    public decimal CountingProgress { get; set; } // % hoàn thành
+    public decimal CountingProgress { get; set; } // % hoï¿½n thï¿½nh
     public int ItemsMatched { get; set; }
     public int ItemsDiscrepancy { get; set; }
     public decimal AccuracyRate { get; set; } // Matched / Counted * 100
@@ -263,4 +265,18 @@ public sealed class AuditActivityDto
     public int? UserId { get; set; }
     public string? UserName { get; set; }
     public string? Details { get; set; }
+}
+
+public sealed class RequestRecountRequest
+{
+    public int ReasonId { get; set; }
+    public string? Note { get; set; }
+}
+public sealed class RecountCandidateDto
+{
+    public int UserId { get; set; }
+    public string? FullName { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime? AssignedAt { get; set; }
+    public DateTime? RemovedAt { get; set; }
 }

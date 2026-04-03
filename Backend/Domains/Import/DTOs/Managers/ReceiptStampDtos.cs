@@ -24,6 +24,7 @@ namespace Backend.Domains.Import.DTOs.Managers
         public int TotalItems { get; set; }
         public decimal TotalQuantity { get; set; }
         public DateTime? PutawayCompletedAt { get; set; }
+        public string? PutawayCompletedByName { get; set; }
         public string Status { get; set; } = string.Empty;
     }
 
@@ -36,6 +37,8 @@ namespace Backend.Domains.Import.DTOs.Managers
         public string? SupplierName { get; set; }
         public string Status { get; set; } = string.Empty;
         public decimal TotalQuantity { get; set; }
+        public DateTime? PutawayCompletedAt { get; set; }
+        public string? PutawayCompletedByName { get; set; }
         public List<ManagerReceiptDetailItemDto> Items { get; set; } = new();
     }
 

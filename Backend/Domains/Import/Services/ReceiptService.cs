@@ -1,4 +1,4 @@
-﻿using Backend.Data;
+using Backend.Data;
 using Backend.Domains.Import.DTOs.Accountants;
 using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.DTOs.Purchasing;
@@ -358,8 +358,8 @@ namespace Backend.Domains.Import.Services
                     if (item.ActualQuantity < 0 || item.PassQuantity < 0 || item.FailQuantity < 0)
                         throw new ArgumentException($"Quantities must be non-negative for MaterialId {item.MaterialId}");
 
-                    if (item.PassQuantity + item.FailQuantity != item.ActualQuantity)
-                        throw new ArgumentException("Tong passQuantity + failQuantity phai bang actualQuantity");
+                    // if (item.PassQuantity + item.FailQuantity != item.ActualQuantity)
+                    //     throw new ArgumentException("Tong passQuantity + failQuantity phai bang actualQuantity");
                 }
 
                 var purchaseOrder = await _context.PurchaseOrders
@@ -476,13 +476,22 @@ namespace Backend.Domains.Import.Services
                     QCCheckDetails = dto.Items.Select(d =>
                     {
                         var rd = detailMap[d.MaterialId];
+                        var poItem = poItemMap[d.MaterialId];
+                        var orderedQty = poItem.OrderedQuantity;
+                        var quantityShortage = Math.Max(0, orderedQty - d.PassQuantity);
+                        var hasFail = d.FailQuantity > 0 || d.Result == "Fail";
+
                         return new QCCheckDetail
                         {
                             ReceiptDetailId = rd.DetailId,
                             Result = d.Result,
                             FailReason = d.FailReason,
                             PassQuantity = d.PassQuantity,
-                            FailQuantity = d.FailQuantity
+                            FailQuantity = d.FailQuantity,
+                            // Only initialize quantity shortage when this line is actually a failed QC line.
+                            FailQuantityQuantity = hasFail && quantityShortage > 0 ? quantityShortage : null,
+                            FailQuantityQuality = null,
+                            FailQuantityDamage = null
                         };
                     }).ToList()
                 };
@@ -495,7 +504,12 @@ namespace Backend.Domains.Import.Services
                     if (receipt.PurchaseOrderId.HasValue)
                     {
                         var totalOrdered = purchaseOrder.Items.Sum(i => i.OrderedQuantity);
-                        var totalPass = dto.Items.Sum(d => d.PassQuantity);
+                        var currentPassQty = dto.Items.Sum(d => d.PassQuantity);
+                        var completedPassQty = await GetAccumulatedPassQtyForPoAsync(
+                            receipt.PurchaseOrderId.Value,
+                            receipt.ReceiptId);
+
+                        var totalPass = completedPassQty + currentPassQty;
 
                         if (totalPass == totalOrdered)
                             purchaseOrder.Status = "FullyReceived";
@@ -1152,26 +1166,43 @@ namespace Backend.Domains.Import.Services
                 })
                 .ToDictionaryAsync(x => x.ReceiptId, x => x.TotalQuantity);
 
-            var putawayMap = await _context.WarehouseCards
+            var putawayInfo = await _context.WarehouseCards
                 .Where(w => w.ReferenceType == "Receipt" && receiptIds.Contains(w.ReferenceId))
                 .GroupBy(w => w.ReferenceId)
-                .Select(g => new
-                {
-                    ReceiptId = g.Key,
-                    PutawayCompletedAt = g.Max(x => x.TransactionDate)
-                })
-                .ToDictionaryAsync(x => x.ReceiptId, x => x.PutawayCompletedAt);
+                .Select(g => g.OrderByDescending(x => x.TransactionDate)
+                    .ThenByDescending(x => x.CardId)
+                    .Select(x => new
+                    {
+                        ReceiptId = g.Key,
+                        PutawayCompletedAt = (DateTime?)x.TransactionDate,
+                        PutawayBy = (int?)x.CreatedBy
+                    })
+                    .First())
+                .ToListAsync();
 
-            return receipts.Select(r => new ManagerReceiptSummaryDto
+            var putawayInfoMap = putawayInfo
+                .ToDictionary(
+                    x => x.ReceiptId,
+                    x => (x.PutawayCompletedAt, x.PutawayBy));
+
+            var putawayUserMap = await BuildUserNameMapAsync(putawayInfo.Select(x => x.PutawayBy).ToArray());
+
+            return receipts.Select(r =>
             {
-                ReceiptId = r.ReceiptId,
-                ReceiptCode = r.ReceiptCode,
-                PurchaseOrderCode = r.PurchaseOrder?.PurchaseOrderCode,
-                SupplierName = r.PurchaseOrder?.Supplier?.Name,
-                TotalItems = r.ReceiptDetails.Count,
-                TotalQuantity = allocationTotals.TryGetValue(r.ReceiptId, out var qty) ? qty : 0m,
-                PutawayCompletedAt = putawayMap.TryGetValue(r.ReceiptId, out var putawayAt) ? putawayAt : null,
-                Status = r.Status ?? string.Empty
+                var hasPutaway = putawayInfoMap.TryGetValue(r.ReceiptId, out var info);
+
+                return new ManagerReceiptSummaryDto
+                {
+                    ReceiptId = r.ReceiptId,
+                    ReceiptCode = r.ReceiptCode,
+                    PurchaseOrderCode = r.PurchaseOrder?.PurchaseOrderCode,
+                    SupplierName = r.PurchaseOrder?.Supplier?.Name,
+                    TotalItems = r.ReceiptDetails.Count,
+                    TotalQuantity = allocationTotals.TryGetValue(r.ReceiptId, out var qty) ? qty : 0m,
+                    PutawayCompletedAt = hasPutaway ? info.PutawayCompletedAt : null,
+                    PutawayCompletedByName = hasPutaway ? ResolveUserName(putawayUserMap, info.PutawayBy) : null,
+                    Status = r.Status ?? string.Empty
+                };
             }).ToList();
         }
 
@@ -1305,6 +1336,21 @@ namespace Backend.Domains.Import.Services
 
             var totalQuantity = groupedItems.Sum(i => i.PassQuantity);
 
+            var latestPutaway = await _context.WarehouseCards
+                .Where(w => w.ReferenceType == "Receipt" && w.ReferenceId == receipt.ReceiptId)
+                .OrderByDescending(w => w.TransactionDate)
+                .ThenByDescending(w => w.CardId)
+                .Select(w => new
+                {
+                    PutawayCompletedAt = (DateTime?)w.TransactionDate,
+                    PutawayBy = (int?)w.CreatedBy
+                })
+                .FirstOrDefaultAsync();
+
+            var putawayByNameMap = latestPutaway == null
+                ? new Dictionary<int, string>()
+                : await BuildUserNameMapAsync(latestPutaway.PutawayBy);
+
             return new ManagerReceiptDetailDto
             {
                 ReceiptId = receipt.ReceiptId,
@@ -1314,6 +1360,8 @@ namespace Backend.Domains.Import.Services
                 SupplierName = receipt.PurchaseOrder?.Supplier?.Name,
                 Status = receipt.Status ?? string.Empty,
                 TotalQuantity = totalQuantity,
+                PutawayCompletedAt = latestPutaway?.PutawayCompletedAt,
+                PutawayCompletedByName = latestPutaway == null ? null : ResolveUserName(putawayByNameMap, latestPutaway.PutawayBy),
                 Items = groupedItems
             };
         }
@@ -1636,7 +1684,12 @@ namespace Backend.Domains.Import.Services
                     if (purchaseOrder != null)
                     {
                         var totalOrdered = purchaseOrder.Items.Sum(i => i.OrderedQuantity);
-                        var totalPass = dto.Details.Sum(d => d.PassQuantity);
+                        var currentPassQty = dto.Details.Sum(d => d.PassQuantity);
+                        var completedPassQty = await GetAccumulatedPassQtyForPoAsync(
+                            receipt.PurchaseOrderId.Value,
+                            receipt.ReceiptId);
+
+                        var totalPass = completedPassQty + currentPassQty;
 
                         if (totalPass == totalOrdered)
                             purchaseOrder.Status = "FullyReceived";
@@ -1784,16 +1837,17 @@ namespace Backend.Domains.Import.Services
             if (dto.Details == null || dto.Details.Count == 0)
                 throw new ArgumentException("Details list cannot be empty");
 
-            // Validate IssueType values
-            var validIssueTypes = new[] { "Quantity", "Quality", "Damage" };
             foreach (var d in dto.Details)
             {
-                if (string.IsNullOrWhiteSpace(d.IssueType))
-                    throw new ArgumentException("Loại sự cố không được để trống");
+                if (d.Breakdown == null)
+                    throw new ArgumentException($"Breakdown is required for MaterialId {d.MaterialId}");
 
-                if (!validIssueTypes.Contains(d.IssueType))
+                if (d.Breakdown.Quantity < 0 || d.Breakdown.Quality < 0 || d.Breakdown.Damage < 0)
+                    throw new ArgumentException($"Breakdown values must be >= 0 for MaterialId {d.MaterialId}");
+
+                if (d.Breakdown.Quantity + d.Breakdown.Quality + d.Breakdown.Damage <= 0)
                     throw new ArgumentException(
-                        $"IssueType '{d.IssueType}' is invalid for MaterialId {d.MaterialId}. Must be: Quantity | Quality | Damage");
+                        $"At least one breakdown value must be > 0 for MaterialId {d.MaterialId}");
             }
 
             var receipt = await _context.Receipts
@@ -1819,6 +1873,16 @@ namespace Backend.Domains.Import.Services
             var receiptDetailMap = receipt.ReceiptDetails
                 .GroupBy(rd => rd.MaterialId)
                 .ToDictionary(g => g.Key, g => g.First());
+
+            var duplicateMaterialIds = dto.Details
+                .GroupBy(d => d.MaterialId)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToList();
+
+            if (duplicateMaterialIds.Any())
+                throw new ArgumentException(
+                    $"Each MaterialId can only appear once. Duplicate MaterialIds: {string.Join(", ", duplicateMaterialIds)}");
 
             var invalidMaterials = dto.Details
                 .Where(d => !receiptDetailMap.ContainsKey(d.MaterialId))
@@ -1890,6 +1954,34 @@ namespace Backend.Domains.Import.Services
                         $"Material {materialName} không có lỗi QC để lập biên bản");
                 }
 
+                var orderedQty = orderedQtyMap.TryGetValue(d.MaterialId, out var qty)
+                    ? qty
+                    : 0m;
+
+                // Quantity shortage is system-driven and must equal ordered - pass.
+                var expectedQuantityShortage = Math.Max(0, orderedQty - qcDetail.PassQuantity);
+                var quantityDefect = d.Breakdown.Quantity;
+                var qualityDefect = d.Breakdown.Quality;
+                var damageDefect = d.Breakdown.Damage;
+
+                if (Math.Abs(quantityDefect - expectedQuantityShortage) > 0.0001m)
+                {
+                    throw new ArgumentException(
+                        $"MaterialId {d.MaterialId}: Breakdown.Quantity should be {expectedQuantityShortage:F4} but got {quantityDefect:F4}");
+                }
+
+                var totalBreakdownForMaterial = quantityDefect + qualityDefect + damageDefect;
+                if (Math.Abs(totalBreakdownForMaterial - qcDetail.FailQuantity) > 0.0001m)
+                {
+                    throw new ArgumentException(
+                        $"MaterialId {d.MaterialId}: Breakdown sum (Quantity+Quality+Damage={totalBreakdownForMaterial:F4}) " +
+                        $"must equal QC FailQuantity ({qcDetail.FailQuantity:F4})");
+                }
+
+                qcDetail.FailQuantityQuantity = quantityDefect;
+                qcDetail.FailQuantityQuality = qualityDefect;
+                qcDetail.FailQuantityDamage = damageDefect;
+
                 var images = d.EvidenceImages?.Where(i => !string.IsNullOrWhiteSpace(i)).ToList()
                     ?? new List<string>();
 
@@ -1900,31 +1992,88 @@ namespace Backend.Domains.Import.Services
                         $"Cần ít nhất 1 ảnh bằng chứng cho {materialName}");
                 }
 
-                var orderedQty = orderedQtyMap.TryGetValue(d.MaterialId, out var qty)
-                    ? qty
-                    : 0m;
-
-                var detail = new IncidentReportDetail
+                if (quantityDefect > 0)
                 {
-                    ReceiptDetailId = receiptDetail.DetailId,
-                    MaterialId = d.MaterialId,
-                    ExpectedQuantity = orderedQty,
-                    ActualQuantity = qcDetail.PassQuantity + qcDetail.FailQuantity,
-                    IssueType = d.IssueType,
-                    Notes = d.EvidenceNote
-                };
-                incidentDetails.Add(detail);
-
-                foreach (var image in images)
-                {
-                    evidenceImages.Add(new IncidentEvidenceImage
+                    var detail = new IncidentReportDetail
                     {
-                        IncidentReportDetail = detail,
-                        ImageData = image,
-                        UploadedAt = today,
-                        UploadedByStaffId = staffId
-                    });
+                        ReceiptDetailId = receiptDetail.DetailId,
+                        MaterialId = d.MaterialId,
+                        ExpectedQuantity = orderedQty,
+                        ActualQuantity = qcDetail.PassQuantity + qcDetail.FailQuantity,
+                        IssueType = "Quantity",
+                        Notes = d.EvidenceNote
+                    };
+                    incidentDetails.Add(detail);
+
+                    foreach (var image in images)
+                    {
+                        evidenceImages.Add(new IncidentEvidenceImage
+                        {
+                            IncidentReportDetail = detail,
+                            ImageData = image,
+                            UploadedAt = today,
+                            UploadedByStaffId = staffId
+                        });
+                    }
                 }
+
+                if (qualityDefect > 0)
+                {
+                    var detail = new IncidentReportDetail
+                    {
+                        ReceiptDetailId = receiptDetail.DetailId,
+                        MaterialId = d.MaterialId,
+                        ExpectedQuantity = orderedQty,
+                        ActualQuantity = qcDetail.PassQuantity + qcDetail.FailQuantity,
+                        IssueType = "Quality",
+                        Notes = d.EvidenceNote
+                    };
+                    incidentDetails.Add(detail);
+
+                    foreach (var image in images)
+                    {
+                        evidenceImages.Add(new IncidentEvidenceImage
+                        {
+                            IncidentReportDetail = detail,
+                            ImageData = image,
+                            UploadedAt = today,
+                            UploadedByStaffId = staffId
+                        });
+                    }
+                }
+
+                if (damageDefect > 0)
+                {
+                    var detail = new IncidentReportDetail
+                    {
+                        ReceiptDetailId = receiptDetail.DetailId,
+                        MaterialId = d.MaterialId,
+                        ExpectedQuantity = orderedQty,
+                        ActualQuantity = qcDetail.PassQuantity + qcDetail.FailQuantity,
+                        IssueType = "Damage",
+                        Notes = d.EvidenceNote
+                    };
+                    incidentDetails.Add(detail);
+
+                    foreach (var image in images)
+                    {
+                        evidenceImages.Add(new IncidentEvidenceImage
+                        {
+                            IncidentReportDetail = detail,
+                            ImageData = image,
+                            UploadedAt = today,
+                            UploadedByStaffId = staffId
+                        });
+                    }
+                }
+            }
+
+            // Validate that at least one incident detail was created after processing
+            if (incidentDetails.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "No valid incident details created. All Quantity issues may have been skipped if passed quantities met or exceeded ordered quantities. " +
+                    "Please verify the quality/damage issues are reported correctly or check if QC results need revision.");
             }
 
             var incident = new IncidentReport
@@ -1947,7 +2096,35 @@ namespace Backend.Domains.Import.Services
 
             await _context.SaveChangesAsync();
 
-            var totalFailQuantity = failedQcDetails.Sum(d => d.FailQuantity);
+            // Validate total breakdown = total FailQuantity (strict policy)
+            var totalQuantityShortage = incidentDetails
+                .Where(d => d.IssueType == "Quantity")
+                .Sum(d => linkedQCCheck.QCCheckDetails
+                    .FirstOrDefault(q => q.ReceiptDetailId == d.ReceiptDetailId)?.FailQuantityQuantity ?? 0);
+
+            var totalQualityDefect = incidentDetails
+                .Where(d => d.IssueType == "Quality")
+                .Sum(d => linkedQCCheck.QCCheckDetails
+                    .FirstOrDefault(q => q.ReceiptDetailId == d.ReceiptDetailId)?.FailQuantityQuality ?? 0);
+
+            var totalDamageDefect = incidentDetails
+                .Where(d => d.IssueType == "Damage")
+                .Sum(d => linkedQCCheck.QCCheckDetails
+                    .FirstOrDefault(q => q.ReceiptDetailId == d.ReceiptDetailId)?.FailQuantityDamage ?? 0);
+
+            var totalBreakdown = totalQuantityShortage + totalQualityDefect + totalDamageDefect;
+            var totalQCFailQuantity = linkedQCCheck.QCCheckDetails.Sum(q => q.FailQuantity);
+
+            // Sum must equal total QC fail quantity
+            if (Math.Abs(totalBreakdown - totalQCFailQuantity) > 0.0001m)
+            {
+                throw new InvalidOperationException(
+                    $"Incident detail breakdown mismatch: " +
+                    $"Quantity:{totalQuantityShortage:F4} + Quality:{totalQualityDefect:F4} + Damage:{totalDamageDefect:F4} = {totalBreakdown:F4}, " +
+                    $"but QC total is {totalQCFailQuantity:F4}. Sum of all breakdown must equal QC fail quantity.");
+            }
+
+            var totalFailQuantity = totalBreakdown;
 
             return new IncidentReportCreateResultDto
             {
@@ -2386,6 +2563,25 @@ namespace Backend.Domains.Import.Services
             }
 
             return nextSeq;
+        }
+
+        private async Task<decimal> GetAccumulatedPassQtyForPoAsync(long purchaseOrderId, long? excludeReceiptId = null)
+        {
+            var latestQcIds = await _context.QCChecks
+                .Where(q => q.Receipt.PurchaseOrderId == purchaseOrderId
+                         && (!excludeReceiptId.HasValue || q.ReceiptId != excludeReceiptId.Value))
+                .GroupBy(q => q.ReceiptId)
+                .Select(g => g.OrderByDescending(x => x.CheckedAt)
+                    .Select(x => x.QCCheckId)
+                    .First())
+                .ToListAsync();
+
+            if (latestQcIds.Count == 0)
+                return 0m;
+
+            return await _context.QCCheckDetails
+                .Where(d => latestQcIds.Contains(d.QCCheckId))
+                .SumAsync(d => (decimal?)d.PassQuantity) ?? 0m;
         }
 
         private static string? ResolveUserName(Dictionary<int, string> userMap, int? userId)

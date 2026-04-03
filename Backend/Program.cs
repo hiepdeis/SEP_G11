@@ -1,5 +1,7 @@
 
 using Backend.Data;
+using Backend.Domains.Admin.Interface;
+using Backend.Domains.Admin.Services;
 using Backend.Domains.Audit.Interfaces;
 using Backend.Domains.Audit.Services;
 using Backend.Domains.auth.Business;
@@ -16,9 +18,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using NuGet.Packaging;
 using OfficeOpenXml;
 using System;
 using System.Text;
+using Backend.Domains.Projects.Interfaces;
+using Backend.Domains.Projects.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,7 +44,9 @@ builder.Services.AddDbContext<MyDbContext>(options =>
 // Add services to the container.
 
 
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
+builder.Services.AddScoped<IAuditReportService, AuditReportService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -50,11 +57,12 @@ builder.Services.AddScoped<IAuditPlanService, AuditPlanService>();
 builder.Services.AddScoped<IAuditTeamService, AuditTeamService>();
 builder.Services.AddScoped<IStockTakeReviewService, StockTakeReviewService>();
 builder.Services.AddScoped<IStockTakeCountingService, StockTakeCountingService>();
-
+builder.Services.AddScoped<IStockTakeLockService, StockTakeLockService>();
+builder.Services.AddScoped<IStockTakeCountingService, StockTakeCountingService>();
 //  Import services
 builder.Services.AddScoped<IStockShortageAlertService, StockShortageAlertService>();
 builder.Services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
-builder.Services.AddScoped<IReceiptService, ReceiptService>();
+//builder.Services.AddScoped<IReceiptService, ReceiptService>();
 builder.Services.AddScoped<IPurchaseRequestService, PurchaseRequestService>();
 builder.Services.AddScoped<IIncidentWorkflowService, IncidentWorkflowService>();
 builder.Services.AddScoped<ISupplierService, SupplierService>();
@@ -102,8 +110,11 @@ builder.Services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
 builder.Services.AddScoped<GoogleLoginHandler>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthorizationHandler, ActiveUserAuthorizationHandler>();
-
-
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+builder.Services.AddScoped<IMaterialService, MaterialService>();
+builder.Services.AddScoped<IMasterDataService, MasterDataService>();
+builder.Services.AddScoped<INotificationAdminService, NotificationAdminService>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -138,6 +149,8 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddScoped<IProjectService, ProjectService>();
+
 var app = builder.Build();
 
 
@@ -160,8 +173,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("CorsPolicy");
-//app.UseAuthentication();
-//app.UseAuthorization();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

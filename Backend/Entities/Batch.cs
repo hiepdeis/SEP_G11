@@ -60,4 +60,5 @@ public partial class Batch
 
     [InverseProperty("Batch")]
     public virtual ICollection<ReceiptDetailBinAllocation> ReceiptDetailBinAllocations { get; set; } = new List<ReceiptDetailBinAllocation>();
+    public virtual ICollection<PickingList> PickingLists { get; set; } = new List<PickingList>();
 }

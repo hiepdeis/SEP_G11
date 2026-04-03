@@ -225,31 +225,15 @@ export default function SharedIssueSlipDetail({
                           </TableRow>
                         ) : (
                           paginatedDetails.map((item, index) => (
-                            <TableRow
-                              key={item.detailId}
-                              className="hover:bg-slate-50/50"
-                            >
-                              <TableCell className="text-center font-medium text-slate-500 pl-4">
-                                {startIndex + index + 1}
-                              </TableCell>
-                              <TableCell className="font-medium text-slate-700">
-                                {item.materialName}
-                              </TableCell>
-                              <TableCell className="text-center text-slate-500">
-                                {item.unit}
-                              </TableCell>
-                              <TableCell className="text-right font-bold text-slate-900">
-                                {item.requestedQty}
-                              </TableCell>
-                              <TableCell className="text-right text-slate-500">
-                                {item.totalStock}
-                              </TableCell>
+                            <TableRow key={item.detailId} className="hover:bg-slate-50/50">
+                              <TableCell className="text-center font-medium text-slate-500 pl-4">{startIndex + index + 1}</TableCell>
+                              <TableCell className="font-medium text-slate-700">{item.name}</TableCell>
+                              <TableCell className="text-center text-slate-500">{item.unit}</TableCell>
+                              <TableCell className="text-right font-bold text-slate-900">{item.requestedQuantity}</TableCell>
+                              <TableCell className="text-right text-slate-500">{item.availableQuantity}</TableCell>
                               <TableCell className="text-center">
-                                {item.isEnough ? (
-                                  <Badge className="bg-emerald-50 text-emerald-600 border-emerald-200 font-normal">
-                                    <CheckCircle2 className="w-3 h-3 mr-1" />{" "}
-                                    {t("Enough")}
-                                  </Badge>
+                                {item.isStockSufficient ? (
+                                  <Badge className="bg-emerald-50 text-emerald-600 border-emerald-200 font-normal"><CheckCircle2 className="w-3 h-3 mr-1" /> {t("Enough")}</Badge>
                                 ) : (
                                   <Badge className="bg-rose-50 text-rose-600 border-rose-200 font-normal">
                                     <XCircle className="w-3 h-3 mr-1" />{" "}
@@ -257,9 +241,13 @@ export default function SharedIssueSlipDetail({
                                   </Badge>
                                 )}
                               </TableCell>
-                              <TableCell className="text-xs text-slate-500 pr-6">
-                                {item.message || "—"}
+                              <TableCell className="text-right">
+                                {item.unitPrice}
                               </TableCell>
+                              <TableCell className="text-right font-semibold text-indigo-600">
+                                {item.lineTotal}
+                              </TableCell>
+                              <TableCell className="text-xs text-slate-500 pr-6">{item.message || "—"}</TableCell>
                             </TableRow>
                           ))
                         )}
@@ -352,12 +340,8 @@ export default function SharedIssueSlipDetail({
                 </CardHeader>
                 <CardContent className="p-6 grid grid-cols-2 gap-y-4 gap-x-2">
                   <div className="col-span-2">
-                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                      {t("Project / Construction")}
-                    </label>
-                    <div className="mt-1 font-bold text-indigo-700">
-                      {detail.projectName || t("N/A")}
-                    </div>
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Project / Construction")}</label>
+                    <div className="mt-1 font-bold text-indigo-700">{detail.projectInfo?.name || t("N/A")}</div>
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">

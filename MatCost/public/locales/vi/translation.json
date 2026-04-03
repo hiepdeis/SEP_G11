@@ -5,7 +5,7 @@
   "New Request": "Yêu cầu mới",
   "My Requests": "Yêu cầu của tôi",
   "No.": "STT",
-  "Total Items": "Tổng số mặt hàng",
+  "Total Items": "Tổng mặt hàng",
   "Actions": "Thao tác",
   "No requests found. Start by creating a new one.": "Không tìm thấy yêu cầu nào. Hãy bắt đầu bằng cách tạo mới.",
   "materials": "vật tư",
@@ -43,6 +43,7 @@
   "Select a supplier and pricing for requested materials.": "Chọn nhà cung cấp và giá cho các vật tư được yêu cầu.",
   "Pending Requests": "Yêu cầu chờ xử lý",
   "Drafts": "Bản nháp",
+  "Pending_Review": "Đang chờ xem xét",
   "Rejects": "Yêu cầu bị từ chối",
   "Filters": "Bộ lọc",
   "Filter by status": "Lọc theo trạng thái",
@@ -102,6 +103,7 @@
   "Submitted": "Đã trình",
   "Receipt Code": "Mã phiếu",
   "Warehouse": "Kho",
+  "Item Code": "Mã vật tư",
   "Total Amount": "Tổng tiền",
   "Loading requests...": "Đang tải yêu cầu...",
   "No pending approvals found.": "Không tìm thấy yêu cầu chờ duyệt.",
@@ -227,6 +229,8 @@
   "No Image": "Không có ảnh",
   "Certificate Image": "Ảnh chứng nhận",
   "Remove Image": "Xóa ảnh",
+
+
   "Receipt reverted to Draft. You can now edit and resubmit.": "Phiếu đã được chuyển về Nháp. Bây giờ bạn có thể chỉnh sửa và nộp lại.",
   "Failed to revert receipt to draft": "Không thể chuyển phiếu về bản nháp",
   "Failed to load receipt data": "Không thể tải dữ liệu phiếu",
@@ -299,6 +303,7 @@
   "Language": "Ngôn ngữ",
   "Sign out": "Đăng xuất",
   "sidebar": {
+
     "dashboard": "Bảng điều khiển",
     "inventory": "Kho hàng",
     "import_materials": "Nhập kho",
@@ -317,6 +322,7 @@
       "purchase": "Đội thu mua"
     },
     "tabs": {
+      "Common": "Chung",
       "issue_slips": "Phiếu xuất kho",
       "material_request": "Yêu cầu vật tư",
       "import_request": "Yêu cầu nhập kho",

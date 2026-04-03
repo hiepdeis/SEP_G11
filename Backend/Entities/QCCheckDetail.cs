@@ -32,6 +32,18 @@ public partial class QCCheckDetail
     [Column(TypeName = "decimal(18, 4)")]
     public decimal FailQuantity { get; set; }
 
+    /// <summary>Fail quantity due to shortage (OrderedQuantity - PassQuantity)</summary>
+    [Column(TypeName = "decimal(18, 4)")]
+    public decimal? FailQuantityQuantity { get; set; }
+
+    /// <summary>Fail quantity due to quality defects</summary>
+    [Column(TypeName = "decimal(18, 4)")]
+    public decimal? FailQuantityQuality { get; set; }
+
+    /// <summary>Fail quantity due to damage</summary>
+    [Column(TypeName = "decimal(18, 4)")]
+    public decimal? FailQuantityDamage { get; set; }
+
     // Navigation properties
     [ForeignKey("QCCheckId")]
     [InverseProperty("QCCheckDetails")]

@@ -1,17 +1,19 @@
 ﻿namespace Backend.Domains.Audit.DTOs.Staffs;
 
-public sealed class CountItemDto
+public sealed class CountingDto
 {
     public int MaterialId { get; set; }
     public int BinId { get; set; }
     public int BatchId { get; set; }
 
-    public string? MaterialName { get; set; }   // nếu Material entity khác tên field thì sửa
-    public string? BatchCode { get; set; }      // nếu Batch entity khác tên field thì sửa
-    public string? BinCode { get; set; }        // nếu BinLocation entity khác tên field thì sửa
+    public string? MaterialName { get; set; }
+    public string? BatchCode { get; set; }
+    public string? BinCode { get; set; }
+    public string? UnitName { get; set; }
 
     public decimal? SystemQty { get; set; }
     public decimal? CountQty { get; set; }
+    public int CountRound { get; set; }
     public decimal? Variance { get; set; }
 
     public int? CountedBy { get; set; }
@@ -21,9 +23,26 @@ public sealed class CountItemDto
 public sealed class UpsertCountRequest
 {
     public int MaterialId { get; set; }
-    // Accept BinCode from staff (scanned/entered) instead of BinId
     public string BinCode { get; set; } = null!;
-    public string BatchCode { get; set; } = null!; // Staff đọc từ tag
+    public string BatchCode { get; set; } = null!;
     public decimal CountQty { get; set; }
-    public string? Reason { get; set; }
+}
+
+public sealed class MaterialSuggestDto
+{
+    public int MaterialId { get; set; }
+    public string MaterialName { get; set; } = null!;
+    public string? BatchCode { get; set; }
+    public string? UnitName { get; set; }
+}
+public sealed class MaterialBatchDto
+{
+    public int MaterialId { get; set; }
+    public string MaterialName { get; set; } = null!;
+
+    public int BinId { get; set; }
+    public string? BinCode { get; set; }
+
+    public int BatchId { get; set; }
+    public string BatchCode { get; set; } = null!;
 }

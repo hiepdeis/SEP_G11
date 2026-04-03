@@ -11,38 +11,81 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress"; // Giả định có component UI này hoặc dùng HTML input range readonly
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { projectApi, ProjectDto } from "@/services/project-services";
 
-const PROJECTS = [
-  { 
-     id: "PRJ-ALPHA", 
-     name: "Skyline Tower A", 
-     budget: 5000000000, 
-     spent: 3200000000, 
-     status: "On Track",
-     manager: "Nguyen Van A"
-  },
-  { 
-     id: "PRJ-BETA", 
-     name: "Riverside Villa Complex", 
-     budget: 2000000000, 
-     spent: 1950000000, 
-     status: "Critical",
-     manager: "Tran Thi B"
-  },
-  { 
-     id: "PRJ-GAMMA", 
-     name: "City Mall Renovation", 
-     budget: 1500000000, 
-     spent: 400000000, 
-     status: "Healthy",
-     manager: "Le Van C"
-  },
-];
+
 
 export default function ProjectBudgetPage() {
   const formatMoney = (val: number) => 
      (val / 1000000000).toFixed(2) + "B VND";
 
+  const [showCreateProject, setShowCreateProject] = useState(false);
+  const [creatingProject, setCreatingProject] = useState(false);
+  const [newProject, setNewProject] = useState({
+    code: "",
+    name: "",
+    startDate: "",
+    endDate: "",
+    budget: 0,
+    status: "",
+  });
+  const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      setLoadingProjects(true);
+      try {
+        const data = await projectApi.getProjects();
+        setProjects(data);
+      } catch (err) {
+        console.error("Failed to fetch projects");
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+    fetchProjects();
+
+    
+  }, []);
+
+  const handleCreateProject = async () => {
+    setCreatingProject(true);
+    try {
+      await projectApi.createProject({
+        ...newProject,
+        budget: Number(newProject.budget),
+      });
+      setShowCreateProject(false);
+      setNewProject({
+        code: "",
+        name: "",
+        startDate: "",
+        endDate: "",
+        budget: 0,
+        status: "",
+      });
+      // Reload lại danh sách dự án
+      setLoadingProjects(true);
+      const data = await projectApi.getProjects();
+      setProjects(data);
+    } catch (err) {
+      alert("Tạo dự án thất bại!");
+    } finally {
+      setCreatingProject(false);
+    }
+  };
+  const activeProjects = projects.filter(p => p.status === "Active");
+
+   // Tổng budget
+   const totalBudget = activeProjects.reduce(
+   (sum, p) => sum + (p.budget || 0),
+   0
+   );
+
+   // Số lượng active
+   const activeCount = activeProjects.length;
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
@@ -80,10 +123,11 @@ export default function ProjectBudgetPage() {
               <Card className="bg-indigo-600 text-white border-none shadow-lg">
                  <CardContent className="p-6">
                     <p className="text-indigo-100 text-sm font-medium mb-1">Total Active Budget</p>
-                    <h3 className="text-3xl font-bold">8.5B VND</h3>
+                    <h3 className="text-3xl font-bold">
+                     {formatMoney(totalBudget)}
+                     </h3>
                     <div className="mt-4 flex items-center gap-2 text-xs bg-white/10 w-fit px-2 py-1 rounded">
-                       <PieChart className="w-3 h-3" /> 3 Active Projects
-                    </div>
+                       <PieChart className="w-3 h-3" /> {activeCount} Active Projects </div>
                  </CardContent>
               </Card>
               <Card>
@@ -109,7 +153,7 @@ export default function ProjectBudgetPage() {
            {/* Detailed Project List */}
            <h3 className="text-lg font-semibold text-slate-900 mt-4">Project Breakdown</h3>
            <div className="space-y-4">
-              {PROJECTS.map((prj, idx) => {
+              {projects.map((prj, idx) => {
                  const percent = Math.round((prj.spent / prj.budget) * 100);
                  const statusColor = 
                     percent > 90 ? "bg-red-500" : 
@@ -170,6 +214,85 @@ export default function ProjectBudgetPage() {
            </div>
 
         </div>
+
+        {/* Nút Thêm dự án */}
+        <div className="flex justify-end mb-4">
+          <button
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+            onClick={() => setShowCreateProject(true)}
+          >
+            + Thêm dự án
+          </button>
+        </div>
+
+        {/* Modal tạo dự án */}
+        {showCreateProject && (
+          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-lg p-6 min-w-[350px] w-full max-w-md">
+              <h2 className="text-lg font-bold mb-4">Tạo dự án mới</h2>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  placeholder="Mã dự án"
+                  value={newProject.code}
+                  onChange={e => setNewProject(p => ({ ...p, code: e.target.value }))}
+                  className="w-full border rounded px-3 py-2"
+                />
+                <input
+                  type="text"
+                  placeholder="Tên dự án"
+                  value={newProject.name}
+                  onChange={e => setNewProject(p => ({ ...p, name: e.target.value }))}
+                  className="w-full border rounded px-3 py-2"
+                />
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    value={newProject.startDate}
+                    onChange={e => setNewProject(p => ({ ...p, startDate: e.target.value }))}
+                    className="w-1/2 border rounded px-3 py-2"
+                  />
+                  <input
+                    type="date"
+                    value={newProject.endDate}
+                    onChange={e => setNewProject(p => ({ ...p, endDate: e.target.value }))}
+                    className="w-1/2 border rounded px-3 py-2"
+                  />
+                </div>
+                <input
+                  type="number"
+                  placeholder="Ngân sách (VND)"
+                  value={newProject.budget}
+                  onChange={e => setNewProject(p => ({ ...p, budget: e.target.value }))}
+                  className="w-full border rounded px-3 py-2"
+                />
+                <input
+                  type="text"
+                  placeholder="Trạng thái"
+                  value={newProject.status}
+                  onChange={e => setNewProject(p => ({ ...p, status: e.target.value }))}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div className="flex gap-3 mt-6 justify-end">
+                <button
+                  className="px-4 py-2 rounded bg-gray-200"
+                  onClick={() => setShowCreateProject(false)}
+                  disabled={creatingProject}
+                >
+                  Hủy
+                </button>
+                <button
+                  className="px-4 py-2 rounded bg-indigo-600 text-white"
+                  onClick={handleCreateProject}
+                  disabled={creatingProject}
+                >
+                  {creatingProject ? "Đang tạo..." : "Tạo dự án"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

@@ -23,6 +23,7 @@ namespace Backend.Domains.Import.DTOs.Purchasing
         public decimal PassQuantity { get; set; }
         public decimal FailQuantity { get; set; }
         public string? FailReason { get; set; }
+        public List<string> EvidenceImages { get; set; } = new();
     }
 
     public class PurchasingIncidentDetailDto

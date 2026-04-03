@@ -38,4 +38,7 @@ public partial class IssueDetail
     [ForeignKey("MaterialId")]
     [InverseProperty("IssueDetails")]
     public virtual Material Material { get; set; } = null!;
+
+    [InverseProperty("IssueDetail")]
+    public virtual ICollection<PickingList> PickingLists { get; set; } = new List<PickingList>();
 }

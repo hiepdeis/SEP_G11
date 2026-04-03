@@ -23,6 +23,18 @@ namespace Backend.Domains.Import.DTOs.Managers
         public decimal PassQuantity { get; set; }
         public decimal FailQuantity { get; set; }
         public string? FailReason { get; set; }
+
+        /// <summary>Fail quantity breakdown: shortage (Quantity issue)</summary>
+        public decimal? FailQuantityQuantity { get; set; }
+
+        /// <summary>Fail quantity breakdown: defects (Quality issue)</summary>
+        public decimal? FailQuantityQuality { get; set; }
+
+        /// <summary>Fail quantity breakdown: damage (Damage issue)</summary>
+        public decimal? FailQuantityDamage { get; set; }
+
+        /// <summary>Evidence image URLs/base64 attached from IncidentReportDetails by material.</summary>
+        public List<string> EvidenceImages { get; set; } = new();
     }
 
     public class ManagerIncidentDetailDto

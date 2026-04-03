@@ -68,8 +68,7 @@ public partial class User
     [InverseProperty(nameof(StockTake.CreatedByNavigation))]
     public virtual ICollection<StockTake> StockTakeCreatedByNavigations { get; set; } = new List<StockTake>();
 
-    [InverseProperty(nameof(StockTake.LockedByNavigation))]
-    public virtual ICollection<StockTake> StockTakeLockedByNavigations { get; set; } = new List<StockTake>();
+    
 
     [InverseProperty(nameof(StockTake.CompletedByNavigation))]
     public virtual ICollection<StockTake> StockTakeCompletedByNavigations { get; set; } = new List<StockTake>();

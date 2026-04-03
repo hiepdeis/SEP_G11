@@ -1,94 +1,165 @@
 using Backend.Domains.Audit.DTOs.Staffs;
 using Backend.Domains.Audit.Interfaces;
+using Backend.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
-namespace Backend.Domains.Audit.Controllers.Staffs;
-
-[ApiController]
-[Route("api/staff/audits")]
-// [Authorize(Roles = "Warehouse Staff")] // bật lại khi test JWT ổn
-public class StockTakeCountingController : ControllerBase
+namespace Backend.Controllers
 {
-    private readonly IStockTakeCountingService _service;
-    private readonly IWebHostEnvironment _env;
-
-    public StockTakeCountingController(IStockTakeCountingService service, IWebHostEnvironment env)
+    [ApiController]
+    [Route("api/staff/audits")]
+    [Authorize(Roles = "Staff")]
+    public class StockTakeCountingController : ControllerBase
     {
-        _service = service;
-        _env = env;
-    }
+        private readonly IStockTakeCountingService _stockTakeCountingService;
 
-    private int GetUserId()
-    {
-        // DEV: fix cứng cho test
-        if (_env.IsDevelopment()) return 4;
-
-        var idStr =
-            User.FindFirstValue(ClaimTypes.NameIdentifier) ??
-            User.FindFirstValue("userId") ??
-            User.FindFirstValue("id") ??
-            User.FindFirstValue("sub");
-
-        if (int.TryParse(idStr, out var uid)) return uid;
-        throw new UnauthorizedAccessException("Invalid user identity.");
-    }
-
-    /// GET /api/staff/audits/{stockTakeId}/count-items?keyword=&uncountedOnly=true&skip=0&take=50&blind=false
-    [HttpGet("{stockTakeId:int}/count-items")]
-    public async Task<IActionResult> GetCountItems(
-        int stockTakeId,
-        [FromQuery] string? keyword = null,
-        [FromQuery] bool uncountedOnly = false,
-        [FromQuery] int skip = 0,
-        [FromQuery] int take = 50,
-        CancellationToken ct = default)
-    {
-        var userId = GetUserId();
-
-        try
+        public StockTakeCountingController(IStockTakeCountingService stockTakeCountingService)
         {
-            var data = await _service.GetCountItemsAsync(stockTakeId, userId, keyword, uncountedOnly, skip, take, ct);
-            return Ok(data);
+            _stockTakeCountingService = stockTakeCountingService;
         }
-        catch (UnauthorizedAccessException)
+
+        private int GetCurrentUserId()
         {
-            return Forbid();
+            return User.GetRequiredUserId();
         }
-        catch (ArgumentException ex)
+
+        private async Task<IActionResult> ExecuteReadAsync<T>(Func<Task<T>> action)
         {
-            return NotFound(new { message = ex.Message });
-        }
-    }
-
-    [HttpPut("{stockTakeId:int}/count-items")]
-    public async Task<IActionResult> UpsertCount(
-        int stockTakeId,
-        [FromBody] UpsertCountRequest req,
-        CancellationToken ct = default)
-    {
-        var userId = GetUserId();
-
-        try
-        {
-            var (success, message) = await _service.UpsertCountAsync(stockTakeId, userId, req, ct);
-            
-            if (!success)
-                return BadRequest(new { message });
-
-            // BLIND: don't return SystemQty/Variance/DiscrepancyStatus to staff
-            return Ok(new
+            try
             {
-                message = "Saved",
-                countedQty = req.CountQty,
-                batchCode = req.BatchCode,
-                countedAt = DateTime.UtcNow
+                var data = await action();
+                return Ok(data);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
+        }
+
+        [HttpGet("{stockTakeId:int}/counted-items")]
+        public async Task<IActionResult> GetCountedItems(
+            int stockTakeId,
+            [FromQuery] int skip = 0,
+            [FromQuery] int take = 50,
+            CancellationToken ct = default)
+        {
+            return await ExecuteReadAsync(async () =>
+            {
+                var userId = GetCurrentUserId();
+
+                return await _stockTakeCountingService.GetCountedItemsAsync(
+                    stockTakeId,
+                    userId,
+                    skip,
+                    take,
+                    ct);
             });
         }
-        catch (ArgumentException ex)
+
+        [HttpGet("{stockTakeId:int}/uncounted-items")]
+        public async Task<IActionResult> GetUncountedItems(
+            int stockTakeId,
+            [FromQuery] int skip = 0,
+            [FromQuery] int take = 50,
+            CancellationToken ct = default)
         {
-            return BadRequest(new { message = ex.Message });
+            return await ExecuteReadAsync(async () =>
+            {
+                var userId = GetCurrentUserId();
+
+                return await _stockTakeCountingService.GetUncountedItemsAsync(
+                    stockTakeId,
+                    userId,
+                    skip,
+                    take,
+                    ct);
+            });
+        }
+
+        [HttpGet("{stockTakeId:int}/materials/suggest")]
+        public async Task<IActionResult> SuggestMaterials(
+            int stockTakeId,
+            [FromQuery] string? keyword,
+            [FromQuery] int take = 10,
+            CancellationToken ct = default)
+        {
+            return await ExecuteReadAsync(async () =>
+            {
+                var userId = GetCurrentUserId();
+
+                return await _stockTakeCountingService.SuggestMaterialsAsync(
+                    stockTakeId,
+                    userId,
+                    keyword,
+                    take,
+                    ct);
+            });
+        }
+
+        [HttpPost("{stockTakeId:int}/count-items")]
+        public async Task<IActionResult> UpsertCount(
+            int stockTakeId,
+            [FromBody] UpsertCountRequest request,
+            CancellationToken ct = default)
+        {
+            var userId = GetCurrentUserId();
+
+            var result = await _stockTakeCountingService.UpsertCountAsync(
+                stockTakeId,
+                userId,
+                request,
+                ct);
+
+            if (!result.success)
+                return BadRequest(new { message = result.message });
+
+            return Ok(new { message = result.message });
+        }
+
+        [HttpGet("{stockTakeId:int}/recount-items")]
+        public async Task<IActionResult> GetRecountItems(
+            int stockTakeId,
+            [FromQuery] string? keyword,
+            [FromQuery] int skip = 0,
+            [FromQuery] int take = 50,
+            CancellationToken ct = default)
+        {
+            return await ExecuteReadAsync(async () =>
+            {
+                var userId = GetCurrentUserId();
+
+                return await _stockTakeCountingService.GetRecountItemsAsync(
+                    stockTakeId,
+                    userId,
+                    keyword,
+                    skip,
+                    take,
+                    ct);
+            });
+        }
+
+        [HttpPost("{stockTakeId:int}/recount-items")]
+        public async Task<IActionResult> Recount(
+            int stockTakeId,
+            [FromBody] UpsertCountRequest request,
+            CancellationToken ct = default)
+        {
+            var userId = GetCurrentUserId();
+
+            var result = await _stockTakeCountingService.RecountAsync(
+                stockTakeId,
+                userId,
+                request,
+                ct);
+
+            if (!result.success)
+                return BadRequest(new { message = result.message });
+
+            return Ok(new { message = result.message });
         }
     }
 }
