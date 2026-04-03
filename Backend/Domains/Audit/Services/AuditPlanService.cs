@@ -16,6 +16,36 @@ namespace Backend.Domains.Audit.Services
             _db = db;
         }
 
+        private static List<int> NormalizeBinLocationIds(IEnumerable<int>? binLocationIds)
+        {
+            return (binLocationIds ?? Enumerable.Empty<int>())
+                .Where(x => x > 0)
+                .Distinct()
+                .ToList();
+        }
+
+        private async Task EnsureScopeCanBeEditedAsync(StockTake stockTake, CancellationToken ct)
+        {
+            if (stockTake.CompletedAt != null ||
+                string.Equals(stockTake.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException("Audit đã hoàn tất, không thể thay đổi phạm vi kiểm kê.");
+            }
+
+            var hasActiveLocks = await _db.StockTakeLocks
+                .AsNoTracking()
+                .AnyAsync(x => x.StockTakeId == stockTake.StockTakeId && x.IsActive, ct);
+
+            if (hasActiveLocks)
+                throw new ArgumentException("Audit đang bị khóa để kiểm kê, không thể thay đổi phạm vi BinLocation.");
+
+            if (!string.Equals(stockTake.Status, "Planned", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(stockTake.Status, "Assigned", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException("Chỉ có thể thay đổi phạm vi BinLocation trước khi audit bắt đầu kiểm kê.");
+            }
+        }
+
         public async Task<AuditPlanResponse> CreateAsync(CreateAuditPlanRequest request, int createdByUserId, CancellationToken ct)
         {
             // 1) Validate warehouse tồn tại
@@ -24,8 +54,9 @@ namespace Backend.Domains.Audit.Services
                 throw new ArgumentException("WarehouseId không tồn tại.");
 
             // 2) Nếu BinLocationIds được cung cấp, validate tất cả tồn tại và thuộc warehouse
-            var binLocationIds = request.BinLocationIds ?? new List<int>();
-            if (binLocationIds.Any())
+            var binLocationIds = NormalizeBinLocationIds(request.BinLocationIds);
+
+            if (binLocationIds.Count > 0)
             {
                 var invalidBins = new List<int>();
                 foreach (var binId in binLocationIds)
@@ -42,14 +73,16 @@ namespace Backend.Domains.Audit.Services
                     throw new ArgumentException($"Các BinLocationId không tồn tại hoặc không thuộc warehouse: {string.Join(", ", invalidBins)}");
             }
 
-            // 3) Validate date theo SRS
-            var today = DateTime.UtcNow.Date;
-            if (request.PlannedStartDate.Date < today)
-                throw new ArgumentException("PlannedStartDate phải là hôm nay hoặc tương lai.");
-            if (request.PlannedEndDate.Date < request.PlannedStartDate.Date)
-                throw new ArgumentException("PlannedEndDate phải >= PlannedStartDate.");
+            // 3) Validate date/time theo SRS
+            var now = DateTime.UtcNow;
 
-            // 4) Create record StockTakes: status = Planned (đúng SRS)
+            if (request.PlannedStartDate < now)
+                throw new ArgumentException("PlannedStartDate phải là thời điểm hiện tại hoặc tương lai.");
+
+            if (request.PlannedEndDate <= request.PlannedStartDate)
+                throw new ArgumentException("PlannedEndDate phải lớn hơn PlannedStartDate.");
+
+            // 4) Create record StockTakes: status = Planned
             var entity = new StockTake
             {
                 WarehouseId = request.WarehouseId,
@@ -78,6 +111,36 @@ namespace Backend.Domains.Audit.Services
                 await _db.SaveChangesAsync(ct);
             }
 
+            var inventoryQuery = _db.InventoryCurrents
+                .AsNoTracking()
+                .Where(x => x.WarehouseId == request.WarehouseId && x.QuantityOnHand > 0);
+
+            if (binLocationIds.Any())
+            {
+                inventoryQuery = inventoryQuery.Where(x => binLocationIds.Contains(x.BinId));
+            }
+
+            var currentInventories = await inventoryQuery.ToListAsync(ct);
+
+            if (currentInventories.Any())
+            {
+                var details = currentInventories.Select(item => new StockTakeDetail
+                {
+                    StockTakeId = entity.StockTakeId,
+                    MaterialId = item.MaterialId,
+                    BatchId = item.BatchId,
+                    BinId = item.BinId,
+                    SystemQty = item.QuantityOnHand, 
+                    CountQty = null,                 
+                    Variance = 0 - item.QuantityOnHand,
+                    DiscrepancyStatus = "Pending",
+                    CountRound = 1 
+                }).ToList();
+
+                _db.StockTakeDetails.AddRange(details);
+                await _db.SaveChangesAsync(ct); 
+            }
+
             return new AuditPlanResponse
             {
                 StockTakeId = entity.StockTakeId,
@@ -100,12 +163,21 @@ namespace Backend.Domains.Audit.Services
             if (st == null)
                 throw new ArgumentException("Audit không tồn tại.");
 
+            await EnsureScopeCanBeEditedAsync(st, ct);
+
             // Xóa StockTakeBinLocation record
             var record = await _db.StockTakeBinLocations
                 .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId && x.BinId == binId, ct);
 
             if (record == null)
                 throw new ArgumentException("BinLocation này không được thêm vào audit.");
+
+            var scopedBinCount = await _db.StockTakeBinLocations
+                .AsNoTracking()
+                .CountAsync(x => x.StockTakeId == stockTakeId, ct);
+
+            if (scopedBinCount <= 1)
+                throw new ArgumentException("Khong the xoa bin cuoi cung bang API nay. Neu muon chuyen sang kiem ke toan kho, hay dung API update bin-location voi danh sach rong.");
 
             _db.StockTakeBinLocations.Remove(record);
             await _db.SaveChangesAsync(ct);
@@ -118,11 +190,13 @@ namespace Backend.Domains.Audit.Services
             if (st == null)
                 throw new ArgumentException("Audit không tồn tại.");
 
+            await EnsureScopeCanBeEditedAsync(st, ct);
+
             // Lấy danh sách bin mới
-            var newBinIds = request.BinLocationIds ?? new List<int>();
+            var newBinIds = NormalizeBinLocationIds(request.BinLocationIds);
 
             // Validate tất cả bin mới tồn tại và thuộc warehouse
-            if (newBinIds.Any())
+            if (newBinIds.Count > 0)
             {
                 var invalidBins = new List<int>();
                 foreach (var binId in newBinIds)

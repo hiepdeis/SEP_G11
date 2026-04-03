@@ -1,4 +1,4 @@
-﻿using Backend.Data;
+using Backend.Data;
 using Backend.Domains.Import.DTOs.Accountants;
 using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.DTOs.Purchasing;

@@ -5,8 +5,8 @@ namespace Backend.Domains.Audit.DTOs.Accountants
     public class UpdateBinLocationsRequest
     {
         /// <summary>
-        /// Danh sách BinLocationIds thay thế.
-        /// Nếu rỗng hoặc null, sẽ xóa toàn bộ bin-location.
+        /// Danh sach BinLocationIds thay the.
+        /// Neu rong hoac null, he thong hieu la kiem ke toan bo kho.
         /// </summary>
         public List<int>? BinLocationIds { get; set; }
     }

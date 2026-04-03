@@ -20,6 +20,8 @@ public partial class StockTakeDetail
 
     public decimal? CountQty { get; set; }
 
+    public int CountRound { get; set; } = 1;
+
     public decimal? Variance { get; set; }
 
     public string? Reason { get; set; }

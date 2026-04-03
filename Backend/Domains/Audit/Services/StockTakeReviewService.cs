@@ -47,33 +47,62 @@ namespace Backend.Domains.Audit.Services
                            (!scopedBinIds.Any() || scopedBinIds.Contains(x.BinId)));
         }
 
-        private async Task<List<int>> GetScopeBinIdsAsync(int stockTakeId, CancellationToken ct)
+        private IQueryable<Backend.Entities.StockTakeDetail> BuildUnresolvedVarianceQuery(int stockTakeId)
         {
-            return await _db.StockTakeBinLocations
+            return _db.StockTakeDetails
                 .AsNoTracking()
-                .Where(x => x.StockTakeId == stockTakeId)
-                .Select(x => x.BinId)
-                .ToListAsync(ct);
+                .Where(x =>
+                    x.StockTakeId == stockTakeId &&
+                    (
+                        x.DiscrepancyStatus == "Discrepancy" ||
+                        x.DiscrepancyStatus == "RecountRequested" ||
+                        x.DiscrepancyStatus == "Recounted"
+                    ));
         }
 
-        private async Task<bool> HasConflictingLockForScopeAsync(
-        int warehouseId,
-        int currentStockTakeId,
-        bool isWarehouseScope,
-        List<int> currentScopeBinIds,
-        CancellationToken ct)
+        private IQueryable<Backend.Entities.StockTakeDetail> BuildResolvedVarianceQuery(int stockTakeId)
         {
-            return await _db.StockTakeLocks
+            return _db.StockTakeDetails
                 .AsNoTracking()
-                .AnyAsync(x =>
-                    x.StockTakeId != currentStockTakeId &&
-                    x.WarehouseId == warehouseId &&
-                    x.IsActive &&
+                .Where(x =>
+                    x.StockTakeId == stockTakeId &&
                     (
-                        x.ScopeType == "Warehouse" ||
-                        (x.ScopeType == "Bin" &&
-                            (isWarehouseScope || currentScopeBinIds.Contains(x.BinId ?? 0)))
-                    ), ct);
+                        (
+                            x.ResolutionAction != null &&
+                            x.ResolutionAction != ""
+                        ) ||
+                        (
+                            x.DiscrepancyStatus == "Matched" &&
+                            x.CountRound > 1
+                        )
+                    ));
+        }
+
+        private IQueryable<Backend.Entities.StockTakeDetail> BuildVarianceQuery(int stockTakeId, bool? resolved)
+        {
+            if (resolved == true)
+                return BuildResolvedVarianceQuery(stockTakeId);
+
+            if (resolved == false)
+                return BuildUnresolvedVarianceQuery(stockTakeId);
+
+            return _db.StockTakeDetails
+                .AsNoTracking()
+                .Where(x =>
+                    x.StockTakeId == stockTakeId &&
+                    (
+                        x.DiscrepancyStatus == "Discrepancy" ||
+                        x.DiscrepancyStatus == "RecountRequested" ||
+                        x.DiscrepancyStatus == "Recounted" ||
+                        (
+                            x.ResolutionAction != null &&
+                            x.ResolutionAction != ""
+                        ) ||
+                        (
+                            x.DiscrepancyStatus == "Matched" &&
+                            x.CountRound > 1
+                        )
+                    ));
         }
         private async Task<int> UnlockActiveLocksAsync(
     int stockTakeId,
@@ -101,6 +130,7 @@ namespace Backend.Domains.Audit.Services
         public async Task<(List<AuditListItemDto> items, int total)> GetAllAuditsAsync(
             int skip,
             int take,
+            int? stockTakeId,
             string? status,
             int? warehouseId,
             DateTime? fromDate,
@@ -112,6 +142,11 @@ namespace Backend.Domains.Audit.Services
             if (skip < 0) skip = 0;
 
             var query = _db.StockTakes.AsNoTracking();
+
+            if (stockTakeId.HasValue && stockTakeId > 0)
+            {
+                query = query.Where(x => x.StockTakeId == stockTakeId.Value);
+            }
 
             // Filter by status
             if (!string.IsNullOrWhiteSpace(status))
@@ -165,12 +200,8 @@ namespace Backend.Domains.Audit.Services
                         x.StockTakeId == st.StockTakeId &&
                         x.DiscrepancyStatus == "Discrepancy", ct);
 
-                var unresolvedVariances = await _db.StockTakeDetails
-                    .AsNoTracking()
-                    .CountAsync(x =>
-                        x.StockTakeId == st.StockTakeId &&
-                        x.DiscrepancyStatus == "Discrepancy" &&
-                        (x.ResolutionAction == null || x.ResolutionAction == ""), ct);
+                var unresolvedVarianceCount = await BuildUnresolvedVarianceQuery(st.StockTakeId)
+                    .CountAsync(ct);
 
                 var matchedItems = await _db.StockTakeDetails
                     .AsNoTracking()
@@ -197,7 +228,7 @@ namespace Backend.Domains.Audit.Services
                     CountedItems = countedItems,
                     CountingProgress = Math.Round(countingProgress, 2),
                     DiscrepancyItems = discrepancyItems,
-                    UnresolvedVariances = unresolvedVariances,
+                    UnresolvedVariances = unresolvedVarianceCount,
                     MatchRate = Math.Round(matchRate, 2)
                 };
 
@@ -317,22 +348,7 @@ namespace Backend.Domains.Audit.Services
             if (take > 200) take = 200;
             if (skip < 0) skip = 0;
 
-            var query = _db.StockTakeDetails
-                .AsNoTracking()
-                .Where(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy");
-
-            // Filter by resolution status if specified
-            if (resolved == false)
-            {
-                query = query.Where(x => x.ResolutionAction == null || x.ResolutionAction == "");
-            }
-            else if (resolved == true)
-            {
-                query = query.Where(x => x.ResolutionAction != null && x.ResolutionAction != "");
-            }
-
+            var query = BuildVarianceQuery(stockTakeId, resolved);
             var variances = await query
                 .Include(x => x.Material)
                 .Include(x => x.Bin)
@@ -356,6 +372,7 @@ namespace Backend.Domains.Audit.Services
                     CountQty = d.CountQty,
                     Variance = d.Variance,
                     DiscrepancyStatus = d.DiscrepancyStatus,
+                    CountRound = d.CountRound,
                     CountedBy = d.CountedBy,
                     CountedByName = d.CountedByNavigation != null ? d.CountedByNavigation.FullName : null,
                     CountedAt = d.CountedAt,
@@ -369,18 +386,8 @@ namespace Backend.Domains.Audit.Services
                 })
                 .ToListAsync(ct);
 
-            var unresolvedCount = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy" &&
-                    (x.ResolutionAction == null || x.ResolutionAction == ""), ct);
-
-            var totalCount = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy", ct);
+            var unresolvedCount = await BuildUnresolvedVarianceQuery(stockTakeId).CountAsync(ct);
+            var totalCount = await query.CountAsync(ct);
 
             return (variances, totalCount, unresolvedCount);
         }
@@ -397,20 +404,7 @@ namespace Backend.Domains.Audit.Services
             if (st == null)
                 throw new ArgumentException("Audit not found.");
 
-            var query = _db.StockTakeDetails
-                .AsNoTracking()
-                .Where(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy");
-
-            if (resolved == false)
-            {
-                query = query.Where(x => x.ResolutionAction == null || x.ResolutionAction == "");
-            }
-            else if (resolved == true)
-            {
-                query = query.Where(x => x.ResolutionAction != null && x.ResolutionAction != "");
-            }
+            var query = BuildVarianceQuery(stockTakeId, resolved);
 
             var variances = await query
                 .Include(x => x.Material)
@@ -446,18 +440,8 @@ namespace Backend.Domains.Audit.Services
                 })
                 .ToListAsync(ct);
 
-            var unresolvedCount = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy" &&
-                    (x.ResolutionAction == null || x.ResolutionAction == ""), ct);
-
-            var totalCount = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy", ct);
+            var unresolvedCount = await BuildUnresolvedVarianceQuery(stockTakeId).CountAsync(ct);
+            var totalCount = await query.CountAsync(ct);
 
             return (variances, totalCount, unresolvedCount);
         }
@@ -501,6 +485,7 @@ namespace Backend.Domains.Audit.Services
                 CountQty = detail.CountQty,
                 Variance = detail.Variance,
                 DiscrepancyStatus = detail.DiscrepancyStatus,
+                CountRound = detail.CountRound,
                 CountedBy = detail.CountedBy,
                 CountedByName = detail.CountedByNavigation != null ? detail.CountedByNavigation.FullName : null,
                 CountedAt = detail.CountedAt,
@@ -598,7 +583,66 @@ namespace Backend.Domains.Audit.Services
 
             return (true, "Variance reason updated successfully.");
         }
+        public async Task<(bool success, string message)> RequestRecountAsync(
+     int stockTakeId,
+     long detailId,
+     RequestRecountRequest request,
+     int managerUserId,
+     CancellationToken ct)
+        {
+            var st = await _db.StockTakes
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
 
+            if (st == null)
+                return (false, "Audit not found.");
+
+            if (st.CompletedAt != null || string.Equals(st.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+                return (false, "Audit is already completed.");
+
+            // Chỉ cho request recount khi audit vẫn đang lock và đang kiểm kê
+            if (!string.Equals(st.Status, "InProgress", StringComparison.OrdinalIgnoreCase))
+                return (false, $"Only audits in 'InProgress' status can request recount. Current status: '{st.Status}'.");
+
+            var detail = await _db.StockTakeDetails
+                .FirstOrDefaultAsync(x => x.Id == detailId && x.StockTakeId == stockTakeId, ct);
+
+            if (detail == null)
+                return (false, "Variance detail not found.");
+
+            if (detail.CountQty == null)
+                return (false, "This item has not been counted yet.");
+
+            if ((detail.Variance ?? 0m) == 0m)
+                return (false, "Only discrepancy items can be requested for recount.");
+
+            if (string.Equals(detail.DiscrepancyStatus, "RecountRequested", StringComparison.OrdinalIgnoreCase))
+                return (false, "This item has already been requested for recount.");
+
+            if (!string.Equals(detail.DiscrepancyStatus, "Discrepancy", StringComparison.OrdinalIgnoreCase))
+                return (false, "Only items with discrepancy status can be requested for recount.");
+
+            var reason = await _db.AdjustmentReasons
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.ReasonId == request.ReasonId && x.IsActive, ct);
+
+            if (reason == null)
+                return (false, "Invalid reason.");
+
+            detail.DiscrepancyStatus = "RecountRequested";
+
+            // KHÔNG set thành Recount nữa, vì query unresolved của ông đang coi
+            // ResolutionAction != null là đã resolve
+            detail.ResolutionAction = null;
+
+            detail.AdjustmentReasonId = request.ReasonId;
+            detail.Reason = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
+            detail.ResolvedBy = managerUserId;
+            detail.ResolvedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync(ct);
+
+            return (true, "Recount requested successfully.");
+        }
         public async Task<StockTakeReviewDetailDto> GetReviewDetailAsync(int stockTakeId, CancellationToken ct)
         {
             var st = await _db.StockTakes
@@ -727,21 +771,9 @@ namespace Backend.Domains.Audit.Services
             };
 
             // Get variance summary
-            var totalVariances = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy", ct);
-
-            var resolvedVariances = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy" &&
-                    x.ResolutionAction != null &&
-                    x.ResolutionAction != "", ct);
-
-            var unresolvedVariances = totalVariances - resolvedVariances;
+            var totalVariances = await BuildVarianceQuery(stockTakeId, null).CountAsync(ct);
+            var resolvedVariances = await BuildResolvedVarianceQuery(stockTakeId).CountAsync(ct);
+            var unresolvedVariances = await BuildUnresolvedVarianceQuery(stockTakeId).CountAsync(ct);
             var resolutionRate = totalVariances > 0 ? (resolvedVariances * 100m / totalVariances) : 0m;
 
             var varianceSummary = new VarianceSummaryDto
@@ -816,7 +848,15 @@ namespace Backend.Domains.Audit.Services
             if (st == null)
                 return (false, "Audit not found.", null);
 
-            // Check if already signed by this user
+            if (st.CompletedAt != null || string.Equals(st.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+                return (false, "Audit is already completed.", null);
+
+            if (!string.Equals(st.Status, "InProgress", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(st.Status, "ReadyForReview", StringComparison.OrdinalIgnoreCase))
+            {
+                return (false, $"Audit cannot be signed off in status '{st.Status}'.", null);
+            }
+
             var existingSignature = await _db.StockTakeSignatures
                 .FirstOrDefaultAsync(x =>
                     x.StockTakeId == stockTakeId &&
@@ -825,25 +865,62 @@ namespace Backend.Domains.Audit.Services
             if (existingSignature != null)
                 return (false, "You have already signed off on this audit.", null);
 
-            // Get user to verify exists
             var user = await _db.Users
                 .AsNoTracking()
+                .Include(x => x.Role)
                 .FirstOrDefaultAsync(x => x.UserId == userId, ct);
 
             if (user == null)
                 return (false, "User not found.", null);
 
-            // Determine role based on team membership
-            var teamMember = await _db.StockTakeTeamMembers
+            var isAssignedStaff = await _db.StockTakeTeamMembers
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x =>
+                .AnyAsync(x =>
                     x.StockTakeId == stockTakeId &&
                     x.UserId == userId &&
-                    x.IsActive, ct);
+                    (x.IsActive || x.MemberCompletedAt != null), ct);
 
-            var role = "Manager"; // Default role for signing off
-            if (teamMember != null)
-                role = "Staff"; // Team member is a staff counter
+            var isManager = string.Equals(user.Role.RoleName, "Manager", StringComparison.OrdinalIgnoreCase);
+            var isStaff = string.Equals(user.Role.RoleName, "Staff", StringComparison.OrdinalIgnoreCase) && isAssignedStaff;
+
+            if (!isManager && !isStaff)
+                return (false, "Only assigned staff or managers can sign off this audit.", null);
+
+            var role = isManager ? "Manager" : "Staff";
+
+            var existingRoleSignature = await _db.StockTakeSignatures
+                .AsNoTracking()
+                .AnyAsync(x => x.StockTakeId == stockTakeId && x.Role == role, ct);
+
+            if (existingRoleSignature)
+                return (false, $"{role} has already signed off on this audit.", null);
+
+            var pendingMembers = await _db.StockTakeTeamMembers
+                .AsNoTracking()
+                .CountAsync(x =>
+                    x.StockTakeId == stockTakeId &&
+                    x.IsActive &&
+                    x.MemberCompletedAt == null, ct);
+
+            if (pendingMembers > 0)
+                return (false, "All active audit members must finish their work before sign-off.", null);
+
+            var totalItems = await BuildScopedInventoryQuery(stockTakeId, st.WarehouseId).CountAsync(ct);
+            var countedItems = await _db.StockTakeDetails
+                .AsNoTracking()
+                .CountAsync(x => x.StockTakeId == stockTakeId && x.CountQty != null, ct);
+
+            if (countedItems < totalItems)
+                return (false, "All scoped inventory items must be counted before sign-off.", null);
+
+            var hasPendingRecount = await _db.StockTakeDetails
+                .AsNoTracking()
+                .AnyAsync(x =>
+                    x.StockTakeId == stockTakeId &&
+                    x.DiscrepancyStatus == "RecountRequested", ct);
+
+            if (hasPendingRecount)
+                return (false, "Cannot sign off while there are items waiting for recount.", null);
 
             var signature = new Backend.Entities.StockTakeSignature
             {
@@ -885,119 +962,11 @@ namespace Backend.Domains.Audit.Services
             return (true, "Signed off successfully", signatureDto);
         }
 
-        public async Task<(bool success, string message)> LockAuditScopeAsync(
-        int stockTakeId,
-        int userId,
-        CancellationToken ct)
-        {
-            var st = await _db.StockTakes
-                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
-
-            if (st == null)
-                return (false, "Audit not found.");
-
-            if (st.CompletedAt != null || string.Equals(st.Status, "Completed", StringComparison.OrdinalIgnoreCase))
-                return (false, "Audit is already completed.");
-
-            var existingActiveLocks = await _db.StockTakeLocks
-                .AnyAsync(x => x.StockTakeId == stockTakeId && x.IsActive, ct);
-
-            if (existingActiveLocks)
-                return (true, "Audit scope is already locked.");
-
-            var scopeBinIds = await GetScopeBinIdsAsync(stockTakeId, ct);
-            var isWarehouseScope = scopeBinIds.Count == 0;
-
-            var hasConflict = await HasConflictingLockForScopeAsync(
-                st.WarehouseId,
-                stockTakeId,
-                isWarehouseScope,
-                scopeBinIds,
-                ct);
-
-            if (hasConflict)
-            {
-                return (false, isWarehouseScope
-                    ? "Warehouse is currently locked by another active audit."
-                    : "Some assigned BinLocation(s) are currently locked by another active audit.");
-            }
-
-            if (string.Equals(st.Status, "Planned", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(st.Status, "Assigned", StringComparison.OrdinalIgnoreCase))
-            {
-                st.Status = "InProgress";
-                st.CheckDate ??= DateTime.UtcNow;
-            }
-
-            var now = DateTime.UtcNow;
-
-            if (isWarehouseScope)
-            {
-                _db.StockTakeLocks.Add(new Backend.Entities.StockTakeLock
-                {
-                    StockTakeId = stockTakeId,
-                    ScopeType = "Warehouse",
-                    WarehouseId = st.WarehouseId,
-                    BinId = null,
-                    IsActive = true,
-                    LockedAt = now,
-                    LockedBy = userId
-                });
-            }
-            else
-            {
-                foreach (var binId in scopeBinIds.Distinct())
-                {
-                    _db.StockTakeLocks.Add(new Backend.Entities.StockTakeLock
-                    {
-                        StockTakeId = stockTakeId,
-                        ScopeType = "Bin",
-                        WarehouseId = st.WarehouseId,
-                        BinId = binId,
-                        IsActive = true,
-                        LockedAt = now,
-                        LockedBy = userId
-                    });
-                }
-            }
-
-            await _db.SaveChangesAsync(ct);
-
-            return (true, isWarehouseScope
-                ? "Warehouse scope locked for audit."
-                : $"Locked {scopeBinIds.Count} BinLocation(s) for audit.");
-        }
-        public async Task<(bool success, string message)> UnlockAuditScopeAsync(
-    int stockTakeId,
-    int userId,
-    CancellationToken ct)
-        {
-            var st = await _db.StockTakes
-                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
-
-            if (st == null)
-                return (false, "Audit not found.");
-
-            if (st.CompletedAt != null || string.Equals(st.Status, "Completed", StringComparison.OrdinalIgnoreCase))
-                return (false, "Audit is already completed.");
-
-            if (string.Equals(st.Status, "InProgress", StringComparison.OrdinalIgnoreCase))
-                return (false, "Cannot unlock while audit is InProgress.");
-
-            var unlockedCount = await UnlockActiveLocksAsync(stockTakeId, userId, ct);
-
-            if (unlockedCount == 0)
-                return (true, "Audit scope is already unlocked.");
-
-            await _db.SaveChangesAsync(ct);
-
-            return (true, "Audit scope unlocked.");
-        }
         public async Task<(bool success, string message)> CompleteAuditAsync(
-            int stockTakeId,
-            int managerId,
-            CompleteAuditRequest request,
-            CancellationToken ct)
+      int stockTakeId,
+      int managerId,
+      CompleteAuditRequest request,
+      CancellationToken ct)
         {
             var st = await _db.StockTakes
                 .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
@@ -1008,8 +977,17 @@ namespace Backend.Domains.Audit.Services
             if (st.CompletedAt != null || string.Equals(st.Status, "Completed", StringComparison.OrdinalIgnoreCase))
                 return (false, "Audit is already completed.");
 
-            // Only manager can complete
-            // Verify manager has signed off
+            if (!string.Equals(st.Status, "ReadyForReview", StringComparison.OrdinalIgnoreCase))
+                return (false, $"Audit must be in 'ReadyForReview' before completion. Current status: '{st.Status}'.");
+
+            var managerUser = await _db.Users
+                .AsNoTracking()
+                .Include(x => x.Role)
+                .FirstOrDefaultAsync(x => x.UserId == managerId, ct);
+
+            if (managerUser == null || !string.Equals(managerUser.Role.RoleName, "Manager", StringComparison.OrdinalIgnoreCase))
+                return (false, "Only managers can complete the audit.");
+
             var managerSignature = await _db.StockTakeSignatures
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x =>
@@ -1020,41 +998,46 @@ namespace Backend.Domains.Audit.Services
             if (managerSignature == null)
                 return (false, "Manager must sign off before completing audit.");
 
-            // Verify all variances have been resolved
+            var hasStaffSignature = await _db.StockTakeSignatures
+                .AsNoTracking()
+                .AnyAsync(x => x.StockTakeId == stockTakeId && x.Role == "Staff", ct);
+
+            if (!hasStaffSignature)
+                return (false, "Staff must sign off before completing audit.");
+
             var unresolvedVariances = await _db.StockTakeDetails
                 .AsNoTracking()
                 .CountAsync(x =>
                     x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy" &&
-                    (x.ResolutionAction == null || x.ResolutionAction == ""), ct);
+                    (x.SystemQty ?? 0m) != (x.CountQty ?? 0m) &&
+                    (
+                        x.ResolutionAction == null ||
+                        x.ResolvedBy == null ||
+                        x.ResolvedAt == null
+                    ), ct);
 
             if (unresolvedVariances > 0)
                 return (false, $"{unresolvedVariances} variance(s) still need resolution.");
 
-            // Post inventory adjustments for resolved discrepancies marked as AdjustSystem
-            var resolvedDiscrepancies = await _db.StockTakeDetails
+            var resolvedVariances = await _db.StockTakeDetails
                 .Where(x =>
                     x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy" &&
+                    (x.SystemQty ?? 0m) != (x.CountQty ?? 0m) &&
                     x.ResolutionAction != null &&
-                    x.ResolutionAction != "")
+                    x.ResolvedBy != null &&
+                    x.ResolvedAt != null)
                 .ToListAsync(ct);
-
-            var detailsToAdjust = resolvedDiscrepancies
-                .Where(x => NormalizeResolutionAction(x.ResolutionAction) == "AdjustSystem")
-                .ToList();
 
             var postedAt = DateTime.UtcNow;
             var postedCount = 0;
             var skippedAlreadyPostedCount = 0;
             var skippedZeroDeltaCount = 0;
 
-            foreach (var detail in detailsToAdjust)
+            foreach (var detail in resolvedVariances)
             {
                 if (!detail.BinId.HasValue || !detail.BatchId.HasValue)
                     return (false, $"Invalid bin/batch data for variance detail {detail.Id}.");
 
-                // If already posted before, skip to avoid double-apply.
                 var alreadyPosted = await _db.InventoryAdjustmentEntries
                     .AsNoTracking()
                     .AnyAsync(x =>
@@ -1068,13 +1051,6 @@ namespace Backend.Domains.Audit.Services
                     continue;
                 }
 
-                var delta = detail.Variance ?? ((detail.CountQty ?? 0m) - (detail.SystemQty ?? 0m));
-                if (delta == 0m)
-                {
-                    skippedZeroDeltaCount++;
-                    continue;
-                }
-
                 var inventory = await _db.InventoryCurrents
                     .FirstOrDefaultAsync(x =>
                         x.WarehouseId == st.WarehouseId &&
@@ -1085,65 +1061,49 @@ namespace Backend.Domains.Audit.Services
                 if (inventory == null)
                     return (false, $"Inventory row not found for variance detail {detail.Id}.");
 
-                inventory.QuantityOnHand = (inventory.QuantityOnHand ?? 0m) + delta;
+                var currentQty = inventory.QuantityOnHand ?? 0m;
+                var targetQty = detail.CountQty ?? 0m;
+                var delta = targetQty - currentQty;
+                if (delta == 0m)
+                {
+                    skippedZeroDeltaCount++;
+                    continue;
+                }
+
+                inventory.QuantityOnHand = targetQty;
                 inventory.LastUpdated = postedAt;
 
-                var latestEntry = await _db.InventoryAdjustmentEntries
-                    .Where(x =>
-                        x.StockTakeId == stockTakeId &&
-                        x.StockTakeDetailId == detail.Id)
-                    .OrderByDescending(x => x.EntryId)
-                    .FirstOrDefaultAsync(ct);
-
-                if (latestEntry == null)
+                var entry = new Backend.Entities.InventoryAdjustmentEntry
                 {
-                    latestEntry = new Backend.Entities.InventoryAdjustmentEntry
-                    {
-                        StockTakeId = stockTakeId,
-                        StockTakeDetailId = detail.Id,
-                        WarehouseId = st.WarehouseId,
-                        BinId = detail.BinId,
-                        MaterialId = detail.MaterialId,
-                        BatchId = detail.BatchId,
-                        QtyDelta = delta,
-                        ReasonId = detail.AdjustmentReasonId,
-                        Status = "Posted",
-                        CreatedAt = postedAt,
-                        CreatedBy = detail.ResolvedBy ?? managerId,
-                        ApprovedAt = postedAt,
-                        ApprovedBy = managerId,
-                        PostedAt = postedAt
-                    };
-                    _db.InventoryAdjustmentEntries.Add(latestEntry);
-                }
-                else
-                {
-                    latestEntry.WarehouseId = st.WarehouseId;
-                    latestEntry.BinId = detail.BinId;
-                    latestEntry.MaterialId = detail.MaterialId;
-                    latestEntry.BatchId = detail.BatchId;
-                    latestEntry.QtyDelta = delta;
-                    latestEntry.ReasonId = detail.AdjustmentReasonId;
-                    latestEntry.Status = "Posted";
-                    latestEntry.ApprovedAt = postedAt;
-                    latestEntry.ApprovedBy = managerId;
-                    latestEntry.PostedAt = postedAt;
-                }
+                    StockTakeId = stockTakeId,
+                    StockTakeDetailId = detail.Id,
+                    WarehouseId = st.WarehouseId,
+                    BinId = detail.BinId,
+                    MaterialId = detail.MaterialId,
+                    BatchId = detail.BatchId,
+                    QtyDelta = delta,
+                    ReasonId = detail.AdjustmentReasonId,
+                    Status = "Posted",
+                    CreatedAt = postedAt,
+                    CreatedBy = detail.ResolvedBy ?? managerId,
+                    ApprovedAt = postedAt,
+                    ApprovedBy = managerId,
+                    PostedAt = postedAt
+                };
 
+                _db.InventoryAdjustmentEntries.Add(entry);
                 postedCount++;
             }
 
-            // Update audit completion
             st.Status = "Completed";
             st.CompletedAt = postedAt;
             st.CompletedBy = managerId;
             st.Notes = request.Notes?.Trim();
 
             await UnlockActiveLocksAsync(stockTakeId, managerId, ct);
-
             await _db.SaveChangesAsync(ct);
 
-            return (true, $"Audit completed successfully. AdjustSystem candidates: {detailsToAdjust.Count}, posted: {postedCount}, already posted: {skippedAlreadyPostedCount}, zero-delta: {skippedZeroDeltaCount}.");
+            return (true, $"Audit completed successfully. Resolved variance candidates: {resolvedVariances.Count}, posted: {postedCount}, already posted: {skippedAlreadyPostedCount}, zero-delta: {skippedZeroDeltaCount}.");
         }
     }
 }

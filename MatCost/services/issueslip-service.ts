@@ -24,41 +24,71 @@ export interface IssueSlip {
   issueDate: string;
   status: string;
   description: string;
+  projectName: string;
 }
 
 
 export interface IssueSlipDetailItem {
   detailId: number;
   materialId: number;
-  materialName: string;
+  code: string;
+  name: string;
   unit: string;
-  requestedQty: number;
-  totalStock: number;
-  isEnough: boolean;
-  message: string;
+  requestedQuantity: number;      
+  availableQuantity: number;     
+  isStockSufficient: boolean;    
+  unitPrice: number;
+  lineTotal: number;
+  fifoSuggestedBatches: FifoBatch[];
+}
+
+export interface FifoBatch {
+  batchId: number;
+  batchCode: string;
+  mfgDate: string;
+  qtyToTake: number;
+  unitPrice: number;
+  lineTotal: number;
 }
 
 export interface IssueSlipDetail {
   issueId: number;
   issueCode: string;
-  projectId: number;
-  projectName: string;
-  warehouseId: number | null;
-  warehouseName: string | null;
-  issueDate: string;
   status: string;
-  createdBy: number;
-  createdByName: string;
-  description: string;
+  issueDate: string;
   workItem?: string;
-  department?: string;
-  deliveryLocation?: string;
   referenceCode?: string;
-  details: IssueSlipDetailItem[];
+  warehouseId: number | null;
+  description?: string;
+  deliveryLocation?: string;
+  department?: string;
+  createdBy: {
+    createdBy: number;
+    username: string;
+  };
+  generatedSlips?: {
+    inventoryId: number;
+    inventoryCode: string;
+    inventorySent: boolean;
+    poId: number;
+    poCode: string;
+    poSent: boolean;
+  } | null;
+  projectInfo: {
+    projectId: number;
+    name: string;
+    totalBudget: number;
+    budgetUsed: number;
+    budgetRemaining: number;
+    totalRequestCost: number;
+    remainingAfterIssue: number;
+    isOverBudget: boolean;
+  };
+ details: IssueSlipDetailItem[];
 }
 
 export interface ReviewIssueRequest {
-  action: "Approved" | "Rejected";
+  action: string;
   reason?: string;
 }
 
@@ -114,6 +144,18 @@ interface InventoryIssue {
   projectName: string;
 }
 
+export interface ChangeStatusRequest {
+  action: string;
+  reason?: string;
+  assignedPickerId?: number;
+} 
+
+export interface warehousestaffuser {
+  userId: number;
+  fullName?: string;
+
+} 
+
 export const issueSlipApi = {
   getIssueSlips: async (): Promise<IssueSlip[]> => {
     const response = await axiosClient.get("/IssueSlips");
@@ -138,18 +180,11 @@ export const issueSlipApi = {
 
 
   getIssueSlipDetail: async (issueId: number): Promise<IssueSlipDetail> => {
-    const response = await axiosClient.get(`/IssueSlipDetails/${issueId}`);
+    const response = await axiosClient.get(`/IssueSlips/${issueId}/details`);
     return response.data;
   },
 
-  // manager review 
-  reviewIssue: async (
-    issueId: number,
-    data: ReviewIssueRequest
-  ): Promise<any> => {
-    const response = await axiosClient.put(`/IssueSlips/${issueId}/review`, data);
-    return response.data;
-  },
+  
 
   // accountant check inventory for issue slip
   getIssueSlipAllocation: async (issueId: number): Promise<IssueSlipAllocation> => {
@@ -176,7 +211,29 @@ export const issueSlipApi = {
   handleDispatch: async (issueId: number): Promise<any> => {
     const response = await axiosClient.put(`/InventoryIssues/${issueId}/dispatch`);
     return response.data;
-  }
+  },
+
+  reviewIssue: async (issueId: number,  data: ReviewIssueRequest): Promise<any> => {
+    const response = await axiosClient.put(`/IssueSlips/${issueId}/review`, data);
+    return response.data;
+  },
+  
+  changeStatus: async ( issueId: number,data: ChangeStatusRequest ): Promise<any> => {
+    const response = await axiosClient.post(`/IssueSlips/${issueId}/change-status`,data);
+    return response.data; 
+  },
+
+
+  getWarehouseStaff: async (): Promise<warehousestaffuser[]> => {
+    const res = await axiosClient.get("/IssueSlips/warehouse-staff");
+    return res.data;
+  },
+
+  getPickingList: async (issueId: number) => {
+    const response = await axiosClient.get(`/IssueSlips/${issueId}/picking-list`);
+    return response.data;
+  },
+  
 };
 
 

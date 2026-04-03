@@ -33,6 +33,8 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<LossDetail> LossDetails { get; set; }
 
+    public virtual DbSet<IssueSlipApproval> IssueSlipApprovals { get; set; }
+
     public virtual DbSet<LossReport> LossReports { get; set; }
 
     public virtual DbSet<Material> Materials { get; set; }
@@ -107,6 +109,7 @@ public partial class MyDbContext : DbContext
     public virtual DbSet<SupplementaryReceipt> SupplementaryReceipts { get; set; }
 
     public virtual DbSet<SupplementaryReceiptItem> SupplementaryReceiptItems { get; set; }
+    public virtual DbSet<PickingList> PickingLists { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -120,9 +123,30 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.Code)
                 .HasMaxLength(50)
                 .IsUnicode(false);
+
             entity.Property(e => e.Description).HasMaxLength(500);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.Name).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<PickingList>(entity =>
+        {
+            entity.HasOne(d => d.IssueDetail)
+                .WithMany(p => p.PickingLists)
+                .HasForeignKey(d => d.IssueDetailId)
+                .HasConstraintName("FK_PickingList_IssueDetails");
+
+            entity.HasOne(d => d.Batch)
+                .WithMany(p => p.PickingLists) // Thêm ICollection<PickingList> vào Batch.cs nếu cần
+                .HasForeignKey(d => d.BatchId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_PickingList_Batches");
+
+            entity.HasOne(d => d.Bin)
+                .WithMany(p => p.PickingLists) // Thêm ICollection<PickingList> vào BinLocation.cs nếu cần
+                .HasForeignKey(d => d.BinId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_PickingList_BinLocations");
         });
 
         modelBuilder.Entity<Batch>(entity =>
@@ -671,6 +695,8 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.DiscrepancyStatus)
                 .HasMaxLength(20)
                 .IsUnicode(false);
+            entity.Property(e => e.CountRound)
+    .HasDefaultValue(1);
             entity.Property(e => e.MaterialId).HasColumnName("MaterialID");
             entity.Property(e => e.Reason).HasMaxLength(255);
             entity.Property(e => e.ResolutionAction)
@@ -1401,6 +1427,21 @@ public partial class MyDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_IncidentEvidenceImages_IncidentReportDetails");
         });
+        modelBuilder.Entity<IssueSlipApproval>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne(d => d.Issue)
+                .WithMany(p => p.Approvals)
+                .HasForeignKey(d => d.IssueId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(d => d.User)
+                .WithMany()
+                .HasForeignKey(d => d.ApprovedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
 
         OnModelCreatingPartial(modelBuilder);
     }
