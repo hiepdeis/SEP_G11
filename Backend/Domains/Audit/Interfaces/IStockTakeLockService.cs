@@ -7,5 +7,6 @@ namespace Backend.Domains.Audit.Interfaces
     {
         Task<(bool success, string message)> LockScopeAsync(int stockTakeId, int userId, CancellationToken ct);
         Task<(bool success, string message)> UnlockScopeAsync(int stockTakeId, int userId, CancellationToken ct);
+
     }
 }

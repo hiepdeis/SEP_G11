@@ -9,6 +9,8 @@
         public int RoleId { get; set; }
         public string RoleName { get; set; } = null!;
         public string Message { get; set; } = null!;
+        public string? RelatedEntityType { get; set; }
+        public long? RelatedEntityId { get; set; }
         public bool IsRead { get; set; }
         public DateTime CreatedAt { get; set; }
     }
@@ -38,6 +40,8 @@
         public bool SendEmail { get; set; } = true;
 
         public string Message { get; set; } = null!;
+        public string? RelatedEntityType { get; set; }
+        public long? RelatedEntityId { get; set; }
     }
 
     public sealed class MarkAllNotificationsReadDto

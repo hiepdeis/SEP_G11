@@ -19,10 +19,36 @@ public sealed class SmtpEmailSender : IEmailSender
         _logger = logger;
     }
 
+    private string NormalizedHost => _options.Host.Trim();
+
+    private string NormalizedFromAddress => _options.FromAddress.Trim();
+
+    private string? NormalizedUsername =>
+        string.IsNullOrWhiteSpace(_options.Username)
+            ? null
+            : _options.Username.Trim();
+
+    private string? NormalizedPassword
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_options.Password))
+                return null;
+
+            var password = _options.Password.Trim();
+
+            // Gmail app passwords are commonly copied with spaces between groups.
+            if (NormalizedHost.Equals("smtp.gmail.com", StringComparison.OrdinalIgnoreCase))
+                return password.Replace(" ", string.Empty);
+
+            return password;
+        }
+    }
+
     public bool IsConfigured =>
-        !string.IsNullOrWhiteSpace(_options.Host) &&
+        !string.IsNullOrWhiteSpace(NormalizedHost) &&
         _options.Port > 0 &&
-        !string.IsNullOrWhiteSpace(_options.FromAddress);
+        IsValidEmailAddress(NormalizedFromAddress);
 
     public async Task SendAsync(EmailMessage message, CancellationToken ct)
     {
@@ -35,7 +61,7 @@ public sealed class SmtpEmailSender : IEmailSender
 
         using var mail = new MailMessage
         {
-            From = new MailAddress(_options.FromAddress, _options.FromName, Encoding.UTF8),
+            From = new MailAddress(NormalizedFromAddress, _options.FromName, Encoding.UTF8),
             Subject = message.Subject,
             SubjectEncoding = Encoding.UTF8,
             Body = message.HtmlBody,
@@ -45,20 +71,36 @@ public sealed class SmtpEmailSender : IEmailSender
 
         mail.To.Add(new MailAddress(message.ToAddress, message.ToName, Encoding.UTF8));
 
-        using var client = new SmtpClient(_options.Host, _options.Port)
+        using var client = new SmtpClient(NormalizedHost, _options.Port)
         {
             EnableSsl = _options.EnableSsl,
             DeliveryMethod = SmtpDeliveryMethod.Network
         };
 
-        if (!string.IsNullOrWhiteSpace(_options.Username))
+        if (!string.IsNullOrWhiteSpace(NormalizedUsername))
         {
             client.Credentials = new NetworkCredential(
-                _options.Username,
-                _options.Password ?? string.Empty);
+                NormalizedUsername,
+                NormalizedPassword ?? string.Empty);
         }
 
         _logger.LogInformation("Sending notification email to {Email}", message.ToAddress);
         await client.SendMailAsync(mail);
+    }
+
+    private static bool IsValidEmailAddress(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        try
+        {
+            _ = new MailAddress(value);
+            return true;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
     }
 }

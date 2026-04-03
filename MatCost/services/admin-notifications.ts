@@ -4,6 +4,8 @@ export type NotificationItem = {
   notiId: number;
   userId: number;
   message: string;
+  relatedEntityType?: string | null;
+  relatedEntityId?: number | null;
   isRead: boolean;
   createdAt: string;
 };
@@ -38,6 +40,8 @@ export type CreateNotificationPayload = {
   targetMode?: "single" | "all";
   userId?: number;
   message: string;
+  relatedEntityType?: string;
+  relatedEntityId?: number;
   sendEmail?: boolean;
 };
 

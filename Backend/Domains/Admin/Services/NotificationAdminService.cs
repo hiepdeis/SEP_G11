@@ -50,6 +50,8 @@ namespace Backend.Domains.Admin.Services
                     RoleId = u.RoleId,
                     RoleName = r.RoleName,
                     Message = n.Message ?? "",
+                    RelatedEntityType = n.RelatedEntityType,
+                    RelatedEntityId = n.RelatedEntityId,
                     IsRead = n.IsRead ?? false,
                     CreatedAt = n.CreatedAt ?? DateTime.UtcNow
                 };
@@ -122,6 +124,19 @@ namespace Backend.Domains.Admin.Services
             if (message.Length > 500)
                 throw new ArgumentException("Nội dung thông báo không được vượt quá 500 ký tự.");
 
+            var relatedEntityType = string.IsNullOrWhiteSpace(request.RelatedEntityType)
+                ? null
+                : request.RelatedEntityType.Trim();
+            var relatedEntityId = request.RelatedEntityId;
+            var hasRelatedEntityType = relatedEntityType is not null;
+            var hasRelatedEntityId = relatedEntityId.HasValue;
+
+            if (hasRelatedEntityType != hasRelatedEntityId)
+                throw new ArgumentException("RelatedEntityType and RelatedEntityId must be provided together.");
+
+            if (relatedEntityType?.Length > 50)
+                throw new ArgumentException("RelatedEntityType cannot exceed 50 characters.");
+
             var mode = (request.TargetMode ?? "single").Trim().ToLowerInvariant();
             List<NotificationTarget> targets;
 
@@ -175,6 +190,8 @@ namespace Backend.Domains.Admin.Services
                 {
                     UserId = target.UserId,
                     Message = message,
+                    RelatedEntityType = relatedEntityType,
+                    RelatedEntityId = relatedEntityId,
                     IsRead = false,
                     CreatedAt = now
                 })
@@ -249,8 +266,14 @@ namespace Backend.Domains.Admin.Services
             DateTime createdAtUtc,
             CancellationToken ct)
         {
-            if (!sendEmail || !_emailSender.IsConfigured)
+            if (!sendEmail)
             {
+                return new NotificationEmailDispatchResult();
+            }
+
+            if (!_emailSender.IsConfigured)
+            {
+                _logger.LogWarning("Email delivery was requested for notifications, but SMTP is not configured correctly.");
                 return new NotificationEmailDispatchResult();
             }
 

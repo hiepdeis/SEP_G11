@@ -187,7 +187,7 @@ export default function NotificationsPage() {
     try {
       const allIds = activeUsers.map((u) => u.userId);
 
-      await addNotification(
+      const result = await addNotification(
         targetMode === "all" ? "all" : selectedUser,
         message.trim(),
         allIds
@@ -196,7 +196,18 @@ export default function NotificationsPage() {
       const target =
         targetMode === "all" ? "Tất cả người dùng" : getUserName(selectedUser);
 
-      toast.success(`Đã gửi thông báo tới: ${target}`);
+      if (!result.emailRequested) {
+        toast.success(`Da gui thong bao toi: ${target}`);
+      } else if (!result.emailConfigured) {
+        toast.warning(`Da tao thong bao cho ${target} nhung SMTP chua cau hinh dung nen email khong duoc gui.`);
+      } else if (result.emailFailedCount > 0 || result.emailMissingAddressCount > 0) {
+        toast.warning(
+          `Da tao thong bao cho ${target}. Email gui thanh cong: ${result.emailSentCount}, loi gui: ${result.emailFailedCount}, thieu dia chi email: ${result.emailMissingAddressCount}.`
+        );
+      } else {
+        toast.success(`Da gui thong bao toi: ${target}. Email da gui: ${result.emailSentCount}`);
+      }
+
       setModalOpen(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Gửi thông báo thất bại");
