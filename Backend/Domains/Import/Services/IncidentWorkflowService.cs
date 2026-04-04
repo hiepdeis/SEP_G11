@@ -179,6 +179,9 @@ namespace Backend.Domains.Import.Services
                         ActualQuantity = d.ActualQuantity,
                         PassQuantity = d.PassQuantity,
                         FailQuantity = d.FailQuantity,
+                        FailQuantityQuantity = d.FailQuantityQuantity,
+                        FailQuantityQuality = d.FailQuantityQuality,
+                        FailQuantityDamage = d.FailQuantityDamage,
                         FailReason = d.FailReason,
                         EvidenceImages = d.EvidenceImages
                     })
@@ -227,6 +230,9 @@ namespace Backend.Domains.Import.Services
                         ActualQuantity = d.ActualQuantity,
                         PassQuantity = d.PassQuantity,
                         FailQuantity = d.FailQuantity,
+                        FailQuantityQuantity = d.FailQuantityQuantity,
+                        FailQuantityQuality = d.FailQuantityQuality,
+                        FailQuantityDamage = d.FailQuantityDamage,
                         FailReason = d.FailReason,
                         EvidenceImages = d.EvidenceImages
                     })

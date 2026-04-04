@@ -358,8 +358,8 @@ namespace Backend.Domains.Import.Services
                     if (item.ActualQuantity < 0 || item.PassQuantity < 0 || item.FailQuantity < 0)
                         throw new ArgumentException($"Quantities must be non-negative for MaterialId {item.MaterialId}");
 
-                    // if (item.PassQuantity + item.FailQuantity != item.ActualQuantity)
-                    //     throw new ArgumentException("Tong passQuantity + failQuantity phai bang actualQuantity");
+                    if (item.PassQuantity + item.FailQuantity != item.ActualQuantity)
+                        throw new ArgumentException($"PassQuantity + FailQuantity must equal ActualQuantity for MaterialId {item.MaterialId}");
                 }
 
                 var purchaseOrder = await _context.PurchaseOrders
@@ -1958,8 +1958,9 @@ namespace Backend.Domains.Import.Services
                     ? qty
                     : 0m;
 
-                // Quantity shortage is system-driven and must equal ordered - pass.
-                var expectedQuantityShortage = Math.Max(0, orderedQty - qcDetail.PassQuantity);
+                // Quantity defect in incident means PO shortage (ordered - actual received).
+                var actualQty = qcDetail.PassQuantity + qcDetail.FailQuantity;
+                var expectedQuantityShortage = Math.Max(0, orderedQty - actualQty);
                 var quantityDefect = d.Breakdown.Quantity;
                 var qualityDefect = d.Breakdown.Quality;
                 var damageDefect = d.Breakdown.Damage;
@@ -1970,12 +1971,12 @@ namespace Backend.Domains.Import.Services
                         $"MaterialId {d.MaterialId}: Breakdown.Quantity should be {expectedQuantityShortage:F4} but got {quantityDefect:F4}");
                 }
 
-                var totalBreakdownForMaterial = quantityDefect + qualityDefect + damageDefect;
-                if (Math.Abs(totalBreakdownForMaterial - qcDetail.FailQuantity) > 0.0001m)
+                var totalQcFailBreakdownForMaterial = qualityDefect + damageDefect;
+                if (Math.Abs(totalQcFailBreakdownForMaterial - qcDetail.FailQuantity) > 0.0001m)
                 {
                     throw new ArgumentException(
-                        $"MaterialId {d.MaterialId}: Breakdown sum (Quantity+Quality+Damage={totalBreakdownForMaterial:F4}) " +
-                        $"must equal QC FailQuantity ({qcDetail.FailQuantity:F4})");
+                    $"MaterialId {d.MaterialId}: Breakdown sum (Quality+Damage={totalQcFailBreakdownForMaterial:F4}) " +
+                    $"must equal QC FailQuantity ({qcDetail.FailQuantity:F4}). Quantity is validated as PO shortage (Ordered-Actual).");
                 }
 
                 qcDetail.FailQuantityQuantity = quantityDefect;
@@ -2096,7 +2097,7 @@ namespace Backend.Domains.Import.Services
 
             await _context.SaveChangesAsync();
 
-            // Validate total breakdown = total FailQuantity (strict policy)
+            // Validate total QC breakdown = total QC FailQuantity.
             var totalQuantityShortage = incidentDetails
                 .Where(d => d.IssueType == "Quantity")
                 .Sum(d => linkedQCCheck.QCCheckDetails
@@ -2112,19 +2113,19 @@ namespace Backend.Domains.Import.Services
                 .Sum(d => linkedQCCheck.QCCheckDetails
                     .FirstOrDefault(q => q.ReceiptDetailId == d.ReceiptDetailId)?.FailQuantityDamage ?? 0);
 
-            var totalBreakdown = totalQuantityShortage + totalQualityDefect + totalDamageDefect;
+            var totalQcBreakdown = totalQualityDefect + totalDamageDefect;
             var totalQCFailQuantity = linkedQCCheck.QCCheckDetails.Sum(q => q.FailQuantity);
 
-            // Sum must equal total QC fail quantity
-            if (Math.Abs(totalBreakdown - totalQCFailQuantity) > 0.0001m)
+            // Sum of quality/damage must equal total QC fail quantity.
+            if (Math.Abs(totalQcBreakdown - totalQCFailQuantity) > 0.0001m)
             {
                 throw new InvalidOperationException(
                     $"Incident detail breakdown mismatch: " +
-                    $"Quantity:{totalQuantityShortage:F4} + Quality:{totalQualityDefect:F4} + Damage:{totalDamageDefect:F4} = {totalBreakdown:F4}, " +
-                    $"but QC total is {totalQCFailQuantity:F4}. Sum of all breakdown must equal QC fail quantity.");
+                    $"Quality:{totalQualityDefect:F4} + Damage:{totalDamageDefect:F4} = {totalQcBreakdown:F4}, " +
+                    $"but QC total fail quantity is {totalQCFailQuantity:F4}. Quantity is tracked separately as PO shortage: {totalQuantityShortage:F4}.");
             }
 
-            var totalFailQuantity = totalBreakdown;
+            var totalFailQuantity = totalQCFailQuantity;
 
             return new IncidentReportCreateResultDto
             {
