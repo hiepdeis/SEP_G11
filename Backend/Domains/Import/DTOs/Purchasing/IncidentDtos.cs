@@ -22,6 +22,9 @@ namespace Backend.Domains.Import.DTOs.Purchasing
         public decimal? ActualQuantity { get; set; }
         public decimal PassQuantity { get; set; }
         public decimal FailQuantity { get; set; }
+        public decimal? FailQuantityQuantity { get; set; }
+        public decimal? FailQuantityQuality { get; set; }
+        public decimal? FailQuantityDamage { get; set; }
         public string? FailReason { get; set; }
         public List<string> EvidenceImages { get; set; } = new();
     }
