@@ -8,7 +8,7 @@ import { FifoBatch, issueSlipApi, IssueSlipDetail, IssueSlipDetailItem } from "@
 import axiosClient from "@/lib/axios-client";
 import {
   ArrowLeft, Calendar, Loader2, PackageSearch, ClipboardList,
-  CheckCircle2, XCircle, AlertCircle, FileText, User, ChevronLeft, ChevronRight, EyeOff, Eye, FileSignature, Eraser, ShieldCheck
+  CheckCircle2, XCircle, AlertCircle, FileText, User, ChevronLeft, ChevronRight, EyeOff, Eye, FileSignature, Eraser, ShieldCheck, Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { BatchInStockDto, materialApi } from "@/services/materials-service";
 import ReactSignatureCanvas, { SignatureCanvas } from "react-signature-canvas";
 import { OTPInput } from "input-otp";
+import { useReactToPrint } from "react-to-print";
 
 
 export default function CommonIssueSlipDetail() {
@@ -66,6 +67,8 @@ export default function CommonIssueSlipDetail() {
   const poSigCanvas = useRef<ReactSignatureCanvas>(null);
   const [isPoSigned, setIsPoSigned] = useState(false);
   const [selectedPoId, setSelectedPoId] = useState<number | null>(null);
+
+  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchPickers = async () => {
@@ -127,6 +130,18 @@ export default function CommonIssueSlipDetail() {
   setInventoryDecisions(defaultDecisions);
 
 }, [detail]); // 👈 OK vì KHÔNG gọi API nữa
+
+  const handlePrint = useReactToPrint({
+  contentRef: printRef,
+  documentTitle: `Phieu-Xuat-Kho-${detail?.issueCode || "EXPORT"}`,
+  onBeforePrint: () => {
+    toast.info("Đang chuẩn bị trang in...");
+    return Promise.resolve();
+  },
+  onAfterPrint: () => {
+    toast.success("Hoàn tất xuất file / in phiếu kho!");
+  }
+});
 
 const handleSignatureEnd = () => {
     if (sigCanvas.current && !sigCanvas.current.isEmpty()) setIsSigned(true);
@@ -526,9 +541,16 @@ const handleSignatureEnd = () => {
               {!(role === "WarehouseStaff" && detail.status === "Picking_In_Progress") && (
                 <Card className="border-slate-200 shadow-sm gap-0 flex flex-col min-h-[400px]">
                   <CardHeader className="bg-white border-b border-slate-100 py-4">
-                    <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
-                      <PackageSearch className="w-5 h-5 text-indigo-600" /> {t("Requested Materials")}
-                    </CardTitle>
+                    <div className="flex justify-between items-center w-full">
+                        <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                          <PackageSearch className="w-5 h-5 text-indigo-600" /> {t("Requested Materials")}
+                        </CardTitle>
+                        {detail?.status !== "Draft" && detail?.status !== "Pending_Review" && (
+                          <Button variant="outline" size="sm" onClick={handlePrint} className="h-8 text-indigo-700 border-indigo-200 hover:bg-indigo-50">
+                            <Download className="w-4 h-4 mr-2" /> Export PDF
+                          </Button>
+                        )}
+                      </div>
                     {canViewPrice && (
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm mt-4">
                         <div className="bg-slate-50 rounded-lg p-3">
@@ -1451,6 +1473,84 @@ const handleSignatureEnd = () => {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+            </div>
+          </div>
+        </div>
+
+        <div className="hidden print:block">
+          <div ref={printRef} className="p-10 font-sans text-black bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto">
+            <div className="flex justify-between items-start border-b-2 border-black pb-4 mb-6">
+              <div>
+                <h1 className="text-xl font-extrabold uppercase tracking-widest text-indigo-900">MATCOST INC.</h1>
+                <p className="text-sm text-slate-600 mt-1">Phần mềm Quản lý Kho Xây dựng</p>
+                <p className="text-sm text-slate-600">Email: contact@matcost.vn</p>
+              </div>
+              <div className="text-center">
+                <h2 className="text-sm font-bold">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</h2>
+                <h3 className="text-xs font-semibold underline underline-offset-4">Độc lập - Tự do - Hạnh phúc</h3>
+              </div>
+            </div>
+
+            <div className="text-center mb-8 space-y-1">
+              <h1 className="text-2xl font-bold uppercase">Phiếu Yêu Cầu Cấp Phát Vật Tư</h1>
+              <p className="text-sm italic">Mã phiếu: <span className="font-bold">{detail?.issueCode}</span></p>
+              <p className="text-sm">Ngày lập: {detail?.issueDate ? new Date(detail?.issueDate).toLocaleDateString('vi-VN') : '...'}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+              <p><strong>Người yêu cầu:</strong> {detail?.createdByName || detail?.createdBy?.username}</p>
+              <p><strong>Bộ phận/Phòng ban:</strong> {detail?.department || 'Thi công'}</p>
+              <p><strong>Tên dự án:</strong> {detail?.projectName || detail?.projectInfo?.name}</p>
+              <p><strong>Hạng mục:</strong> {detail?.workItem}</p>
+              <p><strong>Mã tham chiếu:</strong> {detail?.referenceCode || 'N/A'}</p>
+              <p><strong>Trạng thái:</strong> {detail?.status}</p>
+              <p className="col-span-2"><strong>Địa điểm nhận hàng:</strong> {detail?.deliveryLocation}</p>
+            </div>
+
+            <table className="w-full mb-6 border-collapse border border-black text-sm">
+              <thead>
+                <tr className="bg-slate-100">
+                  <th className="border border-black p-2 w-12">STT</th>
+                  <th className="border border-black p-2">Tên vật tư</th>
+                  <th className="border border-black p-2 w-24">Mã VT</th>
+                  <th className="border border-black p-2 w-20">ĐVT</th>
+                  <th className="border border-black p-2 w-24">Yêu cầu</th>
+                  <th className="border border-black p-2 w-24">Thực xuất</th>
+                  <th className="border border-black p-2 w-32">Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(detail?.details || []).map((item, idx) => (
+                  <tr key={item.detailId}>
+                    <td className="border border-black p-2 text-center">{idx + 1}</td>
+                    <td className="border border-black p-2">{item.name}</td>
+                    <td className="border border-black p-2 text-center">{item.code}</td>
+                    <td className="border border-black p-2 text-center">{item.unit}</td>
+                    <td className="border border-black p-2 text-right font-bold">{item.requestedQuantity}</td>
+                    <td className="border border-black p-2 text-right"></td>
+                    <td className="border border-black p-2"></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div className="grid grid-cols-4 gap-4 text-center mt-12 text-sm">
+              <div>
+                <p className="font-bold mb-16">Người lập phiếu</p>
+                <p className="italic text-slate-500">(Ký họ tên)</p>
+              </div>
+              <div>
+                <p className="font-bold mb-16">Kế toán trưởng</p>
+                <p className="italic text-slate-500">(Ký họ tên)</p>
+              </div>
+              <div>
+                <p className="font-bold mb-16">Giám đốc</p>
+                <p className="italic text-slate-500">(Ký họ tên)</p>
+              </div>
+              <div>
+                <p className="font-bold mb-16">Thủ kho</p>
+                <p className="italic text-slate-500">(Ký họ tên)</p>
+              </div>
             </div>
           </div>
         </div>
