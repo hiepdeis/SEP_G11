@@ -799,6 +799,7 @@ namespace Backend.Domains.Import.Services
             return new PendingPutawayReceiptDto
             {
                 ReceiptId = receipt.ReceiptId,
+                ReceiptCode = receipt.ReceiptCode ?? string.Empty,
                 PurchaseOrderCode = receipt.PurchaseOrder?.PurchaseOrderCode ?? string.Empty,
                 SupplierName = receipt.PurchaseOrder?.Supplier?.Name ?? string.Empty,
                 Status = receipt.Status ?? string.Empty,

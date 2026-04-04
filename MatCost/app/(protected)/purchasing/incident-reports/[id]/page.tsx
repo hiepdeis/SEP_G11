@@ -353,24 +353,49 @@ export default function PurchasingIncidentDetailPage() {
                     <Table>
                       <TableHeader className="bg-slate-50 sticky top-0 z-10">
                         <TableRow>
-                          {/* Điều chỉnh lại tỷ lệ width các cột */}
-                          <TableHead className="w-[25%] pl-6">
+                          <TableHead className="w-[20%] pl-6">
                             {t("Material")}
                           </TableHead>
-                          <TableHead className="w-[12%] text-center">
-                            {t("Ordered")}
+
+                          <TableHead className="w-[10%] text-center text-slate-700">
+                            <div className="flex flex-col text-xs font-semibold">
+                              <span>{t("Ordered")}</span>
+                              <span className="text-[10px] text-slate-400 font-normal uppercase">
+                                {t("Contracted")}
+                              </span>
+                            </div>
                           </TableHead>
-                          <TableHead className="w-[12%] text-center">
-                            {t("Actual")}
+                          <TableHead className="w-[10%] text-center text-slate-700">
+                            <div className="flex flex-col text-xs font-semibold">
+                              <span>{t("Actual")}</span>
+                              <span className="text-[10px] text-slate-400 font-normal uppercase">
+                                {t("Received")}
+                              </span>
+                            </div>
                           </TableHead>
-                          <TableHead className="w-[12%] text-center text-emerald-700">
-                            {t("Passed")}
+                          <TableHead className="w-[10%] text-center text-emerald-700">
+                            <div className="flex flex-col text-xs font-semibold">
+                              <span>{t("Passed")}</span>
+                              <span className="text-[10px] text-emerald-600/70 font-normal uppercase">
+                                {t("QC OK")}
+                              </span>
+                            </div>
                           </TableHead>
-                          <TableHead className="w-[12%] text-center text-rose-700 font-bold">
-                            {t("Failed")}
+
+                          <TableHead className="w-[10%] text-center text-amber-700">
+                            <div className="flex flex-col text-xs font-semibold">
+                              <span>{t("Defect Breakdown")}</span>
+                              <span className="text-[10px] text-amber-600 font-normal uppercase">
+                                {t("Quality & Damage")}
+                              </span>
+                            </div>
                           </TableHead>
-                          <TableHead className="w-[27%] pr-6">
-                            {t("Staff Reason")}
+
+                          <TableHead className="w-[10%] text-center text-rose-700 font-bold">
+                            {t("Total Failed")}
+                          </TableHead>
+                          <TableHead className="w-[20%] pr-6">
+                            {t("Staff Reason & Evidence")}
                           </TableHead>
                         </TableRow>
                       </TableHeader>
@@ -388,44 +413,80 @@ export default function PurchasingIncidentDetailPage() {
                           paginatedItems.map((item, idx) => (
                             <TableRow key={idx} className="hover:bg-slate-50">
                               <TableCell className="pl-6 py-4 align-top">
-                                <p className="text-sm font-semibold text-slate-800">
-                                  {item.materialName ||
-                                    `Item #${item.materialId}`}
-                                </p>
+                                <div className="flex flex-col">
+                                  <p className="text-sm font-semibold text-slate-800">
+                                    {item.materialName ||
+                                      `Item #${item.materialId}`}
+                                  </p>
+                                </div>
                               </TableCell>
+
                               <TableCell className="text-center align-top pt-4">
-                                <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border-slate-200">
+                                <span className="font-medium text-slate-700">
                                   {item.orderedQuantity}
-                                </Badge>
+                                </span>
                               </TableCell>
+
                               <TableCell className="text-center align-top pt-4">
-                                <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border-slate-200">
+                                <span className="font-medium text-slate-700">
                                   {item.actualQuantity}
-                                </Badge>
+                                </span>
                               </TableCell>
+
                               <TableCell className="text-center align-top pt-4">
-                                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
+                                <span className="font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
                                   {item.passQuantity}
-                                </Badge>
+                                </span>
                               </TableCell>
+
+                              <TableCell className="align-top pt-3 text-center">
+                                <div className="inline-flex divide-x divide-slate-200 border border-slate-200 rounded-lg overflow-hidden shadow-sm bg-white">
+                                  <div className="flex flex-col items-center px-3 py-1.5 min-w-[70px] hover:bg-slate-50 transition-colors">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">
+                                      {t("Quality")}
+                                    </span>
+                                    <span className="text-sm font-bold text-amber-600">
+                                      {item.failQuantityQuality || 0}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex flex-col items-center px-3 py-1.5 min-w-[70px] hover:bg-slate-50 transition-colors">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">
+                                      {t("Damage")}
+                                    </span>
+                                    <span className="text-sm font-bold text-amber-600">
+                                      {item.failQuantityDamage || 0}
+                                    </span>
+                                  </div>
+                                </div>
+                              </TableCell>
+
                               <TableCell className="text-center align-top pt-4">
-                                <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">
+                                <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-rose-200 shadow-sm">
                                   {item.failQuantity}
                                 </Badge>
                               </TableCell>
+
                               <TableCell className="pr-6 align-top pt-4">
-                                <p className="text-sm text-slate-600 italic">
-                                  {item.failReason || t("No specific reason")}
-                                </p>
-                                {item.evidenceImages !== null &&
-                                  item.evidenceImages.length > 0 && (
-                                    <ImageGallery
-                                      images={item.evidenceImages}
-                                      isReadOnly={true}
-                                    />
-                                  )}
+                                <div className="flex flex-col gap-2">
+                                  <p className="text-sm text-slate-600 italic bg-slate-50 p-2 rounded-md border border-slate-100">
+                                    "
+                                    {item.failReason ||
+                                      t("No specific reason provided")}
+                                    "
+                                  </p>
+                                  {item.evidenceImages !== null &&
+                                    item.evidenceImages.length > 0 && (
+                                      <div className="mt-1">
+                                        <ImageGallery
+                                          images={item.evidenceImages}
+                                          isReadOnly={true}
+                                          maxVisible={3}
+                                        />
+                                      </div>
+                                    )}
+                                </div>
                               </TableCell>
-                              <TableCell className="text-center align-top pt-4"></TableCell>
                             </TableRow>
                           ))
                         )}
@@ -543,7 +604,7 @@ export default function PurchasingIncidentDetailPage() {
                       {t("Failed")}
                     </TableHead>
                     <TableHead className="w-[25%] text-center">
-                      {t("Request Qty")}
+                      {t("Request Quantity")}
                     </TableHead>
                   </TableRow>
                 </TableHeader>

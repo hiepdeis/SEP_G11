@@ -208,9 +208,9 @@ export default function ManagerReceiptDetailPage() {
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                       {t("Receipt Code")}
                     </span>
-                    <div className="flex items-center gap-2 text-slate-800 font-bold text-lg">
-                      <Receipt className="w-5 h-5 text-slate-400" />
-                      {receipt.receiptCode}
+                    <div className="flex items-center gap-2 text-amber-700 font-medium bg-amber-50 w-fit px-2 py-1 rounded border border-amber-100">
+                      <Receipt className="w-4 h-4 text-amber-500" />
+                      {receipt.receiptCode|| "N/A"}
                     </div>
                   </div>
 

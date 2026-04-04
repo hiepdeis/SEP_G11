@@ -44,6 +44,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PutawayExcelHandler } from "@/components/ui/custom/putaway-xlxs";
 
 interface PutawayBinInput {
   id: string;
@@ -79,6 +80,9 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 3;
+
+  const [binPages, setBinPages] = useState<{ [key: number]: number }>({});
+  const binsPerPage = 5;
 
   const [binLocations, setBinLocations] = useState<any[]>([]);
 
@@ -192,12 +196,26 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
       quantity: "",
     });
     setPutawayItems(newItems);
+
+    const newTotalBins = newItems[itemIndex].binAllocations.length;
+    const newLastPage = Math.ceil(newTotalBins / binsPerPage) || 1;
+    setBinPages((prev) => ({ ...prev, [itemIndex]: newLastPage }));
   };
 
   const handleRemoveBin = (itemIndex: number, binIndex: number) => {
     const newItems = [...putawayItems];
     newItems[itemIndex].binAllocations.splice(binIndex, 1);
     setPutawayItems(newItems);
+
+    setBinPages((prev) => {
+      const currentPage = prev[itemIndex] || 1;
+      const newTotalBins = newItems[itemIndex].binAllocations.length;
+      const maxPage = Math.ceil(newTotalBins / binsPerPage) || 1;
+      return {
+        ...prev,
+        [itemIndex]: Math.min(currentPage, maxPage),
+      };
+    });
   };
 
   const handleBinChange = (
@@ -348,7 +366,7 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title={`${t("Putaway")} Receipt #${receipt.receiptId}`} />
+        <Header title={`${t("Putaway")} Receipt #${receipt.receiptCode}`} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 mx-auto w-full space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -369,19 +387,26 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                 </Badge>
               </div>
             </div>
-
-            <Button
-              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm min-w-[150px]"
-              onClick={handleSubmitPutaway}
-              disabled={isSubmitting || putawayItems.length === 0}
-            >
-              {isSubmitting ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <CheckCircle2 className="w-4 h-4 mr-2" />
-              )}
-              {t("Save & Update Inventory")}
-            </Button>
+            <div className="flex flex-col items-center gap-3 items-stretch">
+              <Button
+                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm min-w-[150px] h-9"
+                onClick={handleSubmitPutaway}
+                disabled={isSubmitting || putawayItems.length === 0}
+              >
+                {isSubmitting ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                )}
+                {t("Save & Update Inventory")}
+              </Button>
+              <PutawayExcelHandler
+                items={putawayItems}
+                receipt={receipt}
+                binLocations={binLocations}
+                onImport={setPutawayItems}
+              />
+            </div>
           </div>
 
           {putawayItems.length === 0 ? (
@@ -472,7 +497,7 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                                       date ? date.toISOString() : "",
                                     )
                                   }
-                                  placeholder={t("Select Mfg Date")}
+                                  placeholder={t("Select Manufactured Date")}
                                 />
                               </div>
                               <div className="space-y-2">
@@ -565,8 +590,8 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                             </div>
                           </div>
 
-                          <div className="md:col-span-7 p-5 flex flex-col">
-                            <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-4">
+                          <div className="md:col-span-7 p-5 flex flex-col min-h-[300px]">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-4 shrink-0">
                               <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-800">
                                 <MapPin className="w-4 h-4 text-slate-500" />
                                 {t("Bin Allocations")}
@@ -582,112 +607,212 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                               </Button>
                             </div>
 
-                            <div className="space-y-3 flex-1">
-                              {item.binAllocations.map((bin, binIdx) => (
-                                <div
-                                  key={bin.id}
-                                  className="flex items-start gap-3 relative group"
-                                >
-                                  <div className="flex-1 space-y-1">
-                                    <label className="text-[10px] uppercase text-slate-500 font-semibold ml-1">
-                                      {t("Bin Location")}{" "}
-                                      <span className="text-red-500">*</span>
-                                    </label>
+                            <div className="flex-1 flex flex-col">
+                              <div className="space-y-3 flex-1">
+                                {(() => {
+                                  const binCurrentPage =
+                                    binPages[absoluteIdx] || 1;
+                                  const totalBins = item.binAllocations.length;
+                                  const totalBinPages =
+                                    Math.ceil(totalBins / binsPerPage) || 1;
+                                  const startBinIndex =
+                                    (binCurrentPage - 1) * binsPerPage;
+                                  const paginatedBins =
+                                    item.binAllocations.slice(
+                                      startBinIndex,
+                                      startBinIndex + binsPerPage,
+                                    );
 
-                                    <Select
-                                      value={
-                                        bin.binId ? bin.binId.toString() : ""
-                                      }
-                                      onValueChange={(val) =>
-                                        handleBinChange(
-                                          absoluteIdx,
-                                          binIdx,
-                                          "binId",
-                                          Number(val),
-                                        )
-                                      }
-                                    >
-                                      <SelectTrigger className="h-9 focus-visible:ring-indigo-500 bg-white w-full">
-                                        <SelectValue
-                                          placeholder={t("Select Bin...")}
-                                        />
-                                      </SelectTrigger>
-                                      <SelectContent className="max-h-[200px]">
-                                        {binLocations.map((location) => (
-                                          <SelectItem
-                                            key={location.binId}
-                                            value={location.binId.toString()}
+                                  return (
+                                    <>
+                                      {paginatedBins.map((bin, localBinIdx) => {
+                                        const actualBinIdx =
+                                          startBinIndex + localBinIdx;
+
+                                        return (
+                                          <div
+                                            key={bin.id}
+                                            className="flex items-start gap-3 relative group"
                                           >
-                                            {location.code}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="flex-1 space-y-1">
-                                    <label className="text-[10px] uppercase text-slate-500 font-semibold ml-1">
-                                      {t("Quantity")}{" "}
-                                      <span className="text-red-500">*</span>
-                                    </label>
-                                    <Input
-                                      type="number"
-                                      min="1"
-                                      placeholder="Quantity..."
-                                      className="h-9 focus-visible:ring-indigo-500 bg-white"
-                                      value={bin.quantity}
-                                      onChange={(e) =>
-                                        handleBinChange(
-                                          absoluteIdx,
-                                          binIdx,
-                                          "quantity",
-                                          e.target.value === ""
-                                            ? ""
-                                            : Number(e.target.value.replace(/-/g, "").slice(0,12)),
-                                        )
-                                      }
-                                    />
-                                  </div>
+                                            <div className="flex-1 space-y-1">
+                                              <label className="text-[10px] uppercase text-slate-500 font-semibold ml-1">
+                                                {t("Bin Location")}{" "}
+                                                <span className="text-red-500">
+                                                  *
+                                                </span>
+                                              </label>
 
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-9 w-9 text-rose-400 hover:text-rose-600 hover:bg-rose-50 mt-[22px] shrink-0"
-                                    onClick={() =>
-                                      handleRemoveBin(absoluteIdx, binIdx)
-                                    }
-                                    disabled={item.binAllocations.length === 1}
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
+                                              <Select
+                                                value={
+                                                  bin.binId
+                                                    ? bin.binId.toString()
+                                                    : ""
+                                                }
+                                                onValueChange={(val) =>
+                                                  handleBinChange(
+                                                    absoluteIdx,
+                                                    actualBinIdx,
+                                                    "binId",
+                                                    Number(val),
+                                                  )
+                                                }
+                                              >
+                                                <SelectTrigger className="h-9 focus-visible:ring-indigo-500 bg-white w-full">
+                                                  <SelectValue
+                                                    placeholder={t(
+                                                      "Select Bin...",
+                                                    )}
+                                                  />
+                                                </SelectTrigger>
+                                                <SelectContent className="max-h-[200px]">
+                                                  {binLocations.map(
+                                                    (location) => (
+                                                      <SelectItem
+                                                        key={location.binId}
+                                                        value={location.binId.toString()}
+                                                      >
+                                                        {location.code}
+                                                      </SelectItem>
+                                                    ),
+                                                  )}
+                                                </SelectContent>
+                                              </Select>
+                                            </div>
 
-                            <div
-                              className={`mt-6 p-3 rounded-md flex items-center justify-between border ${
-                                isQtyMatched
-                                  ? "bg-emerald-50 border-emerald-200"
-                                  : "bg-rose-50 border-rose-200"
-                              }`}
-                            >
-                              <span
-                                className={`text-sm font-medium ${isQtyMatched ? "text-emerald-800" : "text-rose-800"}`}
+                                            <div className="flex-1 space-y-1">
+                                              <label className="text-[10px] uppercase text-slate-500 font-semibold ml-1">
+                                                {t("Quantity")}{" "}
+                                                <span className="text-red-500">
+                                                  *
+                                                </span>
+                                              </label>
+                                              <Input
+                                                type="number"
+                                                min="1"
+                                                placeholder="Quantity..."
+                                                className="h-9 focus-visible:ring-indigo-500 bg-white"
+                                                value={bin.quantity}
+                                                onChange={(e) =>
+                                                  handleBinChange(
+                                                    absoluteIdx,
+                                                    actualBinIdx,
+                                                    "quantity",
+                                                    e.target.value === ""
+                                                      ? ""
+                                                      : Number(
+                                                          e.target.value
+                                                            .replace(/-/g, "")
+                                                            .slice(0, 12),
+                                                        ),
+                                                  )
+                                                }
+                                              />
+                                            </div>
+
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-9 w-9 text-rose-400 hover:text-rose-600 hover:bg-rose-50 mt-[22px] shrink-0"
+                                              onClick={() =>
+                                                handleRemoveBin(
+                                                  absoluteIdx,
+                                                  actualBinIdx,
+                                                )
+                                              }
+                                              disabled={
+                                                item.binAllocations.length === 1
+                                              }
+                                            >
+                                              <X className="w-4 h-4" />
+                                            </Button>
+                                          </div>
+                                        );
+                                      })}
+
+                                      {totalBinPages > 1 && (
+                                        <div className="flex items-center justify-between pt-2 border-t border-slate-50 mt-4">
+                                          <span className="text-[11px] text-slate-400">
+                                            {startBinIndex + 1}-
+                                            {Math.min(
+                                              startBinIndex + binsPerPage,
+                                              totalBins,
+                                            )}{" "}
+                                            of {totalBins} Bins
+                                          </span>
+                                          <div className="flex items-center gap-1">
+                                            <Button
+                                              variant="outline"
+                                              size="icon"
+                                              className="h-6 w-6 rounded-md"
+                                              onClick={() =>
+                                                setBinPages((prev) => ({
+                                                  ...prev,
+                                                  [absoluteIdx]: Math.max(
+                                                    1,
+                                                    binCurrentPage - 1,
+                                                  ),
+                                                }))
+                                              }
+                                              disabled={binCurrentPage === 1}
+                                            >
+                                              <ChevronLeft className="w-3 h-3" />
+                                            </Button>
+                                            <span className="text-[11px] font-medium px-1 text-slate-500">
+                                              {binCurrentPage} / {totalBinPages}
+                                            </span>
+                                            <Button
+                                              variant="outline"
+                                              size="icon"
+                                              className="h-6 w-6 rounded-md"
+                                              onClick={() =>
+                                                setBinPages((prev) => ({
+                                                  ...prev,
+                                                  [absoluteIdx]: Math.min(
+                                                    totalBinPages,
+                                                    binCurrentPage + 1,
+                                                  ),
+                                                }))
+                                              }
+                                              disabled={
+                                                binCurrentPage === totalBinPages
+                                              }
+                                            >
+                                              <ChevronRight className="w-3 h-3" />
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                              </div>
+
+                              <div
+                                className={`mt-4 p-3 rounded-md flex items-center justify-between border shrink-0 ${
+                                  isQtyMatched
+                                    ? "bg-emerald-50 border-emerald-200"
+                                    : "bg-rose-50 border-rose-200"
+                                }`}
                               >
-                                {t("Total Allocated")}:
-                              </span>
-                              <div className="flex items-center gap-2 font-bold text-lg">
                                 <span
-                                  className={
-                                    isQtyMatched
-                                      ? "text-emerald-600"
-                                      : "text-rose-600"
-                                  }
+                                  className={`text-sm font-medium ${isQtyMatched ? "text-emerald-800" : "text-rose-800"}`}
                                 >
-                                  {totalAllocated}
+                                  {t("Total Allocated")}:
                                 </span>
-                                <span className="text-slate-400 font-medium text-sm">
-                                  / {item.passQuantity}
-                                </span>
+                                <div className="flex items-center gap-2 font-bold text-lg">
+                                  <span
+                                    className={
+                                      isQtyMatched
+                                        ? "text-emerald-600"
+                                        : "text-rose-600"
+                                    }
+                                  >
+                                    {totalAllocated}
+                                  </span>
+                                  <span className="text-slate-400 font-medium text-sm">
+                                    / {item.passQuantity}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>

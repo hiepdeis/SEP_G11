@@ -32,6 +32,7 @@ import {
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { showConfirmToast } from "@/hooks/confirm-toast";
+import { QCReceiptExcelHandler } from "@/components/ui/custom/qc-check-xlxs";
 
 interface ReceiveItemInput {
   materialId: number;
@@ -271,6 +272,10 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
     });
   };
 
+  const handleExcelImport = (updatedItems: ReceiveItemInput[]) => {
+    setItems(updatedItems);
+  };
+
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return "N/A";
 
@@ -420,6 +425,11 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                       <PackageCheck className="w-5 h-5 text-indigo-600" />
                       {t("Goods Details & QC Results")}
                     </CardTitle>
+                    <QCReceiptExcelHandler
+                      items={items}
+                      order={order}
+                      onImport={handleExcelImport}
+                    />
                   </div>
                 </CardHeader>
                 <CardContent className="p-0 flex-1 overflow-hidden">

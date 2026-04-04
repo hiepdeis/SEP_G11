@@ -260,7 +260,8 @@ export default function AccountantReceiptDetailPage() {
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                       {t("PO Code")}
                     </span>
-                    <div className="font-semibold text-indigo-700 bg-indigo-50 px-2 py-1 rounded w-fit border border-indigo-100">
+                    <div className="flex items-center gap-2 text-indigo-700 font-medium bg-indigo-50 w-fit px-2 py-1 rounded border border-indigo-100">
+                      <FileText className="w-4 h-4 text-indigo-500" />
                       {receipt.purchaseOrder?.purchaseOrderCode || "N/A"}
                     </div>
                   </div>

@@ -381,6 +381,9 @@ export interface PurchasingIncidentItemSummaryDto {
   actualQuantity?: number;
   passQuantity: number;
   failQuantity: number;
+  failQuantityQuantity: number;
+  failQuantityQuality: number;
+  failQuantityDamage: number;
   failReason?: string;
   evidenceImages: string[] | null;
 }

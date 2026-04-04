@@ -46,14 +46,9 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { useTranslation } from "react-i18next";
 import { showConfirmToast } from "@/hooks/confirm-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { formatPascalCase } from "@/lib/format-pascal-case";
 import { ImageGallery } from "@/components/ui/custom/image-gallery";
+import { IncidentExcelHandler } from "@/components/ui/custom/incident-xlxs";
 
 interface IncidentItemInput {
   materialId: number;
@@ -266,20 +261,23 @@ export default function StaffIncidentPage({
     setIncidentItems(newItems);
   };
 
+  const handleExcelImport = (updatedItems: any[]) => {
+    setIncidentItems(updatedItems);
+  };
+
   const handleSubmitIncident = async () => {
     if (!incidentDescription.trim())
       return toast.error(t("Please provide an overall incident description."));
 
     const invalidBreakdownItem = incidentItems.find((i) => {
-      const sum =
-        i.breakdown.quantity + i.breakdown.quality + i.breakdown.damage;
+      const sum = i.breakdown.quality + i.breakdown.damage;
       return Math.abs(sum - i.failQuantity) > 0.0001;
     });
 
     if (invalidBreakdownItem) {
       return toast.error(
         t(
-          `Breakdown sum (Quantity + Quality + Damage) for ${invalidBreakdownItem.materialName} must exactly equal its Failed Quantity (${invalidBreakdownItem.failQuantity}).`,
+          `Breakdown sum (Quality + Damage) for ${invalidBreakdownItem.materialName} must exactly equal its Failed Quantity (${invalidBreakdownItem.failQuantity}).`,
         ),
       );
     }
@@ -309,16 +307,7 @@ export default function StaffIncidentPage({
           const payload: CreateIncidentReportDto = {
             description: incidentDescription.trim(),
             details: incidentItems.map((i) => {
-              const currentBreakdown =
-                i.breakdown.quantity === 0 &&
-                i.breakdown.quality === 0 &&
-                i.breakdown.damage === 0
-                  ? {
-                      quantity: i.issueType === "Quantity" ? i.failQuantity : 0,
-                      quality: i.issueType === "Quality" ? i.failQuantity : 0,
-                      damage: i.issueType === "Damage" ? i.failQuantity : 0,
-                    }
-                  : i.breakdown;
+              const currentBreakdown = i.breakdown;
 
               return {
                 materialId: i.materialId,
@@ -331,10 +320,8 @@ export default function StaffIncidentPage({
               };
             }),
           };
-
           await staffReceiptsApi.createIncidentReport(id, payload);
           toast.success(t("Incident Report created successfully!"));
-
           await initData();
         } catch (error: any) {
           toast.error(
@@ -347,9 +334,10 @@ export default function StaffIncidentPage({
       },
     });
   };
+
   const updateBreakdown = (
     index: number,
-    field: "quantity" | "quality" | "damage",
+    field: "quality" | "damage",
     value: string,
   ) => {
     if (isHistoryView) return;
@@ -358,33 +346,27 @@ export default function StaffIncidentPage({
     setIncidentItems((prev) => {
       const newItems = [...prev];
       const item = newItems[index];
-      const total = item.failQuantity;
 
-      const primaryVal = Math.min(parsedValue, total);
+      const totalFail = item.failQuantity;
 
-      let newQuantity = item.breakdown.quantity;
+      const safeValue = Math.min(parsedValue, totalFail);
+
       let newQuality = item.breakdown.quality;
       let newDamage = item.breakdown.damage;
 
-      // Thuật toán bù trừ 3 chiều
-      if (field === "quantity") {
-        newQuantity = primaryVal;
-        newQuality = Math.min(newQuality, total - newQuantity);
-        newDamage = total - newQuantity - newQuality;
-      } else if (field === "quality") {
-        newQuality = primaryVal;
-        newQuantity = Math.min(newQuantity, total - newQuality);
-        newDamage = total - newQuality - newQuantity;
+      if (field === "quality") {
+        newQuality = safeValue;
+        newDamage = totalFail - newQuality;
       } else if (field === "damage") {
-        newDamage = primaryVal;
-        newQuantity = Math.min(newQuantity, total - newDamage);
-        newQuality = total - newDamage - newQuantity;
+        newDamage = safeValue;
+        newQuality = totalFail - newDamage;
       }
 
       newItems[index] = {
         ...item,
         breakdown: {
-          quantity: newQuantity,
+          ...item.breakdown,
+          quantity: item.orderedQuantity - item.actualQuantity,
           quality: newQuality,
           damage: newDamage,
         },
@@ -603,16 +585,25 @@ export default function StaffIncidentPage({
 
           <Card className="border-slate-200 shadow-sm overflow-hidden flex flex-col gap-0">
             <CardHeader className="bg-white border-b border-slate-100 shrink-0 flex flex-row items-center justify-between">
-              <CardTitle className="text-base text-rose-700 flex items-center gap-2 py-4">
-                <AlertTriangle className="w-5 h-5" />
-                {t("Defective Materials")}
-              </CardTitle>
-              <Badge
-                variant="outline"
-                className="bg-rose-50 text-rose-700 border-rose-200"
-              >
-                {incidentItems.length} {t("Items")}
-              </Badge>
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-base text-rose-700 flex items-center gap-2 py-4">
+                  <AlertTriangle className="w-5 h-5" />
+                  {t("Defective Materials")}
+                </CardTitle>
+                <Badge
+                  variant="outline"
+                  className="bg-rose-50 text-rose-700 border-rose-200"
+                >
+                  {incidentItems.length} {t("Items")}
+                </Badge>
+              </div>
+
+              <IncidentExcelHandler
+                items={incidentItems}
+                qcData={qcData && qcData}
+                onImport={handleExcelImport}
+                isHistoryView={isHistoryView}
+              />
             </CardHeader>
             <CardContent className="p-0 flex flex-col flex-1">
               <div className="[&>div]:max-h-[350px] [&>div]:min-h-[350px] [&>div]:overflow-y-auto">
@@ -703,7 +694,9 @@ export default function StaffIncidentPage({
                                         {t("Total Failed")}
                                       </span>
                                       <Badge className="bg-red-100 text-red-700 border-red-200 font-bold shadow-sm">
-                                        {item.failQuantity}
+                                        {item.failQuantity +
+                                          (item.orderedQuantity -
+                                            item.actualQuantity)}
                                       </Badge>
                                     </div>
 
@@ -714,16 +707,13 @@ export default function StaffIncidentPage({
                                       <Input
                                         type="number"
                                         min="0"
-                                        value={item.breakdown.quantity || ""}
-                                        onChange={(e) =>
-                                          updateBreakdown(
-                                            absoluteIdx,
-                                            "quantity",
-                                            e.target.value,
-                                          )
+                                        value={
+                                          item.orderedQuantity -
+                                            item.actualQuantity || ""
                                         }
                                         disabled={isHistoryView}
-                                        className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-white"
+                                        readOnly
+                                        className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-slate-100"
                                       />
                                     </div>
 
