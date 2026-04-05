@@ -174,7 +174,9 @@ export default function PurchasingDashboardPage() {
         item.status === "SentToSupplier" && item.expectedDeliveryDate == null;
     else if (filterStatus === "Received")
       matchesStatus =
-        item.status === "PartiallyReceived" || item.status === "FullyReceived";
+        item.status === "PartiallyReceived" ||
+        item.status === "OverReceived" ||
+        item.status === "FullyReceived";
     else matchesStatus = item.status === filterStatus;
 
     const matchesSearch = item.purchaseOrderCode
@@ -833,7 +835,8 @@ export default function PurchasingDashboardPage() {
                                               : item.status ===
                                                     "PartiallyReceived" ||
                                                   item.status ===
-                                                    "FullyReceived"
+                                                    "FullyReceived" ||
+                                                  item.status === "OverReceived"
                                                 ? "bg-green-50 text-green-700 border-green-200"
                                                 : "bg-slate-50 text-slate-700 border-slate-200"
                                   }
@@ -846,10 +849,7 @@ export default function PurchasingDashboardPage() {
                                       : item.status === "SentToSupplier" &&
                                           item.expectedDeliveryDate != null
                                         ? "Delivery Confirmed"
-                                        : item.status === "PartiallyReceived" ||
-                                            item.status === "FullyReceived"
-                                          ? "Received"
-                                          : t(formatPascalCase(item.status))}
+                                        : t(formatPascalCase(item.status))}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right pr-6">

@@ -47,8 +47,8 @@ export function QCReceiptExcelHandler({
       "Material Code": item.materialCode,
       "Material Name": item.materialName,
       "Ordered Qty": item.orderedQuantity,
-      "Actual Qty": item.actualQuantity,
-      "Pass Qty": item.passQuantity,
+      "Actual Qty *": item.actualQuantity,
+      "Pass Qty *": item.passQuantity,
       "Fail Reason": item.failReason,
     }));
 
@@ -91,11 +91,11 @@ export function QCReceiptExcelHandler({
           );
 
           if (row) {
-            const actual = Math.max(0, Number(row["Actual Qty"]) || 0);
-            // Pass Qty không được lớn hơn Actual
+            const actual = Math.max(0, Number(row["Actual Qty *"]) || 0);
+            // Pass Qty * không được lớn hơn Actual
             const pass = Math.min(
               actual,
-              Math.max(0, Number(row["Pass Qty"]) || 0),
+              Math.max(0, Number(row["Pass Qty *"]) || 0),
             );
 
             // Tính lại Fail Qty y như logic C# của bạn

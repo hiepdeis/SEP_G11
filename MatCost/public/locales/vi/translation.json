@@ -831,5 +831,6 @@
   "Actual Received Quantity": "Số lượng Thực nhận",
   "Shortage: Receiving less than ordered": "Thiếu hụt: Nhận ít hơn số lượng đặt",
   "Overage: Receiving more than ordered": "Dư thừa: Nhận nhiều hơn số lượng đặt",
-  "Match: Exact quantity": "Khớp: Số lượng chính xác"
+  "Match: Exact quantity": "Khớp: Số lượng chính xác",
+  "Kiểm tra biên nhận nhập kho đã hoàn tất và giám sát hoạt động nhập kho.": "Kiểm tra biên nhận nhập kho đã hoàn tất và giám sát hoạt động nhập kho."
 }

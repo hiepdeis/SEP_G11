@@ -830,5 +830,6 @@
   "Actual Received Quantity": "Actual Received Quantity",
   "Shortage: Receiving less than ordered": "Shortage: Receiving less than ordered",
   "Overage: Receiving more than ordered": "Overage: Receiving more than ordered",
-  "Match: Exact quantity": "Match: Exact quantity"
+  "Match: Exact quantity": "Match: Exact quantity",
+  "Review completed putaway receipts and monitor warehouse inbound operations.":"Review completed putaway receipts and monitor warehouse inbound operations."
 }

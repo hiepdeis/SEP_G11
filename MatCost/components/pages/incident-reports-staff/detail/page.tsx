@@ -341,7 +341,7 @@ export default function StaffIncidentPage({
     value: string,
   ) => {
     if (isHistoryView) return;
-    const parsedValue = Math.max(0, Number(value) || 0);
+    const rawValue = Math.max(0, Number(value) || 0);
 
     setIncidentItems((prev) => {
       const newItems = [...prev];
@@ -349,24 +349,26 @@ export default function StaffIncidentPage({
 
       const totalFail = item.failQuantity;
 
-      const safeValue = Math.min(parsedValue, totalFail);
+      const safeValue = Number(Math.min(rawValue, totalFail).toFixed(3));
 
       let newQuality = item.breakdown.quality;
       let newDamage = item.breakdown.damage;
 
       if (field === "quality") {
         newQuality = safeValue;
-        newDamage = totalFail - newQuality;
+        newDamage = Number((totalFail - newQuality).toFixed(3));
       } else if (field === "damage") {
         newDamage = safeValue;
-        newQuality = totalFail - newDamage;
+        newQuality = Number((totalFail - newDamage).toFixed(3));
       }
+
+      const newQuantity = Number((item.orderedQuantity - item.actualQuantity).toFixed(3));
 
       newItems[index] = {
         ...item,
         breakdown: {
           ...item.breakdown,
-          quantity: item.orderedQuantity - item.actualQuantity,
+          quantity: newQuantity,
           quality: newQuality,
           damage: newDamage,
         },
@@ -694,9 +696,9 @@ export default function StaffIncidentPage({
                                         {t("Total Failed")}
                                       </span>
                                       <Badge className="bg-red-100 text-red-700 border-red-200 font-bold shadow-sm">
-                                        {item.failQuantity +
+                                        {(item.failQuantity +
                                           (item.orderedQuantity -
-                                            item.actualQuantity)}
+                                            item.actualQuantity)).toFixed(3)}
                                       </Badge>
                                     </div>
 
@@ -708,12 +710,12 @@ export default function StaffIncidentPage({
                                         type="number"
                                         min="0"
                                         value={
-                                          item.orderedQuantity -
-                                            item.actualQuantity || ""
+                                          (item.orderedQuantity -
+                                            item.actualQuantity).toFixed(3) || ""
                                         }
                                         disabled={isHistoryView}
                                         readOnly
-                                        className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-slate-100"
+                                        className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-slate-100 min-w-[150px]"
                                       />
                                     </div>
 
@@ -729,11 +731,11 @@ export default function StaffIncidentPage({
                                           updateBreakdown(
                                             absoluteIdx,
                                             "quality",
-                                            e.target.value,
+                                            e.target.value.slice(0,9),
                                           )
                                         }
                                         disabled={isHistoryView}
-                                        className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-white"
+                                        className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-white min-w-[150px]"
                                       />
                                     </div>
 
@@ -749,11 +751,11 @@ export default function StaffIncidentPage({
                                           updateBreakdown(
                                             absoluteIdx,
                                             "damage",
-                                            e.target.value,
+                                            e.target.value.slice(0,9),
                                           )
                                         }
                                         disabled={isHistoryView}
-                                        className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-white"
+                                        className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-white min-w-[150px]"
                                       />
                                     </div>
                                   </div>
