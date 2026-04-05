@@ -462,6 +462,14 @@ namespace Backend.Domains.Import.Services
                     ? "Fail"
                     : "Pass";
 
+                // if ordered quantity is fully satisfied by QC pass,
+                // skip incident flow even when there are failed extras.
+                var hasFullPassForOrderedQty = dto.Items.All(d =>
+                {
+                    var orderedQty = poItemMap[d.MaterialId].OrderedQuantity;
+                    return Math.Abs(d.PassQuantity - orderedQty) <= 0.0001m;
+                });
+
                 var qcCheckCode = await GenerateQCCheckCodeAsync();
                 var detailMap = receiptDetails.ToDictionary(rd => rd.MaterialId, rd => rd);
 
@@ -498,7 +506,7 @@ namespace Backend.Domains.Import.Services
 
                 _context.QCChecks.Add(qcCheck);
 
-                if (overallResult == "Pass")
+                if (overallResult == "Pass" || hasFullPassForOrderedQty)
                 {
                     string? poStatus = null;
                     if (receipt.PurchaseOrderId.HasValue)
@@ -1401,16 +1409,17 @@ namespace Backend.Domains.Import.Services
                     .Select(s => s.SupplementaryReceiptId)
                     .ToList();
 
-                var pendingCount = await _context.Receipts
-                    .Where(r => r.ReceiptId == incident.ReceiptId
-                             || (r.SupplementaryReceiptId.HasValue
-                                 && supplementaryReceiptIds.Contains(r.SupplementaryReceiptId.Value)))
-                    .CountAsync(r => r.Status != "ReadyForStamp");
+                var invalidSupplementaryCount = await _context.Receipts
+                    .Where(r => r.ReceiptId != receipt.ReceiptId
+                             && r.SupplementaryReceiptId.HasValue
+                             && supplementaryReceiptIds.Contains(r.SupplementaryReceiptId.Value)
+                             && r.Status != "PartiallyPutaway")
+                    .CountAsync();
 
-                if (pendingCount > 0)
+                if (invalidSupplementaryCount > 0)
                 {
                     throw new InvalidOperationException(
-                        $"Lô hàng chưa hoàn tất. Còn {pendingCount} phiếu chưa được xếp vào kho.");
+                        $"Không thể đóng dấu. Có {invalidSupplementaryCount} phiếu bổ sung chưa ở trạng thái PartiallyPutaway.");
                 }
             }
 
@@ -1625,6 +1634,14 @@ namespace Backend.Domains.Import.Services
                 ? "Fail"
                 : "Pass";
 
+            // Business rule: when QC pass fully matches ordered quantity,
+            // bypass incident creation even if failed extras exist.
+            var hasFullPassForOrderedQty = dto.Details.All(d =>
+            {
+                var orderedQty = receiptDetailMap[d.MaterialId].Quantity;
+                return Math.Abs(d.PassQuantity - orderedQty) <= 0.0001m;
+            });
+
             // STEP 4: generate QCCheckCode
             var today = DateTime.UtcNow;
             var codePrefix = $"QC-{today:yyyyMMdd}-";
@@ -1669,7 +1686,7 @@ namespace Backend.Domains.Import.Services
             }
 
             // STEP 6: finalize based on QC result
-            if (overallResult == "Pass")
+            if (overallResult == "Pass" || hasFullPassForOrderedQty)
             {
                 receipt.Status = "QCPassed";
 
