@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Backend.Domains.Audit.Interfaces;
 using Backend.Extensions;
 using Microsoft.AspNetCore.Authorization;
@@ -6,8 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace Backend.Controllers
 {
     [ApiController]
-    [Route("api/manager/audits")]
-    [Authorize(Roles = "Manager")]
+    [Route("api/accountants/audits")]
+    [Authorize(Roles = "Accountant")]
     public class AuditLockController : ControllerBase
     {
         private readonly IStockTakeLockService _service;

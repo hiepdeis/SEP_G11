@@ -89,7 +89,7 @@ export default function StaffCountingPage() {
           try {
              await auditService.finishWork(stockTakeId);
              toast.success(t("Audit results submitted!"));
-             await loadTasks();
+             router.push('/staff/audit');
           } catch (error: any) { toast.error(error.response?.data?.message || t("Error submitting results.")); }
        }
     });

@@ -98,7 +98,7 @@ export const auditService = {
   },
 
   lockAudit: async (stockTakeId: number) => {
-    const response = await axiosClient.post(`/manager/audits/${stockTakeId}/lock`);
+    const response = await axiosClient.post(`/accountants/audits/${stockTakeId}/lock`);
     return response.data;
   },
   signOff: async (stockTakeId: number, notes: string = "") => {

@@ -881,12 +881,13 @@ namespace Backend.Domains.Audit.Services
                     (x.IsActive || x.MemberCompletedAt != null), ct);
 
             var isManager = string.Equals(user.Role.RoleName, "Manager", StringComparison.OrdinalIgnoreCase);
+            var isAccountant = string.Equals(user.Role.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase);
             var isStaff = string.Equals(user.Role.RoleName, "Staff", StringComparison.OrdinalIgnoreCase) && isAssignedStaff;
 
-            if (!isManager && !isStaff)
-                return (false, "Only assigned staff or managers can sign off this audit.", null);
+            if (!isManager && !isStaff && !isAccountant)
+                return (false, "Only assigned staff, managers, or accountants can sign off this audit.", null);
 
-            var role = isManager ? "Manager" : "Staff";
+            var role = isManager ? "Manager" : (isAccountant ? "Accountant" : "Staff");
 
             var existingRoleSignature = await _db.StockTakeSignatures
                 .AsNoTracking()
@@ -942,7 +943,7 @@ namespace Backend.Domains.Audit.Services
             var hasStaffSignature = existingRoles.Contains("Staff") || role == "Staff";
             var hasManagerSignature = existingRoles.Contains("Manager") || role == "Manager";
 
-            if (hasStaffSignature && hasManagerSignature)
+            if (hasManagerSignature && !isAccountant)
             {
                 st.Status = "ReadyForReview";
                 await UnlockActiveLocksAsync(stockTakeId, userId, ct);
@@ -963,10 +964,10 @@ namespace Backend.Domains.Audit.Services
         }
 
         public async Task<(bool success, string message)> CompleteAuditAsync(
-      int stockTakeId,
-      int managerId,
-      CompleteAuditRequest request,
-      CancellationToken ct)
+            int stockTakeId,
+            int userId,
+            CompleteAuditRequest request,
+            CancellationToken ct)
         {
             var st = await _db.StockTakes
                 .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
@@ -980,30 +981,38 @@ namespace Backend.Domains.Audit.Services
             if (!string.Equals(st.Status, "ReadyForReview", StringComparison.OrdinalIgnoreCase))
                 return (false, $"Audit must be in 'ReadyForReview' before completion. Current status: '{st.Status}'.");
 
-            var managerUser = await _db.Users
+            var currentUser = await _db.Users
                 .AsNoTracking()
                 .Include(x => x.Role)
-                .FirstOrDefaultAsync(x => x.UserId == managerId, ct);
+                .FirstOrDefaultAsync(x => x.UserId == userId, ct);
 
-            if (managerUser == null || !string.Equals(managerUser.Role.RoleName, "Manager", StringComparison.OrdinalIgnoreCase))
-                return (false, "Only managers can complete the audit.");
+            if (currentUser == null || !string.Equals(currentUser.Role.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase))
+                return (false, "Only accountants can complete the audit.");
 
             var managerSignature = await _db.StockTakeSignatures
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x =>
                     x.StockTakeId == stockTakeId &&
-                    x.UserId == managerId &&
                     x.Role == "Manager", ct);
 
             if (managerSignature == null)
                 return (false, "Manager must sign off before completing audit.");
 
-            var hasStaffSignature = await _db.StockTakeSignatures
+            var accountantSignature = await _db.StockTakeSignatures
                 .AsNoTracking()
-                .AnyAsync(x => x.StockTakeId == stockTakeId && x.Role == "Staff", ct);
+                .FirstOrDefaultAsync(x =>
+                    x.StockTakeId == stockTakeId &&
+                    x.Role == "Accountant", ct);
 
-            if (!hasStaffSignature)
-                return (false, "Staff must sign off before completing audit.");
+            if (accountantSignature == null)
+                return (false, "Accountant must sign off before completing audit.");
+
+            // var hasStaffSignature = await _db.StockTakeSignatures
+            //     .AsNoTracking()
+            //     .AnyAsync(x => x.StockTakeId == stockTakeId && x.Role == "Staff", ct);
+
+            // if (!hasStaffSignature)
+            //     return (false, "Staff must sign off before completing audit.");
 
             var unresolvedVariances = await _db.StockTakeDetails
                 .AsNoTracking()
@@ -1028,12 +1037,16 @@ namespace Backend.Domains.Audit.Services
                     x.ResolvedAt != null)
                 .ToListAsync(ct);
 
+            var detailsToAdjust = resolvedVariances
+                .Where(x => NormalizeResolutionAction(x.ResolutionAction) == "AdjustSystem")
+                .ToList();
+
             var postedAt = DateTime.UtcNow;
             var postedCount = 0;
             var skippedAlreadyPostedCount = 0;
             var skippedZeroDeltaCount = 0;
 
-            foreach (var detail in resolvedVariances)
+            foreach (var detail in detailsToAdjust)
             {
                 if (!detail.BinId.HasValue || !detail.BatchId.HasValue)
                     return (false, $"Invalid bin/batch data for variance detail {detail.Id}.");
@@ -1085,9 +1098,9 @@ namespace Backend.Domains.Audit.Services
                     ReasonId = detail.AdjustmentReasonId,
                     Status = "Posted",
                     CreatedAt = postedAt,
-                    CreatedBy = detail.ResolvedBy ?? managerId,
+                    CreatedBy = detail.ResolvedBy ?? userId,
                     ApprovedAt = postedAt,
-                    ApprovedBy = managerId,
+                    ApprovedBy = userId,
                     PostedAt = postedAt
                 };
 
@@ -1097,10 +1110,10 @@ namespace Backend.Domains.Audit.Services
 
             st.Status = "Completed";
             st.CompletedAt = postedAt;
-            st.CompletedBy = managerId;
+            st.CompletedBy = userId; 
             st.Notes = request.Notes?.Trim();
 
-            await UnlockActiveLocksAsync(stockTakeId, managerId, ct);
+            await UnlockActiveLocksAsync(stockTakeId, userId, ct);
             await _db.SaveChangesAsync(ct);
 
             return (true, $"Audit completed successfully. Resolved variance candidates: {resolvedVariances.Count}, posted: {postedCount}, already posted: {skippedAlreadyPostedCount}, zero-delta: {skippedZeroDeltaCount}.");
