@@ -473,6 +473,17 @@ namespace Backend.Domains.Audit.Services
             if (string.Equals(st.Status, "Planned", StringComparison.OrdinalIgnoreCase))
                 st.Status = "Assigned";
 
+            // Triệu tập đếm lại => Notify Staff
+            _db.Notifications.Add(new Notification
+            {
+                UserId = targetUserId,
+                Message = $"Quản lý yêu cầu bạn kiểm tra và đếm lại (Recount) một số mặt hàng trong phiếu #{stockTakeId}.",
+                IsRead = false,
+                RelatedEntityType = "Audit",  
+                RelatedEntityId = stockTakeId,
+                CreatedAt = DateTime.UtcNow
+            });
+
             await _db.SaveChangesAsync(ct);
 
             return (true, "User rejoined successfully for recount.");

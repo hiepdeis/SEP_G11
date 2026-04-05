@@ -141,6 +141,23 @@ namespace Backend.Domains.Audit.Services
                 await _db.SaveChangesAsync(ct); 
             }
 
+            // Accountant tạo plan mới => notify Manager
+            var managerIds = await _db.Users.AsNoTracking()
+                .Where(u => u.Role.RoleName == "Manager" && u.Status)
+                .Select(u => u.UserId)
+                .ToListAsync(ct);
+
+            var notis = managerIds.Select(mgrId => new Notification
+            {
+                UserId = mgrId,
+                Message = $"Kế toán vừa tạo kế hoạch kiểm kê mới: #{entity.StockTakeId} ({entity.Title}). Vui lòng phân công nhân sự.",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            }).ToList();
+            
+            _db.Notifications.AddRange(notis);
+            await _db.SaveChangesAsync(ct);
+
             return new AuditPlanResponse
             {
                 StockTakeId = entity.StockTakeId,

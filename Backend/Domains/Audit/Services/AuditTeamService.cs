@@ -190,6 +190,8 @@ public class AuditTeamService : IAuditTeamService
                 UserId = uid,
                 Message = $"You have been assigned to Audit #{st.StockTakeId} ({st.Title}).",
                 IsRead = false,
+                RelatedEntityType = "Audit",  
+                RelatedEntityId = stockTakeId,
                 CreatedAt = now
             });
         }
@@ -220,6 +222,8 @@ public class AuditTeamService : IAuditTeamService
             UserId = userId,
             Message = $"You have been removed from Audit #{st.StockTakeId} ({st.Title}).",
             IsRead = false,
+            RelatedEntityType = "Audit",  
+            RelatedEntityId = stockTakeId,
             CreatedAt = DateTime.UtcNow
         });
 
@@ -269,6 +273,8 @@ public class AuditTeamService : IAuditTeamService
                 UserId = creatorId,
                 Message = $"{staffName} đã hoàn thành phần kiểm kê của mình cho Audit #{st.StockTakeId} ({st.Title}).",
                 IsRead = false,
+                RelatedEntityType = "Audit",  
+                RelatedEntityId = stockTakeId,
                 CreatedAt = now
             });
         }

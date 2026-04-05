@@ -1,6 +1,7 @@
 using Backend.Data;
 using Backend.Domains.Audit.DTOs.Managers;
 using Backend.Domains.Audit.Interfaces;
+using Backend.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Domains.Audit.Services
@@ -960,6 +961,26 @@ namespace Backend.Domains.Audit.Services
                 Notes = signature.SignatureData
             };
 
+            // Manager ký xác nhận => Notify Accountant
+            if (role == "Manager")
+            {
+                var accountantIds = await _db.Users.AsNoTracking()
+                    .Where(u => u.Role.RoleName == "Accountant" && u.Status)
+                    .Select(u => u.UserId)
+                    .ToListAsync(ct);
+
+                var signNotis = accountantIds.Select(accId => new Notification
+                {
+                    UserId = accId,
+                    Message = $"Quản lý đã ký xác nhận chênh lệch phiếu #{stockTakeId}. Vui lòng kiểm tra và chốt sổ.",
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                }).ToList();
+
+                _db.Notifications.AddRange(signNotis);
+                await _db.SaveChangesAsync(ct);
+            }
+
             return (true, "Signed off successfully", signatureDto);
         }
 
@@ -1114,6 +1135,23 @@ namespace Backend.Domains.Audit.Services
             st.Notes = request.Notes?.Trim();
 
             await UnlockActiveLocksAsync(stockTakeId, userId, ct);
+            await _db.SaveChangesAsync(ct);
+
+            // Accountant chốt sổ => Notify all
+            var allUsers = await _db.Users.AsNoTracking()
+                .Where(u => u.Status)
+                .Select(u => u.UserId)
+                .ToListAsync(ct);
+
+            var completeNotis = allUsers.Select(uid => new Notification
+            {
+                UserId = uid,
+                Message = $"Phiếu kiểm kê #{stockTakeId} đã hoàn tất. Tồn kho đã được cập nhật và hệ thống đã mở khóa.",
+                IsRead = false,
+                CreatedAt = postedAt
+            }).ToList();
+
+            _db.Notifications.AddRange(completeNotis);
             await _db.SaveChangesAsync(ct);
 
             return (true, $"Audit completed successfully. Resolved variance candidates: {resolvedVariances.Count}, posted: {postedCount}, already posted: {skippedAlreadyPostedCount}, zero-delta: {skippedZeroDeltaCount}.");
