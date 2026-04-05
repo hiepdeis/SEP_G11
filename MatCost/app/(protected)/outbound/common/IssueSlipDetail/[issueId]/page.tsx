@@ -25,8 +25,14 @@ import { Input } from "@/components/ui/input";
 import { BatchInStockDto, materialApi } from "@/services/materials-service";
 import ReactSignatureCanvas, { SignatureCanvas } from "react-signature-canvas";
 import { OTPInput } from "input-otp";
-
-
+import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
+import { auth } from "@/lib/firebase"; // Import auth từ file cấu hình Firebase
+declare global {
+  interface Window {
+    recaptchaVerifier: any;
+    confirmationResult: any;
+  }
+}
 export default function CommonIssueSlipDetail() {
   const params = useParams();
   const { t } = useTranslation();
@@ -127,6 +133,21 @@ export default function CommonIssueSlipDetail() {
   setInventoryDecisions(defaultDecisions);
 
 }, [detail]); // 👈 OK vì KHÔNG gọi API nữa
+  
+
+  const setupRecaptcha = () => {
+     if (typeof window === "undefined") return;
+
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(
+        auth,
+        "recaptcha-container",
+        {
+          size: "invisible",
+        }
+      );
+    }
+  };
 
 const handleSignatureEnd = () => {
     if (sigCanvas.current && !sigCanvas.current.isEmpty()) setIsSigned(true);
@@ -143,17 +164,29 @@ const handleSignatureEnd = () => {
     if (!sigCanvas.current || sigCanvas.current.isEmpty()) return toast.error("Vui lòng ký xác nhận.");
     try {
       setReviewing(true);
-      // Lấy ảnh chữ ký dưới dạng base64 (Backend có thể cần để lưu lại bằng chứng)
-      // const signatureBase64 = sigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
-      
-      // TODO: GỌI API BACKEND YÊU CẦU GỬI OTP Ở ĐÂY
-      // await axiosClient.post(`/IssueSlips/${issueId}/send-otp`);
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      toast.success("Hệ thống đã gửi mã OTP đến số điện thoại của bạn.");
-      setIsAdminSigning(false); 
-      setIsOtpModalOpen(true);
+      setupRecaptcha();
+      const phone = "+84858454828"; 
+      console.log("Using phone number for OTP:", phone);
+      const appVerifier = window.recaptchaVerifier;
+
+      try {
+        const confirmationResult = await signInWithPhoneNumber(
+          auth,
+          phone,
+          appVerifier
+        );
+        window.confirmationResult = confirmationResult;
+      } catch (error: any) {
+        console.log("ERROR CODE:", error.code);
+        console.log("FULL ERROR:", error);
+      }
+
+     
+
+    toast.success("Đã gửi mã OTP!");
+    setIsAdminSigning(false);
+    setIsOtpModalOpen(true);
     } catch (error) {
       toast.error("Lỗi khi gửi yêu cầu xác thực.");
     } finally {
@@ -165,20 +198,30 @@ const handleSignatureEnd = () => {
     if (otp.length !== 6) return toast.error("Vui lòng nhập đủ 6 số OTP.");
     try {
       setReviewing(true);
-      // const signatureBase64 = sigCanvas.current?.getTrimmedCanvas().toDataURL('image/png');
       
-      // TODO: GỌI API BACKEND XÁC THỰC OTP VÀ APPROVE Ở ĐÂY
-      // await axiosClient.post(`/IssueSlips/${issueId}/approve-with-otp`, { otpCode: otp, signatureBase64 });
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
+       const result = await window.confirmationResult.confirm(otp);
 
-      toast.success("Xác thực thành công! Đã duyệt vượt ngân sách.");
-      setIsOtpModalOpen(false);
-      setOtp("");
-      clearSignature();
-      
-      const data = await issueSlipApi.getIssueSlipDetail(issueId);
-      setDetail(data);
+    const user = result.user;
+
+    const idToken = await user.getIdToken(); // 🔥 QUAN TRỌNG
+
+    const signatureBase64 = sigCanvas.current
+      ?.getTrimmedCanvas()
+      .toDataURL("image/png");
+
+    // 👉 Gửi lên backend
+    await axiosClient.post(`/IssueSlips/${issueId}/approve-with-otp`, {
+      idToken,
+      signatureBase64,
+    });
+
+    toast.success("Xác thực thành công!");
+    setIsOtpModalOpen(false);
+    setOtp("");
+    clearSignature();
+
+    const data = await issueSlipApi.getIssueSlipDetail(issueId);
+    setDetail(data);
     } catch (error) {
       toast.error("Mã OTP không chính xác hoặc đã hết hạn.");
     } finally {
@@ -361,41 +404,25 @@ const handleSignatureEnd = () => {
     }
   };
 
-  // const executeProcessInventory = async () => {
-  //   setIsSplitConfirmOpen(false);
-  //   setReviewing(true);
-  //   try {
-  //     const payload = {
-  //       decisions: Object.keys(inventoryDecisions).map(k => ({
-  //         detailId: Number(k),
-  //         action: inventoryDecisions[Number(k)]
-  //       })),
-  //     };
-
-  //     const res = await axiosClient.post(`/IssueSlips/${issueId}/process-inventory`, payload);
-  //     toast.success("Đã chốt phương án vật tư!");
-  //     if (res.data.splitSlipCode) {
-  //       toast.info(`Hệ thống đã tự động tạo lệnh Mua ngoài: ${res.data.splitSlipCode}`);
-  //     }
-  //     const data = await issueSlipApi.getIssueSlipDetail(issueId);
-  //     setDetail(data);
-  //   } catch (err: any) {
-  //     toast.error(err.response?.data?.message || err.response?.data || "Có lỗi xảy ra.");
-  //   } finally {
-  //     setReviewing(false);
-  //   }
-  // };
+  
   const executeProcessInventory = async () => {
     setIsSplitConfirmOpen(false);
     setReviewing(true);
     try {
       // 1. Build cục data customBatches chuẩn theo JSON Backend cần
       const customBatchesPayload: Record<string, any[]> = {};
-      Object.keys(customBatchAllocations).forEach(detailId => {
-        customBatchesPayload[detailId] = customBatchAllocations[Number(detailId)].map(b => ({
-          batchId: b.batchId,
-          qtyToTake: b.qtyToTake
-        }));
+      
+      // [ĐÃ SỬA]: Duyệt qua TẤT CẢ các vật tư trong phiếu
+      detail?.details.forEach(item => {
+        // Ưu tiên lấy Lô Kế toán tự chọn, nếu không có thì lấy Lô FIFO hệ thống đã gợi ý
+        const batchesToUse = customBatchAllocations[item.detailId] || item.fifoSuggestedBatches || [];
+        
+        if (batchesToUse.length > 0) {
+          customBatchesPayload[item.detailId] = batchesToUse.map((b: any) => ({
+            batchId: b.batchId,
+            qtyToTake: b.qtyToTake
+          }));
+        }
       });
 
       const payload = {
@@ -1293,6 +1320,7 @@ const handleSignatureEnd = () => {
               </Dialog>
 
               {/* ================= MODAL NHẬP OTP CỦA ADMIN ================= */}
+              <div id="recaptcha-container" style={{ display: "none" }} /> 
               <Dialog open={isOtpModalOpen} onOpenChange={setIsOtpModalOpen}>
                 <DialogContent className="sm:max-w-[400px]">
                   <DialogHeader>
@@ -1346,6 +1374,7 @@ const handleSignatureEnd = () => {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+              </div>       
 
               {/* ================= MODAL KÝ TÊN CỦA ACCOUNTANT (GỬI PO) ================= */}
               <Dialog open={isPoSigningOpen} onOpenChange={(open) => { 
@@ -1452,7 +1481,7 @@ const handleSignatureEnd = () => {
                 </DialogContent>
               </Dialog>
             </div>
-          </div>
+         
         </div>
       </main>
     </div>
