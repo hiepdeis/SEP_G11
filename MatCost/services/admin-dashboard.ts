@@ -20,16 +20,26 @@ export interface LowStockMaterial {
 export interface RecentReceipt {
   id: string;
   date: string;
-  warehouseName: string;
-  createdBy: string;
+  supplier: string;
+  items: number;
   status: string;
-  totalAmount: number;
+  statusKey: string;
+}
+
+export interface RecentIssue {
+  id: string;
+  date: string;
+  project: string;
+  items: number;
+  status: string;
+  statusKey: string;
 }
 
 export interface AdminDashboardResponse {
   summary: DashboardSummary;
   lowStockMaterials: LowStockMaterial[];
   recentReceipts: RecentReceipt[];
+  recentIssues: RecentIssue[];
 }
 
 export async function getAdminDashboard() {

@@ -1,4 +1,8 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5000/api";
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/+$/, "");
+
+function buildUrl(endpoint: string) {
+  return `${API_BASE}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+}
 
 async function parseResponse<T>(res: Response, method: string, endpoint: string): Promise<T> {
   if (!res.ok) {
@@ -28,7 +32,7 @@ async function parseResponse<T>(res: Response, method: string, endpoint: string)
 }
 
 export async function apiGet<T>(endpoint: string, token?: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetch(buildUrl(endpoint), {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -41,7 +45,7 @@ export async function apiGet<T>(endpoint: string, token?: string): Promise<T> {
 }
 
 export async function apiPost<T>(endpoint: string, body?: unknown, token?: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetch(buildUrl(endpoint), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -54,7 +58,7 @@ export async function apiPost<T>(endpoint: string, body?: unknown, token?: strin
 }
 
 export async function apiPut<T>(endpoint: string, body?: unknown, token?: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetch(buildUrl(endpoint), {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -67,7 +71,7 @@ export async function apiPut<T>(endpoint: string, body?: unknown, token?: string
 }
 
 export async function apiPatch<T>(endpoint: string, body?: unknown, token?: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetch(buildUrl(endpoint), {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -80,7 +84,7 @@ export async function apiPatch<T>(endpoint: string, body?: unknown, token?: stri
 }
 
 export async function apiDelete<T = any>(endpoint: string, token?: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetch(buildUrl(endpoint), {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",

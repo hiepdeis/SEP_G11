@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getAdminDashboard } from "@/services/admin-dashboard";
 import {
   Package,
   AlertTriangle,
@@ -114,19 +115,8 @@ export default function Dashboard() {
       try {
         setLoading(true);
 
-        const res = await fetch("http://localhost:5000/api/dashboard", {
-  method: "GET",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  cache: "no-store",
-});
+        const json = await getAdminDashboard();
 
-        if (!res.ok) {
-          throw new Error("Không tải được dashboard");
-        }
-
-        const json: DashboardResponse = await res.json();
         setData(json);
       } catch (error) {
         console.error(error);
