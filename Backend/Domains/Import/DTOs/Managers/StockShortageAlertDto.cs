@@ -16,6 +16,7 @@ namespace Backend.Domains.Import.DTOs.Managers
         public DateTime CreatedAt { get; set; }
         public DateTime? ConfirmedAt { get; set; }
         public int? ConfirmedBy { get; set; }
+        public string? ConfirmedByName { get; set; }
         public string? Notes { get; set; }
     }
 

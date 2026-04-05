@@ -18,7 +18,7 @@ namespace Backend.Domains.Import.Services
             _logger = logger;
         }
 
-        public async Task<PurchaseRequest> CreateRequestFromAlertAsync(long alertId, int adminId, int projectId, List<PurchaseRequestItem> items, decimal? finalQuantity)
+        public async Task<PurchaseRequest> CreateRequestFromAlertAsync(long alertId, int adminId, int projectId, List<PurchaseRequestItem> items)
         {
             if (items == null)
                 items = new List<PurchaseRequestItem>();
@@ -42,23 +42,15 @@ namespace Backend.Domains.Import.Services
 
             if (items.Count == 0)
             {
-                var quantity = finalQuantity ?? alert.SuggestedQuantity;
+                var quantity = alert.SuggestedQuantity;
                 if (!quantity.HasValue || quantity.Value <= 0)
-                    throw new ArgumentException("Final quantity must be greater than 0");
+                    throw new ArgumentException("Quantity must be greater than 0");
 
                 items.Add(new PurchaseRequestItem
                 {
                     MaterialId = alert.MaterialId,
                     Quantity = quantity.Value
                 });
-            }
-
-            if (finalQuantity.HasValue)
-            {
-                if (items.Count > 1)
-                    throw new ArgumentException("Final quantity chi ho tro cho 1 item");
-
-                items[0].Quantity = finalQuantity.Value;
             }
 
             foreach (var item in items)
@@ -95,6 +87,7 @@ namespace Backend.Domains.Import.Services
             return request;
         }
 
+        // For admin want to view all purchase requests
         public async Task<List<PurchaseRequest>> GetRequestsAsync()
         {
             return await _context.PurchaseRequests
@@ -109,12 +102,15 @@ namespace Backend.Domains.Import.Services
 
         public async Task<List<PurchaseRequest>> GetPendingRequestsAsync()
         {
+            // var rejectedStatuses = new[] { "AdminRejected", "AccountantRejected" };
+
             return await _context.PurchaseRequests
+                .Include(r => r.PurchaseOrders)
                 .Include(r => r.Project)
                 .Include(r => r.Alert)
                 .Include(r => r.Items)
                     .ThenInclude(i => i.Material)
-                .Where(r => r.Status == "Submitted")
+                .Where(r => r.Status == "Submitted" || r.Status == "DraftPO")
                 .OrderByDescending(r => r.CreatedAt)
                 .AsNoTracking()
                 .ToListAsync();

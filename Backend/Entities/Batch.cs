@@ -26,6 +26,9 @@ public partial class Batch
     public string? CertificateImage { get; set; }
 
     [Column(TypeName = "datetime")]
+    public DateTime? ExpiryDate { get; set; }
+
+    [Column(TypeName = "datetime")]
     public DateTime? CreatedDate { get; set; }
     public virtual ICollection<InventoryAdjustmentEntry> InventoryAdjustmentEntries { get; set; } = new List<InventoryAdjustmentEntry>();
 
@@ -56,5 +59,6 @@ public partial class Batch
     public virtual ICollection<WarehouseCard> WarehouseCards { get; set; } = new List<WarehouseCard>();
 
     [InverseProperty("Batch")]
+    public virtual ICollection<ReceiptDetailBinAllocation> ReceiptDetailBinAllocations { get; set; } = new List<ReceiptDetailBinAllocation>();
     public virtual ICollection<PickingList> PickingLists { get; set; } = new List<PickingList>();
 }

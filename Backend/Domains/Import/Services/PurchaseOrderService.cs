@@ -40,6 +40,16 @@ namespace Backend.Domains.Import.Services
             if (groupedItems.Any(x => !x.SupplierId.HasValue))
                 throw new ArgumentException("SupplierId is required for all items.");
 
+            PurchaseOrder? parentPo = null;
+            if (dto.ParentPOId.HasValue)
+            {
+                if (groupedItems.Select(i => i.SupplierId!.Value).Distinct().Count() > 1)
+                    throw new InvalidOperationException("Revision PO chi cho phep 1 nha cung cap");
+
+                var supplierId = groupedItems.First().SupplierId!.Value;
+                parentPo = await LoadParentPurchaseOrderForRevisionAsync(dto.ParentPOId.Value, requestId, supplierId);
+            }
+
             var orders = new List<PurchaseOrder>();
 
             foreach (var group in groupedItems.GroupBy(x => x.SupplierId!.Value))
@@ -51,14 +61,20 @@ namespace Backend.Domains.Import.Services
                     UnitPrice = i.Item.UnitPrice
                 }).ToList();
 
-                var order = await CreateDraftAsync(requestId, purchasingId, group.Key, items);
+                var order = await CreateDraftAsync(requestId, purchasingId, group.Key, items, parentPo, dto.RevisionNote);
                 orders.Add(order);
             }
 
             return orders;
         }
 
-        public async Task<PurchaseOrder> CreateDraftAsync(long requestId, int purchasingId, int supplierId, List<PurchaseOrderItem> items)
+        public async Task<PurchaseOrder> CreateDraftAsync(
+            long requestId,
+            int purchasingId,
+            int supplierId,
+            List<PurchaseOrderItem> items,
+            PurchaseOrder? parentPo = null,
+            string? revisionNote = null)
         {
             if (items == null || items.Count == 0)
                 throw new ArgumentException("Items list cannot be empty", nameof(items));
@@ -122,6 +138,26 @@ namespace Backend.Domains.Import.Services
                 }
             }
 
+            // Prevent duplicate drafts for the same request and supplier.
+            var hasDraft = await _context.PurchaseOrders
+                .Where(o => o.RequestId == requestId)
+                .Where(o => o.SupplierId == supplierId)
+                .Where(o => o.Status == "Draft")
+                .AnyAsync();
+
+            if (hasDraft)
+                throw new InvalidOperationException(
+                    $"Draft PO already exists for request {requestId} and supplier {supplierId}");
+
+            if (parentPo != null)
+            {
+                var hasChildRevision = await _context.PurchaseOrders
+                    .AnyAsync(o => o.ParentPOId == parentPo.PurchaseOrderId);
+
+                if (hasChildRevision)
+                    throw new InvalidOperationException("PO da co revision moi hon");
+            }
+
             var poCode = await GeneratePurchaseOrderCodeAsync();
 
             var newItems = items.Select(i => new PurchaseOrderItem
@@ -145,6 +181,9 @@ namespace Backend.Domains.Import.Services
                 CreatedAt = now,
                 Status = "Draft",
                 TotalAmount = totalAmount,
+                ParentPOId = parentPo?.PurchaseOrderId,
+                RevisionNumber = parentPo == null ? 1 : parentPo.RevisionNumber + 1,
+                RevisionNote = revisionNote,
                 Items = newItems
             };
 
@@ -159,7 +198,8 @@ namespace Backend.Domains.Import.Services
 
         public async Task<List<PurchaseOrder>> GetOrdersAsync()
         {
-            return await _context.PurchaseOrders
+            var query = ActivePOsOnly(_context.PurchaseOrders)
+                .Include(o => o.RejectionHistories)
                 .Include(o => o.Project)
                 .Include(o => o.Supplier)
                 .Include(o => o.PurchaseRequest)
@@ -168,11 +208,14 @@ namespace Backend.Domains.Import.Services
                 .OrderByDescending(o => o.CreatedAt)
                 .AsNoTracking()
                 .ToListAsync();
+
+            return await query;
         }
 
         public async Task<PurchaseOrder?> GetOrderAsync(long purchaseOrderId)
         {
             return await _context.PurchaseOrders
+                .Include(o => o.RejectionHistories)
                 .Include(o => o.Project)
                 .Include(o => o.Supplier)
                 .Include(o => o.PurchaseRequest)
@@ -185,6 +228,8 @@ namespace Backend.Domains.Import.Services
         public async Task<PurchaseOrder> AccountantApproveAsync(long purchaseOrderId, int accountantId)
         {
             var purchaseOrder = await LoadPurchaseOrderForUpdateAsync(purchaseOrderId);
+
+            await EnsureLatestRevisionAsync(purchaseOrder.PurchaseOrderId);
 
             if (purchaseOrder.Status != "Draft")
                 throw new InvalidOperationException(
@@ -220,6 +265,8 @@ namespace Backend.Domains.Import.Services
 
             var purchaseOrder = await LoadPurchaseOrderForUpdateAsync(purchaseOrderId);
 
+            await EnsureLatestRevisionAsync(purchaseOrder.PurchaseOrderId);
+
             if (purchaseOrder.Status != "Draft")
                 throw new InvalidOperationException(
                     $"Cannot reject PO {purchaseOrderId}. Current status: {purchaseOrder.Status}");
@@ -228,7 +275,20 @@ namespace Backend.Domains.Import.Services
             purchaseOrder.AccountantApprovedBy = accountantId;
             purchaseOrder.AccountantApprovedAt = DateTime.UtcNow;
 
+            var rejection = new ReceiptRejectionHistory
+            {
+                PurchaseOrderId = purchaseOrder.PurchaseOrderId,
+                RejectedBy = accountantId,
+                RejectedAt = DateTime.UtcNow,
+                RejectionReason = reason
+            };
+            _context.ReceiptRejectionHistories.Add(rejection);
+            purchaseOrder.RejectionHistories.Add(rejection);
+
             await _context.SaveChangesAsync();
+
+            var message = $"PO {purchaseOrder.PurchaseOrderCode} bi ke toan tu choi: {reason}";
+            await CreateRoleNotificationsAsync("Purchasing", message, "PurchaseOrder", purchaseOrder.PurchaseOrderId);
 
             return purchaseOrder;
         }
@@ -236,6 +296,8 @@ namespace Backend.Domains.Import.Services
         public async Task<PurchaseOrder> AdminApproveAsync(long purchaseOrderId, int adminId)
         {
             var purchaseOrder = await LoadPurchaseOrderForUpdateAsync(purchaseOrderId);
+
+            await EnsureLatestRevisionAsync(purchaseOrder.PurchaseOrderId);
 
             if (purchaseOrder.Status != "AccountantApproved")
                 throw new InvalidOperationException(
@@ -257,6 +319,8 @@ namespace Backend.Domains.Import.Services
 
             var purchaseOrder = await LoadPurchaseOrderForUpdateAsync(purchaseOrderId);
 
+            await EnsureLatestRevisionAsync(purchaseOrder.PurchaseOrderId);
+
             if (purchaseOrder.Status != "AccountantApproved")
                 throw new InvalidOperationException(
                     $"Cannot reject PO {purchaseOrderId}. Current status: {purchaseOrder.Status}");
@@ -265,7 +329,21 @@ namespace Backend.Domains.Import.Services
             purchaseOrder.AdminApprovedBy = adminId;
             purchaseOrder.AdminApprovedAt = DateTime.UtcNow;
 
+
+            var rejection = new ReceiptRejectionHistory
+            {
+                PurchaseOrderId = purchaseOrder.PurchaseOrderId,
+                RejectedBy = adminId,
+                RejectedAt = DateTime.UtcNow,
+                RejectionReason = reason
+            };
+            _context.ReceiptRejectionHistories.Add(rejection);
+            purchaseOrder.RejectionHistories.Add(rejection);
+
             await _context.SaveChangesAsync();
+
+            var message = $"PO {purchaseOrder.PurchaseOrderCode} bi admin tu choi: {reason}";
+            await CreateRoleNotificationsAsync("Purchasing", message, "PurchaseOrder", purchaseOrder.PurchaseOrderId);
 
             return purchaseOrder;
         }
@@ -310,9 +388,35 @@ namespace Backend.Domains.Import.Services
             return results;
         }
 
+        public async Task<long> GetLatestRevisionIdAsync(long purchaseOrderId)
+        {
+            var exists = await _context.PurchaseOrders
+                .AnyAsync(p => p.PurchaseOrderId == purchaseOrderId);
+
+            if (!exists)
+                throw new KeyNotFoundException($"PurchaseOrder with ID {purchaseOrderId} not found");
+
+            var currentId = purchaseOrderId;
+            while (true)
+            {
+                var nextId = await _context.PurchaseOrders
+                    .Where(p => p.ParentPOId == currentId)
+                    .OrderByDescending(p => p.RevisionNumber)
+                    .Select(p => (long?)p.PurchaseOrderId)
+                    .FirstOrDefaultAsync();
+
+                if (!nextId.HasValue)
+                    return currentId;
+
+                currentId = nextId.Value;
+            }
+        }
+
         public async Task<PurchaseOrder> SendToSupplierAsync(long purchaseOrderId, int purchasingId)
         {
             var purchaseOrder = await LoadPurchaseOrderForUpdateAsync(purchaseOrderId);
+
+            await EnsureLatestRevisionAsync(purchaseOrder.PurchaseOrderId);
 
             if (purchaseOrder.Status != "AdminApproved")
                 throw new InvalidOperationException(
@@ -331,6 +435,125 @@ namespace Backend.Domains.Import.Services
             return purchaseOrder;
         }
 
+        public async Task<PurchaseOrder> ConfirmDeliveryAsync(long purchaseOrderId, DateTime expectedDeliveryDate, string? supplierNote)
+        {
+            if (expectedDeliveryDate == default)
+                throw new ArgumentException("ExpectedDeliveryDate is required", nameof(expectedDeliveryDate));
+
+            var purchaseOrder = await _context.PurchaseOrders
+                .Include(o => o.Supplier)
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.Material)
+                .FirstOrDefaultAsync(o => o.PurchaseOrderId == purchaseOrderId);
+
+            if (purchaseOrder == null)
+                throw new KeyNotFoundException($"PurchaseOrder with ID {purchaseOrderId} not found");
+
+            if (purchaseOrder.Status != "SentToSupplier")
+                throw new InvalidOperationException(
+                    $"Cannot confirm delivery for PO {purchaseOrderId}. Current status: {purchaseOrder.Status}");
+
+            purchaseOrder.ExpectedDeliveryDate = expectedDeliveryDate;
+            purchaseOrder.SupplierNote = supplierNote;
+
+            await _context.SaveChangesAsync();
+
+            var supplierName = purchaseOrder.Supplier?.Name ?? "N/A";
+            var itemSummary = string.Join(
+                "; ",
+                purchaseOrder.Items.Select(i =>
+                {
+                    var materialName = i.Material?.Name ?? $"Material {i.MaterialId}";
+                    var unit = i.Material?.Unit ?? string.Empty;
+                    return $"{materialName} — {i.OrderedQuantity} {unit}".Trim();
+                }));
+
+            var message =
+                $"PO {purchaseOrder.PurchaseOrderCode} du kien ve luc {expectedDeliveryDate:yyyy-MM-dd HH:mm}. " +
+                $"NCC: {supplierName}. Mat hang: {itemSummary}";
+
+            await CreateRoleNotificationsAsync("Staff", message, "PurchaseOrder", purchaseOrder.PurchaseOrderId);
+            await CreateRoleNotificationsAsync("Manager", message, "PurchaseOrder", purchaseOrder.PurchaseOrderId);
+
+            return purchaseOrder;
+        }
+
+        public async Task<List<PurchaseOrderRevisionHistoryItemDto>> GetRevisionHistoryAsync(long purchaseOrderId)
+        {
+            var chain = await LoadRevisionChainAsync(purchaseOrderId);
+
+            return chain
+                .OrderBy(o => o.RevisionNumber)
+                .Select(o =>
+                {
+                    var latestRejection = o.RejectionHistories
+                        .OrderByDescending(r => r.RejectedAt)
+                        .FirstOrDefault();
+
+                    var rejectedBy = latestRejection?.Rejector?.FullName;
+                    if (string.IsNullOrWhiteSpace(rejectedBy))
+                        rejectedBy = latestRejection?.Rejector?.Username ?? string.Empty;
+
+                    return new PurchaseOrderRevisionHistoryItemDto
+                    {
+                        PoId = o.PurchaseOrderId,
+                        RevisionNumber = o.RevisionNumber,
+                        Status = o.Status,
+                        RejectedBy = rejectedBy ?? string.Empty,
+                        RejectedAt = latestRejection?.RejectedAt,
+                        RejectionReason = latestRejection?.RejectionReason,
+                        TotalAmount = o.TotalAmount
+                    };
+                })
+                .ToList();
+        }
+
+        public async Task<PurchaseOrderHistoryResponseDto> GetPurchaseOrderHistoryAsync(long requestId)
+        {
+            var request = await _context.PurchaseRequests
+                .AsNoTracking()
+                .FirstOrDefaultAsync(r => r.RequestId == requestId);
+
+            if (request == null)
+                throw new KeyNotFoundException($"PurchaseRequest with ID {requestId} not found");
+
+            var orders = await _context.PurchaseOrders
+                .Include(o => o.Supplier)
+                .Include(o => o.RejectionHistories)
+                    .ThenInclude(r => r.Rejector)
+                .Where(o => o.RequestId == requestId)
+                .OrderBy(o => o.RevisionNumber)
+                .ThenBy(o => o.CreatedAt)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var chain = orders.Select(o =>
+            {
+                var latestRejection = o.RejectionHistories
+                    .OrderByDescending(r => r.RejectedAt)
+                    .FirstOrDefault();
+
+                return new PurchaseOrderHistoryItemDto
+                {
+                    PoId = o.PurchaseOrderId,
+                    RevisionNumber = o.RevisionNumber,
+                    SupplierName = o.Supplier?.Name ?? string.Empty,
+                    TotalAmount = o.TotalAmount,
+                    Status = o.Status,
+                    RejectionReason = latestRejection?.RejectionReason,
+                    RevisionNote = o.RevisionNote,
+                    CreatedAt = o.CreatedAt
+                };
+            }).ToList();
+
+            return new PurchaseOrderHistoryResponseDto
+            {
+                RequestId = requestId,
+                PrStatus = request.Status,
+                PoChain = chain
+            };
+        }
+
         private async Task<string> GeneratePurchaseOrderCodeAsync()
         {
             var today = DateTime.UtcNow;
@@ -346,12 +569,79 @@ namespace Backend.Domains.Import.Services
         {
             var purchaseOrder = await _context.PurchaseOrders
                 .Include(o => o.Items)
+                .Include(o => o.PurchaseRequest)
                 .FirstOrDefaultAsync(o => o.PurchaseOrderId == purchaseOrderId);
 
             if (purchaseOrder == null)
                 throw new KeyNotFoundException($"PurchaseOrder with ID {purchaseOrderId} not found");
 
             return purchaseOrder;
+        }
+
+        private IQueryable<PurchaseOrder> ActivePOsOnly(IQueryable<PurchaseOrder> query)
+        {
+            var replacedIds = _context.PurchaseOrders
+                .Where(p => p.ParentPOId != null)
+                .Select(p => p.ParentPOId!.Value);
+
+            return query.Where(p => !replacedIds.Contains(p.PurchaseOrderId));
+        }
+
+        private async Task EnsureLatestRevisionAsync(long purchaseOrderId)
+        {
+            var hasChild = await _context.PurchaseOrders
+                .AnyAsync(o => o.ParentPOId == purchaseOrderId);
+
+            if (hasChild)
+                throw new InvalidOperationException("Chi PO revision moi nhat moi duoc xu ly");
+        }
+
+        private async Task<PurchaseOrder> LoadParentPurchaseOrderForRevisionAsync(long parentPoId, long requestId, int supplierId)
+        {
+            var parentPo = await _context.PurchaseOrders
+                .FirstOrDefaultAsync(o => o.PurchaseOrderId == parentPoId);
+
+            if (parentPo == null)
+                throw new KeyNotFoundException($"PurchaseOrder with ID {parentPoId} not found");
+
+            if (parentPo.Status != "AccountantRejected" && parentPo.Status != "AdminRejected")
+                throw new InvalidOperationException("Chi tao revision tu PO da bi reject");
+
+            if (parentPo.RequestId != requestId)
+                throw new InvalidOperationException("Parent PO khong cung PR voi requestId");
+
+            // if (parentPo.SupplierId != supplierId)
+            //     throw new InvalidOperationException("Parent PO khong cung nha cung cap");
+
+            return parentPo;
+        }
+
+        private async Task<List<PurchaseOrder>> LoadRevisionChainAsync(long purchaseOrderId)
+        {
+            var chain = new List<PurchaseOrder>();
+
+            var current = await _context.PurchaseOrders
+                .Include(o => o.RejectionHistories)
+                    .ThenInclude(r => r.Rejector)
+                .FirstOrDefaultAsync(o => o.PurchaseOrderId == purchaseOrderId);
+
+            if (current == null)
+                throw new KeyNotFoundException($"PurchaseOrder with ID {purchaseOrderId} not found");
+
+            while (current != null)
+            {
+                chain.Add(current);
+
+                if (!current.ParentPOId.HasValue)
+                    break;
+
+                current = await _context.PurchaseOrders
+                    .Include(o => o.RejectionHistories)
+                        .ThenInclude(r => r.Rejector)
+                    .FirstOrDefaultAsync(o => o.PurchaseOrderId == current.ParentPOId.Value);
+            }
+
+            return chain;
         }
 
         private async Task<Dictionary<int, decimal>> GetReferencePricesAsync(int supplierId)
@@ -404,6 +694,37 @@ namespace Backend.Domains.Import.Services
             if (currentPoAmount > remaining)
                 throw new InvalidOperationException(
                     $"Project budget exceeded. Remaining: {remaining}, current PO: {currentPoAmount}");
+        }
+
+        private async Task<List<int>> GetUserIdsByRoleAsync(string roleName)
+        {
+            return await _context.Users
+                .Where(u => u.Role.RoleName == roleName)
+                .Select(u => u.UserId)
+                .ToListAsync();
+        }
+
+        private async Task CreateRoleNotificationsAsync(string roleName, string message, string entityType, long? entityId)
+        {
+            var userIds = await GetUserIdsByRoleAsync(roleName);
+            if (userIds.Count == 0)
+                return;
+
+            var now = DateTime.UtcNow;
+            foreach (var userId in userIds)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    UserId = userId,
+                    Message = message,
+                    RelatedEntityType = entityType,
+                    RelatedEntityId = entityId,
+                    IsRead = false,
+                    CreatedAt = now
+                });
+            }
+
+            await _context.SaveChangesAsync();
         }
     }
 }

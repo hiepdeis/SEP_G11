@@ -19,6 +19,9 @@ public partial class IncidentReport
     [Column("ReceiptID")]
     public long ReceiptId { get; set; }
 
+    [Column("PurchaseOrderID")]
+    public long? PurchaseOrderId { get; set; }
+
     /// <summary>Liên kết với QCCheck nếu phát sinh từ QC fail (nullable — có thể lập độc lập)</summary>
     [Column("QCCheckID")]
     public long? QCCheckId { get; set; }
@@ -32,9 +35,9 @@ public partial class IncidentReport
     [StringLength(2000)]
     public string Description { get; set; } = null!;
 
-    /// <summary>"Open" | "Resolved"</summary>
+    /// <summary>"Open" | "PendingManagerReview" | "PendingPurchasingAction" | "PendingManagerApproval" | "AwaitingSupplementaryGoods" | "Resolved"</summary>
     [Required]
-    [StringLength(20)]
+    [StringLength(100)]
     [Unicode(false)]
     public string Status { get; set; } = "Open";
 
@@ -51,6 +54,10 @@ public partial class IncidentReport
     [InverseProperty("IncidentReports")]
     public virtual Receipt Receipt { get; set; } = null!;
 
+    [ForeignKey("PurchaseOrderId")]
+    [InverseProperty("IncidentReports")]
+    public virtual PurchaseOrder? PurchaseOrder { get; set; }
+
     [ForeignKey("QCCheckId")]
     [InverseProperty("IncidentReports")]
     public virtual QCCheck? QCCheck { get; set; }
@@ -65,4 +72,7 @@ public partial class IncidentReport
 
     [InverseProperty("IncidentReport")]
     public virtual ICollection<IncidentReportDetail> IncidentReportDetails { get; set; } = new List<IncidentReportDetail>();
+
+    [InverseProperty("IncidentReport")]
+    public virtual ICollection<SupplementaryReceipt> SupplementaryReceipts { get; set; } = new List<SupplementaryReceipt>();
 }
