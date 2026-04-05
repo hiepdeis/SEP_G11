@@ -311,7 +311,7 @@ export default function ManagerReceiptDetailPage() {
                                   {item.materialName}
                                 </p>
                                 <p className="text-xs text-slate-500 font-mono mt-0.5">
-                                  {item.source}
+                                  {t(item.source)}
                                 </p>
                               </div>
                             </TableCell>

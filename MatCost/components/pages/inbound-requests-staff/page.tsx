@@ -601,13 +601,13 @@ export default function InboundReceiptsPage({
                           className={getStatusBadge(item.status)}
                         >
                           {item.status === "ReadyForStamp"
-                            ? "Pending Stamp"
+                            ? t("Pending Stamp")
                             : item.status === "Stamped" ||
                                 item.status === "Closed" ||
                                 item.status === "PartiallyPutaway"
-                              ? "Putaway"
+                              ? t("Putaway")
                               : item.status === "QCPassed"
-                                ? "Ready For Putaway"
+                                ? t("Ready For Putaway")
                                 : t(formatPascalCase(item.status))}
                         </Badge>
                       </TableCell>

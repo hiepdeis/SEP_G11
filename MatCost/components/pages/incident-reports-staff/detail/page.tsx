@@ -276,9 +276,10 @@ export default function StaffIncidentPage({
 
     if (invalidBreakdownItem) {
       return toast.error(
-        t(
-          `Breakdown sum (Quality + Damage) for ${invalidBreakdownItem.materialName} must exactly equal its Failed Quantity (${invalidBreakdownItem.failQuantity}).`,
-        ),
+        t("Breakdown sum (Quality + Damage) for {{name}} must exactly equal its Failed Quantity ({{quantity}}).", {
+          name: invalidBreakdownItem.materialName,
+          quantity: invalidBreakdownItem.failQuantity,
+        })
       );
     }
     const missingNotes = incidentItems.filter((i) => !i.notes.trim());

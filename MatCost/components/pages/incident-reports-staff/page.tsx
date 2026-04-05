@@ -640,12 +640,12 @@ export default function IncidentReportsPage({
                           className={getStatusBadge(item.status)}
                         >
                           {item.status == "PendingIncident"
-                            ? "Pending Review"
+                            ? t("Pending Review")
                             : item.status == "PendingManagerReview" ||
                                 item.status == "PendingManagerApproval" ||
                                 item.status == "PendingPurchasingAction" ||
                                 item.status == "AwaitingSupplementaryGoods"
-                              ? "Reviewed"
+                              ? t("Reviewed")
                               : t(formatPascalCase(item.status))}
                         </Badge>
                       </TableCell>

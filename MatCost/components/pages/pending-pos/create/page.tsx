@@ -227,6 +227,9 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
             payload.purchaseOrderId = Number(poIdParam);
           }
 
+          // console.log("failquantity", payload.items.map(i => i.failQuantity))
+          // console.log("result", payload.items.map(i => i.result))
+
           const res =
             await staffReceiptsApi.receiveGoodsFromPurchaseOrder(payload);
 

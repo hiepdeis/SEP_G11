@@ -193,7 +193,7 @@ export default function PurchaseRequestDetailPage({ role = "admin" }) {
                     </span>
                     <div className="flex items-center gap-2 text-slate-800 font-medium">
                       <User className="w-4 h-4 text-slate-400" />
-                      Admin ID: {request.createdBy}
+                      {request.createdByName}
                     </div>
                   </div>
 

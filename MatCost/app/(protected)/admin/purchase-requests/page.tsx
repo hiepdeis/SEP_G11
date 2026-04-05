@@ -531,7 +531,6 @@ export default function AdminPurchaseManagementPage() {
                               className="bg-yellow-50 text-yellow-700 border-yellow-200"
                             >
                               {t("Manager Confirmed")}
-                              {t("All")}
                             </Badge>
                           </SelectItem>
                         </>

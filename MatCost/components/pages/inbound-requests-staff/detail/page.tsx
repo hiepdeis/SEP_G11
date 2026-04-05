@@ -20,6 +20,7 @@ import {
   Send,
   Receipt,
   Eye,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
@@ -187,10 +188,10 @@ export default function StaffInboundDetailPage({
               <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back")}
             </Button>
 
-            {(request.status === "PartiallyPutaway" ||
-              request.status === "ReadyForStamp" ||
-              request.status === "Stamped" ||
-              request.status === "Closed") && (
+            {request.status === "PartiallyPutaway" ||
+            request.status === "ReadyForStamp" ||
+            request.status === "Stamped" ||
+            request.status === "Closed" ? (
               <Button
                 variant="outline"
                 onClick={() => {
@@ -205,6 +206,24 @@ export default function StaffInboundDetailPage({
               >
                 <Eye className="w-4 h-4 mr-2" /> {t("View Putaway Detail")}
               </Button>
+            ) : request.status === "ReadyForPutaway" ||
+              request.status === "QCPassed" ? (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (role == "staff")
+                    router.push(`/${rolePath}/inbound-requests/${id}/putaway`);
+                  else if (role == "manager")
+                    router.push(
+                      `/${rolePath}/inbound-requests/staff-portal/${id}/putaway`,
+                    );
+                }}
+                className="text-indigo-600 border-indigo-200 hover:text-indigo-700 hover:bg-indigo-50 shadow-sm"
+              >
+                <ArrowRight className="w-4 h-4 mr-2" /> {t("Putaway")}
+              </Button>
+            ) : (
+              <></>
             )}
           </div>
 

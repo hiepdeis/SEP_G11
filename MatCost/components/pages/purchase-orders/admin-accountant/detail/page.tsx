@@ -454,7 +454,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                       {t("Created By")}
                     </span>
                     <div className="flex items-center gap-2 text-slate-800 font-medium">
-                      ID: {order.createdBy}
+                      {order.createdByName}
                     </div>
                   </div>
 

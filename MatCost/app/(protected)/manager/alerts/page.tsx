@@ -637,9 +637,9 @@ export default function StockShortageAlertListPage() {
                               className={getStatusBadge(item.status)}
                             >
                               {item.status == "PRCreated"
-                                ? "PR Created"
+                                ? t("PR Created")
                                 : item.status == "ManagerConfirmed"
-                                  ? "Confirmed"
+                                  ? t("Confirmed")
                                   : t(item.status)}
                             </Badge>
                           </TableCell>
