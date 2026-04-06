@@ -189,6 +189,9 @@ export default function IncidentReportsPage({
           }),
         );
 
+        console.log(mappedPendingReceipts);
+        console.log(mappedIncidents);
+
         const combinedList = [...mappedPendingReceipts, ...mappedIncidents];
 
         setStats({

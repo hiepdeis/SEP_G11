@@ -2217,7 +2217,7 @@ namespace Backend.Domains.Import.Services
                     CreatedByName = i.CreatedByNavigation.FullName ?? i.CreatedByNavigation.Email,
                     Description = i.Description,
                     Status = i.Status,
-                    TotalItems = i.IncidentReportDetails.Count
+                    TotalItems = i.IncidentReportDetails.Select(d => d.ReceiptDetailId).Distinct().Count()
                 })
                 .ToListAsync();
         }

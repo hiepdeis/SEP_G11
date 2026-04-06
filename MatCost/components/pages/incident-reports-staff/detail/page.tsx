@@ -276,10 +276,13 @@ export default function StaffIncidentPage({
 
     if (invalidBreakdownItem) {
       return toast.error(
-        t("Breakdown sum (Quality + Damage) for {{name}} must exactly equal its Failed Quantity ({{quantity}}).", {
-          name: invalidBreakdownItem.materialName,
-          quantity: invalidBreakdownItem.failQuantity,
-        })
+        t(
+          "Breakdown sum (Quality + Damage) for {{name}} must exactly equal its Failed Quantity ({{quantity}}).",
+          {
+            name: invalidBreakdownItem.materialName,
+            quantity: invalidBreakdownItem.failQuantity,
+          },
+        ),
       );
     }
     const missingNotes = incidentItems.filter((i) => !i.notes.trim());
@@ -363,7 +366,9 @@ export default function StaffIncidentPage({
         newQuality = Number((totalFail - newDamage).toFixed(3));
       }
 
-      const newQuantity = Number((item.orderedQuantity - item.actualQuantity).toFixed(3));
+      const newQuantity = Number(
+        (item.orderedQuantity - item.actualQuantity).toFixed(3),
+      );
 
       newItems[index] = {
         ...item,
@@ -536,18 +541,25 @@ export default function StaffIncidentPage({
                 {t("Submit Report")}
               </Button>
             ) : isHistoryView && historicalIncidentData?.status === "Open" ? (
-              <Button
-                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md min-w-[200px]"
-                onClick={handleSubmitToManager}
-                disabled={isSubmittingToManager}
-              >
-                {isSubmittingToManager ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <Send className="w-4 h-4 mr-2" />
-                )}
-                {t("Submit for Manager Review")}
-              </Button>
+              <div className="flex flex-col gap-2 items-end">
+                <Button
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md min-w-[200px]"
+                  onClick={handleSubmitToManager}
+                  disabled={isSubmittingToManager}
+                >
+                  {isSubmittingToManager ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Send className="w-4 h-4 mr-2" />
+                  )}
+                  {t("Submit for Manager Review")}
+                </Button>
+                <span className="text-xs text-slate-500 italic">
+                  {t(
+                    "Note: The incident report will be sent to the manager for review and approval.",
+                  )}
+                </span>
+              </div>
             ) : (
               <></>
             )}
@@ -697,9 +709,11 @@ export default function StaffIncidentPage({
                                         {t("Total Failed")}
                                       </span>
                                       <Badge className="bg-red-100 text-red-700 border-red-200 font-bold shadow-sm">
-                                        {(item.failQuantity +
+                                        {(
+                                          item.failQuantity +
                                           (item.orderedQuantity -
-                                            item.actualQuantity)).toFixed(3)}
+                                            item.actualQuantity)
+                                        ).toFixed(3)}
                                       </Badge>
                                     </div>
 
@@ -711,8 +725,10 @@ export default function StaffIncidentPage({
                                         type="number"
                                         min="0"
                                         value={
-                                          (item.orderedQuantity -
-                                            item.actualQuantity).toFixed(3) || ""
+                                          (
+                                            item.orderedQuantity -
+                                            item.actualQuantity
+                                          ).toFixed(3) || ""
                                         }
                                         disabled={isHistoryView}
                                         readOnly
@@ -732,7 +748,7 @@ export default function StaffIncidentPage({
                                           updateBreakdown(
                                             absoluteIdx,
                                             "quality",
-                                            e.target.value.slice(0,9),
+                                            e.target.value.slice(0, 9),
                                           )
                                         }
                                         disabled={isHistoryView}
@@ -752,7 +768,7 @@ export default function StaffIncidentPage({
                                           updateBreakdown(
                                             absoluteIdx,
                                             "damage",
-                                            e.target.value.slice(0,9),
+                                            e.target.value.slice(0, 9),
                                           )
                                         }
                                         disabled={isHistoryView}

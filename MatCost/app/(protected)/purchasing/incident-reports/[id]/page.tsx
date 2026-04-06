@@ -160,7 +160,7 @@ export default function PurchasingIncidentDetailPage() {
       };
 
       await purchasingIncidentApi.createSupplementaryReceipt(id, payload);
-      toast.success(t("Supplementary receipt created successfully!"));
+      toast.success(t("Supplementary receipt created successfully."));
       setIsProcessModalOpen(false);
       router.push("/purchasing/incident-reports");
     } catch (error: any) {
