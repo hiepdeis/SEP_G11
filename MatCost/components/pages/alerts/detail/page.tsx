@@ -123,7 +123,7 @@ export default function AlertDetailPage({ role = "manager" }) {
     if (!dateString) return "N/A";
 
     let safeDateString = dateString;
-    
+
     if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
       safeDateString = safeDateString.replace(" ", "T") + "Z";
     }
@@ -213,9 +213,7 @@ export default function AlertDetailPage({ role = "manager" }) {
             <Button
               variant="ghost"
               onClick={() => {
-                role == "manager"
-                  ? router.push("/manager/alerts")
-                  : router.push("/admin/purchase-requests");
+                router.back();
               }}
               className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit"
             >
@@ -353,7 +351,11 @@ export default function AlertDetailPage({ role = "manager" }) {
                       min="1"
                       className="text-lg font-semibold h-12 focus-visible:ring-indigo-600"
                       value={adjustedQuantity}
-                      onChange={(e) => setAdjustedQuantity(e.target.value.replace(/-/g, "").slice(0,12))}
+                      onChange={(e) =>
+                        setAdjustedQuantity(
+                          e.target.value.replace(/-/g, "").slice(0, 12),
+                        )
+                      }
                       disabled={!isPending}
                       placeholder={t("Enter quantity to restock...")}
                     />

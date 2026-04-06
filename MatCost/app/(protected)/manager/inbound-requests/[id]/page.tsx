@@ -17,6 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
   FileInput,
+  FileImage,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,6 +68,9 @@ export default function ManagerReceiptDetailPage() {
   const [isStampModalOpen, setIsStampModalOpen] = useState(false);
   const [stampNotes, setStampNotes] = useState("");
   const [isStamping, setIsStamping] = useState(false);
+
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [viewerImage, setViewerImage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchReceiptDetail = async () => {
@@ -210,7 +215,7 @@ export default function ManagerReceiptDetailPage() {
                     </span>
                     <div className="flex items-center gap-2 text-amber-700 font-medium bg-amber-50 w-fit px-2 py-1 rounded border border-amber-100">
                       <Receipt className="w-4 h-4 text-amber-500" />
-                      {receipt.receiptCode|| "N/A"}
+                      {receipt.receiptCode || "N/A"}
                     </div>
                   </div>
 
@@ -240,7 +245,8 @@ export default function ManagerReceiptDetailPage() {
                       </span>
                       <div className="flex items-center gap-2 text-slate-700 font-medium">
                         <FileInput className="w-4 h-4 text-slate-400" />
-                        {receipt.putawayCompletedByName} - {formatDate(receipt.putawayCompletedAt)}
+                        {receipt.putawayCompletedByName} -{" "}
+                        {formatDate(receipt.putawayCompletedAt)}
                       </div>
                     </div>
                   )}
@@ -286,6 +292,9 @@ export default function ManagerReceiptDetailPage() {
                         </TableHead>
                         <TableHead className="w-[35%] pr-6 text-center">
                           {t("Bin Allocations")}
+                        </TableHead>
+                        <TableHead className="w-[35%] pr-6 text-center">
+                          {t("Putaway Image")}
                         </TableHead>
                       </TableRow>
                     </TableHeader>
@@ -395,6 +404,30 @@ export default function ManagerReceiptDetailPage() {
                                   </div>
                                 )}
                               </div>
+                            </TableCell>
+                            <TableCell className="pr-6 py-4">
+                              {item.putawayImage && (
+                                <div className="space-y-2">
+                                  <div
+                                    className="relative w-24 h-24 border border-slate-200 rounded-md overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => {
+                                      if (item.putawayImage) {
+                                        setViewerImage(item.putawayImage);
+                                        setIsViewerOpen(true);
+                                      }
+                                    }}
+                                  >
+                                    <img
+                                      src={item.putawayImage}
+                                      alt="Putaway"
+                                      className="w-full h-full object-cover"
+                                    />
+                                    <div className="absolute inset-0 bg-slate-900/10 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                      <FileImage className="w-6 h-6 text-white" />
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))
@@ -541,6 +574,28 @@ export default function ManagerReceiptDetailPage() {
               {t("Confirm & Stamp")}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isViewerOpen} onOpenChange={setIsViewerOpen}>
+        <DialogContent className="sm:max-w-3xl bg-transparent border-0 shadow-none p-0 flex flex-col items-center justify-center">
+          <DialogHeader>
+            <DialogTitle></DialogTitle>
+          </DialogHeader>
+          {viewerImage && (
+            <div className="relative w-full flex flex-col items-center">
+              <button
+                onClick={() => setIsViewerOpen(false)}
+                className="absolute -top-10 right-0 bg-slate-900/50 hover:bg-slate-900 text-white rounded-full p-2 backdrop-blur-sm transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <img
+                src={viewerImage}
+                alt="Enlarged Certificate"
+                className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+              />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

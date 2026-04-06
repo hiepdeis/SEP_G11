@@ -1012,5 +1012,14 @@
   "Explain the adjustments made (e.g., Updated unit price)...": "Giải thích các điều chỉnh đã thực hiện (VD: Cập nhật đơn giá)...",
   "PO Revision History": "Lịch sử sửa đổi PO",
   "Amount": "Số tiền",
-  "No items found in original order.": "Không tìm thấy mặt hàng nào trong đơn hàng gốc."
+  "No items found in original order.": "Không tìm thấy mặt hàng nào trong đơn hàng gốc.",
+  "Putaway Image": "Ảnh nhập kho",
+  "Cannot recreate PO: Missing original Purchase Request ID.": "Không thể làm lại PO: Thiếu ID của Yêu cầu mua hàng gốc.",
+  "Yes, Recreate": "Có, làm lại",
+  "An error occurred while trying to recreate the PO.": "Đã xảy ra lỗi khi thử làm lại PO.",
+  "Revision": "Phiên bản sửa đổi",
+  "Recreate PO": "Làm lại PO",
+  "Order Rejected": "Đơn hàng bị từ chối",
+  "Includes all items in this order.": "Bao gồm tất cả các mặt hàng trong đơn này.",
+  "Are you sure you want to recreate this rejected Purchase Order? You will be redirected to draft a new one based on the original request.": "Bạn có chắc chắn muốn làm lại Đơn mua hàng bị từ chối này không? Bạn sẽ được chuyển hướng để tạo bản nháp mới dựa trên yêu cầu ban đầu."
 }

@@ -18,6 +18,7 @@ import {
   Clock,
   XCircle,
   Hash,
+  Construction,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,7 +76,7 @@ export default function RecreatePurchaseOrderPage() {
     null,
   );
   const [suppliers, setSuppliers] = useState<
-    { supplierId: number; name: string }[]
+    { supplierId: number; name: string; materialIds: number[] }[]
   >([]);
   const [poHistory, setPoHistory] = useState<PurchaseOrderHistoryItemDto[]>([]);
 
@@ -277,6 +278,19 @@ export default function RecreatePurchaseOrderPage() {
     );
   }
 
+  const requiredMaterialIds = Array.from(
+    new Set(items.map((item) => item.materialId)),
+  );
+
+  const capableSuppliers = suppliers.filter((supplier) => {
+    if (!supplier.materialIds || supplier.materialIds.length === 0)
+      return false;
+
+    return requiredMaterialIds.every((reqId) =>
+      supplier.materialIds.includes(reqId),
+    );
+  });
+
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
@@ -335,6 +349,7 @@ export default function RecreatePurchaseOrderPage() {
                         variant="outline"
                         className="font-mono text-md px-3 py-1 text-rose-600 bg-rose-50 border-rose-200"
                       >
+                        <Hash className="w-3.5 h-3.5 text-rose-500" />
                         {originalOrder?.purchaseOrderCode}
                       </Badge>
                     </div>
@@ -343,19 +358,34 @@ export default function RecreatePurchaseOrderPage() {
                       <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">
                         {t("Source Request")}
                       </span>
-                      <span className="font-medium text-slate-800 flex items-center gap-1.5 bg-slate-50 p-2 rounded-md border border-slate-100">
+                      <Badge
+                        variant="outline"
+                        className="font-mono text-md px-3 py-1 text-indigo-600 bg-indigo-50 border-indigo-200 cursor-pointer hover:bg-indigo-100 transition-colors"
+                        onClick={() =>
+                          router.push(
+                            `/purchasing/purchase-request/${originalOrder?.requestId}`,
+                          )
+                        }
+                      >
                         <Hash className="w-3.5 h-3.5 text-indigo-500" />
-                        {t("PR ID")}: {originalOrder?.requestId}
-                      </span>
+                        <span className="underline">
+                          {originalOrder?.requestCode ||
+                            `PR ID: ${originalOrder?.requestId}`}
+                        </span>
+                      </Badge>
                     </div>
 
                     <div>
                       <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">
                         {t("Project Name")}
                       </span>
-                      <p className="text-sm font-medium text-slate-700">
+                      <Badge
+                        variant="outline"
+                        className="text-md px-3 py-1 text-slate-600 bg-slate-50 border-slate-200"
+                      >
+                        <Construction className="w-3.5 h-3.5 text-slate-500" />
                         {originalOrder?.projectName}
-                      </p>
+                      </Badge>
                     </div>
                   </div>
 
@@ -373,14 +403,22 @@ export default function RecreatePurchaseOrderPage() {
                         />
                       </SelectTrigger>
                       <SelectContent>
-                        {suppliers.map((s) => (
-                          <SelectItem
-                            key={s.supplierId}
-                            value={s.supplierId.toString()}
-                          >
-                            {s.name}
-                          </SelectItem>
-                        ))}
+                        {capableSuppliers.length > 0 ? (
+                          capableSuppliers.map((s) => (
+                            <SelectItem
+                              key={s.supplierId}
+                              value={s.supplierId.toString()}
+                            >
+                              {s.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="p-3 text-sm text-rose-500 text-center italic bg-rose-50/50">
+                            {t(
+                              "No single supplier can provide all listed materials.",
+                            )}
+                          </div>
+                        )}
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-slate-500 mt-1">
@@ -424,13 +462,13 @@ export default function RecreatePurchaseOrderPage() {
                     <CardContent className="p-5 overflow-y-auto flex-1 relative">
                       <div className="space-y-6">
                         {poHistory
-                          .filter((historyItem) =>
-                            historyItem.status.includes("Rejected") &&  historyItem.poId === Number(parentPOIdParam)
+                          .filter(
+                            (historyItem) =>
+                              historyItem.status.includes("Rejected") &&
+                              historyItem.poId === Number(parentPOIdParam),
                           )
                           .map((historyItem) => (
-                            <div
-                              key={historyItem.poId}
-                            >
+                            <div key={historyItem.poId}>
                               <div className="flex flex-col gap-1.5">
                                 <div className="flex items-center justify-between">
                                   <Badge
@@ -584,14 +622,22 @@ export default function RecreatePurchaseOrderPage() {
                                     <SelectValue placeholder={t("Select...")} />
                                   </SelectTrigger>
                                   <SelectContent className="w-[var(--radix-select-trigger-width)]">
-                                    {suppliers.map((s) => (
-                                      <SelectItem
-                                        key={s.supplierId}
-                                        value={s.supplierId.toString()}
-                                      >
-                                        {s.name}
-                                      </SelectItem>
-                                    ))}
+                                    {suppliers
+                                      .filter(
+                                        (s) =>
+                                          s.materialIds &&
+                                          s.materialIds.includes(
+                                            item.materialId,
+                                          ),
+                                      )
+                                      .map((s) => (
+                                        <SelectItem
+                                          key={s.supplierId}
+                                          value={s.supplierId.toString()}
+                                        >
+                                          {s.name}
+                                        </SelectItem>
+                                      ))}
                                   </SelectContent>
                                 </Select>
                               </TableCell>
@@ -606,7 +652,9 @@ export default function RecreatePurchaseOrderPage() {
                                     handleItemChange(
                                       item.id,
                                       "unitPrice",
-                                      e.target.value.replace(/-/g, "").slice(0,12),
+                                      e.target.value
+                                        .replace(/-/g, "")
+                                        .slice(0, 12),
                                     )
                                   }
                                 />

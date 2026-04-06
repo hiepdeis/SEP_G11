@@ -1409,6 +1409,15 @@ namespace Backend.Domains.Import.Services
 
             if (incident != null)
             {
+                var parentReceipt = await _context.Receipts
+                    .FirstOrDefaultAsync(r => r.ReceiptId == incident.ReceiptId);
+
+                if (parentReceipt != null && parentReceipt.Status != "PartiallyPutaway")
+                {
+                    throw new InvalidOperationException(
+                        $"Không thể đóng dấu. Phiếu nhập gốc {parentReceipt.ReceiptCode} đang ở trạng thái {parentReceipt.Status}, yêu cầu phải là PartiallyPutaway (đã cất hàng chờ đợi bổ sung).");
+                }
+
                 var supplementaryReceiptIds = incident.SupplementaryReceipts
                     .Select(s => s.SupplementaryReceiptId)
                     .ToList();

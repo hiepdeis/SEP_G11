@@ -1010,5 +1010,14 @@
   "Explain the adjustments made (e.g., Updated unit price)...": "Explain the adjustments made (e.g., Updated unit price)...",
   "PO Revision History": "PO Revision History",
   "Amount": "Amount",
-  "No items found in original order.": "No items found in original order."
+  "No items found in original order.": "No items found in original order.",
+  "Putaway Image": "Putaway Image",
+  "Cannot recreate PO: Missing original Purchase Request ID.": "Cannot recreate PO: Missing original Purchase Request ID.",
+  "Yes, Recreate": "Yes, Recreate",
+  "An error occurred while trying to recreate the PO.": "An error occurred while trying to recreate the PO.",
+  "Revision": "Revision",
+  "Recreate PO": "Recreate PO",
+  "Order Rejected": "Order Rejected",
+  "Includes all items in this order.": "Includes all items in this order.",
+  "Are you sure you want to recreate this rejected Purchase Order? You will be redirected to draft a new one based on the original request.": "Are you sure you want to recreate this rejected Purchase Order? You will be redirected to draft a new one based on the original request."
 }

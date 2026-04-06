@@ -17,7 +17,8 @@ import {
   Check,
   X,
   RefreshCw,
-  AlertCircle, // Thêm icon cảnh báo
+  AlertCircle,
+  Construction, // Thêm icon cảnh báo
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -320,8 +321,7 @@ export default function PurchaseOrderDetailPage() {
                   className="px-3 py-1.5 text-sm font-medium bg-emerald-50 text-emerald-700 border-emerald-200"
                 >
                   <CalendarDays className="w-4 h-4 mr-2" />
-                  {t("Expected")}:{" "}
-                  {formatDate(order.expectedDeliveryDate)}
+                  {t("Expected")}: {formatDate(order.expectedDeliveryDate)}
                 </Badge>
               )}
 
@@ -529,42 +529,48 @@ export default function PurchaseOrderDetailPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 space-y-5 pb-0">
-                  <div className="space-y-1">
+                  <div className="space-y-1 flex flex-col">
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                       {t("Supplier")}
                     </span>
-                    <div className="flex items-center gap-2 text-slate-800 font-medium">
-                      <Building2 className="w-4 h-4 text-slate-400" />
+                    <Badge
+                      variant="outline"
+                      className="text-md px-3 py-1 text-slate-600 bg-slate-50 border-slate-200"
+                    >
+                      <Building2 className="w-3.5 h-3.5 text-slate-500" />
                       {order.supplierName}
-                    </div>
+                    </Badge>
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="space-y-1 flex flex-col">
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                       {t("Destination Project")}
                     </span>
-                    <div className="flex items-center gap-2 text-slate-800 font-medium">
-                      <Hash className="w-4 h-4 text-slate-400" />
+                    <Badge
+                      variant="outline"
+                      className="text-md px-3 py-1 text-slate-600 bg-slate-50 border-slate-200"
+                    >
+                      <Construction className="w-3.5 h-3.5 text-slate-500" />
                       {order.projectName}
-                    </div>
+                    </Badge>
                   </div>
 
                   {order.requestId && (
-                    <div className="space-y-1">
+                    <div className="space-y-1 flex flex-col">
                       <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                         {t("Source PR ID")}
                       </span>
-                      <div
-                        className="flex items-center gap-2 text-indigo-600 font-medium cursor-pointer"
+                      <Badge
+                        variant="outline"
+                        className="font-mono text-md px-3 py-1 text-indigo-600 bg-indigo-50 border-indigo-200 cursor-pointer hover:bg-indigo-100 transition-colors"
                         onClick={() => {
                           router.push(
                             "/purchasing/purchase-request/" + order.requestId,
                           );
                         }}
                       >
-                        <FileText className="w-4 h-4 text-indigo-400" />#
-                        {order.requestId}
-                      </div>
+                        {order.requestCode}
+                      </Badge>
                     </div>
                   )}
 

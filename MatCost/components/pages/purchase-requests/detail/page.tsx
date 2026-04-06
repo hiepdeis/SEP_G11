@@ -126,9 +126,7 @@ export default function PurchaseRequestDetailPage({ role = "admin" }) {
             <Button
               variant="ghost"
               onClick={() => {
-                role == "admin"
-                  ? router.push("/admin/purchase-requests")
-                  : router.push("/purchasing/purchase-orders");
+                router.back();
               }}
               className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit"
             >

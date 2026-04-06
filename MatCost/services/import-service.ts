@@ -8,6 +8,7 @@ export interface PurchaseOrderDto {
   purchaseOrderId: number;
   purchaseOrderCode: string;
   requestId?: number;
+  requestCode?: string;
   projectId: number;
   projectName: string;
   supplierId: number;
@@ -349,6 +350,7 @@ export interface ManagerReceiptDetailItemDto {
   actualQuantity: number;
   passQuantity: number;
   batchCode: string | null;
+  putawayImage?: string | null;
   expiryDate: string | null;
   binAllocations: ManagerReceiptBinAllocationDto[];
 }
@@ -663,6 +665,12 @@ export interface IncidentReportCreateResultDto {
   nextStep: string;
 }
 
+export interface IncidentBreakdownDto {
+  quantity: number;
+  quality: number;
+  damage: number;
+}
+
 export interface IncidentReportDetailDto {
   detailId: number;
   receiptDetailId: number;
@@ -673,6 +681,7 @@ export interface IncidentReportDetailDto {
   expectedQuantity: number;
   actualQuantity: number;
   issueType: string;
+  breakdown: IncidentBreakdownDto;
   notes?: string | null;
   evidenceImages: any[] | null;
 }
@@ -998,9 +1007,9 @@ export const purchasingPurchaseOrderApi = {
     }>(`/purchasing/purchase-orders/${purchaseOrderId}/send`);
   },
   getSuppliers: () => {
-    return axiosClient.get<{ supplierId: number; name: string, materialIds: number[] }[]>(
-      "/purchasing/purchase-orders/suppliers",
-    );
+    return axiosClient.get<
+      { supplierId: number; name: string; materialIds: number[] }[]
+    >("/purchasing/purchase-orders/suppliers");
   },
   confirmDelivery: (purchaseOrderId: number, data: ConfirmDeliveryDto) => {
     return axiosClient.patch<{

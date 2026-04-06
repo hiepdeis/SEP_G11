@@ -244,7 +244,6 @@ export default function CreatePurchaseOrderPage() {
     if (!supplier.materialIds || supplier.materialIds.length === 0)
       return false;
 
-    // Kiểm tra xem MỌI (every) ID yêu cầu đều phải nằm trong danh sách của Supplier
     return requiredMaterialIds.every((reqId) =>
       supplier.materialIds.includes(reqId),
     );

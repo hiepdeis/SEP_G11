@@ -22,6 +22,7 @@ namespace Backend.Domains.Import.DTOs.Purchasing
         public long PurchaseOrderId { get; set; }
         public string PurchaseOrderCode { get; set; } = string.Empty;
         public long? RequestId { get; set; }
+        public string? RequestCode { get; set; }
         public int ProjectId { get; set; }
         public string ProjectName { get; set; } = string.Empty;
         public int SupplierId { get; set; }

@@ -233,7 +233,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => router.push(`/${role}/reports`)}
+              onClick={() => router.back()}
               className="h-8 w-8 mt-0.5 shrink-0 rounded-full hover:bg-slate-200 text-slate-500 hover:text-indigo-600 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />

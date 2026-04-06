@@ -23,6 +23,7 @@ namespace Backend.Domains.Import.DTOs.Purchasing
                 PurchaseOrderId = order.PurchaseOrderId,
                 PurchaseOrderCode = order.PurchaseOrderCode,
                 RequestId = order.RequestId,
+                RequestCode = order.PurchaseRequest?.RequestCode,
                 ProjectId = order.ProjectId,
                 ProjectName = order.Project?.Name ?? string.Empty,
                 SupplierId = order.SupplierId,
