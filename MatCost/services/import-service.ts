@@ -189,6 +189,8 @@ export interface AccountantReceiptDetailDto {
   receiptCode: string;
   status: string;
   receiptDate?: string;
+  stampedAt?: string | null;
+  stampedByName?: string | null;
   purchaseOrder?: PurchaseOrderDto;
   qcCheck?: QCCheckDto;
   inventoryCurrents: AccountantInventoryCurrentDto[];

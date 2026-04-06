@@ -227,6 +227,8 @@ export default function InboundReceiptsPage({
       ].includes(item.status);
     } else if (filterStatus === "ReadyForPutaway") {
       matchesStatus = ["ReadyForPutaway", "QCPassed"].includes(item.status);
+    } else if (filterStatus === "PendingStamp") {
+      matchesStatus = ["ReadyForStamp"].includes(item.status);
     } else {
       matchesStatus = item.status === filterStatus;
     }
@@ -390,6 +392,14 @@ export default function InboundReceiptsPage({
                       {t("Putaway")}
                     </Badge>
                   </SelectItem>
+                  <SelectItem value="PendingStamp">
+                    <Badge
+                      variant="outline"
+                      className="bg-amber-50 text-amber-700 border-amber-200"
+                    >
+                      {t("Pending Stamp")}
+                    </Badge>
+                  </SelectItem>
                 </SelectContent>
               </Select>
 
@@ -503,9 +513,7 @@ export default function InboundReceiptsPage({
                       )}
                     </div>
                   </TableHead>
-                  <TableHead className="w-[20%]">
-                    {t("PO Reference")}
-                  </TableHead>
+                  <TableHead className="w-[20%]">{t("PO Reference")}</TableHead>
                   <TableHead
                     className="cursor-pointer transition-colors w-[15%] text-center"
                     onClick={() => handleSort("quantity")}

@@ -22,7 +22,8 @@ import {
   Eye,
   ArrowRight,
   UserSquare2,
-  Info, // Icon cho Supplier
+  Info,
+  Stamp, // Icon cho Supplier
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,7 +75,9 @@ export default function SharedReceiptsListPage({
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [filterStatus, setFilterStatus] = useState<string>("All");
+  const [filterStatus, setFilterStatus] = useState<string>(
+    role === "manager" ? "ReadyForStamp" : "Stamped",
+  );
 
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
@@ -104,7 +107,6 @@ export default function SharedReceiptsListPage({
     setSortConfig({ key, direction });
   };
 
-  // Helper để lấy đúng trường ngày theo Role
   const getItemDate = (item: any) =>
     role === "manager" ? item.putawayCompletedAt : item.stampedAt;
 
@@ -137,7 +139,9 @@ export default function SharedReceiptsListPage({
   // 1. Lọc dữ liệu
   const filteredData = receipts.filter((item) => {
     let matchesStatus = true;
-    if (filterStatus !== "All") {
+    if (filterStatus === "History") {
+      matchesStatus = item.status === "Closed";
+    } else if (filterStatus !== "All") {
       matchesStatus = item.status === filterStatus;
     }
 
@@ -231,20 +235,27 @@ export default function SharedReceiptsListPage({
   };
 
   const pendingCloseCount = receipts.filter(
-    (item) => item.status === "Completed",
+    (item) => item.status === "Stamped",
   ).length;
   const closedCount = receipts.filter(
     (item) => item.status === "Closed",
   ).length;
+  const pendingStampCount = receipts.filter(
+    (item) => item.status === "ReadyForStamp",
+  ).length;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "Completed":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200";
       case "Closed":
-        return "bg-slate-100 text-slate-700 border-slate-200";
-      default:
+        return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      case "Stamped":
+        if (role === "manager")
+          return "bg-emerald-50 text-emerald-700 border-emerald-200";
+        else return "bg-amber-50 text-amber-700 border-amber-200";
+      case "ReadyForStamp":
         return "bg-amber-50 text-amber-700 border-amber-200";
+      default:
+        return "bg-slate-50 text-slate-700 border-slate-200";
     }
   };
 
@@ -280,10 +291,16 @@ export default function SharedReceiptsListPage({
               {role === "manager" && (
                 <div className="flex flex-col md:items-end gap-1.5 w-full md:w-auto">
                   <TabsList className="grid w-full md:w-[350px] grid-cols-2">
-                    <TabsTrigger value="manager" className="transition-all duration-300 ease-in-out">
+                    <TabsTrigger
+                      value="manager"
+                      className="transition-all duration-300 ease-in-out"
+                    >
                       {t("Manager Portal")}
                     </TabsTrigger>
-                    <TabsTrigger value="warehouse" className="transition-all duration-300 ease-in-out">
+                    <TabsTrigger
+                      value="warehouse"
+                      className="transition-all duration-300 ease-in-out"
+                    >
                       {t("Staff Portal")}
                     </TabsTrigger>
                   </TabsList>
@@ -326,7 +343,7 @@ export default function SharedReceiptsListPage({
                     <div>
                       <p className="text-sm text-slate-500 font-medium">
                         {role === "manager"
-                          ? t("Completed Putaway")
+                          ? t("Stamped")
                           : t("Pending Accounting Review")}
                       </p>
                       <h3 className="text-2xl font-bold">
@@ -339,15 +356,27 @@ export default function SharedReceiptsListPage({
                 <Card className="bg-white border-slate-200 shadow-sm">
                   <CardContent className="p-4 flex items-center gap-4">
                     <div className="p-3 bg-slate-100 text-slate-600 rounded-lg">
-                      <Lock className="w-6 h-6" />
+                      {role === "accountant" ? (
+                        <Lock className="w-6 h-6" />
+                      ) : (
+                        <Stamp className="w-6 h-6" />
+                      )}
                     </div>
                     <div>
                       <p className="text-sm text-slate-500 font-medium">
-                        {t("Closed Receipts")}
+                        {role === "accountant"
+                          ? t("Closed Receipts")
+                          : t("Pending Stamp")}
                       </p>
-                      <h3 className="text-2xl font-bold text-slate-900">
-                        {closedCount}
-                      </h3>
+                      {role === "accountant" ? (
+                        <h3 className="text-2xl font-bold text-slate-900">
+                          {closedCount}
+                        </h3>
+                      ) : (
+                        <h3 className="text-2xl font-bold text-slate-900">
+                          {pendingStampCount}
+                        </h3>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -371,14 +400,6 @@ export default function SharedReceiptsListPage({
 
                         {role === "manager" ? (
                           <SelectContent>
-                            <SelectItem value="All">
-                              <Badge
-                                variant="outline"
-                                className="bg-slate-50 text-slate-700 border-slate-200"
-                              >
-                                {t("All")}
-                              </Badge>
-                            </SelectItem>
                             <SelectItem value="ReadyForStamp">
                               <Badge
                                 variant="outline"
@@ -387,9 +408,22 @@ export default function SharedReceiptsListPage({
                                 {t("Ready For Stamp")}
                               </Badge>
                             </SelectItem>
-                          </SelectContent>
-                        ) : (
-                          <SelectContent>
+                            <SelectItem value="Stamped">
+                              <Badge
+                                variant="outline"
+                                className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                              >
+                                {t("Stamped")}
+                              </Badge>
+                            </SelectItem>
+                            <SelectItem value="History">
+                              <Badge
+                                variant="outline"
+                                className="bg-slate-100 text-slate-700 border-slate-200"
+                              >
+                                {t("History")}
+                              </Badge>
+                            </SelectItem>
                             <SelectItem value="All">
                               <Badge
                                 variant="outline"
@@ -398,12 +432,31 @@ export default function SharedReceiptsListPage({
                                 {t("All")}
                               </Badge>
                             </SelectItem>
+                          </SelectContent>
+                        ) : (
+                          <SelectContent>
                             <SelectItem value="Stamped">
                               <Badge
                                 variant="outline"
                                 className="bg-amber-50 text-amber-700 border-amber-200"
                               >
-                                {t("Stamped")}
+                                {t("Pending Closure")}
+                              </Badge>
+                            </SelectItem>
+                            <SelectItem value="Closed">
+                              <Badge
+                                variant="outline"
+                                className="bg-green-50 text-green-700 border-green-200"
+                              >
+                                {t("Closed")}
+                              </Badge>
+                            </SelectItem>
+                            <SelectItem value="All">
+                              <Badge
+                                variant="outline"
+                                className="bg-slate-50 text-slate-700 border-slate-200"
+                              >
+                                {t("All")}
                               </Badge>
                             </SelectItem>
                           </SelectContent>
@@ -642,7 +695,7 @@ export default function SharedReceiptsListPage({
                                   variant="outline"
                                   className={getStatusBadge(item.status)}
                                 >
-                                  {item.status === "Completed" &&
+                                  {item.status === "Stamped" &&
                                   role === "accountant"
                                     ? t("Pending Closure")
                                     : t(formatPascalCase(item.status))}

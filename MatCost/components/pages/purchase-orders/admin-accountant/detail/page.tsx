@@ -157,7 +157,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
     if (!dateString) return "N/A";
 
     let safeDateString = dateString;
-    
+
     if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
       safeDateString = safeDateString.replace(" ", "T") + "Z";
     }
@@ -319,6 +319,8 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                       </p>
                       <p className="text-[11px] text-slate-400 mt-0.5">
                         {formatDate(order.createdAt)}
+                        <br />
+                        {order.createdByName}
                       </p>
                     </div>
                   </div>
@@ -348,6 +350,8 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                       {order.accountantApprovedAt || isAccountantRejected ? (
                         <p className="text-[11px] text-slate-400 mt-0.5">
                           {formatDate(order.accountantApprovedAt)}
+                          <br />
+                          {order.accountantApprovedByName}
                         </p>
                       ) : (
                         <p className="text-xs text-slate-400 italic mt-0.5">
@@ -380,6 +384,8 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                       {order.adminApprovedAt || isAdminRejected ? (
                         <p className="text-[11px] text-slate-400 mt-0.5">
                           {formatDate(order.adminApprovedAt)}
+                          <br />
+                          {order.adminApprovedByName}
                         </p>
                       ) : (
                         <p className="text-xs text-slate-400 italic mt-0.5">

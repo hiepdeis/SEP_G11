@@ -81,7 +81,7 @@ export default function PurchasingDashboardPage() {
   const [loadingId, setLoadingId] = useState<number | null>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("PendingApproval");
+  const [filterStatus, setFilterStatus] = useState<string>("AdminApproved");
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
     to: Date | undefined;
@@ -467,14 +467,6 @@ export default function PurchasingDashboardPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <>
-                            <SelectItem value="PendingApproval">
-                              <Badge
-                                variant="outline"
-                                className="bg-yellow-50 text-yellow-700 border-yellow-200"
-                              >
-                                {t("Pending Approval")}
-                              </Badge>
-                            </SelectItem>
                             <SelectItem value="AdminApproved">
                               <Badge
                                 variant="outline"
@@ -492,6 +484,14 @@ export default function PurchasingDashboardPage() {
                                 className="bg-rose-50 text-rose-700 border-rose-200"
                               >
                                 {t("Rejected")}
+                              </Badge>
+                            </SelectItem>
+                            <SelectItem value="PendingApproval">
+                              <Badge
+                                variant="outline"
+                                className="bg-yellow-50 text-yellow-700 border-yellow-200"
+                              >
+                                {t("Pending Approval")}
                               </Badge>
                             </SelectItem>
                             <SelectItem value="SentToSupplier">
