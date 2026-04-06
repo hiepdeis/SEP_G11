@@ -9,10 +9,14 @@ namespace Backend.Domains.Audit.Services;
 public class AuditTeamService : IAuditTeamService
 {
     private readonly MyDbContext _db;
+    private readonly IAuditNotificationService _notificationService;
 
-    public AuditTeamService(MyDbContext db)
+    public AuditTeamService(
+        MyDbContext db,
+        IAuditNotificationService notificationService)
     {
         _db = db;
+        _notificationService = notificationService;
     }
 
     private static bool IsAssignableStatus(string? status)
@@ -126,6 +130,7 @@ public class AuditTeamService : IAuditTeamService
         ).ToListAsync(ct);
 
         var notifyUserIds = new List<int>();
+        var removedUserIds = new List<int>();
 
         using var tx = await _db.Database.BeginTransactionAsync(ct);
 
@@ -139,6 +144,7 @@ public class AuditTeamService : IAuditTeamService
             {
                 member.IsActive = false;
                 member.RemovedAt = now;
+                removedUserIds.Add(member.UserId);
             }
         }
 
@@ -183,15 +189,44 @@ public class AuditTeamService : IAuditTeamService
             st.Status = "Assigned";
         }
 
-        foreach (var uid in notifyUserIds.Distinct())
+        var assignedUserIds = notifyUserIds
+            .Distinct()
+            .ToList();
+        var deactivatedUserIds = removedUserIds
+            .Distinct()
+            .ToList();
+
+        if (assignedUserIds.Count > 0)
         {
-            _db.Notifications.Add(new Notification
-            {
-                UserId = uid,
-                Message = $"You have been assigned to Audit #{st.StockTakeId} ({st.Title}).",
-                IsRead = false,
-                CreatedAt = now
-            });
+            await _notificationService.QueueNotificationAsync(
+                assignedUserIds,
+                $"Bạn đã được phân công vào Audit #{st.StockTakeId} ({st.Title}).",
+                relatedEntityType: "Audit",
+                relatedEntityId: stockTakeId,
+                ct);
+        }
+
+        if (deactivatedUserIds.Count > 0)
+        {
+            await _notificationService.QueueNotificationAsync(
+                deactivatedUserIds,
+                $"Bạn đã bị gỡ khỏi Audit #{st.StockTakeId} ({st.Title}).",
+                relatedEntityType: "Audit",
+                relatedEntityId: stockTakeId,
+                ct);
+        }
+
+        if (assignedUserIds.Count > 0 || deactivatedUserIds.Count > 0)
+        {
+            await _notificationService.QueueAuditNotificationAsync(
+                stockTakeId,
+                $"Danh sách team của Audit #{st.StockTakeId} ({st.Title}) đã được cập nhật: thêm {assignedUserIds.Count}, gỡ {deactivatedUserIds.Count}.",
+                includeCreator: true,
+                includeTeamMembers: false,
+                roleNames: new[] { "Manager" },
+                extraUserIds: null,
+                excludeUserIds: new[] { managerUserId },
+                ct);
         }
 
         await _db.SaveChangesAsync(ct);
@@ -215,13 +250,22 @@ public class AuditTeamService : IAuditTeamService
         member.IsActive = false;
         member.RemovedAt = DateTime.UtcNow;
 
-        _db.Notifications.Add(new Notification
-        {
-            UserId = userId,
-            Message = $"You have been removed from Audit #{st.StockTakeId} ({st.Title}).",
-            IsRead = false,
-            CreatedAt = DateTime.UtcNow
-        });
+        await _notificationService.QueueNotificationAsync(
+            new[] { userId },
+            $"Bạn đã bị gỡ khỏi Audit #{st.StockTakeId} ({st.Title}).",
+            relatedEntityType: "Audit",
+            relatedEntityId: stockTakeId,
+            ct);
+
+        await _notificationService.QueueAuditNotificationAsync(
+            stockTakeId,
+            $"Audit #{st.StockTakeId} ({st.Title}) vừa được cập nhật danh sách nhân sự và đã gỡ một thành viên khỏi team.",
+            includeCreator: true,
+            includeTeamMembers: false,
+            roleNames: new[] { "Manager" },
+            extraUserIds: null,
+            excludeUserIds: new[] { managerUserId },
+            ct);
 
         var anyActive = await _db.StockTakeTeamMembers
             .AnyAsync(x => x.StockTakeId == stockTakeId && x.UserId != userId && x.IsActive, ct);
@@ -264,13 +308,15 @@ public class AuditTeamService : IAuditTeamService
                 .Select(u => u.FullName)
                 .FirstOrDefaultAsync(ct) ?? $"User#{staffUserId}";
 
-            _db.Notifications.Add(new Notification
-            {
-                UserId = creatorId,
-                Message = $"{staffName} đã hoàn thành phần kiểm kê của mình cho Audit #{st.StockTakeId} ({st.Title}).",
-                IsRead = false,
-                CreatedAt = now
-            });
+            await _notificationService.QueueAuditNotificationAsync(
+                stockTakeId,
+                $"{staffName} đã hoàn thành phần kiểm kê của mình cho Audit #{st.StockTakeId} ({st.Title}).",
+                includeCreator: true,
+                includeTeamMembers: false,
+                roleNames: new[] { "Manager" },
+                extraUserIds: null,
+                excludeUserIds: new[] { staffUserId },
+                ct);
         }
 
         await _db.SaveChangesAsync(ct);

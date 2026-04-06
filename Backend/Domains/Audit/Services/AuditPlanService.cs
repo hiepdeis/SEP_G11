@@ -10,10 +10,14 @@ namespace Backend.Domains.Audit.Services
     public class AuditPlanService : IAuditPlanService
     {
         private readonly MyDbContext _db;
+        private readonly IAuditNotificationService _notificationService;
 
-        public AuditPlanService(MyDbContext db)
+        public AuditPlanService(
+            MyDbContext db,
+            IAuditNotificationService notificationService)
         {
             _db = db;
+            _notificationService = notificationService;
         }
 
         private static List<int> NormalizeBinLocationIds(IEnumerable<int>? binLocationIds)
@@ -49,8 +53,17 @@ namespace Backend.Domains.Audit.Services
         public async Task<AuditPlanResponse> CreateAsync(CreateAuditPlanRequest request, int createdByUserId, CancellationToken ct)
         {
             // 1) Validate warehouse tồn tại
-            var whExists = await _db.Warehouses.AnyAsync(x => x.WarehouseId == request.WarehouseId, ct);
-            if (!whExists)
+            var warehouse = await _db.Warehouses
+                .AsNoTracking()
+                .Where(x => x.WarehouseId == request.WarehouseId)
+                .Select(x => new
+                {
+                    x.WarehouseId,
+                    x.Name
+                })
+                .FirstOrDefaultAsync(ct);
+
+            if (warehouse == null)
                 throw new ArgumentException("WarehouseId không tồn tại.");
 
             // 2) Nếu BinLocationIds được cung cấp, validate tất cả tồn tại và thuộc warehouse
@@ -108,8 +121,19 @@ namespace Backend.Domains.Audit.Services
                 }).ToList();
 
                 _db.StockTakeBinLocations.AddRange(stockTakeBinLocations);
-                await _db.SaveChangesAsync(ct);
             }
+
+            await _notificationService.QueueAuditNotificationAsync(
+                entity.StockTakeId,
+                $"Audit #{entity.StockTakeId} ({entity.Title}) đã được tạo cho kho {warehouse.Name}. Vui lòng phân công đội kiểm kê.",
+                includeCreator: true,
+                includeTeamMembers: false,
+                roleNames: new[] { "Manager" },
+                extraUserIds: null,
+                excludeUserIds: null,
+                ct);
+
+            await _db.SaveChangesAsync(ct);
 
             return new AuditPlanResponse
             {
@@ -142,6 +166,12 @@ namespace Backend.Domains.Audit.Services
             if (record == null)
                 throw new ArgumentException("BinLocation này không được thêm vào audit.");
 
+            var binCode = await _db.BinLocations
+                .AsNoTracking()
+                .Where(x => x.BinId == binId)
+                .Select(x => x.Code)
+                .FirstOrDefaultAsync(ct);
+
             var scopedBinCount = await _db.StockTakeBinLocations
                 .AsNoTracking()
                 .CountAsync(x => x.StockTakeId == stockTakeId, ct);
@@ -150,6 +180,17 @@ namespace Backend.Domains.Audit.Services
                 throw new ArgumentException("Khong the xoa bin cuoi cung bang API nay. Neu muon chuyen sang kiem ke toan kho, hay dung API update bin-location voi danh sach rong.");
 
             _db.StockTakeBinLocations.Remove(record);
+
+            await _notificationService.QueueAuditNotificationAsync(
+                stockTakeId,
+                $"Phạm vi của Audit #{st.StockTakeId} ({st.Title}) đã được cập nhật: đã gỡ bin {(string.IsNullOrWhiteSpace(binCode) ? $"#{binId}" : binCode)} khỏi danh sách kiểm kê.",
+                includeCreator: true,
+                includeTeamMembers: true,
+                roleNames: new[] { "Manager" },
+                extraUserIds: null,
+                excludeUserIds: null,
+                ct);
+
             await _db.SaveChangesAsync(ct);
         }
 
@@ -202,6 +243,16 @@ namespace Backend.Domains.Audit.Services
 
                 _db.StockTakeBinLocations.AddRange(newRecords);
             }
+
+            await _notificationService.QueueAuditNotificationAsync(
+                stockTakeId,
+                $"Phạm vi của Audit #{st.StockTakeId} ({st.Title}) đã được cập nhật. Số bin hiện áp dụng: {newBinIds.Count}.",
+                includeCreator: true,
+                includeTeamMembers: true,
+                roleNames: new[] { "Manager" },
+                extraUserIds: null,
+                excludeUserIds: null,
+                ct);
 
             await _db.SaveChangesAsync(ct);
 

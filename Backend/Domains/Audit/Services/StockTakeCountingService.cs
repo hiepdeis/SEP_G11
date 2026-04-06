@@ -10,13 +10,16 @@ namespace Backend.Domains.Audit.Services
     {
         private readonly MyDbContext _db;
         private readonly IStockTakeLockService _stockTakeLockService;
+        private readonly IAuditNotificationService _notificationService;
 
         public StockTakeCountingService(
             MyDbContext db,
-            IStockTakeLockService stockTakeLockService)
+            IStockTakeLockService stockTakeLockService,
+            IAuditNotificationService notificationService)
         {
             _db = db;
             _stockTakeLockService = stockTakeLockService;
+            _notificationService = notificationService;
         }
 
         private async Task<List<int>> GetAssignedBinIdsAsync(int stockTakeId, CancellationToken ct)
@@ -456,6 +459,26 @@ namespace Backend.Domains.Audit.Services
 
             if (string.Equals(st.Status, "Planned", StringComparison.OrdinalIgnoreCase))
                 st.Status = "Assigned";
+
+            var targetUserName = await _db.Users
+                .AsNoTracking()
+                .Where(x => x.UserId == targetUserId)
+                .Select(x => x.FullName)
+                .FirstOrDefaultAsync(ct) ?? $"User#{targetUserId}";
+
+            var managerName = !string.IsNullOrWhiteSpace(manager.FullName)
+                ? manager.FullName
+                : manager.Username;
+
+            await _notificationService.QueueAuditNotificationAsync(
+                stockTakeId,
+                $"{targetUserName} đã được {managerName} gọi quay lại Audit #{st.StockTakeId} ({st.Title}) để kiểm kê lại.",
+                includeCreator: true,
+                includeTeamMembers: false,
+                roleNames: new[] { "Manager" },
+                extraUserIds: new[] { targetUserId },
+                excludeUserIds: new[] { managerUserId },
+                ct);
 
             await _db.SaveChangesAsync(ct);
 

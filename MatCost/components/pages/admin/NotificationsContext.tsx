@@ -7,8 +7,10 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import { usePathname } from "next/navigation";
 import {
   createNotifications,
   deleteNotificationById,
@@ -47,10 +49,15 @@ interface NotificationsContextType {
 }
 
 const NotificationsContext = createContext<NotificationsContextType | null>(null);
+const POLL_INTERVAL_MS = 10000;
+const HAS_TIMEZONE_SUFFIX = /(?:[zZ]|[+-]\d{2}:\d{2})$/;
 
 export function useNotifications() {
   const ctx = useContext(NotificationsContext);
-  if (!ctx) throw new Error("useNotifications must be used within NotificationsProvider");
+  if (!ctx) {
+    throw new Error("useNotifications must be used within NotificationsProvider");
+  }
+
   return ctx;
 }
 
@@ -64,8 +71,21 @@ const normalizeNotification = (item: NotificationItem): Notification => ({
       ? null
       : Number(item.relatedEntityId),
   isRead: Boolean(item.isRead),
-  createdAt: item.createdAt,
+  createdAt: normalizeNotificationCreatedAt(item.createdAt),
 });
+
+function normalizeNotificationCreatedAt(value: string | null | undefined) {
+  const raw = value?.trim();
+
+  if (!raw) {
+    return new Date().toISOString();
+  }
+
+  const normalized = HAS_TIMEZONE_SUFFIX.test(raw) ? raw : `${raw}Z`;
+  const parsed = new Date(normalized);
+
+  return Number.isNaN(parsed.getTime()) ? raw : parsed.toISOString();
+}
 
 const emptyCreateResult: NotificationCreateResult = {
   sentCount: 0,
@@ -78,29 +98,82 @@ const emptyCreateResult: NotificationCreateResult = {
 };
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedOnceRef = useRef(false);
+  const isRefreshingRef = useRef(false);
 
-  const refresh = useCallback(async () => {
+  const refreshNotifications = useCallback(async (silent = false) => {
+    if (isRefreshingRef.current) return;
+
+    isRefreshingRef.current = true;
+
     try {
-      setRefreshing(true);
-      setError(null);
+      if (!silent) {
+        if (hasLoadedOnceRef.current) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+
+        setError(null);
+      }
 
       const res = await getNotifications({ page: 1, pageSize: 1000 });
       setNotifications((res.items ?? []).map(normalizeNotification));
+
+      if (!silent || !hasLoadedOnceRef.current) {
+        setError(null);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không tải được thông báo");
+      const message =
+        err instanceof Error ? err.message : "Khong tai duoc thong bao";
+
+      if (!silent || !hasLoadedOnceRef.current) {
+        setError(message);
+      } else {
+        console.error("Failed to refresh notifications", err);
+      }
     } finally {
-      setRefreshing(false);
+      hasLoadedOnceRef.current = true;
+      isRefreshingRef.current = false;
+
+      if (!silent) {
+        setRefreshing(false);
+      }
+
       setLoading(false);
     }
   }, []);
 
+  const refresh = useCallback(async () => {
+    await refreshNotifications(false);
+  }, [refreshNotifications]);
+
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    void refreshNotifications(hasLoadedOnceRef.current);
+  }, [pathname, refreshNotifications]);
+
+  useEffect(() => {
+    const refreshSilently = () => {
+      if (document.visibilityState !== "visible") return;
+      void refreshNotifications(true);
+    };
+
+    const intervalId = window.setInterval(refreshSilently, POLL_INTERVAL_MS);
+
+    window.addEventListener("focus", refreshSilently);
+    document.addEventListener("visibilitychange", refreshSilently);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshSilently);
+      document.removeEventListener("visibilitychange", refreshSilently);
+    };
+  }, [refreshNotifications]);
 
   const addNotification = useCallback(
     async (

@@ -18,6 +18,110 @@ namespace Backend.Domains.Admin.Services
 
         }
 
+        private static string GetUserDisplayName(User user)
+        {
+            if (!string.IsNullOrWhiteSpace(user.FullName))
+                return user.FullName.Trim();
+
+            return string.IsNullOrWhiteSpace(user.Username)
+                ? $"User#{user.UserId}"
+                : user.Username.Trim();
+        }
+
+        private static string GetStatusText(bool isActive)
+            => isActive ? "đang hoạt động" : "đã bị vô hiệu hóa";
+
+        private async Task<string> GetActorDisplayNameAsync(int actorUserId, CancellationToken ct)
+        {
+            if (actorUserId <= 0)
+                return "Admin";
+
+            var actorName = await _db.Users
+                .AsNoTracking()
+                .Where(x => x.UserId == actorUserId)
+                .Select(x => x.FullName ?? x.Username)
+                .FirstOrDefaultAsync(ct);
+
+            return string.IsNullOrWhiteSpace(actorName)
+                ? $"Admin#{actorUserId}"
+                : actorName.Trim();
+        }
+
+        private async Task<List<int>> GetAdminUserIdsAsync(CancellationToken ct)
+        {
+            var adminRoleId = await GetAdminRoleIdAsync(ct);
+            if (!adminRoleId.HasValue)
+                return new List<int>();
+
+            return await _db.Users
+                .AsNoTracking()
+                .Where(x => x.RoleId == adminRoleId.Value && x.Status)
+                .Select(x => x.UserId)
+                .ToListAsync(ct);
+        }
+
+        private async Task QueueNotificationsAsync(
+            IEnumerable<int> userIds,
+            string message,
+            string relatedEntityType,
+            long? relatedEntityId,
+            CancellationToken ct)
+        {
+            var normalizedMessage = message?.Trim();
+            if (string.IsNullOrWhiteSpace(normalizedMessage))
+                return;
+
+            var distinctIds = userIds
+                .Where(x => x > 0)
+                .Distinct()
+                .ToList();
+
+            if (distinctIds.Count == 0)
+                return;
+
+            var existingIds = await _db.Users
+                .AsNoTracking()
+                .Where(x => distinctIds.Contains(x.UserId))
+                .Select(x => x.UserId)
+                .ToListAsync(ct);
+
+            if (existingIds.Count == 0)
+                return;
+
+            var now = DateTime.UtcNow;
+            foreach (var userId in existingIds)
+            {
+                _db.Notifications.Add(new Notification
+                {
+                    UserId = userId,
+                    Message = normalizedMessage,
+                    RelatedEntityType = relatedEntityType,
+                    RelatedEntityId = relatedEntityId,
+                    IsRead = false,
+                    CreatedAt = now
+                });
+            }
+        }
+
+        private async Task QueueAdminLogAsync(
+            string message,
+            string relatedEntityType,
+            long? relatedEntityId,
+            int? excludeUserId,
+            CancellationToken ct)
+        {
+            var adminIds = await GetAdminUserIdsAsync(ct);
+            if (excludeUserId.HasValue)
+                adminIds = adminIds.Where(x => x != excludeUserId.Value).ToList();
+
+            await QueueNotificationsAsync(
+                adminIds,
+                message,
+                relatedEntityType,
+                relatedEntityId,
+                ct);
+        }
+
         public async Task<PagedResult<UserListItemDto>> GetUsersAsync(GetUsersQuery query, CancellationToken ct)
         {
             var q =
@@ -144,7 +248,7 @@ namespace Backend.Domains.Admin.Services
 
 
 
-        public async Task<bool> UpdateAsync(int userId, UpdateUserRequest request, CancellationToken ct)
+        public async Task<bool> UpdateAsync(int userId, UpdateUserRequest request, int currentAdminUserId, CancellationToken ct)
         {
             var user = await _db.Users.FirstOrDefaultAsync(x => x.UserId == userId, ct);
             if (user == null) return false;
@@ -178,11 +282,34 @@ namespace Backend.Domains.Admin.Services
                     throw new ArgumentException("Email đã tồn tại.");
             }
 
+            var adminName = await GetActorDisplayNameAsync(currentAdminUserId, ct);
+            var roleName = await _db.Roles
+                .AsNoTracking()
+                .Where(x => x.RoleId == request.RoleId)
+                .Select(x => x.RoleName)
+                .FirstAsync(ct);
+
             user.RoleId = request.RoleId;
             user.FullName = request.FullName.Trim();
             user.Email = normalizedEmail;
             user.PhoneNumber = normalizedPhoneNumber;
             user.Status = request.Status;
+
+            var targetDisplayName = GetUserDisplayName(user);
+
+            await QueueNotificationsAsync(
+                new[] { userId },
+                $"Tài khoản của bạn vừa được {adminName} cập nhật. Vai trò hiện tại: {roleName}. Trạng thái: {GetStatusText(request.Status)}.",
+                relatedEntityType: "User",
+                relatedEntityId: userId,
+                ct);
+
+            await QueueAdminLogAsync(
+                $"{adminName} đã cập nhật thông tin người dùng {targetDisplayName} (User #{userId}).",
+                relatedEntityType: "User",
+                relatedEntityId: userId,
+                excludeUserId: null,
+                ct);
 
             await _db.SaveChangesAsync(ct);
             return true;
@@ -199,11 +326,29 @@ namespace Backend.Domains.Admin.Services
             await EnsureActiveAdminStillExistsAsync(user, user.RoleId, status, ct);
 
             user.Status = status;
+
+            var adminName = await GetActorDisplayNameAsync(currentUserId, ct);
+            var targetDisplayName = GetUserDisplayName(user);
+
+            await QueueNotificationsAsync(
+                new[] { userId },
+                $"Trạng thái tài khoản của bạn vừa được {adminName} cập nhật thành {GetStatusText(status)}.",
+                relatedEntityType: "User",
+                relatedEntityId: userId,
+                ct);
+
+            await QueueAdminLogAsync(
+                $"{adminName} đã cập nhật trạng thái của {targetDisplayName} (User #{userId}) thành {GetStatusText(status)}.",
+                relatedEntityType: "User",
+                relatedEntityId: userId,
+                excludeUserId: null,
+                ct);
+
             await _db.SaveChangesAsync(ct);
             return true;
         }
 
-        public async Task<bool> ChangeRoleAsync(int userId, int roleId, CancellationToken ct)
+        public async Task<bool> ChangeRoleAsync(int userId, int roleId, int currentAdminUserId, CancellationToken ct)
         {
             var user = await _db.Users.FirstOrDefaultAsync(x => x.UserId == userId, ct);
             if (user == null) return false;
@@ -216,6 +361,29 @@ namespace Backend.Domains.Admin.Services
             await EnsureActiveAdminStillExistsAsync(user, roleId, user.Status, ct);
 
             user.RoleId = roleId;
+
+            var adminName = await GetActorDisplayNameAsync(currentAdminUserId, ct);
+            var roleName = await _db.Roles
+                .AsNoTracking()
+                .Where(x => x.RoleId == roleId)
+                .Select(x => x.RoleName)
+                .FirstAsync(ct);
+            var targetDisplayName = GetUserDisplayName(user);
+
+            await QueueNotificationsAsync(
+                new[] { userId },
+                $"Vai trò của bạn vừa được {adminName} cập nhật thành {roleName}.",
+                relatedEntityType: "User",
+                relatedEntityId: userId,
+                ct);
+
+            await QueueAdminLogAsync(
+                $"{adminName} đã đổi vai trò của {targetDisplayName} (User #{userId}) thành {roleName}.",
+                relatedEntityType: "User",
+                relatedEntityId: userId,
+                excludeUserId: null,
+                ct);
+
             await _db.SaveChangesAsync(ct);
             return true;
         }
@@ -232,7 +400,7 @@ namespace Backend.Domains.Admin.Services
                 .ToListAsync(ct);
         }
 
-        public async Task<bool> UpdateRoleAsync(int roleId, UpdateRoleRequest request, CancellationToken ct)
+        public async Task<bool> UpdateRoleAsync(int roleId, UpdateRoleRequest request, int currentAdminUserId, CancellationToken ct)
         {
             var role = await _db.Roles.FirstOrDefaultAsync(x => x.RoleId == roleId, ct);
             if (role == null) return false;
@@ -247,12 +415,35 @@ namespace Backend.Domains.Admin.Services
             if (exists)
                 throw new ArgumentException("Tên role đã tồn tại.");
 
+            var oldRoleName = role.RoleName;
             role.RoleName = roleName;
+
+            var adminName = await GetActorDisplayNameAsync(currentAdminUserId, ct);
+            var affectedUserIds = await _db.Users
+                .AsNoTracking()
+                .Where(x => x.RoleId == roleId)
+                .Select(x => x.UserId)
+                .ToListAsync(ct);
+
+            await QueueNotificationsAsync(
+                affectedUserIds,
+                $"Tên vai trò của bạn vừa được {adminName} cập nhật từ {oldRoleName} thành {roleName}.",
+                relatedEntityType: "Role",
+                relatedEntityId: roleId,
+                ct);
+
+            await QueueAdminLogAsync(
+                $"{adminName} đã đổi tên role {oldRoleName} thành {roleName}.",
+                relatedEntityType: "Role",
+                relatedEntityId: roleId,
+                excludeUserId: null,
+                ct);
+
             await _db.SaveChangesAsync(ct);
             return true;
         }
 
-        public async Task<bool> DeleteRoleAsync(int roleId, CancellationToken ct)
+        public async Task<bool> DeleteRoleAsync(int roleId, int currentAdminUserId, CancellationToken ct)
         {
             var role = await _db.Roles.FirstOrDefaultAsync(x => x.RoleId == roleId, ct);
             if (role == null) return false;
@@ -261,12 +452,23 @@ namespace Backend.Domains.Admin.Services
             if (isUsed)
                 throw new ArgumentException("Không thể xóa role vì đang có user sử dụng.");
 
+            var adminName = await GetActorDisplayNameAsync(currentAdminUserId, ct);
+            var roleName = role.RoleName;
+
             _db.Roles.Remove(role);
+
+            await QueueAdminLogAsync(
+                $"{adminName} đã xóa role {roleName}.",
+                relatedEntityType: "Role",
+                relatedEntityId: roleId,
+                excludeUserId: null,
+                ct);
+
             await _db.SaveChangesAsync(ct);
             return true;
         }
 
-        public async Task<RoleDto> CreateRoleAsync(CreateRoleRequest request, CancellationToken ct)
+        public async Task<RoleDto> CreateRoleAsync(CreateRoleRequest request, int currentAdminUserId, CancellationToken ct)
         {
             var roleName = request.RoleName?.Trim();
             if (string.IsNullOrWhiteSpace(roleName))
@@ -282,6 +484,18 @@ namespace Backend.Domains.Admin.Services
             };
 
             _db.Roles.Add(role);
+
+            var adminName = await GetActorDisplayNameAsync(currentAdminUserId, ct);
+
+            await _db.SaveChangesAsync(ct);
+
+            await QueueAdminLogAsync(
+                $"{adminName} đã tạo role mới: {role.RoleName}.",
+                relatedEntityType: "Role",
+                relatedEntityId: role.RoleId,
+                excludeUserId: null,
+                ct);
+
             await _db.SaveChangesAsync(ct);
 
             return new RoleDto

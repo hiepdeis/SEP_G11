@@ -81,6 +81,11 @@ namespace Backend.Domains.Admin.Services
                 .Take(pageSize)
                 .ToListAsync(ct);
 
+            foreach (var item in items)
+            {
+                item.CreatedAt = DateTime.SpecifyKind(item.CreatedAt, DateTimeKind.Utc);
+            }
+
             return new NotificationPagedResult<NotificationListItemDto>
             {
                 Items = items,

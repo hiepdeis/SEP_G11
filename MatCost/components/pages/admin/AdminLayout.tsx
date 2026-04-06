@@ -43,12 +43,13 @@ export default function AdminLayout({ children }: { children?: React.ReactNode }
   const [bellOpen, setBellOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
 
-  const CURRENT_USER_ID = 1; // admin
-  const { getUnreadCount, getNotificationsForUser, markAsRead, markAllAsRead } =
+  const currentUserId = Number(user?.id ?? 0);
+  const { getUnreadCount, getNotificationsForUser, markAsRead, markAllAsRead, refresh } =
     useNotifications();
 
-  const unreadCount = getUnreadCount(CURRENT_USER_ID);
-  const myNotis = getNotificationsForUser(CURRENT_USER_ID).slice(0, 6);
+  const unreadCount = currentUserId > 0 ? getUnreadCount(currentUserId) : 0;
+  const myNotis =
+    currentUserId > 0 ? getNotificationsForUser(currentUserId).slice(0, 6) : [];
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -134,8 +135,12 @@ export default function AdminLayout({ children }: { children?: React.ReactNode }
             <div ref={bellRef} className="relative">
               <button
                 onClick={() => {
-                  setBellOpen(!bellOpen);
+                  const nextOpen = !bellOpen;
+                  setBellOpen(nextOpen);
                   setProfileOpen(false);
+                  if (nextOpen) {
+                    void refresh();
+                  }
                 }}
                 className="relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors text-gray-500"
               >
@@ -166,7 +171,9 @@ export default function AdminLayout({ children }: { children?: React.ReactNode }
                     {unreadCount > 0 && (
                       <button
                         onClick={() => {
-                          markAllAsRead(CURRENT_USER_ID);
+                          if (currentUserId > 0) {
+                            void markAllAsRead(currentUserId);
+                          }
                           toast.success("Đã đánh dấu tất cả đã đọc");
                         }}
                         className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"

@@ -46,7 +46,7 @@ namespace Backend.Domains.Admin.Controllers
         {
             try
             {
-                var ok = await _svc.UpdateAsync(id, request, ct);
+                var ok = await _svc.UpdateAsync(id, request, GetCurrentUserId(), ct);
 
                 if (!ok)
                     return NotFound(new { message = "User không tồn tại." });
@@ -79,7 +79,7 @@ namespace Backend.Domains.Admin.Controllers
         {
             try
             {
-                var ok = await _svc.ChangeRoleAsync(id, request.RoleId, ct);
+                var ok = await _svc.ChangeRoleAsync(id, request.RoleId, GetCurrentUserId(), ct);
                 if (!ok) return NotFound(new { message = "User không tồn tại." });
                 return Ok(new { message = "Đổi vai trò thành công." });
             }
@@ -98,7 +98,7 @@ namespace Backend.Domains.Admin.Controllers
         [HttpPut("roles/{roleId:int}")]
         public async Task<IActionResult> UpdateRole(int roleId, UpdateRoleRequest request, CancellationToken ct)
         {
-            var ok = await _svc.UpdateRoleAsync(roleId, request, ct);
+            var ok = await _svc.UpdateRoleAsync(roleId, request, GetCurrentUserId(), ct);
             if (!ok) return NotFound();
             return NoContent();
         }
@@ -107,7 +107,7 @@ namespace Backend.Domains.Admin.Controllers
         {
             try
             {
-                var ok = await _svc.DeleteRoleAsync(roleId, ct);
+                var ok = await _svc.DeleteRoleAsync(roleId, GetCurrentUserId(), ct);
                 if (!ok) return NotFound();
 
                 return NoContent();
@@ -120,7 +120,7 @@ namespace Backend.Domains.Admin.Controllers
         [HttpPost("roles")]
         public async Task<IActionResult> CreateRole(CreateRoleRequest request, CancellationToken ct)
         {
-            var result = await _svc.CreateRoleAsync(request, ct);
+            var result = await _svc.CreateRoleAsync(request, GetCurrentUserId(), ct);
             return Ok(result);
         }
 
