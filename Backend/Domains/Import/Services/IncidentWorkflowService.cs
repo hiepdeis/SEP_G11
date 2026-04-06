@@ -216,7 +216,7 @@ namespace Backend.Domains.Import.Services
             var qcCheckDto = incident.QCCheck == null
                 ? null
                 : MapQCCheckToDto(
-                    incident.QCCheck, 
+                    incident.QCCheck,
                     incident.Receipt?.ReceiptCode,
                     incident.QCCheck.CheckedByNavigation?.FullName);
 
@@ -265,6 +265,11 @@ namespace Backend.Domains.Import.Services
             // STEP 2: load incident and receipt
             var incident = await _context.IncidentReports
                 .Include(i => i.Receipt)
+                .Include(i => i.SupplementaryReceipts)
+                    .ThenInclude(s => s.Items)
+                .Include(i => i.QCCheck)
+                    .ThenInclude(q => q!.QCCheckDetails)
+                        .ThenInclude(d => d.ReceiptDetail)
                 .FirstOrDefaultAsync(i => i.IncidentId == incidentId);
 
             if (incident == null)
@@ -295,6 +300,62 @@ namespace Backend.Domains.Import.Services
             if (invalidMaterials.Any())
                 throw new ArgumentException(
                     $"Supplementary items contain materials not in PO: {string.Join(", ", invalidMaterials)}");
+
+            // STEP 3.1: enforce claim-based cap for supplementary quantities by material.
+            if (incident.QCCheck == null)
+                throw new InvalidOperationException("QC check is required before creating supplementary receipt");
+
+            var requestedByMaterial = dto.Items
+                .GroupBy(i => i.MaterialId)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.SupplementaryQuantity));
+
+            var existingSupplementaryByMaterial = incident.SupplementaryReceipts
+                .Where(s => !string.Equals(s.Status, "Rejected", StringComparison.OrdinalIgnoreCase))
+                .SelectMany(s => s.Items)
+                .GroupBy(i => i.MaterialId)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.SupplementaryQuantity));
+
+            foreach (var request in requestedByMaterial)
+            {
+                var materialId = request.Key;
+                var requestedQty = request.Value;
+
+                var qcDetail = incident.QCCheck.QCCheckDetails
+                    .FirstOrDefault(d => d.ReceiptDetail != null && d.ReceiptDetail.MaterialId == materialId);
+
+                if (qcDetail == null)
+                {
+                    throw new ArgumentException(
+                        $"MaterialId {materialId} is not present in incident QC details");
+                }
+
+                var configuredClaimQty =
+                    (qcDetail.FailQuantityQuantity ?? 0) +
+                    (qcDetail.FailQuantityQuality ?? 0) +
+                    (qcDetail.FailQuantityDamage ?? 0);
+
+                var fallbackClaimQty = Math.Max(0, (qcDetail.ReceiptDetail?.Quantity ?? 0) - qcDetail.PassQuantity);
+                var totalClaimQty = configuredClaimQty > 0 ? configuredClaimQty : fallbackClaimQty;
+
+                var alreadyRequestedQty = existingSupplementaryByMaterial.TryGetValue(materialId, out var existingQty)
+                    ? existingQty
+                    : 0m;
+
+                var remainingClaimQty = totalClaimQty - alreadyRequestedQty;
+
+                if (remainingClaimQty <= 0.0001m)
+                {
+                    throw new InvalidOperationException(
+                        $"MaterialId {materialId} has no remaining claim quantity for supplementary receipt");
+                }
+
+                if (requestedQty - remainingClaimQty > 0.0001m)
+                {
+                    throw new ArgumentException(
+                        $"SupplementaryQuantity for MaterialId {materialId} exceeds remaining claim quantity ({remainingClaimQty:F4}). " +
+                        $"Requested={requestedQty:F4}, Claim={totalClaimQty:F4}, AlreadyRequested={alreadyRequestedQty:F4}");
+                }
+            }
 
             // STEP 4: create supplementary receipt and update incident status
             var now = DateTime.UtcNow;
