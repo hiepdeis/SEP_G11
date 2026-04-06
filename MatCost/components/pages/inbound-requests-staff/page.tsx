@@ -747,7 +747,7 @@ export default function InboundReceiptsPage({
                     variant="outline"
                     size="sm"
                     onClick={() =>
-                      setCurrentPage((prev) => Math.max(prev + 1, totalPages))
+                      setCurrentPage((prev) => Math.min(prev + 1, totalPages))
                     }
                     disabled={currentPage === totalPages}
                     className="h-8"

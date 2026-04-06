@@ -998,7 +998,7 @@ export const purchasingPurchaseOrderApi = {
     }>(`/purchasing/purchase-orders/${purchaseOrderId}/send`);
   },
   getSuppliers: () => {
-    return axiosClient.get<{ supplierId: number; name: string }[]>(
+    return axiosClient.get<{ supplierId: number; name: string, materialIds: number[] }[]>(
       "/purchasing/purchase-orders/suppliers",
     );
   },

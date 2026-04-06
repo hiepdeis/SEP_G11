@@ -659,7 +659,7 @@ export default function PurchasingIncidentDetailPage() {
             <Button
               variant="ghost"
               onClick={() => setIsProcessModalOpen(false)}
-              className="text-slate-600 hover:bg-slate-100"
+              className="text-slate-600 hover:bg-slate-100 hover:text-slate-600"
               disabled={isProcessing}
             >
               {t("Cancel")}

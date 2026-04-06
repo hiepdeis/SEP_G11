@@ -741,7 +741,7 @@ export default function StockShortageAlertListPage() {
                         size="sm"
                         onClick={() =>
                           setCurrentPage((prev) =>
-                            Math.max(prev + 1, totalPages),
+                            Math.min(prev + 1, totalPages),
                           )
                         }
                         disabled={currentPage === totalPages}

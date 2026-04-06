@@ -62,4 +62,11 @@ namespace Backend.Domains.Import.DTOs.Purchasing
     {
         public string Reason { get; set; } = string.Empty;
     }
+
+    public class SupplierWithMaterialDto
+    {
+        public int SupplierId { get; set; }
+        public string Name { get; set; }
+        public List<int> MaterialIds { get; set; } = new List<int>();
+    }
 }

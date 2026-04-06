@@ -624,9 +624,6 @@ export default function IncidentReportsPage({
                               {t("N/A")}
                             </span>
                           )}
-                          <span className="text-xs text-slate-500 mt-0.5">
-                            {item.creatorName}
-                          </span>
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
@@ -772,7 +769,7 @@ export default function IncidentReportsPage({
                     variant="outline"
                     size="sm"
                     onClick={() =>
-                      setCurrentPage((prev) => Math.max(prev + 1, totalPages))
+                      setCurrentPage((prev) => Math.min(prev + 1, totalPages))
                     }
                     disabled={currentPage === totalPages}
                     className="h-8"

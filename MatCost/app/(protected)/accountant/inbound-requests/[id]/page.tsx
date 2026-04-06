@@ -626,7 +626,7 @@ export default function AccountantReceiptDetailPage() {
                 setIsCloseModalOpen(false);
                 setAccountingNote("");
               }}
-              className="text-slate-600 hover:bg-slate-100"
+              className="text-slate-600 hover:bg-slate-100 hover:text-slate-600"
               disabled={isClosing}
             >
               {t("Cancel")}

@@ -64,7 +64,7 @@ export default function CreatePurchaseOrderPage() {
 
   const [requests, setRequests] = useState<PurchaseRequestDto[]>([]);
   const [suppliers, setSuppliers] = useState<
-    { supplierId: number; name: string }[]
+    { supplierId: number; name: string; materialIds: number[] }[]
   >([]);
 
   const [selectedRequestId, setSelectedRequestId] = useState<string>(
@@ -236,6 +236,20 @@ export default function CreatePurchaseOrderPage() {
     );
   }
 
+  const requiredMaterialIds = Array.from(
+    new Set(items.map((item) => item.materialId)),
+  );
+
+  const capableSuppliers = suppliers.filter((supplier) => {
+    if (!supplier.materialIds || supplier.materialIds.length === 0)
+      return false;
+
+    // Kiểm tra xem MỌI (every) ID yêu cầu đều phải nằm trong danh sách của Supplier
+    return requiredMaterialIds.every((reqId) =>
+      supplier.materialIds.includes(reqId),
+    );
+  });
+
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
@@ -334,14 +348,22 @@ export default function CreatePurchaseOrderPage() {
                         />
                       </SelectTrigger>
                       <SelectContent>
-                        {suppliers.map((s) => (
-                          <SelectItem
-                            key={s.supplierId}
-                            value={s.supplierId.toString()}
-                          >
-                            {s.name}
-                          </SelectItem>
-                        ))}
+                        {capableSuppliers.length > 0 ? (
+                          capableSuppliers.map((s) => (
+                            <SelectItem
+                              key={s.supplierId}
+                              value={s.supplierId.toString()}
+                            >
+                              {s.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="p-3 text-sm text-rose-500 text-center italic bg-rose-50/50">
+                            {t(
+                              "No single supplier can provide all listed materials.",
+                            )}
+                          </div>
+                        )}
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-slate-500 mt-1">
@@ -433,14 +455,22 @@ export default function CreatePurchaseOrderPage() {
                                     <SelectValue placeholder={t("Select...")} />
                                   </SelectTrigger>
                                   <SelectContent className="w-[var(--radix-select-trigger-width)]">
-                                    {suppliers.map((s) => (
-                                      <SelectItem
-                                        key={s.supplierId}
-                                        value={s.supplierId.toString()}
-                                      >
-                                        {s.name}
-                                      </SelectItem>
-                                    ))}
+                                    {suppliers
+                                      .filter(
+                                        (s) =>
+                                          s.materialIds &&
+                                          s.materialIds.includes(
+                                            item.materialId,
+                                          ),
+                                      )
+                                      .map((s) => (
+                                        <SelectItem
+                                          key={s.supplierId}
+                                          value={s.supplierId.toString()}
+                                        >
+                                          {s.name}
+                                        </SelectItem>
+                                      ))}
                                   </SelectContent>
                                 </Select>
                               </TableCell>
@@ -455,7 +485,9 @@ export default function CreatePurchaseOrderPage() {
                                     handleItemChange(
                                       item.id,
                                       "unitPrice",
-                                      e.target.value.replace(/-/g, "").slice(0,12),
+                                      e.target.value
+                                        .replace(/-/g, "")
+                                        .slice(0, 12),
                                     )
                                   }
                                 />

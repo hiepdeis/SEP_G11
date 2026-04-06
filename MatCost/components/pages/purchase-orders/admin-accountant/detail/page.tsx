@@ -741,7 +741,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                 setRejectModalOpen(false);
                 setRejectReason("");
               }}
-              className="text-slate-600 hover:bg-slate-100"
+              className="text-slate-600 hover:bg-slate-100 hover:text-slate-600"
               disabled={isRejecting}
             >
               {t("Cancel")}

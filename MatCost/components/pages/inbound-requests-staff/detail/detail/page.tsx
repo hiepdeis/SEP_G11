@@ -63,6 +63,9 @@ export default function ReceiptDetailPage({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 3;
 
+  const [binPages, setBinPages] = useState<{ [key: number]: number }>({});
+  const binsPerPage = 3;
+
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [viewerImage, setViewerImage] = useState<string | null>(null);
 
@@ -294,36 +297,111 @@ export default function ReceiptDetailPage({
                         </div>
 
                         {/* CỘT PHẢI: CHI TIẾT PHÂN BỔ KỆ */}
-                        <div className="md:col-span-7 p-6 flex flex-col">
-                          <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-800 border-b border-slate-100 pb-2 mb-4">
+                        <div className="md:col-span-7 p-6 flex flex-col min-h-[250px]">
+                          <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-800 border-b border-slate-100 pb-2 mb-4 shrink-0">
                             <MapPin className="w-4 h-4 text-slate-500" />
                             {t("Bin Allocations")}
                           </h3>
 
-                          <div className="space-y-3">
-                            {item.binAllocations.map((bin) => (
-                              <div
-                                key={bin.id}
-                                className="flex items-center justify-between bg-indigo-50/50 p-3 rounded-lg border border-indigo-100"
-                              >
-                                <div className="flex flex-col">
-                                  <span className="text-[10px] uppercase text-indigo-500 font-semibold">
-                                    {t("Bin Location")}
-                                  </span>
-                                  <span className="text-sm font-bold text-indigo-900">
-                                    {bin.binCode}
-                                  </span>
-                                </div>
-                                <div className="flex flex-col items-end">
-                                  <span className="text-[10px] uppercase text-slate-500 font-semibold">
-                                    {t("Quantity")}
-                                  </span>
-                                  <span className="text-sm font-bold text-slate-800">
-                                    {bin.quantity}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
+                          <div className="space-y-3 flex-1 flex flex-col">
+                            {(() => {
+                              const currentBinPage =
+                                binPages[item.materialId] || 1;
+                              const totalBins = item.binAllocations.length;
+                              const totalBinPages =
+                                Math.ceil(totalBins / binsPerPage) || 1;
+                              const startBinIndex =
+                                (currentBinPage - 1) * binsPerPage;
+                              const paginatedBins = item.binAllocations.slice(
+                                startBinIndex,
+                                startBinIndex + binsPerPage,
+                              );
+
+                              return (
+                                <>
+                                  <div className="space-y-3 flex-1">
+                                    {paginatedBins.map((bin) => (
+                                      <div
+                                        key={bin.id}
+                                        className="flex items-center justify-between bg-indigo-50/50 p-3 rounded-lg border border-indigo-100"
+                                      >
+                                        <div className="flex flex-col">
+                                          <span className="text-[10px] uppercase text-indigo-500 font-semibold">
+                                            {t("Bin Location")}
+                                          </span>
+                                          <span className="text-sm font-bold text-indigo-900">
+                                            {bin.binCode}
+                                          </span>
+                                        </div>
+                                        <div className="flex flex-col items-end">
+                                          <span className="text-[10px] uppercase text-slate-500 font-semibold">
+                                            {t("Quantity")}
+                                          </span>
+                                          <span className="text-sm font-bold text-slate-800">
+                                            {bin.quantity}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+
+                                  {/* Mini Pagination cho Bin */}
+                                  {totalBinPages > 1 && (
+                                    <div className="flex items-center justify-between pt-2 border-t border-slate-50 mt-4 shrink-0">
+                                      <span className="text-[11px] text-slate-400">
+                                        {startBinIndex + 1}-
+                                        {Math.min(
+                                          startBinIndex + binsPerPage,
+                                          totalBins,
+                                        )}{" "}
+                                        {t("of")} {totalBins} Bins
+                                      </span>
+                                      <div className="flex items-center gap-1">
+                                        <Button
+                                          variant="outline"
+                                          size="icon"
+                                          className="h-6 w-6 rounded-md"
+                                          onClick={() =>
+                                            setBinPages((prev) => ({
+                                              ...prev,
+                                              [item.materialId]: Math.max(
+                                                1,
+                                                currentBinPage - 1,
+                                              ),
+                                            }))
+                                          }
+                                          disabled={currentBinPage === 1}
+                                        >
+                                          <ChevronLeft className="w-3 h-3" />
+                                        </Button>
+                                        <span className="text-[11px] font-medium px-1 text-slate-500">
+                                          {currentBinPage} / {totalBinPages}
+                                        </span>
+                                        <Button
+                                          variant="outline"
+                                          size="icon"
+                                          className="h-6 w-6 rounded-md"
+                                          onClick={() =>
+                                            setBinPages((prev) => ({
+                                              ...prev,
+                                              [item.materialId]: Math.min(
+                                                totalBinPages,
+                                                currentBinPage + 1,
+                                              ),
+                                            }))
+                                          }
+                                          disabled={
+                                            currentBinPage === totalBinPages
+                                          }
+                                        >
+                                          <ChevronRight className="w-3 h-3" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
