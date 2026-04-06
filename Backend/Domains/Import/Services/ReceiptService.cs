@@ -1324,6 +1324,7 @@ namespace Backend.Domains.Import.Services
                         ActualQuantity = g.Sum(x => x.Detail.ActualQuantity ?? 0m),
                         PassQuantity = g.Sum(x => passQtyMap.TryGetValue(x.Detail.DetailId, out var pass) ? pass : 0m),
                         BatchCode = batch?.BatchCode,
+                        PutawayImage = batch?.CertificateImage,
                         ExpiryDate = batch?.ExpiryDate,
                         BinAllocations = allocations
                     };
@@ -1370,8 +1371,11 @@ namespace Backend.Domains.Import.Services
             if (receipt == null)
                 throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
 
-            if (receipt.Status != "ReadyForStamp")
-                throw new InvalidOperationException("Phiếu nhập chưa hoàn tất putaway");
+            var canStampCurrentReceipt = receipt.Status == "ReadyForStamp"
+                || (receipt.SupplementaryReceiptId.HasValue && receipt.Status == "PartiallyPutaway");
+
+            if (!canStampCurrentReceipt)
+                throw new InvalidOperationException("Chỉ có thể đóng dấu phiếu ReadyForStamp hoặc phiếu bổ sung PartiallyPutaway");
 
             var incident = await _context.IncidentReports
                 .Include(i => i.SupplementaryReceipts)
@@ -1927,11 +1931,6 @@ namespace Backend.Domains.Import.Services
             if (receipt.PurchaseOrderId.HasValue && purchaseOrder == null)
                 throw new KeyNotFoundException($"PurchaseOrder with ID {receipt.PurchaseOrderId} not found");
 
-            var orderedQtyMap = purchaseOrder?.Items
-                .GroupBy(i => i.MaterialId)
-                .ToDictionary(g => g.Key, g => g.Sum(x => x.OrderedQuantity))
-                ?? new Dictionary<int, decimal>();
-
             var evidenceImages = new List<IncidentEvidenceImage>();
             var incidentDetails = new List<IncidentReportDetail>();
 
@@ -1950,9 +1949,7 @@ namespace Backend.Domains.Import.Services
                         $"Material {materialName} không có lỗi QC để lập biên bản");
                 }
 
-                var orderedQty = orderedQtyMap.TryGetValue(d.MaterialId, out var qty)
-                    ? qty
-                    : 0m;
+                var orderedQty = receiptDetail.Quantity;
 
                 // Quantity defect in incident means PO shortage (ordered - actual received).
                 var actualQty = qcDetail.PassQuantity + qcDetail.FailQuantity;
@@ -2154,6 +2151,7 @@ namespace Backend.Domains.Import.Services
                 .Include(i => i.IncidentReportDetails)
                     .ThenInclude(d => d.EvidenceImages)
                 .Include(i => i.QCCheck)
+                    .ThenInclude(q => q!.QCCheckDetails)
                 .Include(i => i.CreatedByNavigation)
                 .Include(i => i.ResolvedByNavigation)
                 .FirstOrDefaultAsync(i => i.ReceiptId == receiptId);
@@ -2235,6 +2233,15 @@ namespace Backend.Domains.Import.Services
                         ExpectedQuantity = d.ExpectedQuantity,
                         ActualQuantity = d.ActualQuantity,
                         IssueType = d.IssueType,
+                        Breakdown = new IncidentBreakdownDto
+                        {
+                            Quantity = qcCheck?.QCCheckDetails
+                                .FirstOrDefault(q => q.ReceiptDetailId == d.ReceiptDetailId)?.FailQuantityQuantity ?? 0m,
+                            Quality = qcCheck?.QCCheckDetails
+                                .FirstOrDefault(q => q.ReceiptDetailId == d.ReceiptDetailId)?.FailQuantityQuality ?? 0m,
+                            Damage = qcCheck?.QCCheckDetails
+                                .FirstOrDefault(q => q.ReceiptDetailId == d.ReceiptDetailId)?.FailQuantityDamage ?? 0m
+                        },
                         Notes = d.Notes,
                         EvidenceImages = d.EvidenceImages.Select(i => new IncidentEvidenceImage
                         {

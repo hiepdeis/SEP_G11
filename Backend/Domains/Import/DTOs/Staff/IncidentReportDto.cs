@@ -100,9 +100,18 @@ namespace Backend.Domains.Import.DTOs.Staff
         /// <summary>"Quantity" | "Quality" | "Damage"</summary>
         public string IssueType { get; set; } = string.Empty;
 
+        public IncidentBreakdownDto Breakdown { get; set; } = new();
+
         public string? Notes { get; set; }
 
         public List<IncidentEvidenceImage> EvidenceImages { get; set; } = new();
+    }
+
+    public class IncidentBreakdownDto
+    {
+        public decimal Quantity { get; set; }
+        public decimal Quality { get; set; }
+        public decimal Damage { get; set; }
     }
 
     public class IncidentReportSummaryDto

@@ -81,6 +81,8 @@ namespace Backend.Domains.Import.Services
                 .Include(i => i.IncidentReportDetails)
                     .ThenInclude(d => d.EvidenceImages)
                 .Include(i => i.QCCheck)
+                    .ThenInclude(q => q!.CheckedByNavigation)
+                .Include(i => i.QCCheck)
                     .ThenInclude(q => q!.QCCheckDetails)
                         .ThenInclude(d => d.ReceiptDetail)
                             .ThenInclude(rd => rd.Material)
@@ -92,7 +94,10 @@ namespace Backend.Domains.Import.Services
             // STEP 2: map QC check
             var qcCheckDto = incident.QCCheck == null
                 ? null
-                : MapQCCheckToDto(incident.QCCheck, incident.Receipt?.ReceiptCode);
+                : MapQCCheckToDto(
+                    incident.QCCheck,
+                    incident.Receipt?.ReceiptCode,
+                    incident.QCCheck.CheckedByNavigation?.FullName);
 
             // STEP 3: map detail DTO
             return new ManagerIncidentDetailDto
@@ -557,7 +562,7 @@ namespace Backend.Domains.Import.Services
             }).ToList();
         }
 
-        private static QCCheckDto MapQCCheckToDto(QCCheck qcCheck, string? receiptCode)
+        private static QCCheckDto MapQCCheckToDto(QCCheck qcCheck, string? receiptCode, string? checkedByName = null)
         {
             return new QCCheckDto
             {
@@ -566,6 +571,7 @@ namespace Backend.Domains.Import.Services
                 ReceiptId = qcCheck.ReceiptId,
                 ReceiptCode = receiptCode,
                 CheckedBy = qcCheck.CheckedBy,
+                CheckedByName = checkedByName,
                 CheckedAt = qcCheck.CheckedAt,
                 OverallResult = qcCheck.OverallResult,
                 Notes = qcCheck.Notes,
