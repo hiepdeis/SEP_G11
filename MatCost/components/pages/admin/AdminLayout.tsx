@@ -6,7 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "./AuthContext";
 import { useNotifications } from "./NotificationsContext";
 import {
-  LayoutDashboard, Users, Package, GitBranch,
+  LayoutDashboard, Users, Package,
   User, LogOut, Menu, X, ChevronDown, Database,
   Bell, MailOpen, Mail, CheckCheck, BellRing,
 } from "lucide-react";
@@ -16,11 +16,15 @@ const navItems = [
   { to: "/admin",               icon: LayoutDashboard, label: "Bảng điều khiển" },
   { to: "/admin/users",         icon: Users,           label: "Người dùng" },
   { to: "/admin/materials",     icon: Package,         label: "Vật tư" },
-  { to: "/admin/workflows",     icon: GitBranch,       label: "Quy trình duyệt" },
+  
   { to: "/admin/master-data",   icon: Database,        label: "Danh mục" },
   { to: "/admin/notifications", icon: Bell,            label: "Thông báo" },
   { to: "/admin/profile",       icon: User,            label: "Hồ sơ cá nhân" },
 ];
+
+const resolvedNavItems = navItems.map((item) =>
+  item.to === "/admin" ? { ...item, to: "/admin/dashboard" } : item
+);
 
 const formatTime = (iso: string) => {
   const d = new Date(iso);
@@ -43,12 +47,13 @@ export default function AdminLayout({ children }: { children?: React.ReactNode }
   const [bellOpen, setBellOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
 
-  const CURRENT_USER_ID = 1; // admin
-  const { getUnreadCount, getNotificationsForUser, markAsRead, markAllAsRead } =
+  const currentUserId = Number(user?.id ?? 0);
+  const { getUnreadCount, getNotificationsForUser, markAsRead, markAllAsRead, refresh } =
     useNotifications();
 
-  const unreadCount = getUnreadCount(CURRENT_USER_ID);
-  const myNotis = getNotificationsForUser(CURRENT_USER_ID).slice(0, 6);
+  const unreadCount = currentUserId > 0 ? getUnreadCount(currentUserId) : 0;
+  const myNotis =
+    currentUserId > 0 ? getNotificationsForUser(currentUserId).slice(0, 6) : [];
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -94,7 +99,7 @@ export default function AdminLayout({ children }: { children?: React.ReactNode }
         </div>
 
         <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
-          {navItems.map((item) => (
+          {resolvedNavItems.map((item) => (
             <Link
               key={item.to}
               href={item.to}
@@ -134,8 +139,12 @@ export default function AdminLayout({ children }: { children?: React.ReactNode }
             <div ref={bellRef} className="relative">
               <button
                 onClick={() => {
-                  setBellOpen(!bellOpen);
+                  const nextOpen = !bellOpen;
+                  setBellOpen(nextOpen);
                   setProfileOpen(false);
+                  if (nextOpen) {
+                    void refresh();
+                  }
                 }}
                 className="relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors text-gray-500"
               >
@@ -166,7 +175,9 @@ export default function AdminLayout({ children }: { children?: React.ReactNode }
                     {unreadCount > 0 && (
                       <button
                         onClick={() => {
-                          markAllAsRead(CURRENT_USER_ID);
+                          if (currentUserId > 0) {
+                            void markAllAsRead(currentUserId);
+                          }
                           toast.success("Đã đánh dấu tất cả đã đọc");
                         }}
                         className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"

@@ -10,13 +10,16 @@ namespace Backend.Domains.Audit.Services
     {
         private readonly MyDbContext _db;
         private readonly IStockTakeLockService _stockTakeLockService;
+        private readonly IAuditNotificationService _notificationService;
 
         public StockTakeCountingService(
             MyDbContext db,
-            IStockTakeLockService stockTakeLockService)
+            IStockTakeLockService stockTakeLockService,
+            IAuditNotificationService notificationService)
         {
             _db = db;
             _stockTakeLockService = stockTakeLockService;
+            _notificationService = notificationService;
         }
 
         private async Task<List<int>> GetAssignedBinIdsAsync(int stockTakeId, CancellationToken ct)

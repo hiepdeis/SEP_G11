@@ -22,6 +22,19 @@ interface UserItem {
 const getRoleName = (roleId: number, roles: RoleItem[]) =>
   roles.find((r) => r.roleId === roleId)?.roleName || "Unknown";
 
+const isAdminRole = (role: RoleItem) => role.roleName.trim().toLowerCase() === "admin";
+
+const getAdminRoleId = (roles: RoleItem[]) => roles.find(isAdminRole)?.roleId;
+
+const getAssignableRoles = (currentRoleId: number, roles: RoleItem[]) => {
+  const adminRole = roles.find(isAdminRole);
+  if (!adminRole) return roles;
+
+  return roles.filter((role) => role.roleId !== adminRole.roleId || currentRoleId === adminRole.roleId);
+};
+
+const getVisibleRoles = (roles: RoleItem[]) => roles.filter((role) => !isAdminRole(role));
+
 const emptyForm: Omit<UserItem, "userId"> = { username: "", roleId: 3, fullName: "", email: "", phoneNumber: "", status: true };
 
 export default function UsersPage() {
@@ -81,14 +94,17 @@ useEffect(() => {
 //set defau role
 useEffect(() => {
   if (roles.length > 0) {
+    const defaultRole = roles.find((role) => !isAdminRole(role)) ?? roles[0];
     setForm((prev) => ({
       ...prev,
-      roleId: roles[0].roleId,
+      roleId: defaultRole.roleId,
     }));
   }
 }, [roles]);
   const filtered = useMemo(() => {
+    const adminRoleId = getAdminRoleId(roles);
     let res = users.filter((u) => {
+      if (adminRoleId !== undefined && u.roleId === adminRoleId) return false;
       const matchSearch = u.fullName.toLowerCase().includes(search.toLowerCase()) || u.username.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
       const matchStatus = filterStatus === "all" || (filterStatus === "active" ? u.status : !u.status);
       const matchRole = filterRole === "all" || u.roleId === Number(filterRole);
@@ -99,7 +115,7 @@ useEffect(() => {
       return a[sortField] > b[sortField] ? v : -v;
     });
     return res;
-  }, [users, search, filterStatus, filterRole, sortField, sortDir]);
+  }, [users, roles, search, filterStatus, filterRole, sortField, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
@@ -193,7 +209,7 @@ useEffect(() => {
             </select>
             <select value={filterRole} onChange={(e) => { setFilterRole(e.target.value); setPage(1); }}>
   <option value="all">Tất cả vai trò</option>
-  {roles.map((r) => (
+  {getVisibleRoles(roles).map((r) => (
     <option key={r.roleId} value={r.roleId}>
       {r.roleName}
     </option>
@@ -257,7 +273,7 @@ useEffect(() => {
   }}
   className="border border-gray-200 rounded-lg px-2 py-1 bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
 >
-  {roles.map((r) => (
+  {getAssignableRoles(u.roleId, roles).map((r) => (
     <option key={r.roleId} value={r.roleId}>
       {r.roleName}
     </option>
@@ -322,9 +338,9 @@ useEffect(() => {
                 <input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Email</label>
-                  <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Email</label>
+                <input value={form.email} readOnly disabled className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed text-sm"/>
                 </div>
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Điện thoại</label>
@@ -340,7 +356,7 @@ useEffect(() => {
     setForm({ ...form, roleId: Number(e.target.value) })
   }
 >
-  {roles.map((r) => (
+  {getAssignableRoles(form.roleId, roles).map((r) => (
     <option key={r.roleId} value={r.roleId}>
       {r.roleName}
     </option>

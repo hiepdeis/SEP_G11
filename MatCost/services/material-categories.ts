@@ -21,12 +21,17 @@ export type UpsertCategoryPayload = {
   description?: string;
 };
 
+export type CreateCategoryResponse = {
+  id: number;
+  message: string;
+};
+
 export function getCategories() {
   return apiGet<CategoryPagedResult>("/admin/master-data/categories");
 }
 
 export function createCategory(body: UpsertCategoryPayload) {
-  return apiPost<CategoryItem>("/admin/master-data/categories", body);
+  return apiPost<CreateCategoryResponse>("/admin/master-data/categories", body);
 }
 
 export function updateCategory(categoryId: number, body: UpsertCategoryPayload) {

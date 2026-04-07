@@ -841,7 +841,7 @@ export const accountantReceiptsApi = {
 // ==========================================
 export const adminNotificationApi = {
   getUnreadNotifications: (skip: number = 0, take: number = 50) => {
-    return axiosClient.get<NotificationDto[]>("/admin/notifications", {
+    return axiosClient.get<NotificationDto[]>("/admin/notifications/unread", {
       params: { skip, take },
     });
   },

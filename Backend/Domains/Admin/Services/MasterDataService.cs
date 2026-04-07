@@ -66,6 +66,290 @@ namespace Backend.Domains.Admin.Services
             return status.Trim();
         }
 
+        private sealed class SupplierContractSeed
+        {
+            public int SupplierId { get; set; }
+            public long ContractId { get; set; }
+            public string ContractCode { get; set; } = null!;
+            public string? ContractNumber { get; set; }
+            public DateTime EffectiveFrom { get; set; }
+            public DateTime? EffectiveTo { get; set; }
+            public string Status { get; set; } = null!;
+            public bool IsActive { get; set; }
+            public string? SupplierName { get; set; }
+            public int PurchaseOrderCount { get; set; }
+            public decimal? TotalAmount { get; set; }
+        }
+
+        private sealed class ProjectContractSeed
+        {
+            public int ProjectId { get; set; }
+            public long ContractId { get; set; }
+            public string ContractCode { get; set; } = null!;
+            public string? ContractNumber { get; set; }
+            public DateTime EffectiveFrom { get; set; }
+            public DateTime? EffectiveTo { get; set; }
+            public string Status { get; set; } = null!;
+            public bool IsActive { get; set; }
+            public string? SupplierName { get; set; }
+            public int PurchaseOrderCount { get; set; }
+            public decimal? TotalAmount { get; set; }
+        }
+
+        private static MasterDataContractDto BuildContractDto(
+            long contractId,
+            string contractCode,
+            string? contractNumber,
+            DateTime effectiveFrom,
+            DateTime? effectiveTo,
+            string status,
+            bool isActive,
+            string? supplierName,
+            int purchaseOrderCount,
+            decimal? totalAmount,
+            IReadOnlyList<MasterDataContractMaterialDto> materials)
+        {
+            return new MasterDataContractDto
+            {
+                ContractId = contractId,
+                ContractCode = contractCode,
+                ContractNumber = contractNumber,
+                EffectiveFrom = effectiveFrom,
+                EffectiveTo = effectiveTo,
+                Status = status,
+                IsActive = isActive,
+                SupplierName = supplierName,
+                PurchaseOrderCount = purchaseOrderCount,
+                MaterialCount = materials.Count,
+                TotalAmount = totalAmount,
+                Materials = materials.ToList()
+            };
+        }
+
+        private async Task<Dictionary<int, List<MasterDataContractDto>>> BuildSupplierContractsMapAsync(
+            IReadOnlyCollection<int> supplierIds,
+            CancellationToken ct)
+        {
+            if (supplierIds.Count == 0)
+            {
+                return new Dictionary<int, List<MasterDataContractDto>>();
+            }
+
+            var contracts = await _db.SupplierContracts
+                .AsNoTracking()
+                .Where(contract => supplierIds.Contains(contract.SupplierId))
+                .Select(contract => new SupplierContractSeed
+                {
+                    SupplierId = contract.SupplierId,
+                    ContractId = contract.ContractId,
+                    ContractCode = contract.ContractCode,
+                    ContractNumber = contract.ContractNumber,
+                    EffectiveFrom = contract.EffectiveFrom,
+                    EffectiveTo = contract.EffectiveTo,
+                    Status = contract.Status,
+                    IsActive = contract.IsActive,
+                    SupplierName = contract.Supplier.Name,
+                    PurchaseOrderCount = contract.PurchaseOrders.Count(),
+                    TotalAmount = contract.PurchaseOrders.Sum(order => order.TotalAmount ?? 0m)
+                })
+                .ToListAsync(ct);
+
+            if (contracts.Count == 0)
+            {
+                return supplierIds.ToDictionary(id => id, _ => new List<MasterDataContractDto>());
+            }
+
+            var contractIds = contracts
+                .Select(contract => contract.ContractId)
+                .Distinct()
+                .ToList();
+
+            var materials = await _db.PurchaseOrders
+                .AsNoTracking()
+                .Where(order => order.SupplierContractId.HasValue && contractIds.Contains(order.SupplierContractId.Value))
+                .SelectMany(order => order.Items.Select(item => new
+                {
+                    ContractId = order.SupplierContractId!.Value,
+                    item.MaterialId,
+                    MaterialCode = item.Material.Code,
+                    MaterialName = item.Material.Name,
+                    item.Material.Unit,
+                    item.OrderedQuantity,
+                    LineTotal = item.LineTotal ?? 0m
+                }))
+                .GroupBy(item => new
+                {
+                    item.ContractId,
+                    item.MaterialId,
+                    item.MaterialCode,
+                    item.MaterialName,
+                    item.Unit
+                })
+                .Select(group => new
+                {
+                    group.Key.ContractId,
+                    Material = new MasterDataContractMaterialDto
+                    {
+                        MaterialId = group.Key.MaterialId,
+                        Code = group.Key.MaterialCode,
+                        Name = group.Key.MaterialName,
+                        Unit = group.Key.Unit,
+                        OrderedQuantity = group.Sum(item => item.OrderedQuantity),
+                        TotalAmount = group.Sum(item => item.LineTotal)
+                    }
+                })
+                .ToListAsync(ct);
+
+            var materialsByContract = materials
+                .GroupBy(item => item.ContractId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => (IReadOnlyList<MasterDataContractMaterialDto>)group
+                        .Select(item => item.Material)
+                        .OrderBy(item => item.Name)
+                        .ToList());
+
+            return contracts
+                .GroupBy(contract => contract.SupplierId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group
+                        .OrderByDescending(contract => contract.EffectiveFrom)
+                        .ThenByDescending(contract => contract.ContractId)
+                        .Select(contract => BuildContractDto(
+                            contract.ContractId,
+                            contract.ContractCode,
+                            contract.ContractNumber,
+                            contract.EffectiveFrom,
+                            contract.EffectiveTo,
+                            contract.Status,
+                            contract.IsActive,
+                            contract.SupplierName,
+                            contract.PurchaseOrderCount,
+                            contract.TotalAmount,
+                            materialsByContract.GetValueOrDefault(
+                                contract.ContractId,
+                                Array.Empty<MasterDataContractMaterialDto>())))
+                        .ToList());
+        }
+
+        private async Task<Dictionary<int, List<MasterDataContractDto>>> BuildProjectContractsMapAsync(
+            IReadOnlyCollection<int> projectIds,
+            CancellationToken ct)
+        {
+            if (projectIds.Count == 0)
+            {
+                return new Dictionary<int, List<MasterDataContractDto>>();
+            }
+
+            var contracts = await _db.PurchaseOrders
+                .AsNoTracking()
+                .Where(order => projectIds.Contains(order.ProjectId) && order.SupplierContractId.HasValue)
+                .GroupBy(order => new
+                {
+                    order.ProjectId,
+                    ContractId = order.SupplierContractId!.Value,
+                    order.SupplierContract!.ContractCode,
+                    order.SupplierContract.ContractNumber,
+                    order.SupplierContract.EffectiveFrom,
+                    order.SupplierContract.EffectiveTo,
+                    order.SupplierContract.Status,
+                    order.SupplierContract.IsActive,
+                    SupplierName = order.Supplier.Name
+                })
+                .Select(group => new ProjectContractSeed
+                {
+                    ProjectId = group.Key.ProjectId,
+                    ContractId = group.Key.ContractId,
+                    ContractCode = group.Key.ContractCode,
+                    ContractNumber = group.Key.ContractNumber,
+                    EffectiveFrom = group.Key.EffectiveFrom,
+                    EffectiveTo = group.Key.EffectiveTo,
+                    Status = group.Key.Status,
+                    IsActive = group.Key.IsActive,
+                    SupplierName = group.Key.SupplierName,
+                    PurchaseOrderCount = group.Count(),
+                    TotalAmount = group.Sum(order => order.TotalAmount ?? 0m)
+                })
+                .ToListAsync(ct);
+
+            if (contracts.Count == 0)
+            {
+                return projectIds.ToDictionary(id => id, _ => new List<MasterDataContractDto>());
+            }
+
+            var materials = await _db.PurchaseOrders
+                .AsNoTracking()
+                .Where(order => projectIds.Contains(order.ProjectId) && order.SupplierContractId.HasValue)
+                .SelectMany(order => order.Items.Select(item => new
+                {
+                    order.ProjectId,
+                    ContractId = order.SupplierContractId!.Value,
+                    item.MaterialId,
+                    MaterialCode = item.Material.Code,
+                    MaterialName = item.Material.Name,
+                    item.Material.Unit,
+                    item.OrderedQuantity,
+                    LineTotal = item.LineTotal ?? 0m
+                }))
+                .GroupBy(item => new
+                {
+                    item.ProjectId,
+                    item.ContractId,
+                    item.MaterialId,
+                    item.MaterialCode,
+                    item.MaterialName,
+                    item.Unit
+                })
+                .Select(group => new
+                {
+                    group.Key.ProjectId,
+                    group.Key.ContractId,
+                    Material = new MasterDataContractMaterialDto
+                    {
+                        MaterialId = group.Key.MaterialId,
+                        Code = group.Key.MaterialCode,
+                        Name = group.Key.MaterialName,
+                        Unit = group.Key.Unit,
+                        OrderedQuantity = group.Sum(item => item.OrderedQuantity),
+                        TotalAmount = group.Sum(item => item.LineTotal)
+                    }
+                })
+                .ToListAsync(ct);
+
+            var materialsByProjectContract = materials
+                .GroupBy(item => (item.ProjectId, item.ContractId))
+                .ToDictionary(
+                    group => group.Key,
+                    group => (IReadOnlyList<MasterDataContractMaterialDto>)group
+                        .Select(item => item.Material)
+                        .OrderBy(item => item.Name)
+                        .ToList());
+
+            return contracts
+                .GroupBy(contract => contract.ProjectId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group
+                        .OrderByDescending(contract => contract.EffectiveFrom)
+                        .ThenByDescending(contract => contract.ContractId)
+                        .Select(contract => BuildContractDto(
+                            contract.ContractId,
+                            contract.ContractCode,
+                            contract.ContractNumber,
+                            contract.EffectiveFrom,
+                            contract.EffectiveTo,
+                            contract.Status,
+                            contract.IsActive,
+                            contract.SupplierName,
+                            contract.PurchaseOrderCount,
+                            contract.TotalAmount,
+                            materialsByProjectContract.GetValueOrDefault(
+                                (contract.ProjectId, contract.ContractId),
+                                Array.Empty<MasterDataContractMaterialDto>())))
+                        .ToList());
+        }
+
         // =========================================================
         // ROLES
         // =========================================================
@@ -487,12 +771,23 @@ namespace Backend.Domains.Admin.Services
                     query.PageSize)
                 .ToListAsync(ct);
 
+            var contractsBySupplier = await BuildSupplierContractsMapAsync(
+                items.Select(item => item.SupplierId).ToList(),
+                ct);
+
+            foreach (var item in items)
+            {
+                item.Contracts = contractsBySupplier.GetValueOrDefault(
+                    item.SupplierId,
+                    new List<MasterDataContractDto>());
+            }
+
             return ToPagedResult(items, query.Page, query.PageSize, totalItems);
         }
 
         public async Task<SupplierDto?> GetSupplierByIdAsync(int id, CancellationToken ct)
         {
-            return await _db.Suppliers
+            var supplier = await _db.Suppliers
                 .AsNoTracking()
                 .Where(x => x.SupplierId == id)
                 .Select(x => new SupplierDto
@@ -504,6 +799,18 @@ namespace Backend.Domains.Admin.Services
                     Address = x.Address
                 })
                 .FirstOrDefaultAsync(ct);
+
+            if (supplier == null)
+            {
+                return null;
+            }
+
+            var contractsBySupplier = await BuildSupplierContractsMapAsync(new[] { supplier.SupplierId }, ct);
+            supplier.Contracts = contractsBySupplier.GetValueOrDefault(
+                supplier.SupplierId,
+                new List<MasterDataContractDto>());
+
+            return supplier;
         }
 
         public async Task<int> CreateSupplierAsync(UpsertSupplierDto request, CancellationToken ct)
@@ -919,12 +1226,23 @@ namespace Backend.Domains.Admin.Services
                     query.PageSize)
                 .ToListAsync(ct);
 
+            var contractsByProject = await BuildProjectContractsMapAsync(
+                items.Select(item => item.ProjectId).ToList(),
+                ct);
+
+            foreach (var item in items)
+            {
+                item.Contracts = contractsByProject.GetValueOrDefault(
+                    item.ProjectId,
+                    new List<MasterDataContractDto>());
+            }
+
             return ToPagedResult(items, query.Page, query.PageSize, totalItems);
         }
 
         public async Task<ProjectDto?> GetProjectByIdAsync(int id, CancellationToken ct)
         {
-            return await _db.Projects
+            var project = await _db.Projects
                 .AsNoTracking()
                 .Where(x => x.ProjectId == id)
                 .Select(x => new ProjectDto
@@ -938,6 +1256,18 @@ namespace Backend.Domains.Admin.Services
                     Status = x.Status
                 })
                 .FirstOrDefaultAsync(ct);
+
+            if (project == null)
+            {
+                return null;
+            }
+
+            var contractsByProject = await BuildProjectContractsMapAsync(new[] { project.ProjectId }, ct);
+            project.Contracts = contractsByProject.GetValueOrDefault(
+                project.ProjectId,
+                new List<MasterDataContractDto>());
+
+            return project;
         }
 
         public async Task<int> CreateProjectAsync(UpsertProjectDto request, CancellationToken ct)

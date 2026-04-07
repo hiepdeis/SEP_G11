@@ -1,6 +1,7 @@
 using Backend.Data;
 using Backend.Domains.Audit.DTOs.Managers;
 using Backend.Domains.Audit.Interfaces;
+using Backend.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Domains.Audit.Services
@@ -8,10 +9,14 @@ namespace Backend.Domains.Audit.Services
     public class StockTakeReviewService : IStockTakeReviewService
     {
         private readonly MyDbContext _db;
+        private readonly IAuditNotificationService _notificationService;
 
-        public StockTakeReviewService(MyDbContext db)
+        public StockTakeReviewService(
+            MyDbContext db,
+            IAuditNotificationService notificationService)
         {
             _db = db;
+            _notificationService = notificationService;
         }
 
         private static string? NormalizeResolutionAction(string? action)
@@ -32,6 +37,17 @@ namespace Backend.Domains.Audit.Services
                 return "Investigate";
 
             return null;
+        }
+
+        private static string DescribeResolutionAction(string? action)
+        {
+            return action switch
+            {
+                "Accept" => "chấp nhận chênh lệch",
+                "AdjustSystem" => "điều chỉnh hệ thống",
+                "Investigate" => "điều tra thêm",
+                _ => "cập nhật xử lý"
+            };
         }
 
         private IQueryable<Backend.Entities.InventoryCurrent> BuildScopedInventoryQuery(int stockTakeId, int warehouseId)
@@ -544,6 +560,16 @@ namespace Backend.Domains.Audit.Services
             detail.ResolvedBy = resolvedByUserId;
             detail.ResolvedAt = DateTime.UtcNow;
 
+            await _notificationService.QueueAuditNotificationAsync(
+                stockTakeId,
+                $"Chênh lệch cho vật tư #{detail.MaterialId} trong Audit #{st.StockTakeId} ({st.Title}) đã được xử lý với phương án {DescribeResolutionAction(normalizedAction)}.",
+                includeCreator: true,
+                includeTeamMembers: false,
+                roleNames: new[] { "Manager" },
+                extraUserIds: detail.CountedBy.HasValue ? new[] { detail.CountedBy.Value } : null,
+                excludeUserIds: new[] { resolvedByUserId },
+                ct);
+
             await _db.SaveChangesAsync(ct);
 
             return (true, "Variance resolved successfully.");
@@ -579,6 +605,17 @@ namespace Backend.Domains.Audit.Services
 
             // Update reason
             detail.Reason = request.Reason?.Trim();
+
+            await _notificationService.QueueAuditNotificationAsync(
+                stockTakeId,
+                $"Lý do chênh lệch cho vật tư #{detail.MaterialId} trong Audit #{st.StockTakeId} ({st.Title}) đã được cập nhật.",
+                includeCreator: true,
+                includeTeamMembers: false,
+                roleNames: new[] { "Manager" },
+                extraUserIds: detail.CountedBy.HasValue ? new[] { detail.CountedBy.Value } : null,
+                excludeUserIds: null,
+                ct);
+
             await _db.SaveChangesAsync(ct);
 
             return (true, "Variance reason updated successfully.");
@@ -638,6 +675,16 @@ namespace Backend.Domains.Audit.Services
             detail.Reason = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
             detail.ResolvedBy = managerUserId;
             detail.ResolvedAt = DateTime.UtcNow;
+
+            await _notificationService.QueueAuditNotificationAsync(
+                stockTakeId,
+                $"Audit #{st.StockTakeId} ({st.Title}) có yêu cầu kiểm kê lại cho vật tư #{detail.MaterialId} tại bin #{detail.BinId ?? 0}.",
+                includeCreator: true,
+                includeTeamMembers: true,
+                roleNames: new[] { "Manager" },
+                extraUserIds: detail.CountedBy.HasValue ? new[] { detail.CountedBy.Value } : null,
+                excludeUserIds: new[] { managerUserId },
+                ct);
 
             await _db.SaveChangesAsync(ct);
 
@@ -942,11 +989,40 @@ namespace Backend.Domains.Audit.Services
 
             var hasStaffSignature = existingRoles.Contains("Staff") || role == "Staff";
             var hasManagerSignature = existingRoles.Contains("Manager") || role == "Manager";
+            var movedToReadyForReview = false;
 
             if (hasManagerSignature && !isAccountant)
             {
                 st.Status = "ReadyForReview";
                 await UnlockActiveLocksAsync(stockTakeId, userId, ct);
+                movedToReadyForReview = true;
+            }
+
+            var signerName = !string.IsNullOrWhiteSpace(user.FullName)
+                ? user.FullName
+                : user.Username;
+
+            await _notificationService.QueueAuditNotificationAsync(
+                stockTakeId,
+                $"{signerName} ({role}) đã ký xác nhận Audit #{st.StockTakeId} ({st.Title}).",
+                includeCreator: true,
+                includeTeamMembers: true,
+                roleNames: new[] { "Manager" },
+                extraUserIds: null,
+                excludeUserIds: new[] { userId },
+                ct);
+
+            if (movedToReadyForReview)
+            {
+                await _notificationService.QueueAuditNotificationAsync(
+                    stockTakeId,
+                    $"Audit #{st.StockTakeId} ({st.Title}) đã đủ chữ ký Staff và Manager, sẵn sàng hoàn tất.",
+                    includeCreator: true,
+                    includeTeamMembers: true,
+                    roleNames: new[] { "Manager" },
+                    extraUserIds: null,
+                    excludeUserIds: null,
+                    ct);
             }
 
             await _db.SaveChangesAsync(ct);
@@ -959,6 +1035,26 @@ namespace Backend.Domains.Audit.Services
                 SignedAt = signature.SignedAt,
                 Notes = signature.SignatureData
             };
+
+            // Manager ký xác nhận => Notify Accountant
+            if (role == "Manager")
+            {
+                var accountantIds = await _db.Users.AsNoTracking()
+                    .Where(u => u.Role.RoleName == "Accountant" && u.Status)
+                    .Select(u => u.UserId)
+                    .ToListAsync(ct);
+
+                var signNotis = accountantIds.Select(accId => new Notification
+                {
+                    UserId = accId,
+                    Message = $"Quản lý đã ký xác nhận chênh lệch phiếu #{stockTakeId}. Vui lòng kiểm tra và chốt sổ.",
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                }).ToList();
+
+                _db.Notifications.AddRange(signNotis);
+                await _db.SaveChangesAsync(ct);
+            }
 
             return (true, "Signed off successfully", signatureDto);
         }

@@ -9,10 +9,14 @@ namespace Backend.Domains.Audit.Services;
 public class AuditTeamService : IAuditTeamService
 {
     private readonly MyDbContext _db;
+    private readonly IAuditNotificationService _notificationService;
 
-    public AuditTeamService(MyDbContext db)
+    public AuditTeamService(
+        MyDbContext db,
+        IAuditNotificationService notificationService)
     {
         _db = db;
+        _notificationService = notificationService;
     }
 
     private static bool IsAssignableStatus(string? status)
@@ -126,6 +130,7 @@ public class AuditTeamService : IAuditTeamService
         ).ToListAsync(ct);
 
         var notifyUserIds = new List<int>();
+        var removedUserIds = new List<int>();
 
         using var tx = await _db.Database.BeginTransactionAsync(ct);
 
@@ -139,6 +144,7 @@ public class AuditTeamService : IAuditTeamService
             {
                 member.IsActive = false;
                 member.RemovedAt = now;
+                removedUserIds.Add(member.UserId);
             }
         }
 
@@ -183,15 +189,31 @@ public class AuditTeamService : IAuditTeamService
             st.Status = "Assigned";
         }
 
-        foreach (var uid in notifyUserIds.Distinct())
+        var assignedUserIds = notifyUserIds
+            .Distinct()
+            .ToList();
+        var deactivatedUserIds = removedUserIds
+            .Distinct()
+            .ToList();
+
+        if (assignedUserIds.Count > 0)
         {
-            _db.Notifications.Add(new Notification
-            {
-                UserId = uid,
-                Message = $"You have been assigned to Audit #{st.StockTakeId} ({st.Title}).",
-                IsRead = false,
-                CreatedAt = now
-            });
+            await _notificationService.QueueNotificationAsync(
+                assignedUserIds,
+                $"You have been assigned to Audit #{st.StockTakeId} ({st.Title}).",
+                relatedEntityType: "Audit",
+                relatedEntityId: st.StockTakeId,
+                ct);
+        }
+
+        if (deactivatedUserIds.Count > 0)
+        {
+            await _notificationService.QueueNotificationAsync(
+                deactivatedUserIds,
+                $"You have been removed from Audit #{st.StockTakeId} ({st.Title}).",
+                relatedEntityType: "Audit",
+                relatedEntityId: st.StockTakeId,
+                ct);
         }
 
         await _db.SaveChangesAsync(ct);

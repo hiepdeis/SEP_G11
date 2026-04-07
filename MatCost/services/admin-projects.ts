@@ -1,4 +1,5 @@
 import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
+import type { ContractDto } from "@/services/admin-suppliers";
 
 export type ProjectItem = {
   projectId: number;
@@ -8,6 +9,7 @@ export type ProjectItem = {
   endDate: string | null;
   budget: number | null;
   status: string | null;
+  contracts?: ContractDto[];
 };
 
 export type ProjectPagedResult = {
@@ -27,12 +29,17 @@ export type UpsertProjectPayload = {
   status: string | null;
 };
 
+export type CreateProjectResponse = {
+  id: number;
+  message: string;
+};
+
 export function getProjects() {
   return apiGet<ProjectPagedResult>("/admin/master-data/projects");
 }
 
 export function createProject(payload: UpsertProjectPayload) {
-  return apiPost<ProjectItem>("/admin/master-data/projects", payload);
+  return apiPost<CreateProjectResponse>("/admin/master-data/projects", payload);
 }
 
 export function updateProject(projectId: number, payload: UpsertProjectPayload) {

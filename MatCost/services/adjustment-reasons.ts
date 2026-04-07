@@ -23,12 +23,17 @@ export type UpsertAdjustmentReasonPayload = {
   isActive: boolean;
 };
 
+export type CreateAdjustmentReasonResponse = {
+  id: number;
+  message: string;
+};
+
 export function getAdjustmentReasons() {
   return apiGet<AdjustmentReasonPagedResult>("/admin/master-data/adjustment-reasons");
 }
 
 export function createAdjustmentReason(body: UpsertAdjustmentReasonPayload) {
-  return apiPost<AdjustmentReasonItem>("/admin/master-data/adjustment-reasons", body);
+  return apiPost<CreateAdjustmentReasonResponse>("/admin/master-data/adjustment-reasons", body);
 }
 
 export function updateAdjustmentReason(id: number, body: UpsertAdjustmentReasonPayload) {

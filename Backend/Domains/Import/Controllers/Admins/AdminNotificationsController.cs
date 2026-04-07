@@ -20,7 +20,7 @@ namespace Backend.Domains.Import.Controllers.Admins
             return 1; // TODO: replace with JWT claims
         }
 
-        [HttpGet]
+        [HttpGet("unread")]
         public async Task<IActionResult> GetUnreadNotifications(
             [FromQuery] int skip = 0,
             [FromQuery] int take = 50,

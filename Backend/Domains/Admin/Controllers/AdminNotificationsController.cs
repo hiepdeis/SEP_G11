@@ -7,6 +7,7 @@ namespace Backend.Controllers
 {
     [ApiController]
 
+    [Route("api/admin/notifications")]
     [Route("api/admin/notifications/hotfix")]
 
     //[Authorize] // nếu bạn có policy riêng thì đổi thành [Authorize(Roles = "Admin")]

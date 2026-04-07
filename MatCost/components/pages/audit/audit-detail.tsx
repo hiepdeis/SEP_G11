@@ -52,7 +52,12 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
       setLoading(true);
       const [reviewInfo, varianceList] = await Promise.all([ auditService.getReviewDetail(stockTakeId), auditService.getVariances(stockTakeId) ]);
       setDetailData(reviewInfo);
-      setVariances(varianceList);
+
+      if (varianceList) {
+         const actualVariances = varianceList.filter((v: any) => v.variance !== 0);
+         setVariances(actualVariances);
+      }
+      
     } catch (error) { console.error(error); } finally { setLoading(false); }
   };
 

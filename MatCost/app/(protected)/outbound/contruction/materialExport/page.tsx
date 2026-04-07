@@ -148,6 +148,35 @@ export default function IssueMaterialPage() {
     }));
   };
 
+  const handleSaveRow = (id: string) => {
+    const targetRow = materials.find(m => m.id === id);
+    if (!targetRow) return;
+
+    if (!targetRow.code.trim() || !targetRow.name.trim()) {
+      toast.error("Vui lòng nhập Mã và Tên vật tư!");
+      return;
+    }
+
+    const duplicateRow = materials.find(m => 
+      m.id !== id && 
+      normalize(m.code) === normalize(targetRow.code) &&
+      normalize(m.name) === normalize(targetRow.name) &&
+      normalize(m.unit) === normalize(targetRow.unit)
+    );
+
+    if (duplicateRow) {
+      setMaterials(prev => prev.map(m => 
+        m.id === duplicateRow.id 
+          ? { ...m, qty: m.qty + targetRow.qty, isEditing: false } 
+          : m
+      ).filter(m => m.id !== id)); 
+      
+      toast.success("Đã gộp vật tư trùng lặp và cộng dồn số lượng!");
+    } else {
+      setMaterials(prev => prev.map(m => m.id === id ? { ...m, isEditing: false } : m));
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -394,7 +423,15 @@ export default function IssueMaterialPage() {
                         
                           <TableCell className="text-center">
                             <div className="flex justify-center gap-1">
-                              {item.isEditing ? <Button size="icon" variant="ghost" className="h-8 w-8 text-emerald-600 hover:bg-emerald-50" onClick={() => toggleEdit(item.id)}><CheckCircle2 className="w-4 h-4" /></Button> : <Button size="icon" variant="ghost" className="h-8 w-8 text-indigo-600 hover:bg-indigo-50" onClick={() => toggleEdit(item.id)}><PenLine className="w-4 h-4" /></Button>}
+                              {item.isEditing ? (
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-emerald-600 hover:bg-emerald-50" onClick={() => handleSaveRow(item.id)}>
+                                  <CheckCircle2 className="w-4 h-4" />
+                                </Button>
+                              ) : (
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-indigo-600 hover:bg-indigo-50" onClick={() => toggleEdit(item.id)}>
+                                  <PenLine className="w-4 h-4" />
+                                </Button>
+                              )}
                               <Button size="icon" variant="ghost" className="h-8 w-8 text-rose-500 hover:bg-rose-50" onClick={() => deleteRow(item.id)}><Trash2 className="w-4 h-4" /></Button>
                             </div>
                           </TableCell>

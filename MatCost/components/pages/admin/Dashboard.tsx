@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getAdminDashboard } from "@/services/admin-dashboard";
 import {
   Package,
   AlertTriangle,
@@ -114,19 +115,8 @@ export default function Dashboard() {
       try {
         setLoading(true);
 
-        const res = await fetch("http://localhost:5000/api/dashboard", {
-  method: "GET",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  cache: "no-store",
-});
+        const json = await getAdminDashboard();
 
-        if (!res.ok) {
-          throw new Error("Không tải được dashboard");
-        }
-
-        const json: DashboardResponse = await res.json();
         setData(json);
       } catch (error) {
         console.error(error);
@@ -273,7 +263,7 @@ export default function Dashboard() {
               <h3 className="text-gray-900">Phiếu nhập gần đây</h3>
             </div>
             <button
-              onClick={() => router.push("/admin/workflows")}
+              onClick={() => router.push("/admin/purchase-orders")}
               className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
             >
               Xem tất cả <ChevronRight className="w-3.5 h-3.5" />
@@ -319,7 +309,7 @@ export default function Dashboard() {
               <h3 className="text-gray-900">Phiếu xuất gần đây</h3>
             </div>
             <button
-              onClick={() => router.push("/admin/workflows")}
+              onClick={() => router.push("/admin/outbound/issueSlip")}
               className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
             >
               Xem tất cả <ChevronRight className="w-3.5 h-3.5" />

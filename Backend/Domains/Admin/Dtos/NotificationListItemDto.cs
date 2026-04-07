@@ -9,6 +9,8 @@
         public int RoleId { get; set; }
         public string RoleName { get; set; } = null!;
         public string Message { get; set; } = null!;
+        public string? RelatedEntityType { get; set; }
+        public long? RelatedEntityId { get; set; }
         public bool IsRead { get; set; }
         public DateTime CreatedAt { get; set; }
     }
@@ -35,7 +37,11 @@
         /// </summary>
         public int? UserId { get; set; }
 
+        public bool SendEmail { get; set; } = true;
+
         public string Message { get; set; } = null!;
+        public string? RelatedEntityType { get; set; }
+        public long? RelatedEntityId { get; set; }
     }
 
     public sealed class MarkAllNotificationsReadDto
@@ -50,6 +56,11 @@
     {
         public int SentCount { get; set; }
         public List<long> NotificationIds { get; set; } = new();
+        public bool EmailRequested { get; set; }
+        public bool EmailConfigured { get; set; }
+        public int EmailSentCount { get; set; }
+        public int EmailMissingAddressCount { get; set; }
+        public int EmailFailedCount { get; set; }
     }
 
     public sealed class NotificationUserLookupDto
