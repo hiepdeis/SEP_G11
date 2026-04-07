@@ -35,7 +35,7 @@ namespace Backend.Domains.Import.Services
                                                             r.Status == "PendingQC" ||
                                                          r.Status == "PendingIncident" ||
                                                          r.Status == "PendingManagerReview" ||
-                                                            //r.Status == "QCPassed" ||
+                                                             //r.Status == "QCPassed" ||
                                                              r.Status == "PartiallyPutaway" || r.Status == "ReadyForStamp" ||
                                                              r.Status == "Stamped" || r.Status == "Closed" ||
                                                              r.IncidentReports.Any(i => i.Status == "PendingManagerReview"))
@@ -469,7 +469,7 @@ namespace Backend.Domains.Import.Services
                 var hasFullPassForOrderedQty = dto.Items.All(d =>
                 {
                     var orderedQty = poItemMap[d.MaterialId].OrderedQuantity;
-                    return Math.Abs(d.PassQuantity - orderedQty) <= 0.0001m;
+                    return d.PassQuantity + 0.0001m >= orderedQty;
                 });
 
                 var qcCheckCode = await GenerateQCCheckCodeAsync();
@@ -746,7 +746,7 @@ namespace Backend.Domains.Import.Services
                     ReceiptCode = receipt.ReceiptCode ?? string.Empty,
                     PurchaseOrderCode = receipt.PurchaseOrder?.PurchaseOrderCode ?? string.Empty,
                     SupplierName = receipt.PurchaseOrder?.Supplier?.Name ?? string.Empty,
-                    CreatedAt= receipt.ReceiptDate ?? receipt.ApprovedAt ?? receipt.ConfirmedAt ?? DateTime.MinValue,
+                    CreatedAt = receipt.ReceiptDate ?? receipt.ApprovedAt ?? receipt.ConfirmedAt ?? DateTime.MinValue,
                     Status = receipt.Status ?? string.Empty,
                     Items = items
                 });
@@ -1722,7 +1722,7 @@ namespace Backend.Domains.Import.Services
             var hasFullPassForOrderedQty = dto.Details.All(d =>
             {
                 var orderedQty = receiptDetailMap[d.MaterialId].Quantity;
-                return Math.Abs(d.PassQuantity - orderedQty) <= 0.0001m;
+                return d.PassQuantity + 0.0001m >= orderedQty;
             });
 
             // STEP 4: generate QCCheckCode
@@ -2052,25 +2052,18 @@ namespace Backend.Domains.Import.Services
 
                 var orderedQty = receiptDetail.Quantity;
 
-                // Quantity defect in incident means PO shortage (ordered - actual received).
-                var actualQty = qcDetail.PassQuantity + qcDetail.FailQuantity;
-                var expectedQuantityShortage = Math.Max(0, orderedQty - actualQty);
+                // Claim quantity must follow shortage of usable goods: max(0, Ordered - Pass).
+                var expectedClaimQuantity = Math.Max(0, orderedQty - qcDetail.PassQuantity);
                 var quantityDefect = d.Breakdown.Quantity;
                 var qualityDefect = d.Breakdown.Quality;
                 var damageDefect = d.Breakdown.Damage;
+                var totalBreakdownForMaterial = quantityDefect + qualityDefect + damageDefect;
 
-                if (Math.Abs(quantityDefect - expectedQuantityShortage) > 0.0001m)
+                if (Math.Abs(totalBreakdownForMaterial - expectedClaimQuantity) > 0.0001m)
                 {
                     throw new ArgumentException(
-                        $"MaterialId {d.MaterialId}: Breakdown.Quantity should be {expectedQuantityShortage:F4} but got {quantityDefect:F4}");
-                }
-
-                var totalQcFailBreakdownForMaterial = qualityDefect + damageDefect;
-                if (Math.Abs(totalQcFailBreakdownForMaterial - qcDetail.FailQuantity) > 0.0001m)
-                {
-                    throw new ArgumentException(
-                    $"MaterialId {d.MaterialId}: Breakdown sum (Quality+Damage={totalQcFailBreakdownForMaterial:F4}) " +
-                    $"must equal QC FailQuantity ({qcDetail.FailQuantity:F4}). Quantity is validated as PO shortage (Ordered-Actual).");
+                        $"MaterialId {d.MaterialId}: Breakdown sum (Quantity+Quality+Damage={totalBreakdownForMaterial:F4}) " +
+                        $"must equal claim quantity ({expectedClaimQuantity:F4}) where claim = max(0, Ordered - Pass).");
                 }
 
                 qcDetail.FailQuantityQuantity = quantityDefect;
@@ -2191,35 +2184,30 @@ namespace Backend.Domains.Import.Services
 
             await _context.SaveChangesAsync();
 
-            // Validate total QC breakdown = total QC FailQuantity.
-            var totalQuantityShortage = incidentDetails
-                .Where(d => d.IssueType == "Quantity")
-                .Sum(d => linkedQCCheck.QCCheckDetails
-                    .FirstOrDefault(q => q.ReceiptDetailId == d.ReceiptDetailId)?.FailQuantityQuantity ?? 0);
+            var totalExpectedClaimQuantity = dto.Details.Sum(d =>
+            {
+                if (!receiptDetailMap.TryGetValue(d.MaterialId, out var rd))
+                    return 0m;
 
-            var totalQualityDefect = incidentDetails
-                .Where(d => d.IssueType == "Quality")
-                .Sum(d => linkedQCCheck.QCCheckDetails
-                    .FirstOrDefault(q => q.ReceiptDetailId == d.ReceiptDetailId)?.FailQuantityQuality ?? 0);
+                var qcd = linkedQCCheck.QCCheckDetails.FirstOrDefault(q => q.ReceiptDetailId == rd.DetailId);
+                if (qcd == null)
+                    return 0m;
 
-            var totalDamageDefect = incidentDetails
-                .Where(d => d.IssueType == "Damage")
-                .Sum(d => linkedQCCheck.QCCheckDetails
-                    .FirstOrDefault(q => q.ReceiptDetailId == d.ReceiptDetailId)?.FailQuantityDamage ?? 0);
+                return Math.Max(0, rd.Quantity - qcd.PassQuantity);
+            });
 
-            var totalQcBreakdown = totalQualityDefect + totalDamageDefect;
-            var totalQCFailQuantity = linkedQCCheck.QCCheckDetails.Sum(q => q.FailQuantity);
+            var totalClaimBreakdown = dto.Details.Sum(d =>
+                d.Breakdown.Quantity + d.Breakdown.Quality + d.Breakdown.Damage);
 
-            // Sum of quality/damage must equal total QC fail quantity.
-            if (Math.Abs(totalQcBreakdown - totalQCFailQuantity) > 0.0001m)
+            if (Math.Abs(totalClaimBreakdown - totalExpectedClaimQuantity) > 0.0001m)
             {
                 throw new InvalidOperationException(
                     $"Incident detail breakdown mismatch: " +
-                    $"Quality:{totalQualityDefect:F4} + Damage:{totalDamageDefect:F4} = {totalQcBreakdown:F4}, " +
-                    $"but QC total fail quantity is {totalQCFailQuantity:F4}. Quantity is tracked separately as PO shortage: {totalQuantityShortage:F4}.");
+                    $"Breakdown total (Quantity+Quality+Damage) is {totalClaimBreakdown:F4}, " +
+                    $"but total claim quantity is {totalExpectedClaimQuantity:F4}.");
             }
 
-            var totalFailQuantity = totalQCFailQuantity;
+            var totalFailQuantity = totalExpectedClaimQuantity;
 
             return new IncidentReportCreateResultDto
             {
