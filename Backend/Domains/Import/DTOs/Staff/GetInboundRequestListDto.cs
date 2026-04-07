@@ -35,6 +35,7 @@
         public string MaterialName { get; set; } = string.Empty;
         public decimal? PassQuantity { get; set; }
         public decimal? FailQuantity { get; set; }
+        public decimal? FailClaimQuantity { get; set; }
         public decimal? Quantity { get; set; }
         public decimal? ActualQuantity { get; set; }
         public int? BinLocationId { get; set; }
