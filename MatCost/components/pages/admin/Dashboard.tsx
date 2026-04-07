@@ -263,7 +263,7 @@ export default function Dashboard() {
               <h3 className="text-gray-900">Phiếu nhập gần đây</h3>
             </div>
             <button
-              onClick={() => router.push("/admin/workflows")}
+              onClick={() => router.push("/admin/purchase-orders")}
               className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
             >
               Xem tất cả <ChevronRight className="w-3.5 h-3.5" />
@@ -309,7 +309,7 @@ export default function Dashboard() {
               <h3 className="text-gray-900">Phiếu xuất gần đây</h3>
             </div>
             <button
-              onClick={() => router.push("/admin/workflows")}
+              onClick={() => router.push("/admin/outbound/issueSlip")}
               className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
             >
               Xem tất cả <ChevronRight className="w-3.5 h-3.5" />

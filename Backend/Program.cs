@@ -166,7 +166,12 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    // Local frontend/auth currently call the API over http://localhost:5000.
+    // Redirecting dev requests to HTTPS breaks browser preflight requests.
+    app.UseHttpsRedirection();
+}
 app.UseCors("CorsPolicy");
 app.UseAuthentication();
 app.UseAuthorization();

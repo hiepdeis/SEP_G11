@@ -6,7 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "./AuthContext";
 import { useNotifications } from "./NotificationsContext";
 import {
-  LayoutDashboard, Users, Package, GitBranch,
+  LayoutDashboard, Users, Package,
   User, LogOut, Menu, X, ChevronDown, Database,
   Bell, MailOpen, Mail, CheckCheck, BellRing,
 } from "lucide-react";
@@ -16,7 +16,7 @@ const navItems = [
   { to: "/admin",               icon: LayoutDashboard, label: "Bảng điều khiển" },
   { to: "/admin/users",         icon: Users,           label: "Người dùng" },
   { to: "/admin/materials",     icon: Package,         label: "Vật tư" },
-  { to: "/admin/workflows",     icon: GitBranch,       label: "Quy trình duyệt" },
+  
   { to: "/admin/master-data",   icon: Database,        label: "Danh mục" },
   { to: "/admin/notifications", icon: Bell,            label: "Thông báo" },
   { to: "/admin/profile",       icon: User,            label: "Hồ sơ cá nhân" },
