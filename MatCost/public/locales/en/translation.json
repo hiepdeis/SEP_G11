@@ -312,6 +312,13 @@
     "audit": "Audit",
     "reports": "Reports",
     "enterprise_warehouse": "Enterprise Warehouse",
+    "admin_section": "System Administration",
+    "admin_dashboard": "Admin Dashboard",
+    "admin_users": "Users",
+    "admin_materials": "Materials",
+    "admin_master_data": "Master Data",
+    "admin_notifications": "Notifications",
+    "admin_profile": "Profile",
     "roles": {
       "construction": "Construction Team",
       "accountant": "Accountant",

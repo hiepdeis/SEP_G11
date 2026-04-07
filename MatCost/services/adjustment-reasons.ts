@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
+import axiosClient from "@/lib/axios-client";
 
 export type AdjustmentReasonItem = {
   reasonId: number;
@@ -29,17 +29,23 @@ export type CreateAdjustmentReasonResponse = {
 };
 
 export function getAdjustmentReasons() {
-  return apiGet<AdjustmentReasonPagedResult>("/admin/master-data/adjustment-reasons");
+  return axiosClient
+    .get<AdjustmentReasonPagedResult>("/admin/master-data/adjustment-reasons")
+    .then((res) => res.data);
 }
 
 export function createAdjustmentReason(body: UpsertAdjustmentReasonPayload) {
-  return apiPost<CreateAdjustmentReasonResponse>("/admin/master-data/adjustment-reasons", body);
+  return axiosClient
+    .post<CreateAdjustmentReasonResponse>("/admin/master-data/adjustment-reasons", body)
+    .then((res) => res.data);
 }
 
 export function updateAdjustmentReason(id: number, body: UpsertAdjustmentReasonPayload) {
-  return apiPut<void>(`/admin/master-data/adjustment-reasons/${id}`, body);
+  return axiosClient.put<void>(`/admin/master-data/adjustment-reasons/${id}`, body).then((res) => res.data);
 }
 
 export function deleteAdjustmentReason(id: number) {
-  return apiDelete<void>(`/admin/master-data/adjustment-reasons/${id}`);
+  return axiosClient
+    .delete<void>(`/admin/master-data/adjustment-reasons/${id}`)
+    .then((res) => res.data);
 }

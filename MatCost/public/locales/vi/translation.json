@@ -314,6 +314,13 @@
     "audit": "Kiểm kê",
     "reports": "Báo cáo",
     "enterprise_warehouse": "Kho doanh nghiệp",
+    "admin_section": "Quản trị hệ thống",
+    "admin_dashboard": "Bảng điều khiển",
+    "admin_users": "Người dùng",
+    "admin_materials": "Vật tư",
+    "admin_master_data": "Danh mục",
+    "admin_notifications": "Thông báo",
+    "admin_profile": "Hồ sơ cá nhân",
     "roles": {
       "construction": "Đội thi công",
       "accountant": "Kế toán",

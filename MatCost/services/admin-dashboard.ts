@@ -1,4 +1,4 @@
-import { apiGet } from "@/lib/api";
+import axiosClient from "@/lib/axios-client";
 
 export interface DashboardSummary {
   totalMaterials: number;
@@ -43,6 +43,6 @@ export interface AdminDashboardResponse {
 }
 
 export async function getAdminDashboard() {
-  return apiGet<AdminDashboardResponse>("/dashboard");
+  return axiosClient.get<AdminDashboardResponse>("/dashboard").then((res) => res.data);
 }
 

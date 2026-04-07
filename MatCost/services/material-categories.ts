@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/api";
+import axiosClient from "@/lib/axios-client";
 
 export type CategoryItem = {
   categoryId: number;
@@ -27,17 +27,17 @@ export type CreateCategoryResponse = {
 };
 
 export function getCategories() {
-  return apiGet<CategoryPagedResult>("/admin/master-data/categories");
+  return axiosClient.get<CategoryPagedResult>("/admin/master-data/categories").then((res) => res.data);
 }
 
 export function createCategory(body: UpsertCategoryPayload) {
-  return apiPost<CreateCategoryResponse>("/admin/master-data/categories", body);
+  return axiosClient.post<CreateCategoryResponse>("/admin/master-data/categories", body).then((res) => res.data);
 }
 
 export function updateCategory(categoryId: number, body: UpsertCategoryPayload) {
-  return apiPut<void>(`/admin/master-data/categories/${categoryId}`, body);
+  return axiosClient.put<void>(`/admin/master-data/categories/${categoryId}`, body).then((res) => res.data);
 }
 
 export function deleteCategory(categoryId: number) {
-  return apiDelete<void>(`/admin/master-data/categories/${categoryId}`);
+  return axiosClient.delete<void>(`/admin/master-data/categories/${categoryId}`).then((res) => res.data);
 }
