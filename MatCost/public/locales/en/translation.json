@@ -43,7 +43,9 @@
   "Select a supplier and pricing for requested materials.": "Select a supplier and pricing for requested materials.",
   "Pending Requests": "Pending Requests",
   "Drafts": "Drafts",
+  "Pending_Review" : "Pending Review",
   "Rejects": "Rejects",
+  "Item Code": "Item Code",
   "Filters": "Filters",
   "Filter by status": "Filter by status",
   "Requested": "Requested",
@@ -227,6 +229,8 @@
   "No Image": "No Image",
   "Certificate Image": "Certificate Image",
   "Remove Image": "Remove Image",
+
+ 
   "Receipt reverted to Draft. You can now edit and resubmit.": "Receipt reverted to Draft. You can now edit and resubmit.",
   "Failed to revert receipt to draft": "Failed to revert receipt to draft",
   "Failed to load receipt data": "Failed to load receipt data",
@@ -317,6 +321,7 @@
       "purchase": "Purchase Team"
     },
     "tabs": {
+      "Common": "Common",
       "issue_slips": "Issue Slips",
       "material_request": "Material Request",
       "import_request": "Import Request",

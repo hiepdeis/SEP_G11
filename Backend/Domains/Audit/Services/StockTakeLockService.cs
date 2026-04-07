@@ -123,6 +123,24 @@ namespace Backend.Domains.Audit.Services
                 ct);
 
             await _db.SaveChangesAsync(ct);
+
+            // Lock System => Notify all
+            var allActiveUserIds = await _db.Users.AsNoTracking()
+                .Where(u => u.Status)
+                .Select(u => u.UserId)
+                .ToListAsync(ct);
+
+            var lockNotis = allActiveUserIds.Select(uid => new Notification
+            {
+                UserId = uid,
+                Message = $"Hệ thống vừa khóa kho/vị trí cho phiếu kiểm kê #{stockTakeId}. Vui lòng ngừng các giao dịch xuất/nhập liên quan.",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            }).ToList();
+
+            _db.Notifications.AddRange(lockNotis);
+            await _db.SaveChangesAsync(ct);
+
             return (true, "Audit scope locked successfully.");
         }
 

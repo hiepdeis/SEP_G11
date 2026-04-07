@@ -83,7 +83,7 @@ namespace Backend.Domains.Audit.Services
         {
             return await _db.StockTakeTeamMembers
                 .AsNoTracking()
-                .AnyAsync(x => x.StockTakeId == stockTakeId && x.UserId == userId && x.IsActive, ct);
+                .AnyAsync(x => x.StockTakeId == stockTakeId && x.UserId == userId && (x.IsActive || x.MemberCompletedAt != null), ct);
         }
 
         private IQueryable<InventoryCurrent> BuildScopedInventoryQuery(int stockTakeId, int warehouseId)
@@ -106,7 +106,8 @@ namespace Backend.Domains.Audit.Services
                 .AnyAsync(x =>
                     x.StockTakeId == stockTakeId &&
                     x.UserId == userId &&
-                    x.IsActive,
+                    x.IsActive &&
+                    x.MemberCompletedAt == null,
                     ct);
 
             if (!isAssigned)
@@ -292,6 +293,7 @@ namespace Backend.Domains.Audit.Services
                     BatchCode = b.BatchCode
                 };
 
+            // SAU ĐÓ MỚI SELECT
             return await q
                 .Distinct()
                 .OrderBy(x => x.MaterialName)
@@ -312,12 +314,12 @@ namespace Backend.Domains.Audit.Services
         }
 
         public async Task<List<CountingDto>> GetRecountItemsAsync(
-    int stockTakeId,
-    int userId,
-    string? keyword,
-    int skip,
-    int take,
-    CancellationToken ct)
+            int stockTakeId,
+            int userId,
+            string? keyword,
+            int skip,
+            int take,
+            CancellationToken ct)
         {
             var isMember = await IsTeamMemberAsync(stockTakeId, userId, ct);
             if (!isMember)
@@ -370,25 +372,39 @@ namespace Backend.Domains.Audit.Services
             {
                 if (int.TryParse(keyword, out var k))
                 {
-                    result = result.Where(x => x.MaterialId == k || x.BatchId == k || x.BinId == k);
+                    q = q.Where(x => x.MaterialId == k || x.BatchId == k || x.BinId == k);
                 }
                 else
                 {
                     var like = $"%{keyword}%";
-                    result = result.Where(x =>
-                        (x.MaterialName != null &&
-                         EF.Functions.Like(EF.Functions.Collate(x.MaterialName, "Vietnamese_CI_AI"), like))
+                    q = q.Where(x =>
+                        (x.Material != null &&
+                         EF.Functions.Like(EF.Functions.Collate(x.Material.Name, "Vietnamese_CI_AI"), like))
                         ||
-                        (x.BatchCode != null &&
-                         EF.Functions.Like(EF.Functions.Collate(x.BatchCode, "Vietnamese_CI_AI"), like))
+                        (x.Batch != null &&
+                         EF.Functions.Like(EF.Functions.Collate(x.Batch.BatchCode, "Vietnamese_CI_AI"), like))
                         ||
-                        (x.BinCode != null &&
-                         EF.Functions.Like(EF.Functions.Collate(x.BinCode, "Vietnamese_CI_AI"), like))
+                        (x.Bin != null &&
+                         EF.Functions.Like(EF.Functions.Collate(x.Bin.Code, "Vietnamese_CI_AI"), like))
                     );
                 }
             }
 
-            return await result
+            return await q
+                .Select(x => new CountingDto
+                {
+                    MaterialId = x.MaterialId,
+                    BinId = x.BinId ?? 0,
+                    BatchId = x.BatchId ?? 0,
+                    MaterialName = x.Material != null ? x.Material.Name : null,
+                    BatchCode = x.Batch != null ? x.Batch.BatchCode : null,
+                    BinCode = x.Bin != null ? x.Bin.Code : null,
+                    SystemQty = x.SystemQty,
+                    CountQty = x.CountQty,
+                    Variance = x.Variance,
+                    CountedBy = x.CountedBy,
+                    CountedAt = x.CountedAt
+                })
                 .OrderBy(x => x.MaterialName)
                 .ThenBy(x => x.BatchCode)
                 .ThenBy(x => x.BinCode)
@@ -416,7 +432,7 @@ namespace Backend.Domains.Audit.Services
                 {
                     UserId = tm.UserId,
                     FullName = u.FullName,
-                    IsActive = tm.IsActive,
+                    IsActive = tm.IsActive && tm.MemberCompletedAt == null,
                     AssignedAt = tm.AssignedAt,
                     RemovedAt = tm.RemovedAt
                 }
@@ -459,26 +475,6 @@ namespace Backend.Domains.Audit.Services
 
             if (string.Equals(st.Status, "Planned", StringComparison.OrdinalIgnoreCase))
                 st.Status = "Assigned";
-
-            var targetUserName = await _db.Users
-                .AsNoTracking()
-                .Where(x => x.UserId == targetUserId)
-                .Select(x => x.FullName)
-                .FirstOrDefaultAsync(ct) ?? $"User#{targetUserId}";
-
-            var managerName = !string.IsNullOrWhiteSpace(manager.FullName)
-                ? manager.FullName
-                : manager.Username;
-
-            await _notificationService.QueueAuditNotificationAsync(
-                stockTakeId,
-                $"{targetUserName} đã được {managerName} gọi quay lại Audit #{st.StockTakeId} ({st.Title}) để kiểm kê lại.",
-                includeCreator: true,
-                includeTeamMembers: false,
-                roleNames: new[] { "Manager" },
-                extraUserIds: new[] { targetUserId },
-                excludeUserIds: new[] { managerUserId },
-                ct);
 
             await _db.SaveChangesAsync(ct);
 

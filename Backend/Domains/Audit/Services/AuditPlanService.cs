@@ -121,19 +121,8 @@ namespace Backend.Domains.Audit.Services
                 }).ToList();
 
                 _db.StockTakeBinLocations.AddRange(stockTakeBinLocations);
+                await _db.SaveChangesAsync(ct);
             }
-
-            await _notificationService.QueueAuditNotificationAsync(
-                entity.StockTakeId,
-                $"Audit #{entity.StockTakeId} ({entity.Title}) đã được tạo cho kho {warehouse.Name}. Vui lòng phân công đội kiểm kê.",
-                includeCreator: true,
-                includeTeamMembers: false,
-                roleNames: new[] { "Manager" },
-                extraUserIds: null,
-                excludeUserIds: null,
-                ct);
-
-            await _db.SaveChangesAsync(ct);
 
             return new AuditPlanResponse
             {

@@ -55,4 +55,5 @@ public partial class BinLocation
 
     [InverseProperty("Bin")]
     public virtual ICollection<ReceiptDetailBinAllocation> ReceiptDetailBinAllocations { get; set; } = new List<ReceiptDetailBinAllocation>();
+    public virtual ICollection<PickingList> PickingLists { get; set; } = new List<PickingList>();
 }

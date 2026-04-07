@@ -24,6 +24,8 @@ using NuGet.Packaging;
 using OfficeOpenXml;
 using System;
 using System.Text;
+using Backend.Domains.Projects.Interfaces;
+using Backend.Domains.Projects.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -60,7 +62,16 @@ builder.Services.AddScoped<IAuditTeamService, AuditTeamService>();
 builder.Services.AddScoped<IStockTakeReviewService, StockTakeReviewService>();
 builder.Services.AddScoped<IStockTakeCountingService, StockTakeCountingService>();
 builder.Services.AddScoped<IStockTakeLockService, StockTakeLockService>();
-builder.Services.AddScoped<IAuditNotificationService, AuditNotificationService>();
+=========
+
+//  Import services
+builder.Services.AddScoped<IStockShortageAlertService, StockShortageAlertService>();
+builder.Services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
+builder.Services.AddScoped<IReceiptService, ReceiptService>();
+builder.Services.AddScoped<IPurchaseRequestService, PurchaseRequestService>();
+builder.Services.AddScoped<IIncidentWorkflowService, IncidentWorkflowService>();
+builder.Services.AddScoped<ISupplierService, SupplierService>();
+>>>>>>>>> Temporary merge branch 2
 // Configure Swagger to support file uploads
 builder.Services.AddSwaggerGen(c =>
 {
@@ -145,6 +156,8 @@ builder.Services.AddCors(options =>
             .AllowCredentials();
     });
 });
+
+builder.Services.AddScoped<IProjectService, ProjectService>();
 
 var app = builder.Build();
 

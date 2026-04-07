@@ -29,7 +29,7 @@ public partial class IssueSlip
     [Column(TypeName = "datetime")]
     public DateTime? IssueDate { get; set; }
 
-    [StringLength(20)]
+    [StringLength(50)]
     [Unicode(false)]
     public string? Status { get; set; }  // open, closed, cancel 
 
@@ -72,6 +72,9 @@ public partial class IssueSlip
 
     [StringLength(100)]
     public string? ReferenceCode { get; set; } // Mã tham chiếu
+
+    [InverseProperty("Issue")]
+    public virtual ICollection<IssueSlipApproval> Approvals { get; set; } = new List<IssueSlipApproval>();
 
 
 }
