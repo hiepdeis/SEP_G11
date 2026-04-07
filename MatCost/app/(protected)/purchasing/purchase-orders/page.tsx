@@ -134,7 +134,7 @@ export default function PurchasingDashboardPage() {
   const handleTabChange = (tab: "PO" | "PR") => {
     setActiveTab(tab);
     setSearchTerm("");
-    setFilterStatus("PendingApproval");
+    setFilterStatus("AdminApproved");
     setCurrentPage(1);
     setSortConfig(null);
   };

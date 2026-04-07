@@ -464,8 +464,6 @@ namespace Backend.Domains.Import.Services
                     ? "Fail"
                     : "Pass";
 
-                // if ordered quantity is fully satisfied by QC pass,
-                // skip incident flow even when there are failed extras.
                 var hasFullPassForOrderedQty = dto.Items.All(d =>
                 {
                     var orderedQty = poItemMap[d.MaterialId].OrderedQuantity;

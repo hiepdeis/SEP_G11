@@ -241,8 +241,8 @@ export interface AccountantReceiptCloseResultDto {
 export interface ManagerIncidentItemSummaryDto {
   materialId: number;
   materialName?: string;
-  orderedQuantity?: number;
-  actualQuantity?: number;
+  orderedQuantity: number;
+  actualQuantity: number;
   passQuantity: number;
   failQuantity: number;
   failReason?: string;

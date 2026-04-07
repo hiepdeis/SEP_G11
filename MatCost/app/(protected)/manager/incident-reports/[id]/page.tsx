@@ -497,7 +497,7 @@ export default function ManagerIncidentDetailPage() {
                             <div className="flex flex-col text-xs font-semibold">
                               <span>{t("Defect Breakdown")}</span>
                               <span className="text-[10px] text-amber-600 font-normal uppercase">
-                                {t("Quality & Damage")}
+                                {t("Quantity & Quality & Damage")}
                               </span>
                             </div>
                           </TableHead>
@@ -561,6 +561,15 @@ export default function ManagerIncidentDetailPage() {
                                       {t("Quality")}
                                     </span>
                                     <span className="text-sm font-bold text-amber-600">
+                                      {item.failQuantityQuantity || 0}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex flex-col items-center px-3 py-1.5 min-w-[70px] hover:bg-slate-50 transition-colors">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">
+                                      {t("Quality")}
+                                    </span>
+                                    <span className="text-sm font-bold text-amber-600">
                                       {item.failQuantityQuality || 0}
                                     </span>
                                   </div>
@@ -578,7 +587,9 @@ export default function ManagerIncidentDetailPage() {
 
                               <TableCell className="text-center align-top pt-4">
                                 <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-rose-200 shadow-sm">
-                                  {item.failQuantity}
+                                  {item.failQuantityQuantity +
+                                    item.failQuantityQuality +
+                                    item.failQuantityDamage}
                                 </Badge>
                               </TableCell>
 

@@ -148,11 +148,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
             Math.max(0, Number(val) || 0),
           );
 
-          const targetQuantity = Math.min(
-            item.orderedQuantity,
-            item.actualQuantity,
-          );
-          const fail = Math.max(0, targetQuantity - pass);
+          const fail = Math.max(0, item.actualQuantity - pass);
 
           const needsReason =
             fail > 0 || item.actualQuantity < item.orderedQuantity;
@@ -208,12 +204,18 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
               const isFailed =
                 i.failQuantity > 0 || i.actualQuantity < i.orderedQuantity;
 
+              const targetQuantity = Math.min(
+                i.actualQuantity,
+                i.orderedQuantity,
+              );
+              const failQty = Math.max(0, targetQuantity - i.passQuantity);
+
               return {
                 materialId: i.materialId,
                 orderedQuantity: Number(i.orderedQuantity.toFixed(3)),
                 actualQuantity: Number(i.actualQuantity.toFixed(3)),
                 passQuantity: Number(i.passQuantity.toFixed(3)),
-                failQuantity: Number(i.failQuantity.toFixed(3)),
+                failQuantity: Number(failQty.toFixed(3)),
                 failReason: isFailed ? i.failReason.trim() : undefined,
                 result: isFailed ? "Fail" : "Pass",
               };
@@ -227,8 +229,16 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
             payload.purchaseOrderId = Number(poIdParam);
           }
 
-          // console.log("failquantity", payload.items.map(i => i.failQuantity))
-          // console.log("result", payload.items.map(i => i.result))
+          // console.log(
+          //   "failquantity",
+          //   payload.items.map((i) => i.failQuantity),
+          //   "result",
+          //   payload.items.map((i) => i.result),
+          //   "hasFullPassForOrderedQty",
+          //   payload.items.map(
+          //     (i) => i.passQuantity + 0.0001 >= i.orderedQuantity,
+          //   ),
+          // );
 
           const res =
             await staffReceiptsApi.receiveGoodsFromPurchaseOrder(payload);

@@ -402,7 +402,7 @@ export default function RecreatePurchaseOrderPage() {
                           placeholder={t("Select to apply to all items...")}
                         />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent showSearch>
                         {capableSuppliers.length > 0 ? (
                           capableSuppliers.map((s) => (
                             <SelectItem
@@ -621,7 +621,10 @@ export default function RecreatePurchaseOrderPage() {
                                   >
                                     <SelectValue placeholder={t("Select...")} />
                                   </SelectTrigger>
-                                  <SelectContent className="w-[var(--radix-select-trigger-width)]">
+                                  <SelectContent
+                                    showSearch
+                                    className="w-[var(--radix-select-trigger-width)]"
+                                  >
                                     {suppliers
                                       .filter(
                                         (s) =>

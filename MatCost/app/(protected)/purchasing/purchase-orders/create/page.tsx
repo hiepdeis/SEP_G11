@@ -309,7 +309,10 @@ export default function CreatePurchaseOrderPage() {
                       <SelectTrigger className="w-full bg-slate-50 min-h-[60px] py-2 border-slate-300">
                         <SelectValue placeholder={t("Select a PR...")} />
                       </SelectTrigger>
-                      <SelectContent className="w-[var(--radix-select-trigger-width)]">
+                      <SelectContent
+                        showSearch
+                        className="w-[var(--radix-select-trigger-width)]"
+                      >
                         {requests
                           .filter((r) => r.status !== "DraftPO")
                           .map((r) => (
@@ -346,7 +349,7 @@ export default function CreatePurchaseOrderPage() {
                           placeholder={t("Select to apply to all items...")}
                         />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent showSearch>
                         {capableSuppliers.length > 0 ? (
                           capableSuppliers.map((s) => (
                             <SelectItem
@@ -453,7 +456,10 @@ export default function CreatePurchaseOrderPage() {
                                   >
                                     <SelectValue placeholder={t("Select...")} />
                                   </SelectTrigger>
-                                  <SelectContent className="w-[var(--radix-select-trigger-width)]">
+                                  <SelectContent
+                                    showSearch
+                                    className="w-[var(--radix-select-trigger-width)]"
+                                  >
                                     {suppliers
                                       .filter(
                                         (s) =>

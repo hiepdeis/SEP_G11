@@ -64,7 +64,11 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 
-export default function PendingDeliveriesPage({ role = "staff" }: { role: string }) {
+export default function PendingDeliveriesPage({
+  role = "staff",
+}: {
+  role: string;
+}) {
   const router = useRouter();
   const { t } = useTranslation();
   const rolePath = role === "manager" ? "manager" : "staff";
@@ -523,7 +527,7 @@ export default function PendingDeliveriesPage({ role = "staff" }: { role: string
                                 return;
                               handleReceiveGoods(
                                 item.purchaseOrderId,
-                                item.supplementaryReceiptId,
+                                item.supplementaryReceiptId!,
                               );
                             }}
                           >
@@ -613,7 +617,7 @@ export default function PendingDeliveriesPage({ role = "staff" }: { role: string
                                   e.stopPropagation();
                                   handleReceiveGoods(
                                     item.purchaseOrderId,
-                                    item.supplementaryReceiptId,
+                                    item.supplementaryReceiptId!,
                                   );
                                 }}
                                 disabled={loadingId === item.purchaseOrderId}

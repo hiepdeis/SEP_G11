@@ -664,7 +664,10 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                                                     )}
                                                   />
                                                 </SelectTrigger>
-                                                <SelectContent className="max-h-[200px]">
+                                                <SelectContent
+                                                  showSearch
+                                                  className="max-h-[200px]"
+                                                >
                                                   {binLocations.map(
                                                     (location) => (
                                                       <SelectItem

@@ -332,7 +332,10 @@ export default function CreatePurchaseRequestPage() {
                             placeholder={t("Select an alert to resolve...")}
                           />
                         </SelectTrigger>
-                        <SelectContent className="w-[var(--radix-select-trigger-width)] max-h-[300px]">
+                        <SelectContent
+                          showSearch
+                          className="w-[var(--radix-select-trigger-width)] max-h-[300px]"
+                        >
                           {alerts.length === 0 ? (
                             <div className="p-3 text-sm text-slate-500 text-center">
                               {t("No confirmed alerts found.")}
@@ -393,7 +396,7 @@ export default function CreatePurchaseRequestPage() {
                         <SelectTrigger className="w-full bg-slate-50 border-slate-200 h-10">
                           <SelectValue placeholder={t("Select a project...")} />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent showSearch>
                           {projects.map((p) => (
                             <SelectItem
                               key={p.projectId}
@@ -471,7 +474,10 @@ export default function CreatePurchaseRequestPage() {
                                     placeholder={t("Select material...")}
                                   />
                                 </SelectTrigger>
-                                <SelectContent className="w-[var(--radix-select-trigger-width)]">
+                                <SelectContent
+                                  showSearch
+                                  className="w-[var(--radix-select-trigger-width)]"
+                                >
                                   {materials.map((m) => {
                                     const isSelectedElsewhere = items.some(
                                       (i) =>
@@ -516,7 +522,15 @@ export default function CreatePurchaseRequestPage() {
                                       ? "any"
                                       : "1"
                                   }
-                                  placeholder="0.00"
+                                  placeholder={
+                                    materials.find(
+                                      (m) =>
+                                        m.materialId.toString() ===
+                                        item.materialId,
+                                    )?.isDecimalUnit
+                                      ? "0.00"
+                                      : "0"
+                                  }
                                   className="w-full text-right pr-12 border-indigo-200 focus-visible:ring-indigo-600"
                                   value={item.quantity}
                                   onChange={(e) => {

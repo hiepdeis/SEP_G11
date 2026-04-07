@@ -91,7 +91,7 @@ export default function StaffIncidentPage({
     useState<IncidentReportDto | null>(null);
 
   const [tablePage, setTablePage] = useState(1);
-  const tableItemsPerPage = 5;
+  const tableItemsPerPage = 1;
 
   const [isSubmittingToManager, setIsSubmittingToManager] = useState(false);
 
@@ -159,7 +159,11 @@ export default function StaffIncidentPage({
         },
       );
 
-      setIncidentItems(itemsToReport);
+      setIncidentItems(
+        itemsToReport.filter(
+          (item) => item.passQuantity < item.orderedQuantity,
+        ),
+      );
     } catch (error) {
       toast.error(t("Failed to load data for incident report"));
     } finally {
@@ -239,7 +243,11 @@ export default function StaffIncidentPage({
           },
         );
 
-        setIncidentItems(itemsToReport);
+        setIncidentItems(
+          itemsToReport.filter(
+            (item) => item.passQuantity < item.orderedQuantity,
+          ),
+        );
       } catch (error) {
         toast.error(t("Failed to load data for incident report"));
       } finally {
@@ -312,7 +320,6 @@ export default function StaffIncidentPage({
             description: incidentDescription.trim(),
             details: incidentItems.map((i) => {
               const currentBreakdown = i.breakdown;
-
               return {
                 materialId: i.materialId,
                 issueType: i.issueType,
@@ -598,7 +605,7 @@ export default function StaffIncidentPage({
             </CardContent>
           </Card>
 
-          <Card className="border-slate-200 shadow-sm overflow-hidden flex flex-col gap-0">
+          <Card className="border-slate-200 shadow-sm overflow-hidden flex flex-col gap-0 pb-0">
             <CardHeader className="bg-white border-b border-slate-100 shrink-0 flex flex-row items-center justify-between">
               <div className="flex items-center gap-3">
                 <CardTitle className="text-base text-rose-700 flex items-center gap-2 py-4">
