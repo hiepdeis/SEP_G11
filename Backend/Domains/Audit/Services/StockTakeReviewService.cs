@@ -1209,7 +1209,7 @@ namespace Backend.Domains.Audit.Services
             st.CompletedBy = userId; 
             st.Notes = request.Notes?.Trim();
 
-            await UnlockActiveLocksAsync(stockTakeId, managerId, ct);
+            await UnlockActiveLocksAsync(stockTakeId, userId, ct);
             await _db.SaveChangesAsync(ct);
 
             return (true, $"Audit completed successfully. Resolved variance candidates: {resolvedVariances.Count}, posted: {postedCount}, already posted: {skippedAlreadyPostedCount}, zero-delta: {skippedZeroDeltaCount}.");

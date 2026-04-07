@@ -51,6 +51,7 @@ builder.Services.Configure<EmailOptions>(
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 builder.Services.AddScoped<IAuditReportService, AuditReportService>();
+builder.Services.AddScoped<IAuditNotificationService, AuditNotificationService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -62,7 +63,7 @@ builder.Services.AddScoped<IAuditTeamService, AuditTeamService>();
 builder.Services.AddScoped<IStockTakeReviewService, StockTakeReviewService>();
 builder.Services.AddScoped<IStockTakeCountingService, StockTakeCountingService>();
 builder.Services.AddScoped<IStockTakeLockService, StockTakeLockService>();
-=========
+
 
 //  Import services
 builder.Services.AddScoped<IStockShortageAlertService, StockShortageAlertService>();
@@ -71,7 +72,7 @@ builder.Services.AddScoped<IReceiptService, ReceiptService>();
 builder.Services.AddScoped<IPurchaseRequestService, PurchaseRequestService>();
 builder.Services.AddScoped<IIncidentWorkflowService, IncidentWorkflowService>();
 builder.Services.AddScoped<ISupplierService, SupplierService>();
->>>>>>>>> Temporary merge branch 2
+
 // Configure Swagger to support file uploads
 builder.Services.AddSwaggerGen(c =>
 {

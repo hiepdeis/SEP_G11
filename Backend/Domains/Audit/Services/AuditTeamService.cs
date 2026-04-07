@@ -198,13 +198,22 @@ public class AuditTeamService : IAuditTeamService
 
         if (assignedUserIds.Count > 0)
         {
-            _db.Notifications.Add(new Notification
-            {
-                UserId = uid,
-                Message = $"You have been assigned to Audit #{st.StockTakeId} ({st.Title}).",
-                IsRead = false,
-                CreatedAt = now
-            });
+            await _notificationService.QueueNotificationAsync(
+                assignedUserIds,
+                $"You have been assigned to Audit #{st.StockTakeId} ({st.Title}).",
+                relatedEntityType: "Audit",
+                relatedEntityId: st.StockTakeId,
+                ct);
+        }
+
+        if (deactivatedUserIds.Count > 0)
+        {
+            await _notificationService.QueueNotificationAsync(
+                deactivatedUserIds,
+                $"You have been removed from Audit #{st.StockTakeId} ({st.Title}).",
+                relatedEntityType: "Audit",
+                relatedEntityId: st.StockTakeId,
+                ct);
         }
 
         await _db.SaveChangesAsync(ct);
