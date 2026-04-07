@@ -1,7 +1,5 @@
-// ─── CÀI VÀO: app/(admin)/page.tsx ────────────────────────────────────────
-// Route: /
-import Dashboard from "@/components/pages/admin/Dashboard";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <Dashboard />;
+  redirect("/admin/users");
 }

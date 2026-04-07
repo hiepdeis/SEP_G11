@@ -1,8 +1,9 @@
 "use client";
-import { useState, useMemo, useEffect } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   Search, Plus, Edit2, Trash2, X, Layers, ClipboardList,
-  Truck, Warehouse, MapPin, ChevronLeft, ChevronRight, Shield, FolderKanban,
+  Truck, Warehouse, MapPin, ChevronDown, ChevronLeft, ChevronRight, Shield, FolderKanban,
+  FileText, Package,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getRoles, updateRole, deleteRole, createRole } from "@/services/admin-users";
@@ -13,7 +14,13 @@ import {
   updateAdjustmentReason,
   deleteAdjustmentReason,
 } from "@/services/adjustment-reasons";
-import { createSupplier, deleteSupplier, getSuppliers, updateSupplier } from "@/services/admin-suppliers";
+import {
+  createSupplier,
+  deleteSupplier,
+  getSuppliers,
+  updateSupplier,
+  type ContractDto,
+} from "@/services/admin-suppliers";
 import {
   getWarehouses,
   createWarehouse,
@@ -51,6 +58,10 @@ function GenericTable<T extends BaseItem>({
   searchFn,
   onSaveItem,
   onDeleteItem,
+  renderExpandedContent,
+  isRowExpanded,
+  onToggleExpand,
+  canExpandRow,
 }: {
   items: T[];
   setItems: React.Dispatch<React.SetStateAction<T[]>>;
@@ -60,6 +71,10 @@ function GenericTable<T extends BaseItem>({
   searchFn: (item: T, q: string) => boolean;
   onSaveItem?: (item: Partial<T>) => Promise<Partial<T> | void>;
   onDeleteItem?: (id: number) => Promise<void>;
+  renderExpandedContent?: (item: T) => React.ReactNode;
+  isRowExpanded?: (item: T) => boolean;
+  onToggleExpand?: (item: T) => void;
+  canExpandRow?: (item: T) => boolean;
 }) {
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -76,6 +91,7 @@ function GenericTable<T extends BaseItem>({
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
+  const hasExpandableRows = Boolean(renderExpandedContent && isRowExpanded && onToggleExpand);
 
   const openAdd = () => {
     setEditing({} as Partial<T>);
@@ -177,6 +193,11 @@ const save = async () => {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
+                {hasExpandableRows && (
+                  <th className="w-14 px-3 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">
+                    Chi tiết
+                  </th>
+                )}
                 {columns.map((c) => (
                   <th
                     key={c.key}
@@ -195,42 +216,79 @@ const save = async () => {
               {paginated.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={columns.length + 1}
+                    colSpan={columns.length + 1 + (hasExpandableRows ? 1 : 0)}
                     className="px-5 py-8 text-center text-gray-400 text-sm"
                   >
                     Không có dữ liệu
                   </td>
                 </tr>
               ) : (
-                paginated.map((item) => (
-                  <tr key={item._id} className="hover:bg-gray-50/50">
-                    {columns.map((c) => (
-                      <td key={c.key} className="px-5 py-3 text-sm text-gray-700">
-                        {c.render(item)}
-                      </td>
-                    ))}
+                paginated.map((item) => {
+                  const rowCanExpand = canExpandRow ? canExpandRow(item) : true;
+                  const expanded = rowCanExpand && isRowExpanded ? isRowExpanded(item) : false;
 
-                    <td className="px-5 py-3">
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => openEdit(item)}
-                          disabled={deletingId === item._id}
-                          className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-600 transition-colors disabled:opacity-40"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
+                  return (
+                    <Fragment key={item._id}>
+                      <tr className={expanded ? "bg-slate-50/80" : "hover:bg-gray-50/50"}>
+                        {hasExpandableRows && (
+                          <td className="px-3 py-3 align-top">
+                            {rowCanExpand ? (
+                              <button
+                                type="button"
+                                onClick={() => onToggleExpand?.(item)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
+                                aria-label={expanded ? "Thu gọn" : "Mở rộng"}
+                              >
+                                {expanded ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                              </button>
+                            ) : null}
+                          </td>
+                        )}
 
-                        <button
-                          onClick={() => remove(item._id)}
-                          disabled={deletingId === item._id}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-500 transition-colors disabled:opacity-40"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                        {columns.map((c) => (
+                          <td key={c.key} className="px-5 py-3 text-sm text-gray-700">
+                            {c.render(item)}
+                          </td>
+                        ))}
+
+                        <td className="px-5 py-3 align-top">
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => openEdit(item)}
+                              disabled={deletingId === item._id}
+                              className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-600 transition-colors disabled:opacity-40"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              onClick={() => remove(item._id)}
+                              disabled={deletingId === item._id}
+                              className="p-1.5 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-500 transition-colors disabled:opacity-40"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {hasExpandableRows && expanded && (
+                        <tr className="bg-slate-50/80">
+                          <td
+                            colSpan={columns.length + 1 + (hasExpandableRows ? 1 : 0)}
+                            className="px-5 py-4"
+                          >
+                            {renderExpandedContent?.(item)}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -300,6 +358,198 @@ const save = async () => {
 }
 
 const inputCls = "w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 text-sm";
+
+const moneyFormatter = new Intl.NumberFormat("vi-VN", {
+  style: "currency",
+  currency: "VND",
+  maximumFractionDigits: 0,
+});
+
+const quantityFormatter = new Intl.NumberFormat("vi-VN", {
+  maximumFractionDigits: 2,
+});
+
+const normalizeSearchValue = (value: unknown) =>
+  String(value ?? "").trim().toLowerCase();
+
+const formatMoney = (value?: number | null) =>
+  value == null ? "—" : moneyFormatter.format(value);
+
+const formatDate = (value?: string | null) => {
+  if (!value) return "—";
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return parsed.toLocaleDateString("vi-VN");
+};
+
+const formatQuantity = (value?: number | null, unit?: string | null) => {
+  if (value == null) return "—";
+  const suffix = unit ? ` ${unit}` : "";
+  return `${quantityFormatter.format(value)}${suffix}`;
+};
+
+const matchesContracts = (contracts: ContractDto[], keyword: string) =>
+  contracts.some((contract) =>
+    [
+      contract.contractCode,
+      contract.contractNumber,
+      contract.status,
+      contract.supplierName,
+    ].some((value) => normalizeSearchValue(value).includes(keyword)) ||
+    contract.materials.some((material) =>
+      [
+        material.code,
+        material.name,
+        material.unit,
+      ].some((value) => normalizeSearchValue(value).includes(keyword))
+    )
+  );
+
+const renderContractCountBadge = (contracts: ContractDto[]) => {
+  const count = contracts.length;
+
+  if (count === 0) {
+    return (
+      <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
+        Chưa có
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="inline-flex w-fit rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+        {count} hợp đồng
+      </span>
+      <span className="text-xs text-slate-400">Bấm mũi tên để xem chi tiết</span>
+    </div>
+  );
+};
+
+function ContractsExpandedContent({
+  contracts,
+  emptyMessage,
+  showSupplierName = false,
+}: {
+  contracts: ContractDto[];
+  emptyMessage: string;
+  showSupplierName?: boolean;
+}) {
+  if (contracts.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
+        {emptyMessage}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {contracts.map((contract) => (
+        <div
+          key={`${contract.contractId}-${contract.contractCode}`}
+          className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+        >
+          <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+                  <FileText className="h-3.5 w-3.5" />
+                  {contract.contractCode}
+                </span>
+                {contract.contractNumber ? (
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
+                    Số HĐ: {contract.contractNumber}
+                  </span>
+                ) : null}
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    contract.isActive
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {contract.status}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
+                {showSupplierName && contract.supplierName ? (
+                  <span>Nhà cung cấp: {contract.supplierName}</span>
+                ) : null}
+                <span>Hiệu lực: {formatDate(contract.effectiveFrom)}</span>
+                <span>Hết hạn: {formatDate(contract.effectiveTo)}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2 text-sm text-slate-600 sm:grid-cols-3">
+              <div className="rounded-xl bg-slate-50 px-3 py-2">
+                <div className="text-xs uppercase tracking-wide text-slate-400">PO</div>
+                <div className="font-medium text-slate-900">{contract.purchaseOrderCount}</div>
+              </div>
+              <div className="rounded-xl bg-slate-50 px-3 py-2">
+                <div className="text-xs uppercase tracking-wide text-slate-400">Vật liệu</div>
+                <div className="font-medium text-slate-900">{contract.materialCount}</div>
+              </div>
+              <div className="rounded-xl bg-slate-50 px-3 py-2">
+                <div className="text-xs uppercase tracking-wide text-slate-400">Tổng giá trị</div>
+                <div className="font-medium text-slate-900">{formatMoney(contract.totalAmount)}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-4 py-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-800">
+              <Package className="h-4 w-4 text-slate-500" />
+              Danh sách vật liệu
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-slate-100">
+              <table className="min-w-full divide-y divide-slate-100 text-sm">
+                <thead className="bg-slate-50">
+                  <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                    <th className="px-4 py-3">Mã vật liệu</th>
+                    <th className="px-4 py-3">Tên vật liệu</th>
+                    <th className="px-4 py-3">Đơn vị</th>
+                    <th className="px-4 py-3">Số lượng</th>
+                    <th className="px-4 py-3">Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {contract.materials.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-5 text-center text-slate-400">
+                        Hợp đồng này chưa có vật liệu.
+                      </td>
+                    </tr>
+                  ) : (
+                    contract.materials.map((material) => (
+                      <tr key={`${contract.contractId}-${material.materialId}`} className="text-slate-700">
+                        <td className="px-4 py-3">
+                          <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
+                            {material.code}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">{material.name}</td>
+                        <td className="px-4 py-3">{material.unit || "—"}</td>
+                        <td className="px-4 py-3">{formatQuantity(material.orderedQuantity, material.unit)}</td>
+                        <td className="px-4 py-3">{formatMoney(material.totalAmount)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // ═══════════ ROLES ═══════════
 // DB: Roles(RoleID, RoleName)
@@ -813,11 +1063,13 @@ interface SupplierItem extends BaseItem {
   name: string;
   taxCode: string;
   address: string;
+  contracts: ContractDto[];
 }
 
 function SuppliersTab() {
   const [items, setItems] = useState<SupplierItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedIds, setExpandedIds] = useState<number[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -835,6 +1087,7 @@ function SuppliersTab() {
             name: s.name ?? "",
             taxCode: s.taxCode ?? "",
             address: s.address ?? "",
+            contracts: s.contracts ?? [],
           }))
         );
       } catch (error) {
@@ -862,16 +1115,17 @@ function SuppliersTab() {
       setItems={setItems}
       idGen={() => Date.now()}
       searchFn={(i, q) => {
-        const code = String(i.code ?? "").toLowerCase();
-        const name = String(i.name ?? "").toLowerCase();
-        const taxCode = String(i.taxCode ?? "").toLowerCase();
-        const address = String(i.address ?? "").toLowerCase();
+        const code = normalizeSearchValue(i.code);
+        const name = normalizeSearchValue(i.name);
+        const taxCode = normalizeSearchValue(i.taxCode);
+        const address = normalizeSearchValue(i.address);
 
         return (
           code.includes(q) ||
           name.includes(q) ||
           taxCode.includes(q) ||
-          address.includes(q)
+          address.includes(q) ||
+          matchesContracts(i.contracts, q)
         );
       }}
       onSaveItem={async (item) => {
@@ -902,6 +1156,7 @@ function SuppliersTab() {
             name,
             taxCode,
             address,
+            contracts: item.contracts ?? [],
           };
         }
 
@@ -918,11 +1173,27 @@ function SuppliersTab() {
           name,
           taxCode,
           address,
+          contracts: [],
         };
       }}
       onDeleteItem={async (id) => {
         await deleteSupplier(id);
       }}
+      canExpandRow={(item) => item.contracts.length > 0}
+      renderExpandedContent={(item) => (
+        <ContractsExpandedContent
+          contracts={item.contracts}
+          emptyMessage="Nhà cung cấp này chưa có hợp đồng nào được liên kết."
+        />
+      )}
+      isRowExpanded={(item) => expandedIds.includes(item._id)}
+      onToggleExpand={(item) =>
+        setExpandedIds((prev) =>
+          prev.includes(item._id)
+            ? prev.filter((id) => id !== item._id)
+            : [...prev, item._id]
+        )
+      }
       columns={[
         {
           key: "code",
@@ -936,6 +1207,11 @@ function SuppliersTab() {
         { key: "name", label: "Tên nhà cung cấp", render: (i) => i.name },
         { key: "taxCode", label: "Mã số thuế", render: (i) => i.taxCode || "—" },
         { key: "address", label: "Địa chỉ", render: (i) => i.address || "—" },
+        {
+          key: "contracts",
+          label: "Hợp đồng",
+          render: (i) => renderContractCountBadge(i.contracts),
+        },
       ]}
       renderForm={(item, onChange) => {
         const s = item as Partial<SupplierItem>;
@@ -1364,6 +1640,7 @@ interface ProjectItem extends BaseItem {
   endDate: string;
   budget: number | null;
   status: string;
+  contracts: ContractDto[];
 }
 
 const statusProjCls: Record<string, string> = {
@@ -1383,6 +1660,7 @@ const statusProjLabel: Record<string, string> = {
 function ProjectsTab() {
   const [items, setItems] = useState<ProjectItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedIds, setExpandedIds] = useState<number[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -1403,6 +1681,7 @@ function ProjectsTab() {
             endDate: p.endDate ? String(p.endDate).slice(0, 10) : "",
             budget: p.budget ?? null,
             status: p.status ?? "Planned",
+            contracts: p.contracts ?? [],
           }))
         );
       } catch (error) {
@@ -1430,9 +1709,9 @@ function ProjectsTab() {
       setItems={setItems}
       idGen={() => Date.now()}
       searchFn={(i, q) => {
-        const name = String(i.name ?? "").toLowerCase();
-        const code = String(i.code ?? "").toLowerCase();
-        return name.includes(q) || code.includes(q);
+        const name = normalizeSearchValue(i.name);
+        const code = normalizeSearchValue(i.code);
+        return name.includes(q) || code.includes(q) || matchesContracts(i.contracts, q);
       }}
       onSaveItem={async (item) => {
         const code = item.code?.trim().toUpperCase();
@@ -1470,6 +1749,7 @@ function ProjectsTab() {
             endDate,
             budget,
             status,
+            contracts: item.contracts ?? [],
           };
         }
 
@@ -1483,11 +1763,28 @@ function ProjectsTab() {
           endDate,
           budget,
           status,
+          contracts: [],
         };
       }}
       onDeleteItem={async (id) => {
         await deleteProject(id);
       }}
+      canExpandRow={(item) => item.contracts.length > 0}
+      renderExpandedContent={(item) => (
+        <ContractsExpandedContent
+          contracts={item.contracts}
+          emptyMessage="Dự án này chưa có hợp đồng nào được liên kết."
+          showSupplierName
+        />
+      )}
+      isRowExpanded={(item) => expandedIds.includes(item._id)}
+      onToggleExpand={(item) =>
+        setExpandedIds((prev) =>
+          prev.includes(item._id)
+            ? prev.filter((id) => id !== item._id)
+            : [...prev, item._id]
+        )
+      }
       columns={[
         {
           key: "code",
@@ -1518,6 +1815,11 @@ function ProjectsTab() {
               {statusProjLabel[i.status] || i.status}
             </span>
           ),
+        },
+        {
+          key: "contracts",
+          label: "Hợp đồng",
+          render: (i) => renderContractCountBadge(i.contracts),
         },
       ]}
       renderForm={(item, onChange) => {

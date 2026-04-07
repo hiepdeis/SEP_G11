@@ -1,4 +1,5 @@
 import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
+import type { ContractDto } from "@/services/admin-suppliers";
 
 export type ProjectItem = {
   projectId: number;
@@ -8,6 +9,7 @@ export type ProjectItem = {
   endDate: string | null;
   budget: number | null;
   status: string | null;
+  contracts?: ContractDto[];
 };
 
 export type ProjectPagedResult = {

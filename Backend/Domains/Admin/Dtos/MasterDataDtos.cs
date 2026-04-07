@@ -94,6 +94,7 @@
         public string Name { get; set; } = null!;
         public string? TaxCode { get; set; }
         public string? Address { get; set; }
+        public List<MasterDataContractDto> Contracts { get; set; } = new();
     }
 
     public sealed class UpsertSupplierDto
@@ -152,6 +153,7 @@
         public DateTime? EndDate { get; set; }
         public decimal? Budget { get; set; }
         public string? Status { get; set; }
+        public List<MasterDataContractDto> Contracts { get; set; } = new();
     }
 
     public sealed class UpsertProjectDto
@@ -167,5 +169,31 @@
     public sealed class ProjectStatusUpdateDto
     {
         public string Status { get; set; } = null!;
+    }
+
+    public sealed class MasterDataContractDto
+    {
+        public long ContractId { get; set; }
+        public string ContractCode { get; set; } = null!;
+        public string? ContractNumber { get; set; }
+        public DateTime EffectiveFrom { get; set; }
+        public DateTime? EffectiveTo { get; set; }
+        public string Status { get; set; } = null!;
+        public bool IsActive { get; set; }
+        public string? SupplierName { get; set; }
+        public int PurchaseOrderCount { get; set; }
+        public int MaterialCount { get; set; }
+        public decimal? TotalAmount { get; set; }
+        public List<MasterDataContractMaterialDto> Materials { get; set; } = new();
+    }
+
+    public sealed class MasterDataContractMaterialDto
+    {
+        public int MaterialId { get; set; }
+        public string Code { get; set; } = null!;
+        public string Name { get; set; } = null!;
+        public string? Unit { get; set; }
+        public decimal OrderedQuantity { get; set; }
+        public decimal? TotalAmount { get; set; }
     }
 }

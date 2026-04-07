@@ -1,11 +1,36 @@
 import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
 
+export type ContractMaterialDto = {
+  materialId: number;
+  code: string;
+  name: string;
+  unit?: string | null;
+  orderedQuantity: number;
+  totalAmount?: number | null;
+};
+
+export type ContractDto = {
+  contractId: number;
+  contractCode: string;
+  contractNumber?: string | null;
+  effectiveFrom: string;
+  effectiveTo?: string | null;
+  status: string;
+  isActive: boolean;
+  supplierName?: string | null;
+  purchaseOrderCount: number;
+  materialCount: number;
+  totalAmount?: number | null;
+  materials: ContractMaterialDto[];
+};
+
 export type SupplierDto = {
   supplierId: number;
   code: string;
   name: string;
   taxCode?: string | null;
   address?: string | null;
+  contracts?: ContractDto[];
 };
 
 export type SupplierPagedResult = {

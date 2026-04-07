@@ -22,6 +22,10 @@ const navItems = [
   { to: "/admin/profile",       icon: User,            label: "Hồ sơ cá nhân" },
 ];
 
+const resolvedNavItems = navItems.map((item) =>
+  item.to === "/admin" ? { ...item, to: "/admin/dashboard" } : item
+);
+
 const formatTime = (iso: string) => {
   const d = new Date(iso);
   const diffMs = Date.now() - d.getTime();
@@ -95,7 +99,7 @@ export default function AdminLayout({ children }: { children?: React.ReactNode }
         </div>
 
         <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
-          {navItems.map((item) => (
+          {resolvedNavItems.map((item) => (
             <Link
               key={item.to}
               href={item.to}
