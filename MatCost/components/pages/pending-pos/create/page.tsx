@@ -12,6 +12,8 @@ import {
   Info,
   CalendarDays,
   ClipboardList,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
@@ -58,6 +60,8 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
   const [items, setItems] = useState<ReceiveItemInput[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     if (!poIdParam && !supIdParam) {
@@ -116,6 +120,12 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
 
     fetchOrderDetails();
   }, [poIdParam, supIdParam, router, t]);
+
+  const totalPages = Math.ceil(items.length / itemsPerPage) || 1;
+  const paginatedItems = items.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
 
   const handleActualChange = (id: number, val: string) => {
     const num = Math.max(0, Number(val) || 0);
@@ -204,10 +214,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
               const isFailed =
                 i.failQuantity > 0 || i.actualQuantity < i.orderedQuantity;
 
-              const targetQuantity = Math.min(
-                i.actualQuantity,
-                i.orderedQuantity,
-              );
+              const targetQuantity = i.actualQuantity;
               const failQty = Math.max(0, targetQuantity - i.passQuantity);
 
               return {
@@ -232,8 +239,12 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
           // console.log(
           //   "failquantity",
           //   payload.items.map((i) => i.failQuantity),
+          // );
+          // console.log(
           //   "result",
           //   payload.items.map((i) => i.result),
+          // );
+          // console.log(
           //   "hasFullPassForOrderedQty",
           //   payload.items.map(
           //     (i) => i.passQuantity + 0.0001 >= i.orderedQuantity,
@@ -287,6 +298,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
 
   const handleExcelImport = (updatedItems: ReceiveItemInput[]) => {
     setItems(updatedItems);
+    setCurrentPage(1);
   };
 
   const formatDate = (dateString?: string | null) => {
@@ -431,7 +443,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
 
             {/* BẢNG ĐẾM HÀNG VÀ QC (CỘT PHẢI) */}
             <div className="lg:col-span-3">
-              <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] flex flex-col gap-0">
+              <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] flex flex-col gap-0 pb-0">
                 <CardHeader className="border-b border-slate-100 pb-4">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pt-2">
@@ -463,7 +475,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                             {t("Pass")} *
                           </TableHead>
                           <TableHead className="w-[10%] text-center">
-                            {t("Fail")}
+                            {t("Total Claim Fail")}
                           </TableHead>
                           <TableHead className="w-[25%] pr-6">
                             {t("Fail Reason")}
@@ -471,7 +483,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {items.map((item) => (
+                        {paginatedItems.map((item) => (
                           <TableRow
                             key={item.materialId}
                             className="hover:bg-slate-50/50 transition-colors"
@@ -574,6 +586,38 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                     </Table>
                   </div>
                 </CardContent>
+
+                {items.length > itemsPerPage && (
+                  <div className="flex items-center justify-between px-6 py-4 bg-slate-50/50 border-t border-slate-100 text-xs text-slate-500">
+                    <span className="font-medium">
+                      {t("Showing")} {paginatedItems.length} {t("of")}{" "}
+                      {items.length} {t("items")}
+                    </span>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage((p) => p - 1)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      <span className="font-semibold text-slate-900 min-w-8 text-center">
+                        {currentPage} / {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage >= totalPages}
+                        onClick={() => setCurrentPage((p) => p + 1)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </Card>
             </div>
           </div>

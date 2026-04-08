@@ -85,7 +85,16 @@ export default function PurchasingIncidentDetailPage() {
       setIsLoading(true);
       try {
         const res = await purchasingIncidentApi.getIncidentDetail(id);
-        setIncident(res.data);
+        const data = res.data;
+        // Filter out items with no failed items
+        const filteredIncident = {
+          ...data,
+          items: data.items.filter(
+            (item: any) =>
+              (item.passQuantity ?? 0) < (item.orderedQuantity ?? 0),
+          ),
+        };
+        setIncident(filteredIncident);
       } catch (error: any) {
         console.error("Failed to fetch purchasing incident detail", error);
         toast.error(
@@ -386,7 +395,7 @@ export default function PurchasingIncidentDetailPage() {
                             <div className="flex flex-col text-xs font-semibold">
                               <span>{t("Defect Breakdown")}</span>
                               <span className="text-[10px] text-amber-600 font-normal uppercase">
-                                {t("Quality & Damage")}
+                                {t("Quantity & Quality & Damage")}
                               </span>
                             </div>
                           </TableHead>
@@ -446,6 +455,15 @@ export default function PurchasingIncidentDetailPage() {
                                       {t("Quality")}
                                     </span>
                                     <span className="text-sm font-bold text-amber-600">
+                                      {item.failQuantityQuantity || 0}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex flex-col items-center px-3 py-1.5 min-w-[70px] hover:bg-slate-50 transition-colors">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">
+                                      {t("Quality")}
+                                    </span>
+                                    <span className="text-sm font-bold text-amber-600">
                                       {item.failQuantityQuality || 0}
                                     </span>
                                   </div>
@@ -463,7 +481,9 @@ export default function PurchasingIncidentDetailPage() {
 
                               <TableCell className="text-center align-top pt-4">
                                 <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-rose-200 shadow-sm">
-                                  {item.failQuantity}
+                                  {item.failQuantityQuantity +
+                                    item.failQuantityQuality +
+                                    item.failQuantityDamage}
                                 </Badge>
                               </TableCell>
 

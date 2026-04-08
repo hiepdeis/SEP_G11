@@ -91,7 +91,7 @@ export default function StaffIncidentPage({
     useState<IncidentReportDto | null>(null);
 
   const [tablePage, setTablePage] = useState(1);
-  const tableItemsPerPage = 1;
+  const tableItemsPerPage = 2;
 
   const [isSubmittingToManager, setIsSubmittingToManager] = useState(false);
 
@@ -244,6 +244,7 @@ export default function StaffIncidentPage({
         );
 
         setIncidentItems(
+          // Filter out items with no failed items
           itemsToReport.filter(
             (item) => item.passQuantity < item.orderedQuantity,
           ),
@@ -628,7 +629,7 @@ export default function StaffIncidentPage({
               />
             </CardHeader>
             <CardContent className="p-0 flex flex-col flex-1">
-              <div className="[&>div]:max-h-[350px] [&>div]:min-h-[350px] [&>div]:overflow-y-auto">
+              <div className="[&>div]:max-h-[500px] [&>div]:min-h-[500px] [&>div]:overflow-y-auto">
                 <Table>
                   <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                     <TableRow>

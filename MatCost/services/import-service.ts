@@ -456,6 +456,7 @@ export interface GetInboundRequestItemDto {
   materialName: string;
   passQuantity?: number;
   failQuantity?: number;
+  failClaimQuantity?: number;
   quantity?: number;
   actualQuantity?: number;
   binLocationId?: number;

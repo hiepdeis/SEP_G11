@@ -112,7 +112,18 @@ export default function IncidentsListPage({
         } else {
           res = await managerIncidentApi.getPendingIncidents();
         }
-        setIncidents(res.data);
+        // Filter out incidents with no failed items
+        const filteredIncidents = (res.data as any[])
+          .map((incident) => ({
+            ...incident,
+            items: incident.items.filter(
+              (item: any) =>
+                (item.passQuantity ?? 0) < (item.orderedQuantity ?? 0),
+            ),
+          }))
+          .filter((incident) => incident.items.length > 0) as IncidentSummary[];
+
+        setIncidents(filteredIncidents);
       } catch (error) {
         console.error(`Failed to fetch incidents for ${role}`, error);
         toast.error(t("Failed to fetch pending incidents"));
@@ -253,10 +264,16 @@ export default function IncidentsListPage({
               {role === "manager" && (
                 <div className="flex flex-col md:items-end gap-1.5 w-full md:w-auto">
                   <TabsList className="grid w-full md:w-[350px] grid-cols-2">
-                    <TabsTrigger value="manager" className="transition-all duration-300 ease-in-out">
+                    <TabsTrigger
+                      value="manager"
+                      className="transition-all duration-300 ease-in-out"
+                    >
                       {t("Manager Portal")}
                     </TabsTrigger>
-                    <TabsTrigger value="warehouse" className="transition-all duration-300 ease-in-out">
+                    <TabsTrigger
+                      value="warehouse"
+                      className="transition-all duration-300 ease-in-out"
+                    >
                       {t("Staff Portal")}
                     </TabsTrigger>
                   </TabsList>

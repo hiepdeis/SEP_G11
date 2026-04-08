@@ -184,13 +184,13 @@ export default function IncidentReportsPage({
             date: r.createdDate || "",
             creatorName: r.createdByName || "N/A",
             warehouseName: r.warehouseName || "N/A",
-            totalQuantity: r.items.length || 0,
+            totalQuantity:
+              r.items.filter(
+                (item: any) => item.passQuantity < item.orderedQuantity,
+              ).length || 0,
             status: r.status || "PendingIncident",
           }),
         );
-
-        console.log(mappedPendingReceipts);
-        console.log(mappedIncidents);
 
         const combinedList = [...mappedPendingReceipts, ...mappedIncidents];
 
@@ -683,14 +683,16 @@ export default function IncidentReportsPage({
                             }}
                             disabled={loadingId === item.originalId}
                             variant={
-                              item.status === "PendingIncident"
+                              item.status === "PendingIncident" ||
+                              item.status === "Open"
                                 ? "default"
                                 : "outline"
                             }
                             className={
-                              item.status === "PendingIncident"
-                                ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm min-w-[160px]"
-                                : "text-rose-600 border-rose-200 hover:text-rose-700 hover:bg-rose-50 min-w-[160px]"
+                              item.status === "PendingIncident" ||
+                              item.status === "Open"
+                                ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm min-w-[200px]"
+                                : "text-rose-600 border-rose-200 hover:text-rose-700 hover:bg-rose-50 min-w-[200px]"
                             }
                           >
                             {loadingId === item.originalId ? (
@@ -699,6 +701,11 @@ export default function IncidentReportsPage({
                               <>
                                 <ArrowRight className="w-4 h-4 mr-1.5" />
                                 {t("Review")}
+                              </>
+                            ) : item.status === "Open" ? (
+                              <>
+                                <ArrowRight className="w-4 h-4 mr-1.5" />
+                                {t("Send to Manager")}
                               </>
                             ) : (
                               <>

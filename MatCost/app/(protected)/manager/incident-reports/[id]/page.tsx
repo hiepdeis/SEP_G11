@@ -92,7 +92,16 @@ export default function ManagerIncidentDetailPage() {
       setIsLoading(true);
       try {
         const res = await managerIncidentApi.getIncidentDetail(id);
-        setIncident(res.data);
+        const data = res.data;
+        // Filter out items with no failed items
+        const filteredIncident = {
+          ...data,
+          items: data.items.filter(
+            (item: any) =>
+              (item.passQuantity ?? 0) < (item.orderedQuantity ?? 0),
+          ),
+        };
+        setIncident(filteredIncident);
 
         try {
           const suppRes = await managerIncidentApi.getSupplementaryReceipt(id);
