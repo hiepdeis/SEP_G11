@@ -18,6 +18,7 @@ import {
   ArrowLeft,
   User,
   Delete,
+  FileText,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -33,7 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { staffReceiptApi, WarehouseCardDto } from "@/services/receipt-service";
+import { staffReceiptsApi, WarehouseCardDto } from "@/services/import-service";
 import {
   Select,
   SelectContent,
@@ -87,7 +88,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
     const fetchCards = async () => {
       setIsLoading(true);
       try {
-        const res = await staffReceiptApi.getWarehouseCards({});
+        const res = await staffReceiptsApi.getWarehouseCards({});
         setCards(res.data);
       } catch (error) {
         console.error("Failed to fetch warehouse cards", error);
@@ -198,15 +199,27 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
     0,
   );
 
-  const formatDateTime = (dateString: string) => {
+  const formatDateTime = (dateString?: string | null) => {
     if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleString("vi-VN", {
+
+    let safeDateString = dateString;
+
+    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
+      safeDateString = safeDateString.replace(" ", "T") + "Z";
+    }
+
+    return new Date(safeDateString).toLocaleString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  const handleViewDetail = (e: React.MouseEvent, item: WarehouseCardDto) => {
+    e.stopPropagation();
+    router.push(`/${role}/reports/import-export/${item.cardId}`);
   };
 
   return (
@@ -220,7 +233,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => router.push(`/${role}/reports`)}
+              onClick={() => router.back()}
               className="h-8 w-8 mt-0.5 shrink-0 rounded-full hover:bg-slate-200 text-slate-500 hover:text-indigo-600 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -473,6 +486,9 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                       <TableHead className="text-right pr-6">
                         {t("Total")}
                       </TableHead>
+                      <TableHead className="text-right pr-6 w-[100px]">
+                        {t("Action")}
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -587,6 +603,17 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                                 {item.materialUnit}
                               </span>
                             </div>
+                          </TableCell>
+                          <TableCell className="text-right pr-6 py-3">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-2 w-[100px]"
+                              onClick={(e) => handleViewDetail(e, item)}
+                            >
+                              <FileText className="w-4 h-4 mr-1.5" />
+                              {t("View")}
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))

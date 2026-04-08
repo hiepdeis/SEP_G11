@@ -1,3 +1,5 @@
+using Backend.Entities;
+
 namespace Backend.Domains.Import.DTOs.Staff
 {
     // INPUT DTOs (POST)
@@ -7,27 +9,46 @@ namespace Backend.Domains.Import.DTOs.Staff
         /// <summary>Mô tả tổng quát sự cố</summary>
         public string Description { get; set; } = string.Empty;
 
-        /// <summary>
-        /// ID của QCCheck liên quan (tuỳ chọn — tự động gán nếu receipt đã có QC fail).
-        /// Nếu null và receipt có QCCheck với OverallResult = "Fail", hệ thống tự liên kết.
-        /// </summary>
-        public long? QCCheckId { get; set; }
-
         public List<CreateIncidentReportDetailDto> Details { get; set; } = new();
     }
 
     public class CreateIncidentReportDetailDto
     {
-        public long ReceiptDetailId { get; set; }
+        public int MaterialId { get; set; }
 
-        public decimal ExpectedQuantity { get; set; }
+        /// <summary>
+        /// Breakdown lỗi theo từng nguyên nhân cho material.
+        /// Quantity = thiếu số lượng (ordered - pass).
+        /// Quality/Damage do FE nhập.
+        /// </summary>
+        public CreateIncidentBreakdownDto Breakdown { get; set; } = new();
 
-        public decimal ActualQuantity { get; set; }
+        public string? EvidenceNote { get; set; }
 
-        /// <summary>"Quantity" | "Quality" | "Damage"</summary>
-        public string IssueType { get; set; } = string.Empty;
+        public List<string> EvidenceImages { get; set; } = new();
+    }
 
-        public string? Notes { get; set; }
+    public class CreateIncidentBreakdownDto
+    {
+        public decimal Quantity { get; set; }
+        public decimal Quality { get; set; }
+        public decimal Damage { get; set; }
+    }
+
+    public class IncidentReportCreateResultDto
+    {
+        public long IncidentId { get; set; }
+        public long ReceiptId { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public IncidentReportCreateSummaryDto Summary { get; set; } = new();
+        public string NextStep { get; set; } = string.Empty;
+    }
+
+    public class IncidentReportCreateSummaryDto
+    {
+        public int TotalFailItems { get; set; }
+        public decimal TotalFailQuantity { get; set; }
+        public string SupplierName { get; set; } = string.Empty;
     }
 
     // OUTPUT DTOs (GET)
@@ -52,7 +73,7 @@ namespace Backend.Domains.Import.DTOs.Staff
 
         public string Description { get; set; } = string.Empty;
 
-        /// <summary>"Open" | "Resolved"</summary>
+        /// <summary>"Open" | "PendingManagerReview" | "PendingPurchasingAction" | "PendingManagerApproval" | "AwaitingSupplementaryGoods" | "Resolved"</summary>
         public string Status { get; set; } = string.Empty;
 
         public string? Resolution { get; set; }
@@ -79,7 +100,18 @@ namespace Backend.Domains.Import.DTOs.Staff
         /// <summary>"Quantity" | "Quality" | "Damage"</summary>
         public string IssueType { get; set; } = string.Empty;
 
+        public IncidentBreakdownDto Breakdown { get; set; } = new();
+
         public string? Notes { get; set; }
+
+        public List<IncidentEvidenceImage> EvidenceImages { get; set; } = new();
+    }
+
+    public class IncidentBreakdownDto
+    {
+        public decimal Quantity { get; set; }
+        public decimal Quality { get; set; }
+        public decimal Damage { get; set; }
     }
 
     public class IncidentReportSummaryDto

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { UserDropdown } from "@/components/user-dropdown";
 import {
@@ -13,10 +13,11 @@ import {
   Bell,
   User,
   Loader2,
+  X,
+  CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,17 @@ import {
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import { staffReceiptsApi } from "@/services/import-service";
+import { exportToExcel } from "@/lib/excel-utils";
+import { endOfDay, format, isWithinInterval, startOfDay } from "date-fns";
+import { formatDateTime } from "@/lib/format-date";
+import { warehouseApi } from "@/services/warehouse-service";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const REPORTS_CONFIG = [
   {
@@ -80,13 +92,123 @@ export default function ReportCenterPage({ role }: { role: string }) {
   const [isExporting, setIsExporting] = useState(false);
   const router = useRouter();
 
-  const handleExport = (type: "pdf" | "excel") => {
+  const [dateRange, setDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
+  });
+  const [warehouse, setWarehouse] = useState("all");
+
+  const [warehouseList, setWarehouseList] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchWarehouses = async () => {
+      try {
+        const res = await warehouseApi.getAll();
+        setWarehouseList(res.data);
+      } catch (error) {
+        console.error("Failed to fetch warehouses", error);
+      }
+    };
+    fetchWarehouses();
+  }, []);
+
+  const handleExport = async (type: "pdf" | "excel", reportId: string) => {
     setIsExporting(true);
-    setTimeout(() => {
+
+    try {
+      if (type === "excel") {
+        if (reportId === "RPT-001") {
+        } else if (reportId === "RPT-002") {
+          const res = await staffReceiptsApi.getWarehouseCards({});
+          let dataToExport = res.data;
+
+          if (warehouse !== "all") {
+            dataToExport = dataToExport.filter(
+              // So sánh ID (nếu res trả về warehouseId) hoặc so sánh Tên Kho
+              (item: any) =>
+                item.warehouseId?.toString() === warehouse ||
+                item.warehouseName === warehouse,
+            );
+          }
+
+          if (dateRange.from || dateRange.to) {
+            dataToExport = dataToExport.filter((item: any) => {
+              if (!item.transactionDate) return false;
+
+              const itemDate = new Date(item.transactionDate);
+              const fromDate = dateRange.from
+                ? startOfDay(dateRange.from)
+                : new Date(2000, 0, 1);
+              const toDate = dateRange.to
+                ? endOfDay(dateRange.to)
+                : new Date(2100, 0, 1);
+
+              return isWithinInterval(itemDate, {
+                start: fromDate,
+                end: toDate,
+              });
+            });
+          }
+
+          if (dataToExport.length === 0) {
+            toast.warning(t("Không có dữ liệu để xuất với bộ lọc hiện tại."));
+            return;
+          }
+
+          const formattedData = dataToExport.map((item: any) => ({
+            "Mã giao dịch": item.cardCode,
+            "Ngày thực hiện": formatDateTime(item.transactionDate),
+            "Loại giao dịch": item.transactionType.toUpperCase(),
+            "Chứng từ gốc": `${item.referenceType} #${item.referenceId}`,
+            "Mã VT": item.materialCode,
+            "Tên VT": item.materialName,
+            "Lô (Batch)": item.batchCode || "N/A",
+            "Kệ (Bin)": item.binCode || "N/A",
+            Kho: item.warehouseName,
+            "Tồn đầu kỳ": item.quantityBefore,
+            "Phát sinh":
+              item.transactionType.toLowerCase() === "import"
+                ? `+${item.quantity}`
+                : `-${item.quantity}`,
+            "Tồn cuối kỳ": item.quantityAfter,
+            "Đơn vị tính": item.materialUnit,
+            "Người thực hiện": item.createdByName || `ID: ${item.createdBy}`,
+          }));
+
+          exportToExcel({
+            data: formattedData,
+            filename: `Lich_Su_Nhap_Xuat_${format(new Date(), "yyyyMMdd_HHmmss")}`,
+            columnsWidth: [
+              { wch: 18 }, // Mã Giao Dịch
+              { wch: 20 }, // Ngày Thực Hiện
+              { wch: 15 }, // Loại Giao Dịch
+              { wch: 20 }, // Chứng từ gốc
+              { wch: 15 }, // Mã VT
+              { wch: 35 }, // Tên VT
+              { wch: 20 }, // Lô
+              { wch: 15 }, // Kệ
+              { wch: 25 }, // Kho
+              { wch: 15 }, // Tồn Đầu Kỳ
+              { wch: 12 }, // Phát Sinh
+              { wch: 15 }, // Tồn Cuối Kỳ
+              { wch: 12 }, // Đơn Vị Tính
+              { wch: 25 }, // Người Thực Hiện
+            ],
+          });
+          toast.success(t("Tải báo cáo Excel thành công!"));
+        }
+      } else if (type === "pdf") {
+        toast.info(t("Tính năng xuất PDF đang được phát triển."));
+      }
+    } catch (error) {
+      console.error("Export Error:", error);
+      toast.error(t("Có lỗi xảy ra khi tải báo cáo."));
+    } finally {
       setIsExporting(false);
-      const msg = t("reports.export_success", { type: type.toUpperCase() });
-      toast.success(msg);
-    }, 1500);
+    }
   };
 
   return (
@@ -123,9 +245,7 @@ export default function ReportCenterPage({ role }: { role: string }) {
             <h1 className="text-2xl font-bold text-slate-900">
               {t("reports.available_reports")}
             </h1>
-            <p className="text-sm text-slate-500">
-              {t("reports.select_desc")}
-            </p>
+            <p className="text-sm text-slate-500">{t("reports.select_desc")}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -167,46 +287,118 @@ export default function ReportCenterPage({ role }: { role: string }) {
                             <label className="text-sm font-medium">
                               {t("reports.date_range")}
                             </label>
-                            <Select defaultValue="this_month">
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="this_month">
-                                  {t("reports.this_month")}
-                                </SelectItem>
-                                <SelectItem value="last_month">
-                                  {t("reports.last_month")}
-                                </SelectItem>
-                                <SelectItem value="custom">
-                                  {t("reports.custom_range")}
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <div className="flex items-center gap-2">
+                              {/* Lịch Từ Ngày */}
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className={`justify-start text-left font-normal ${!dateRange.from && "text-slate-500"}`}
+                                  >
+                                    <CalendarDays className="mr-2 h-4 w-4" />
+                                    {dateRange.from
+                                      ? format(dateRange.from, "dd/MM/yyyy")
+                                      : t("Từ ngày")}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                  <Calendar
+                                    mode="single"
+                                    selected={dateRange.from}
+                                    onSelect={(date) =>
+                                      setDateRange((prev) => ({
+                                        ...prev,
+                                        from: date,
+                                      }))
+                                    }
+                                  />
+                                </PopoverContent>
+                              </Popover>
+
+                              <span>-</span>
+
+                              {/* Lịch Đến Ngày */}
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className={`justify-start text-left font-normal ${!dateRange.to && "text-slate-500"}`}
+                                  >
+                                    <CalendarDays className="mr-2 h-4 w-4" />
+                                    {dateRange.to
+                                      ? format(dateRange.to, "dd/MM/yyyy")
+                                      : t("Đến ngày")}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                  <Calendar
+                                    mode="single"
+                                    selected={dateRange.to}
+                                    onSelect={(date) =>
+                                      setDateRange((prev) => ({
+                                        ...prev,
+                                        to: date,
+                                      }))
+                                    }
+                                    disabled={(date) =>
+                                      dateRange.from
+                                        ? date < dateRange.from
+                                        : false
+                                    }
+                                  />
+                                </PopoverContent>
+                              </Popover>
+
+                              {/* Nút xóa bộ lọc ngày */}
+                              {(dateRange.from || dateRange.to) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 text-xs text-slate-500 px-2"
+                                  onClick={() =>
+                                    setDateRange({
+                                      from: undefined,
+                                      to: undefined,
+                                    })
+                                  }
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
+
                           <div className="space-y-2">
                             <label className="text-sm font-medium">
-                              {t("reports.warehouse")}
+                              {t("Warehouse")}
                             </label>
-                            <Select defaultValue="all">
+                            <Select
+                              value={warehouse}
+                              onValueChange={(val) => setWarehouse(val)}
+                            >
                               <SelectTrigger>
-                                <SelectValue />
+                                <SelectValue placeholder={t("All Warehouse")} />
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="all">
-                                  {t("reports.all_warehouses")}
+                                  {t("All Warehouse")}
                                 </SelectItem>
-                                <SelectItem value="wh1">
-                                  {t("reports.central_storage")}
-                                </SelectItem>
+                                {warehouseList.map((wh) => (
+                                  <SelectItem
+                                    key={wh.warehouseId}
+                                    value={wh.warehouseId.toString()}
+                                  >
+                                    {wh.name}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </div>
                         </div>
                         <DialogFooter className="gap-2">
-                          <Button
+                          {/* <Button
                             variant="outline"
-                            onClick={() => handleExport("pdf")}
+                            onClick={() => handleExport("pdf", rpt.id)} // Truyền rpt.id vào đây
                             disabled={isExporting}
                           >
                             {isExporting ? (
@@ -215,10 +407,10 @@ export default function ReportCenterPage({ role }: { role: string }) {
                               <Printer className="w-4 h-4 mr-2" />
                             )}
                             PDF
-                          </Button>
+                          </Button> */}
                           <Button
                             className="bg-green-600 hover:bg-green-700 text-white"
-                            onClick={() => handleExport("excel")}
+                            onClick={() => handleExport("excel", rpt.id)} // Truyền rpt.id vào đây
                             disabled={isExporting}
                           >
                             {isExporting ? (
@@ -226,7 +418,7 @@ export default function ReportCenterPage({ role }: { role: string }) {
                             ) : (
                               <FileSpreadsheet className="w-4 h-4 mr-2" />
                             )}
-                            Excel
+                            Export Excel
                           </Button>
                         </DialogFooter>
                       </DialogContent>
@@ -236,7 +428,8 @@ export default function ReportCenterPage({ role }: { role: string }) {
                       className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                       onClick={() => router.push(rpt.url)}
                     >
-                      {t("reports.view_report")} <ArrowRight className="w-4 h-4 ml-2" />
+                      {t("reports.view_report")}{" "}
+                      <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   </div>
                 </CardContent>

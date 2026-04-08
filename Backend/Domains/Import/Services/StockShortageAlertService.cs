@@ -174,6 +174,9 @@ namespace Backend.Domains.Import.Services
             if (alert == null)
                 throw new KeyNotFoundException($"Alert with ID {alertId} not found");
 
+            if (alert.Status == "ManagerConfirmed")
+                throw new InvalidOperationException("Alert is already confirmed by manager");
+
             alert.Status = "ManagerConfirmed";
             alert.ConfirmedBy = managerId;
             alert.ConfirmedAt = DateTime.UtcNow;

@@ -1,8 +1,9 @@
 "use client";
 
-import { Bell, User } from "lucide-react";
+import { User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserDropdown } from "@/components/user-dropdown";
+import { NotificationDropdown } from "@/components/notification-dropdown";
 
 interface HeaderProps {
   title: string;
@@ -14,11 +15,8 @@ export function Header({ title }: HeaderProps) {
       <div className="bg-white px-6 lg:px-8 h-16 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
         <div className="flex items-center gap-4 ml-auto">
-          <button className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-600 relative">
-            <Bell className="w-5 h-5" />
-            {/* Có thể thêm chấm đỏ thông báo ở đây nếu cần */}
-            {/* <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span> */}
-          </button>
+          
+          <NotificationDropdown />
           
           <UserDropdown
             align="end"
