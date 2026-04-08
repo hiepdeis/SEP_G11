@@ -116,7 +116,20 @@ export default function AccountantReceiptDetailPage() {
 
   const formatDateTime = (dateString?: string | null) => {
     if (!dateString) return "N/A";
-    return format(new Date(dateString), "dd/MM/yyyy HH:mm");
+
+    let safeDateString = dateString;
+    
+    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
+      safeDateString = safeDateString.replace(" ", "T") + "Z";
+    }
+
+    return new Date(safeDateString).toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const formatCurrency = (val: number | null | undefined) => {
@@ -169,10 +182,10 @@ export default function AccountantReceiptDetailPage() {
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
-                onClick={() => router.push("/accountant/inbound-requests")}
+                onClick={() => router.back()}
                 className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to list")}
+                <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back")}
               </Button>
               <div className="hidden md:flex items-center gap-3 border-l border-slate-200 pl-4">
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900">
@@ -247,7 +260,8 @@ export default function AccountantReceiptDetailPage() {
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                       {t("PO Code")}
                     </span>
-                    <div className="font-semibold text-indigo-700 bg-indigo-50 px-2 py-1 rounded w-fit border border-indigo-100">
+                    <div className="flex items-center gap-2 text-indigo-700 font-medium bg-indigo-50 w-fit px-2 py-1 rounded border border-indigo-100">
+                      <FileText className="w-4 h-4 text-indigo-500" />
                       {receipt.purchaseOrder?.purchaseOrderCode || "N/A"}
                     </div>
                   </div>
@@ -591,7 +605,7 @@ export default function AccountantReceiptDetailPage() {
                 "By closing this receipt, you confirm that all accounting checks have been completed. This action will lock the receipt from further modifications.",
               )}
             </p>
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">
                 {t("Accounting Note (Optional)")}
               </label>
@@ -602,7 +616,7 @@ export default function AccountantReceiptDetailPage() {
                 onChange={(e) => setAccountingNote(e.target.value)}
                 autoFocus
               />
-            </div>
+            </div> */}
           </div>
 
           <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-white flex justify-end gap-2">
@@ -612,7 +626,7 @@ export default function AccountantReceiptDetailPage() {
                 setIsCloseModalOpen(false);
                 setAccountingNote("");
               }}
-              className="text-slate-600 hover:bg-slate-100"
+              className="text-slate-600 hover:bg-slate-100 hover:text-slate-600"
               disabled={isClosing}
             >
               {t("Cancel")}

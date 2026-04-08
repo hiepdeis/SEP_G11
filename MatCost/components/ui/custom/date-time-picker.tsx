@@ -32,20 +32,36 @@ export function DateTimePicker({
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = React.useState(false);
 
-  // Lưu state giờ riêng để khi đổi ngày không bị mất giờ đã chọn
   const [timeValue, setTimeValue] = React.useState<string>(
     value ? format(value, "HH:mm") : "12:00",
   );
 
   const handleDateSelect = (selectedDate: Date | undefined) => {
     if (selectedDate) {
-      // Gắn giờ hiện tại vào ngày vừa chọn
       const [hours, minutes] = timeValue.split(":");
       selectedDate.setHours(parseInt(hours, 10), parseInt(minutes, 10));
       onChange(selectedDate);
     } else {
       onChange(undefined);
     }
+  };
+
+  // Hàm mới: Xử lý khi nhập trực tiếp vào input date
+  const handleDateInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDateStr = e.target.value;
+    if (!newDateStr) {
+      onChange(undefined);
+      return;
+    }
+
+    const [year, month, day] = newDateStr.split("-").map(Number);
+    const newDate = value ? new Date(value) : new Date();
+    newDate.setFullYear(year, month - 1, day);
+
+    const [hours, minutes] = timeValue.split(":");
+    newDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+
+    onChange(newDate);
   };
 
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,6 +74,15 @@ export function DateTimePicker({
       onChange(newDate);
     }
   };
+
+  // Tính toán chuỗi minDate cho input type="date"
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const customMinStr = minDate ? format(minDate, "yyyy-MM-dd") : undefined;
+  const minInputDate = disablePastDates
+    ? customMinStr && customMinStr > todayStr
+      ? customMinStr
+      : todayStr
+    : customMinStr;
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -101,17 +126,33 @@ export function DateTimePicker({
             return false;
           }}
         />
-        <div className="p-3 border-t border-slate-100 bg-slate-50/50">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-indigo-600" />
-            <span className="text-sm font-medium text-slate-700">
+        <div className="p-3 border-t border-slate-100 bg-slate-50/50 space-y-3">
+          {/* Input nhập Ngày */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <CalendarIcon className="w-4 h-4 text-indigo-600" />
+              {t("Date")}
+            </span>
+            <Input
+              type="date"
+              value={value ? format(value, "yyyy-MM-dd") : ""}
+              onChange={handleDateInputChange}
+              min={minInputDate}
+              className="w-auto h-8 text-sm focus-visible:ring-indigo-600 bg-white"
+            />
+          </div>
+
+          {/* Input nhập Giờ */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <Clock className="w-4 h-4 text-indigo-600" />
               {t("Time")}
             </span>
             <Input
               type="time"
               value={timeValue}
               onChange={handleTimeChange}
-              className="ml-auto w-32 h-8 text-sm focus-visible:ring-indigo-600 bg-white"
+              className="w-auto h-8 text-sm focus-visible:ring-indigo-600 bg-white"
             />
           </div>
         </div>

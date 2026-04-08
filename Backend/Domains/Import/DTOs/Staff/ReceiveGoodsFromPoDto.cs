@@ -11,6 +11,7 @@ namespace Backend.Domains.Import.DTOs.Staff
     public class ReceiveGoodsFromPoItemDto
     {
         public int MaterialId { get; set; }
+        public decimal OrderedQuantity { get; set; }
         public decimal ActualQuantity { get; set; }
         public decimal PassQuantity { get; set; }
         public decimal FailQuantity { get; set; }

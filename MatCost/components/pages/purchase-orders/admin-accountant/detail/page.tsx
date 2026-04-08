@@ -155,7 +155,14 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
 
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleString("vi-VN", {
+
+    let safeDateString = dateString;
+    
+    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
+      safeDateString = safeDateString.replace(" ", "T") + "Z";
+    }
+
+    return new Date(safeDateString).toLocaleString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -179,7 +186,8 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
       case "AdminApproved":
       case "SentToSupplier":
         return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      case "Rejected":
+      case "AccountantRejected":
+      case "AdminRejected":
         return "bg-rose-50 text-rose-700 border-rose-200";
       default:
         return "bg-slate-100 text-slate-700 border-slate-200";
@@ -446,7 +454,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                       {t("Created By")}
                     </span>
                     <div className="flex items-center gap-2 text-slate-800 font-medium">
-                      ID: {order.createdBy}
+                      {order.createdByName}
                     </div>
                   </div>
 
@@ -733,7 +741,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                 setRejectModalOpen(false);
                 setRejectReason("");
               }}
-              className="text-slate-600 hover:bg-slate-100"
+              className="text-slate-600 hover:bg-slate-100 hover:text-slate-600"
               disabled={isRejecting}
             >
               {t("Cancel")}

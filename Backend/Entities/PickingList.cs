@@ -38,5 +38,7 @@ namespace Backend.Entities
         [ForeignKey("BinId")]
         [InverseProperty("PickingLists")]
         public virtual BinLocation Bin { get; set; } = null!;
+
+        public int? ActualPickerId { get; set; }
     }
 }

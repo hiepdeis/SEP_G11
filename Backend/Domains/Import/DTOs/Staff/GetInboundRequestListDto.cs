@@ -7,6 +7,7 @@
         public int? WarehouseId { get; set; }
         public string WarehouseName { get; set; }
         public DateTime? ReceiptApprovalDate { get; set; }
+        public string? PurchaseOrderCode { get; set; }
         public decimal TotalQuantity { get; set; }
         public string? CreatedByName { get; set; }
         public DateTime? CreatedDate { get; set; }
@@ -19,6 +20,10 @@
         public string? RejectedByName { get; set; }
         public DateTime? RejectedDate { get; set; }
         public string? Status { get; set; }
+        public string? StampedByName { get; set; }
+        public DateTime? StampedAt { get; set; }
+        public string? ClosedByName { get; set; }
+        public DateTime? ClosedAt { get; set; }
         public List<GetInboundRequestItemDto> Items { get; set; }
     }
 
@@ -30,6 +35,7 @@
         public string MaterialName { get; set; } = string.Empty;
         public decimal? PassQuantity { get; set; }
         public decimal? FailQuantity { get; set; }
+        public decimal? FailClaimQuantity { get; set; }
         public decimal? Quantity { get; set; }
         public decimal? ActualQuantity { get; set; }
         public int? BinLocationId { get; set; }

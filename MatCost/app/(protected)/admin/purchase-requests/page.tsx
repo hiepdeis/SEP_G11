@@ -257,8 +257,24 @@ export default function AdminPurchaseManagementPage() {
   };
 
   // Formatters
-  const formatDate = (dateString?: string | null) =>
-    dateString ? new Date(dateString).toLocaleDateString("vi-VN") : "N/A";
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return "N/A";
+
+    let safeDateString = dateString;
+    
+    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
+      safeDateString = safeDateString.replace(" ", "T") + "Z";
+    }
+
+    return new Date(safeDateString).toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+  
   const formatPlus = (num: number) => (num > 999 ? "999+" : num);
 
   // Thống kê KPI PR
@@ -515,7 +531,6 @@ export default function AdminPurchaseManagementPage() {
                               className="bg-yellow-50 text-yellow-700 border-yellow-200"
                             >
                               {t("Manager Confirmed")}
-                              {t("All")}
                             </Badge>
                           </SelectItem>
                         </>
@@ -1013,7 +1028,7 @@ export default function AdminPurchaseManagementPage() {
                         size="sm"
                         onClick={() =>
                           setCurrentPage((prev) =>
-                            Math.max(prev + 1, totalPages),
+                            Math.min(prev + 1, totalPages),
                           )
                         }
                         disabled={currentPage === totalPages}

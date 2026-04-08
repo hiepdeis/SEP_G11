@@ -46,13 +46,9 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { useTranslation } from "react-i18next";
 import { showConfirmToast } from "@/hooks/confirm-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { formatPascalCase } from "@/lib/format-pascal-case";
+import { ImageGallery } from "@/components/ui/custom/image-gallery";
+import { IncidentExcelHandler } from "@/components/ui/custom/incident-xlxs";
 
 interface IncidentItemInput {
   materialId: number;
@@ -60,18 +56,29 @@ interface IncidentItemInput {
   materialName: string;
   unit: string;
   orderedQuantity: number;
+  actualQuantity: number;
   passQuantity: number;
   failQuantity: number;
   issueType: string;
   notes: string;
   evidenceImages: string[];
+  breakdown: {
+    quantity: number;
+    quality: number;
+    damage: number;
+  };
 }
 
-export default function StaffIncidentPage() {
+export default function StaffIncidentPage({
+  role = "staff",
+}: {
+  role: string;
+}) {
   const { t } = useTranslation();
   const params = useParams();
   const router = useRouter();
   const id = Number(params.id);
+  const rolePath = role === "manager" ? "manager" : "staff";
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,10 +92,6 @@ export default function StaffIncidentPage() {
 
   const [tablePage, setTablePage] = useState(1);
   const tableItemsPerPage = 5;
-
-  const [isViewerOpen, setIsViewerOpen] = useState(false);
-  const [viewerImages, setViewerImages] = useState<string[]>([]);
-  const [viewerIndex, setViewerIndex] = useState<number>(0);
 
   const [isSubmittingToManager, setIsSubmittingToManager] = useState(false);
 
@@ -111,7 +114,6 @@ export default function StaffIncidentPage() {
       try {
         const incRes = await staffReceiptsApi.getIncidentReport(id);
         existingIncidentData = incRes.data;
-        // CẬP NHẬT STATE Ở ĐÂY
         setIsHistoryView(true);
         setHistoricalIncidentData(existingIncidentData);
         setIncidentDescription(existingIncidentData.description || "");
@@ -119,7 +121,6 @@ export default function StaffIncidentPage() {
         if (error.response?.status !== 404) {
           console.error("Error fetching Incident Report:", error);
         } else {
-          // QUAN TRỌNG: NẾU KHÔNG TÌM THẤY (404), ĐẢM BẢO RESET STATE
           setIsHistoryView(false);
           setHistoricalIncidentData(null);
         }
@@ -141,6 +142,7 @@ export default function StaffIncidentPage() {
             materialName: receiptItem?.materialName || "",
             unit: receiptItem?.unit || "Unit",
             orderedQuantity: receiptItem?.quantity || 0,
+            actualQuantity: receiptItem?.actualQuantity || 0,
             passQuantity: qcItem.passQuantity,
             failQuantity: qcItem.failQuantity,
             issueType: historyDetail ? historyDetail.issueType : "",
@@ -148,6 +150,11 @@ export default function StaffIncidentPage() {
               ? historyDetail.notes || ""
               : qcItem.failReason || "",
             evidenceImages: historyDetail?.evidenceImages || [],
+            breakdown: historyDetail?.breakdown || {
+              quantity: 0,
+              quality: 0,
+              damage: 0,
+            },
           };
         },
       );
@@ -203,19 +210,31 @@ export default function StaffIncidentPage() {
               (d) => d.materialId === qcItem.materialId,
             );
 
+            const orderedQty = receiptItem?.quantity || 0;
+            const passQty = qcItem.passQuantity || 0;
+            const failQty = qcItem.failQuantity || 0;
+
+            const expectedQuantityShortage = Math.max(0, orderedQty - passQty);
+
             return {
               materialId: qcItem.materialId || 0,
               materialCode: receiptItem?.materialCode || "",
               materialName: receiptItem?.materialName || "",
               unit: receiptItem?.unit || "Unit",
-              orderedQuantity: receiptItem?.quantity || 0,
-              passQuantity: qcItem.passQuantity,
-              failQuantity: qcItem.failQuantity,
-              issueType: historyDetail ? historyDetail.issueType : "",
+              orderedQuantity: orderedQty,
+              actualQuantity: receiptItem?.actualQuantity || 0,
+              passQuantity: passQty,
+              failQuantity: failQty,
+              issueType: "",
               notes: historyDetail
                 ? historyDetail.notes || ""
                 : qcItem.failReason || "",
               evidenceImages: historyDetail?.evidenceImages || [],
+              breakdown: historyDetail?.breakdown || {
+                quantity: expectedQuantityShortage,
+                quality: 0,
+                damage: 0,
+              },
             };
           },
         );
@@ -230,26 +249,6 @@ export default function StaffIncidentPage() {
     if (id) initData();
   }, [id, t]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isViewerOpen || viewerImages.length <= 1) return;
-
-      if (e.key === "ArrowLeft") {
-        setViewerIndex((prev) =>
-          prev > 0 ? prev - 1 : viewerImages.length - 1,
-        );
-      } else if (e.key === "ArrowRight") {
-        setViewerIndex((prev) =>
-          prev < viewerImages.length - 1 ? prev + 1 : 0,
-        );
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isViewerOpen, viewerImages.length]);
-
   const updateItem = (
     index: number,
     field: keyof IncidentItemInput,
@@ -262,16 +261,30 @@ export default function StaffIncidentPage() {
     setIncidentItems(newItems);
   };
 
+  const handleExcelImport = (updatedItems: any[]) => {
+    setIncidentItems(updatedItems);
+  };
+
   const handleSubmitIncident = async () => {
     if (!incidentDescription.trim())
       return toast.error(t("Please provide an overall incident description."));
 
-    const missingIssue = incidentItems.filter((i) => !i.issueType);
-    if (missingIssue.length > 0)
-      return toast.error(
-        t("Please select an Issue Type for all failed items."),
-      );
+    const invalidBreakdownItem = incidentItems.find((i) => {
+      const sum = i.breakdown.quality + i.breakdown.damage;
+      return Math.abs(sum - i.failQuantity) > 0.0001;
+    });
 
+    if (invalidBreakdownItem) {
+      return toast.error(
+        t(
+          "Breakdown sum (Quality + Damage) for {{name}} must exactly equal its Failed Quantity ({{quantity}}).",
+          {
+            name: invalidBreakdownItem.materialName,
+            quantity: invalidBreakdownItem.failQuantity,
+          },
+        ),
+      );
+    }
     const missingNotes = incidentItems.filter((i) => !i.notes.trim());
     if (missingNotes.length > 0)
       return toast.error(
@@ -297,17 +310,22 @@ export default function StaffIncidentPage() {
         try {
           const payload: CreateIncidentReportDto = {
             description: incidentDescription.trim(),
-            details: incidentItems.map((i) => ({
-              materialId: i.materialId,
-              issueType: i.issueType,
-              evidenceNote: i.notes.trim(),
-              evidenceImages: i.evidenceImages,
-            })),
-          };
+            details: incidentItems.map((i) => {
+              const currentBreakdown = i.breakdown;
 
+              return {
+                materialId: i.materialId,
+                issueType: i.issueType,
+                failQuantity: i.failQuantity,
+                evidenceNote: i.notes.trim() || null,
+                evidenceImages:
+                  i.evidenceImages.length > 0 ? i.evidenceImages : null,
+                breakdown: currentBreakdown,
+              };
+            }),
+          };
           await staffReceiptsApi.createIncidentReport(id, payload);
           toast.success(t("Incident Report created successfully!"));
-
           await initData();
         } catch (error: any) {
           toast.error(
@@ -318,6 +336,50 @@ export default function StaffIncidentPage() {
           setIsSubmitting(false);
         }
       },
+    });
+  };
+
+  const updateBreakdown = (
+    index: number,
+    field: "quality" | "damage",
+    value: string,
+  ) => {
+    if (isHistoryView) return;
+    const rawValue = Math.max(0, Number(value) || 0);
+
+    setIncidentItems((prev) => {
+      const newItems = [...prev];
+      const item = newItems[index];
+
+      const totalFail = item.failQuantity;
+
+      const safeValue = Number(Math.min(rawValue, totalFail).toFixed(3));
+
+      let newQuality = item.breakdown.quality;
+      let newDamage = item.breakdown.damage;
+
+      if (field === "quality") {
+        newQuality = safeValue;
+        newDamage = Number((totalFail - newQuality).toFixed(3));
+      } else if (field === "damage") {
+        newDamage = safeValue;
+        newQuality = Number((totalFail - newDamage).toFixed(3));
+      }
+
+      const newQuantity = Number(
+        (item.orderedQuantity - item.actualQuantity).toFixed(3),
+      );
+
+      newItems[index] = {
+        ...item,
+        breakdown: {
+          ...item.breakdown,
+          quantity: newQuantity,
+          quality: newQuality,
+          damage: newDamage,
+        },
+      };
+      return newItems;
     });
   };
 
@@ -338,7 +400,7 @@ export default function StaffIncidentPage() {
           );
           toast.success(t("Report submitted to manager successfully!"));
 
-          router.push(`/staff/inbound-requests`);
+          router.push(`/${rolePath}/incident-reports`);
         } catch (error: any) {
           toast.error(
             error.response?.data?.message || t("Failed to submit report"),
@@ -355,11 +417,27 @@ export default function StaffIncidentPage() {
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     if (!e.target.files || e.target.files.length === 0) return;
-    const files = Array.from(e.target.files);
+
+    const allFiles = Array.from(e.target.files);
+
+    const imageFiles = allFiles.filter((file) =>
+      file.type.startsWith("image/"),
+    );
+
+    if (imageFiles.length < allFiles.length) {
+      toast.warning(
+        t("Only image files are allowed. Non-image files were skipped."),
+      );
+    }
+
+    if (imageFiles.length === 0) {
+      e.target.value = "";
+      return;
+    }
 
     try {
       const base64Images = await Promise.all(
-        files.map((file) => {
+        imageFiles.map((file) => {
           return new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
@@ -377,7 +455,7 @@ export default function StaffIncidentPage() {
       );
 
       if (uniqueNewImages.length < base64Images.length) {
-        toast.info(t("Duplicate images"));
+        toast.info(t("Duplicated images."));
       }
 
       newItems[index] = {
@@ -418,10 +496,10 @@ export default function StaffIncidentPage() {
             <div className="flex flex-col gap-1">
               <Button
                 variant="ghost"
-                onClick={() => router.push(`/staff/inbound-requests`)}
+                onClick={() => router.back()}
                 className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit -ml-2 mb-1 h-8"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}
+                <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back")}
               </Button>
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold text-slate-900">
@@ -442,7 +520,8 @@ export default function StaffIncidentPage() {
                     ) : (
                       <AlertTriangle className="w-3 h-3 mr-1" />
                     )}
-                    {t("Status")}: {t(formatPascalCase(historicalIncidentData.status))}
+                    {t("Status")}:{" "}
+                    {t(formatPascalCase(historicalIncidentData.status))}
                   </Badge>
                 )}
               </div>
@@ -462,18 +541,25 @@ export default function StaffIncidentPage() {
                 {t("Submit Report")}
               </Button>
             ) : isHistoryView && historicalIncidentData?.status === "Open" ? (
-              <Button
-                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md min-w-[200px]"
-                onClick={handleSubmitToManager}
-                disabled={isSubmittingToManager}
-              >
-                {isSubmittingToManager ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <Send className="w-4 h-4 mr-2" />
-                )}
-                {t("Submit for Manager Review")}
-              </Button>
+              <div className="flex flex-col gap-2 items-end">
+                <Button
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md min-w-[200px]"
+                  onClick={handleSubmitToManager}
+                  disabled={isSubmittingToManager}
+                >
+                  {isSubmittingToManager ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Send className="w-4 h-4 mr-2" />
+                  )}
+                  {t("Submit for Manager Review")}
+                </Button>
+                <span className="text-xs text-slate-500 italic">
+                  {t(
+                    "Note: The incident report will be sent to the manager for review and approval.",
+                  )}
+                </span>
+              </div>
             ) : (
               <></>
             )}
@@ -514,16 +600,25 @@ export default function StaffIncidentPage() {
 
           <Card className="border-slate-200 shadow-sm overflow-hidden flex flex-col gap-0">
             <CardHeader className="bg-white border-b border-slate-100 shrink-0 flex flex-row items-center justify-between">
-              <CardTitle className="text-base text-rose-700 flex items-center gap-2 py-4">
-                <AlertTriangle className="w-5 h-5" />
-                {t("Defective Materials")}
-              </CardTitle>
-              <Badge
-                variant="outline"
-                className="bg-rose-50 text-rose-700 border-rose-200"
-              >
-                {incidentItems.length} {t("Items")}
-              </Badge>
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-base text-rose-700 flex items-center gap-2 py-4">
+                  <AlertTriangle className="w-5 h-5" />
+                  {t("Defective Materials")}
+                </CardTitle>
+                <Badge
+                  variant="outline"
+                  className="bg-rose-50 text-rose-700 border-rose-200"
+                >
+                  {incidentItems.length} {t("Items")}
+                </Badge>
+              </div>
+
+              <IncidentExcelHandler
+                items={incidentItems}
+                qcData={qcData && qcData}
+                onImport={handleExcelImport}
+                isHistoryView={isHistoryView}
+              />
             </CardHeader>
             <CardContent className="p-0 flex flex-col flex-1">
               <div className="[&>div]:max-h-[350px] [&>div]:min-h-[350px] [&>div]:overflow-y-auto">
@@ -536,6 +631,9 @@ export default function StaffIncidentPage() {
                       <TableHead className="w-[10%] text-center">
                         {t("Ordered")}
                       </TableHead>
+                      <TableHead className="w-[10%] text-center">
+                        {t("Actual")}
+                      </TableHead>
                       <TableHead className="w-[10%] text-center text-emerald-700">
                         {t("Passed")}
                       </TableHead>
@@ -543,7 +641,7 @@ export default function StaffIncidentPage() {
                         {t("Failed")}
                       </TableHead>
                       <TableHead className="w-[20%] text-center">
-                        {t("Issue Type")} *
+                        {t("Defect Breakdown")} *
                       </TableHead>
                       <TableHead className="pr-6 w-[25%]">
                         {t("Detailed Notes")}
@@ -589,6 +687,11 @@ export default function StaffIncidentPage() {
                                     {item.orderedQuantity} {item.unit}
                                   </Badge>
                                 </TableCell>
+                                <TableCell className="text-center align-top py-4 font-medium text-slate-600">
+                                  <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border-slate-200">
+                                    {item.actualQuantity} {item.unit}
+                                  </Badge>
+                                </TableCell>
                                 <TableCell className="text-center align-top py-4 text-emerald-600 font-medium">
                                   <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
                                     {item.passQuantity} {item.unit}
@@ -600,32 +703,79 @@ export default function StaffIncidentPage() {
                                   </Badge>
                                 </TableCell>
                                 <TableCell className="align-top pt-3">
-                                  <Select
-                                    value={item.issueType}
-                                    onValueChange={(val) =>
-                                      updateItem(absoluteIdx, "issueType", val)
-                                    }
-                                    disabled={isHistoryView}
-                                  >
-                                    <SelectTrigger
-                                      className={`h-9 w-full ${!item.issueType && !isHistoryView ? "border-rose-300 ring-1 ring-rose-100" : "border-slate-300"} ${isHistoryView ? "bg-slate-50 opacity-80" : ""}`}
-                                    >
-                                      <SelectValue
-                                        placeholder={t("Select type...")}
-                                      />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="Quantity">
+                                  <div className="flex flex-col gap-2 bg-slate-50 p-2.5 rounded-md border border-slate-200 shadow-sm">
+                                    <div className="flex items-center justify-between text-xs mb-1 border-b border-slate-200 pb-2">
+                                      <span className="font-semibold text-slate-700">
+                                        {t("Total Failed")}
+                                      </span>
+                                      <Badge className="bg-red-100 text-red-700 border-red-200 font-bold shadow-sm">
+                                        {(
+                                          item.failQuantity +
+                                          (item.orderedQuantity -
+                                            item.actualQuantity)
+                                        ).toFixed(3)}
+                                      </Badge>
+                                    </div>
+
+                                    <div className="flex items-center justify-between text-xs gap-2 mt-1">
+                                      <span className="text-slate-500 font-medium">
                                         {t("Quantity")}
-                                      </SelectItem>
-                                      <SelectItem value="Quality">
+                                      </span>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        value={
+                                          (
+                                            item.orderedQuantity -
+                                            item.actualQuantity
+                                          ).toFixed(3) || ""
+                                        }
+                                        disabled={isHistoryView}
+                                        readOnly
+                                        className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-slate-100 min-w-[150px]"
+                                      />
+                                    </div>
+
+                                    <div className="flex items-center justify-between text-xs gap-2">
+                                      <span className="text-slate-500 font-medium">
                                         {t("Quality")}
-                                      </SelectItem>
-                                      <SelectItem value="Damage">
+                                      </span>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        value={item.breakdown.quality || ""}
+                                        onChange={(e) =>
+                                          updateBreakdown(
+                                            absoluteIdx,
+                                            "quality",
+                                            e.target.value.slice(0, 9),
+                                          )
+                                        }
+                                        disabled={isHistoryView}
+                                        className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-white min-w-[150px]"
+                                      />
+                                    </div>
+
+                                    <div className="flex items-center justify-between text-xs gap-2">
+                                      <span className="text-slate-500 font-medium">
                                         {t("Damage")}
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
+                                      </span>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        value={item.breakdown.damage || ""}
+                                        onChange={(e) =>
+                                          updateBreakdown(
+                                            absoluteIdx,
+                                            "damage",
+                                            e.target.value.slice(0, 9),
+                                          )
+                                        }
+                                        disabled={isHistoryView}
+                                        className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-white min-w-[150px]"
+                                      />
+                                    </div>
+                                  </div>
                                 </TableCell>
                                 <TableCell className="pr-6 align-top pt-3">
                                   <div className="flex flex-col gap-2">
@@ -673,71 +823,13 @@ export default function StaffIncidentPage() {
 
                                     {/* Thumbnail Preview (Tối đa 5 ảnh) */}
                                     {item.evidenceImages.length > 0 && (
-                                      <div className="flex flex-wrap gap-2 mt-2">
-                                        {item.evidenceImages
-                                          .slice(0, 5)
-                                          .map((imgObj, imgIdx) => {
-                                            const isLastVisible = imgIdx === 4;
-                                            const remainingCount =
-                                              item.evidenceImages.length - 5;
-                                            const showOverlay =
-                                              isLastVisible &&
-                                              remainingCount > 0;
-
-                                            // Lấy base64 từ property imageData hoặc fallback lại nếu nó đang là dạng string do bạn vừa mới upload ở client
-                                            const imgSrc =
-                                              typeof imgObj === "string"
-                                                ? imgObj
-                                                : imgObj.imageData;
-
-                                            return (
-                                              <div
-                                                key={imgIdx}
-                                                className="relative group cursor-pointer"
-                                                onClick={() => {
-                                                  const imageStrings =
-                                                    item.evidenceImages.map(
-                                                      (img) =>
-                                                        typeof img === "string"
-                                                          ? img
-                                                          : img.imageData,
-                                                    );
-                                                  setViewerImages(imageStrings);
-                                                  setViewerIndex(imgIdx);
-                                                  setIsViewerOpen(true);
-                                                }}
-                                              >
-                                                <img
-                                                  src={imgSrc}
-                                                  alt="evidence"
-                                                  className="w-10 h-10 object-cover rounded border border-slate-200 shadow-sm"
-                                                />
-
-                                                {/* Overlay "+ X" */}
-                                                {showOverlay && (
-                                                  <div className="absolute inset-0 bg-slate-900/60 rounded flex items-center justify-center text-white text-xs font-bold backdrop-blur-[1px]">
-                                                    +{remainingCount}
-                                                  </div>
-                                                )}
-
-                                                {!isHistoryView && (
-                                                  <button
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      removeImage(
-                                                        absoluteIdx,
-                                                        imgIdx,
-                                                      );
-                                                    }}
-                                                    className="absolute -top-1.5 -right-1.5 bg-slate-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-slate-600 shadow-sm z-10"
-                                                  >
-                                                    <X className="w-3 h-3" />
-                                                  </button>
-                                                )}
-                                              </div>
-                                            );
-                                          })}
-                                      </div>
+                                      <ImageGallery
+                                        images={item.evidenceImages}
+                                        isReadOnly={isHistoryView}
+                                        onRemove={(imgIdx) =>
+                                          removeImage(absoluteIdx, imgIdx)
+                                        }
+                                      />
                                     )}
                                   </div>
                                 </TableCell>
@@ -798,74 +890,6 @@ export default function StaffIncidentPage() {
             </CardContent>
           </Card>
         </div>
-        {/* DIALOG XEM ẢNH PHÓNG TO (LIGHTBOX) */}
-        <Dialog open={isViewerOpen} onOpenChange={setIsViewerOpen}>
-          <DialogContent className="sm:max-w-4xl bg-transparent border-0 shadow-none p-0 flex flex-col items-center justify-center">
-            <DialogHeader className="">
-              <DialogTitle className=""></DialogTitle>
-            </DialogHeader>
-            {viewerImages.length > 0 && (
-              <div className="relative w-full flex flex-col items-center gap-4">
-                <div className="relative group flex items-center justify-center w-full">
-                  <img
-                    src={viewerImages[viewerIndex]}
-                    alt="Enlarged evidence"
-                    className="max-w-full max-h-[75vh] object-contain rounded-lg shadow-2xl"
-                  />
-
-                  {viewerImages.length > 1 && (
-                    <>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        className="absolute left-0 sm:-left-12 top-1/2 -translate-y-1/2 rounded-full bg-white/90 hover:bg-white text-slate-800 shadow-md transition-all opacity-0 group-hover:opacity-100"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setViewerIndex((prev) =>
-                            prev > 0 ? prev - 1 : viewerImages.length - 1,
-                          );
-                        }}
-                      >
-                        <ChevronLeft className="w-6 h-6" />
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        className="absolute right-0 sm:-right-12 top-1/2 -translate-y-1/2 rounded-full bg-white/90 hover:bg-white text-slate-800 shadow-md transition-all opacity-0 group-hover:opacity-100"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setViewerIndex((prev) =>
-                            prev < viewerImages.length - 1 ? prev + 1 : 0,
-                          );
-                        }}
-                      >
-                        <ChevronRight className="w-6 h-6" />
-                      </Button>
-                    </>
-                  )}
-                </div>
-
-                {viewerImages.length > 1 && (
-                  <div className="flex gap-2 overflow-x-auto max-w-full pb-2 px-2 snap-x">
-                    {viewerImages.map((img, idx) => (
-                      <img
-                        key={idx}
-                        src={img}
-                        alt={`thumb-${idx}`}
-                        onClick={() => setViewerIndex(idx)}
-                        className={`w-14 h-14 object-cover rounded-md cursor-pointer border-2 shrink-0 snap-center transition-all ${
-                          idx === viewerIndex
-                            ? "border-indigo-500 opacity-100 scale-105"
-                            : "border-transparent opacity-50 hover:opacity-100"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
       </main>
     </div>
   );

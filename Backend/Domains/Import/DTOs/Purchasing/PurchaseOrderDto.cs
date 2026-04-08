@@ -22,6 +22,7 @@ namespace Backend.Domains.Import.DTOs.Purchasing
         public long PurchaseOrderId { get; set; }
         public string PurchaseOrderCode { get; set; } = string.Empty;
         public long? RequestId { get; set; }
+        public string? RequestCode { get; set; }
         public int ProjectId { get; set; }
         public string ProjectName { get; set; } = string.Empty;
         public int SupplierId { get; set; }
@@ -61,5 +62,12 @@ namespace Backend.Domains.Import.DTOs.Purchasing
     public class PurchaseOrderRejectDto
     {
         public string Reason { get; set; } = string.Empty;
+    }
+
+    public class SupplierWithMaterialDto
+    {
+        public int SupplierId { get; set; }
+        public string Name { get; set; }
+        public List<int> MaterialIds { get; set; } = new List<int>();
     }
 }

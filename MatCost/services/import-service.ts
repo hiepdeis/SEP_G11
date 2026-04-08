@@ -8,6 +8,7 @@ export interface PurchaseOrderDto {
   purchaseOrderId: number;
   purchaseOrderCode: string;
   requestId?: number;
+  requestCode?: string;
   projectId: number;
   projectName: string;
   supplierId: number;
@@ -243,6 +244,10 @@ export interface ManagerIncidentItemSummaryDto {
   passQuantity: number;
   failQuantity: number;
   failReason?: string;
+  failQuantityQuantity: number;
+  failQuantityQuality: number;
+  failQuantityDamage: number;
+  evidenceImages: string[] | null;
 }
 
 export interface ManagerIncidentSummaryDto {
@@ -327,7 +332,8 @@ export interface ManagerReceiptSummaryDto {
   supplierName: string | null;
   totalItems: number;
   totalQuantity: number;
-  putawayCompletedAt: string | null;
+  putawayCompletedAt?: string | null;
+  putawayCompletedByName?: string | null;
   status: string;
 }
 
@@ -337,11 +343,14 @@ export interface ManagerReceiptBinAllocationDto {
 }
 
 export interface ManagerReceiptDetailItemDto {
+  materialId: number;
   materialName: string;
+  source: string;
   orderedQuantity: number;
   actualQuantity: number;
   passQuantity: number;
   batchCode: string | null;
+  putawayImage?: string | null;
   expiryDate: string | null;
   binAllocations: ManagerReceiptBinAllocationDto[];
 }
@@ -353,6 +362,9 @@ export interface ManagerReceiptDetailDto {
   purchaseOrderCode: string | null;
   supplierName: string | null;
   status: string;
+  totalQuantity: number;
+  putawayCompletedAt?: string | null;
+  putawayCompletedByName?: string | null;
   items: ManagerReceiptDetailItemDto[];
 }
 
@@ -371,7 +383,11 @@ export interface PurchasingIncidentItemSummaryDto {
   actualQuantity?: number;
   passQuantity: number;
   failQuantity: number;
+  failQuantityQuantity: number;
+  failQuantityQuality: number;
+  failQuantityDamage: number;
   failReason?: string;
+  evidenceImages: string[] | null;
 }
 
 export interface PurchasingIncidentSummaryDto {
@@ -436,6 +452,8 @@ export interface GetInboundRequestItemDto {
   materialId?: number;
   materialCode: string;
   materialName: string;
+  passQuantity?: number;
+  failQuantity?: number;
   quantity?: number;
   actualQuantity?: number;
   binLocationId?: number;
@@ -456,6 +474,7 @@ export interface GetInboundRequestListDto {
   warehouseId?: number;
   warehouseName: string;
   receiptApprovalDate?: string;
+  purchaseOrderCode?: string;
   totalQuantity: number;
   createdByName?: string;
   createdDate?: string;
@@ -467,7 +486,11 @@ export interface GetInboundRequestListDto {
   confirmedDate?: string;
   rejectedByName?: string;
   rejectedDate?: string;
-  status?: string;
+  status: string;
+  stampedByName: string;
+  stampedAt: string;
+  closedByName: string;
+  closedAt: string;
   items: GetInboundRequestItemDto[];
 }
 
@@ -488,6 +511,7 @@ export interface PendingPurchaseOrderDto {
   incidentId?: number | null;
   replacementQuantity?: number | null;
   originalFailReason?: string | null;
+  supplierNote?: string | null;
   items: PendingPurchaseOrderItemDto[];
 }
 
@@ -545,6 +569,7 @@ export interface QCCheckDto {
 
 export interface ReceiveGoodsFromPoItemDto {
   materialId: number;
+  orderedQuantity: number;
   actualQuantity: number;
   passQuantity: number;
   failQuantity: number;
@@ -595,19 +620,30 @@ export interface WarehouseCardDto {
 }
 
 export interface WarehouseCardQueryDto {
+  cardId?: number;
   warehouseId?: number;
   materialId?: number;
+  referenceId?: number;
+  referenceType?: string;
   binId?: number;
   fromDate?: string;
   toDate?: string;
   transactionType?: string;
 }
 
+export interface CreateIncidentBreakdownDto {
+  quantity: number;
+  quality: number;
+  damage: number;
+}
+
 export interface CreateIncidentReportDetailDto {
   materialId: number;
   issueType: string;
+  failQuantity: number;
   evidenceNote?: string | null;
   evidenceImages: string[] | null;
+  breakdown: CreateIncidentBreakdownDto;
 }
 
 export interface CreateIncidentReportDto {
@@ -629,6 +665,12 @@ export interface IncidentReportCreateResultDto {
   nextStep: string;
 }
 
+export interface IncidentBreakdownDto {
+  quantity: number;
+  quality: number;
+  damage: number;
+}
+
 export interface IncidentReportDetailDto {
   detailId: number;
   receiptDetailId: number;
@@ -639,6 +681,7 @@ export interface IncidentReportDetailDto {
   expectedQuantity: number;
   actualQuantity: number;
   issueType: string;
+  breakdown: IncidentBreakdownDto;
   notes?: string | null;
   evidenceImages: any[] | null;
 }
@@ -725,18 +768,22 @@ export interface ReceiptBatchLookupDto {
   mfgDate?: string | null;
   expiryDate?: string | null;
   materialName: string;
-} 
+  certificateImage?: string;
+}
 
 export interface PendingPutawayReceiptDto {
   receiptId: number;
+  receiptCode: string;
   purchaseOrderCode: string;
   supplierName: string;
   status: string;
+  createdAt: string;
   items: PendingPutawayItemDto[];
 }
 
 export interface PendingPutawayItemDto {
   materialId: number;
+  materialCode: string;
   materialName: string;
   quantityToPutaway: number;
   note?: string | null;
@@ -960,9 +1007,9 @@ export const purchasingPurchaseOrderApi = {
     }>(`/purchasing/purchase-orders/${purchaseOrderId}/send`);
   },
   getSuppliers: () => {
-    return axiosClient.get<{ supplierId: number; name: string }[]>(
-      "/purchasing/purchase-orders/suppliers",
-    );
+    return axiosClient.get<
+      { supplierId: number; name: string; materialIds: number[] }[]
+    >("/purchasing/purchase-orders/suppliers");
   },
   confirmDelivery: (purchaseOrderId: number, data: ConfirmDeliveryDto) => {
     return axiosClient.patch<{
@@ -1054,6 +1101,24 @@ export const staffReceiptsApi = {
       "/staff/receipts/pending-pos",
     );
   },
+  getPendingSupplementaryReceiptDetail: (supplementaryReceiptId: number) => {
+    return axiosClient.get<PendingPurchaseOrderDto>(
+      `/staff/receipts/pending-pos/supplementary/${supplementaryReceiptId}`,
+    );
+  },
+
+  getPendingPutawayReceipts: () => {
+    return axiosClient.get<PendingPutawayReceiptDto[]>(
+      "/staff/receipts/pending-putaway",
+    );
+  },
+
+  getPendingPutawayReceiptDetail: (receiptId: number) => {
+    return axiosClient.get<PendingPutawayReceiptDto>(
+      `/staff/receipts/pending-putaway/${receiptId}`,
+    );
+  },
+
   getBatches: (materialId: number, batchCode?: string) => {
     return axiosClient.get<ReceiptBatchLookupDto[]>("/staff/receipts/batches", {
       params: { materialId, batchCode },
@@ -1099,13 +1164,6 @@ export const staffReceiptsApi = {
     );
   },
 };
-
-export const getPendingPutawayReceipts = () => {
-  return axiosClient.get<PendingPutawayReceiptDto[]>(
-    "/staff/receipts/pending-putaway"
-  );
-};
-
 
 // ==========================================
 // INTERNAL

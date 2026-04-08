@@ -11,6 +11,7 @@ namespace Backend.Domains.Import.DTOs.Staff
         public long? IncidentId { get; set; }
         public decimal? ReplacementQuantity { get; set; }
         public string? OriginalFailReason { get; set; }
+        public string? SupplierNote { get; set; }
         public List<PendingPurchaseOrderItemDto> Items { get; set; } = new();
     }
 

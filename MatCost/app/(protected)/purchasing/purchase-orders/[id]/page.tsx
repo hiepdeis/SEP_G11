@@ -17,7 +17,8 @@ import {
   Check,
   X,
   RefreshCw,
-  AlertCircle, // Thêm icon cảnh báo
+  AlertCircle,
+  Construction, // Thêm icon cảnh báo
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,7 +48,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { DateTimePicker } from "@/components/ui/custom/date-time-picker";
 import { formatPascalCase } from "@/lib/format-pascal-case";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function PurchaseOrderDetailPage() {
   const params = useParams();
@@ -137,7 +144,7 @@ export default function PurchaseOrderDetailPage() {
         try {
           await new Promise((resolve) => setTimeout(resolve, 500));
           router.push(
-            `/purchasing/purchase-orders/create?requestId=${order.requestId}&parentPOId=${order.purchaseOrderId}`,
+            `/purchasing/purchase-orders/recreate?requestId=${order.requestId}&parentPOId=${order.purchaseOrderId}`,
           );
         } catch (error: any) {
           console.error(error);
@@ -187,7 +194,11 @@ export default function PurchaseOrderDetailPage() {
 
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleString("vi-VN", {
+    let safeDateString = dateString;
+    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
+      safeDateString = safeDateString.replace(" ", "T") + "Z";
+    }
+    return new Date(safeDateString).toLocaleString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -249,10 +260,10 @@ export default function PurchaseOrderDetailPage() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <Button
               variant="ghost"
-              onClick={() => router.push("/purchasing/purchase-orders")}
+              onClick={() => router.back()}
               className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}
+              <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back")}
             </Button>
 
             <div className="flex items-center gap-3">
@@ -263,7 +274,9 @@ export default function PurchaseOrderDetailPage() {
                 variant="outline"
                 className={`px-3 py-1.5 text-sm font-medium ${getStatusBadge(order.status)}`}
               >
-                {t(formatPascalCase(order.status))}
+                {order.status === "SentToSupplier" && order.expectedDeliveryDate
+                  ? t("Delivery Confirmed")
+                  : t(formatPascalCase(order.status))}
               </Badge>
 
               {/* BADGE REVISION */}
@@ -290,8 +303,9 @@ export default function PurchaseOrderDetailPage() {
                   {t("Send to Supplier")}
                 </Button>
               )}
+
               {order.status === "SentToSupplier" &&
-                order.expectedDeliveryDate === null && (
+                !order.expectedDeliveryDate && (
                   <Button
                     onClick={() => setIsConfirmDeliveryModalOpen(true)}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm ml-2"
@@ -300,6 +314,17 @@ export default function PurchaseOrderDetailPage() {
                     {t("Confirm Delivery")}
                   </Button>
                 )}
+
+              {order.expectedDeliveryDate && (
+                <Badge
+                  variant="outline"
+                  className="px-3 py-1.5 text-sm font-medium bg-emerald-50 text-emerald-700 border-emerald-200"
+                >
+                  <CalendarDays className="w-4 h-4 mr-2" />
+                  {t("Expected")}: {formatDate(order.expectedDeliveryDate)}
+                </Badge>
+              )}
+
               {isRejected && (
                 <Button
                   onClick={handleRecreatePO}
@@ -504,42 +529,48 @@ export default function PurchaseOrderDetailPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 space-y-5 pb-0">
-                  <div className="space-y-1">
+                  <div className="space-y-1 flex flex-col">
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                       {t("Supplier")}
                     </span>
-                    <div className="flex items-center gap-2 text-slate-800 font-medium">
-                      <Building2 className="w-4 h-4 text-slate-400" />
+                    <Badge
+                      variant="outline"
+                      className="text-md px-3 py-1 text-slate-600 bg-slate-50 border-slate-200"
+                    >
+                      <Building2 className="w-3.5 h-3.5 text-slate-500" />
                       {order.supplierName}
-                    </div>
+                    </Badge>
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="space-y-1 flex flex-col">
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                       {t("Destination Project")}
                     </span>
-                    <div className="flex items-center gap-2 text-slate-800 font-medium">
-                      <Hash className="w-4 h-4 text-slate-400" />
+                    <Badge
+                      variant="outline"
+                      className="text-md px-3 py-1 text-slate-600 bg-slate-50 border-slate-200"
+                    >
+                      <Construction className="w-3.5 h-3.5 text-slate-500" />
                       {order.projectName}
-                    </div>
+                    </Badge>
                   </div>
 
                   {order.requestId && (
-                    <div className="space-y-1">
+                    <div className="space-y-1 flex flex-col">
                       <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                         {t("Source PR ID")}
                       </span>
-                      <div
-                        className="flex items-center gap-2 text-indigo-600 font-medium cursor-pointer"
+                      <Badge
+                        variant="outline"
+                        className="font-mono text-md px-3 py-1 text-indigo-600 bg-indigo-50 border-indigo-200 cursor-pointer hover:bg-indigo-100 transition-colors"
                         onClick={() => {
                           router.push(
                             "/purchasing/purchase-request/" + order.requestId,
                           );
                         }}
                       >
-                        <FileText className="w-4 h-4 text-indigo-400" />#
-                        {order.requestId}
-                      </div>
+                        {order.requestCode}
+                      </Badge>
                     </div>
                   )}
 
@@ -668,8 +699,8 @@ export default function PurchaseOrderDetailPage() {
           </div>
         </div>
       </main>
-      <Dialog 
-        open={isConfirmDeliveryModalOpen} 
+      <Dialog
+        open={isConfirmDeliveryModalOpen}
         onOpenChange={(open) => {
           if (!open) {
             setIsConfirmDeliveryModalOpen(false);

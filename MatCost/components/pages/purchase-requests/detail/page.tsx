@@ -66,9 +66,16 @@ export default function PurchaseRequestDetailPage({ role = "admin" }) {
     }
   }, [id, router, t]);
 
-  const formatDate = (dateString: string | null) => {
+  const formatDate = (dateString?: string | null) => {
     if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleString("vi-VN", {
+
+    let safeDateString = dateString;
+
+    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
+      safeDateString = safeDateString.replace(" ", "T") + "Z";
+    }
+
+    return new Date(safeDateString).toLocaleString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -119,13 +126,11 @@ export default function PurchaseRequestDetailPage({ role = "admin" }) {
             <Button
               variant="ghost"
               onClick={() => {
-                role == "admin"
-                  ? router.push("/admin/purchase-requests")
-                  : router.push("/purchasing/purchase-orders");
+                router.back();
               }}
               className="pl-0 hover:bg-transparent hover:text-indigo-600 w-fit"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}
+              <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back")}
             </Button>
 
             <div className="flex items-center gap-3">
@@ -186,7 +191,7 @@ export default function PurchaseRequestDetailPage({ role = "admin" }) {
                     </span>
                     <div className="flex items-center gap-2 text-slate-800 font-medium">
                       <User className="w-4 h-4 text-slate-400" />
-                      Admin ID: {request.createdBy}
+                      {request.createdByName}
                     </div>
                   </div>
 

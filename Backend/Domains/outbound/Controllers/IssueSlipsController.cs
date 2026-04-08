@@ -187,6 +187,12 @@ namespace Backend.Domains.outbound.Controllers
                 .Include(x => x.Project)
                 .Include(x => x.IssueDetails)
                     .ThenInclude(d => d.Material) // Join để lấy Đơn giá
+                .Include(x => x.IssueDetails)
+                    .ThenInclude(d => d.PickingLists)
+                        .ThenInclude(p => p.Batch)
+                .Include(x => x.IssueDetails)
+                    .ThenInclude(d => d.PickingLists)
+                .ThenInclude(p => p.Bin)
                 .Include(x => x.CreatedByNavigation)
                 .FirstOrDefaultAsync(x => x.IssueId == id);
 
@@ -317,7 +323,18 @@ namespace Backend.Domains.outbound.Controllers
                         IsStockSufficient = availableStock >= d.Quantity,
                         UnitPrice = d.Material.UnitPrice ?? 0,
                         LineTotal = d.Quantity * (d.Material.UnitPrice ?? 0),
-                        FifoSuggestedBatches = suggestedBatches
+                        FifoSuggestedBatches = suggestedBatches,
+                        ActualPickingItems = d.PickingLists.Select(p => new
+                        {
+                            pickingId = p.PickingId,
+                            materialCode = d.Material.Code,
+                            materialName = d.Material.Name,
+                            unit = d.Material.Unit,
+                            batchCode = p.Batch.BatchCode,
+                            binLocation = p.Bin.Code, 
+                            qtyToPick = p.QtyToPick,
+                            isPicked = p.IsPicked
+                        }).ToList()
                     };
                 })
             };
@@ -663,7 +680,8 @@ namespace Backend.Domains.outbound.Controllers
                                 BatchId = batch.BatchId,
                                 BinId = inventoryRecord.Bin.BinId, // Lấy vị trí Kệ từ tồn kho
                                 QtyToPick = batch.QtyToTake,
-                                IsPicked = false // Mặc định là chưa nhặt
+                                IsPicked = false, // Mặc định là chưa nhặt
+                                ActualPickerId = null
                             });
                         }
                     }

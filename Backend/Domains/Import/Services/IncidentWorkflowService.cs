@@ -78,8 +78,12 @@ namespace Backend.Domains.Import.Services
             // STEP 1: load incident with QC details
             var incident = await _context.IncidentReports
                 .Include(i => i.Receipt)
+                    .ThenInclude(r => r.ReceiptDetails)
+                        .ThenInclude(rd => rd.Material)
                 .Include(i => i.IncidentReportDetails)
                     .ThenInclude(d => d.EvidenceImages)
+                .Include(i => i.QCCheck)
+                    .ThenInclude(q => q!.CheckedByNavigation)
                 .Include(i => i.QCCheck)
                     .ThenInclude(q => q!.QCCheckDetails)
                         .ThenInclude(d => d.ReceiptDetail)
@@ -92,7 +96,10 @@ namespace Backend.Domains.Import.Services
             // STEP 2: map QC check
             var qcCheckDto = incident.QCCheck == null
                 ? null
-                : MapQCCheckToDto(incident.QCCheck, incident.Receipt?.ReceiptCode);
+                : MapQCCheckToDto(
+                    incident.QCCheck,
+                    incident.Receipt?.ReceiptCode,
+                    incident.QCCheck.CheckedByNavigation?.FullName);
 
             // STEP 3: map detail DTO
             return new ManagerIncidentDetailDto
@@ -197,6 +204,8 @@ namespace Backend.Domains.Import.Services
                 .Include(i => i.IncidentReportDetails)
                     .ThenInclude(d => d.EvidenceImages)
                 .Include(i => i.QCCheck)
+                    .ThenInclude(q => q!.CheckedByNavigation)
+                .Include(i => i.QCCheck)
                     .ThenInclude(q => q!.QCCheckDetails)
                         .ThenInclude(d => d.ReceiptDetail)
                             .ThenInclude(rd => rd.Material)
@@ -208,7 +217,10 @@ namespace Backend.Domains.Import.Services
             // STEP 2: map QC check
             var qcCheckDto = incident.QCCheck == null
                 ? null
-                : MapQCCheckToDto(incident.QCCheck, incident.Receipt?.ReceiptCode);
+                : MapQCCheckToDto(
+                    incident.QCCheck,
+                    incident.Receipt?.ReceiptCode,
+                    incident.QCCheck.CheckedByNavigation?.FullName);
 
             // STEP 3: map detail DTO
             return new PurchasingIncidentDetailDto
@@ -255,6 +267,11 @@ namespace Backend.Domains.Import.Services
             // STEP 2: load incident and receipt
             var incident = await _context.IncidentReports
                 .Include(i => i.Receipt)
+                .Include(i => i.SupplementaryReceipts)
+                    .ThenInclude(s => s.Items)
+                .Include(i => i.QCCheck)
+                    .ThenInclude(q => q!.QCCheckDetails)
+                        .ThenInclude(d => d.ReceiptDetail)
                 .FirstOrDefaultAsync(i => i.IncidentId == incidentId);
 
             if (incident == null)
@@ -285,6 +302,62 @@ namespace Backend.Domains.Import.Services
             if (invalidMaterials.Any())
                 throw new ArgumentException(
                     $"Supplementary items contain materials not in PO: {string.Join(", ", invalidMaterials)}");
+
+            // STEP 3.1: enforce claim-based cap for supplementary quantities by material.
+            if (incident.QCCheck == null)
+                throw new InvalidOperationException("QC check is required before creating supplementary receipt");
+
+            var requestedByMaterial = dto.Items
+                .GroupBy(i => i.MaterialId)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.SupplementaryQuantity));
+
+            var existingSupplementaryByMaterial = incident.SupplementaryReceipts
+                .Where(s => !string.Equals(s.Status, "Rejected", StringComparison.OrdinalIgnoreCase))
+                .SelectMany(s => s.Items)
+                .GroupBy(i => i.MaterialId)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.SupplementaryQuantity));
+
+            foreach (var request in requestedByMaterial)
+            {
+                var materialId = request.Key;
+                var requestedQty = request.Value;
+
+                var qcDetail = incident.QCCheck.QCCheckDetails
+                    .FirstOrDefault(d => d.ReceiptDetail != null && d.ReceiptDetail.MaterialId == materialId);
+
+                if (qcDetail == null)
+                {
+                    throw new ArgumentException(
+                        $"MaterialId {materialId} is not present in incident QC details");
+                }
+
+                var configuredClaimQty =
+                    (qcDetail.FailQuantityQuantity ?? 0) +
+                    (qcDetail.FailQuantityQuality ?? 0) +
+                    (qcDetail.FailQuantityDamage ?? 0);
+
+                var fallbackClaimQty = Math.Max(0, (qcDetail.ReceiptDetail?.Quantity ?? 0) - qcDetail.PassQuantity);
+                var totalClaimQty = configuredClaimQty > 0 ? configuredClaimQty : fallbackClaimQty;
+
+                var alreadyRequestedQty = existingSupplementaryByMaterial.TryGetValue(materialId, out var existingQty)
+                    ? existingQty
+                    : 0m;
+
+                var remainingClaimQty = totalClaimQty - alreadyRequestedQty;
+
+                if (remainingClaimQty <= 0.0001m)
+                {
+                    throw new InvalidOperationException(
+                        $"MaterialId {materialId} has no remaining claim quantity for supplementary receipt");
+                }
+
+                if (requestedQty - remainingClaimQty > 0.0001m)
+                {
+                    throw new ArgumentException(
+                        $"SupplementaryQuantity for MaterialId {materialId} exceeds remaining claim quantity ({remainingClaimQty:F4}). " +
+                        $"Requested={requestedQty:F4}, Claim={totalClaimQty:F4}, AlreadyRequested={alreadyRequestedQty:F4}");
+                }
+            }
 
             // STEP 4: create supplementary receipt and update incident status
             var now = DateTime.UtcNow;
@@ -536,28 +609,44 @@ namespace Backend.Domains.Import.Services
                         .Distinct()
                         .ToList());
 
-            var details = incident.QCCheck?.QCCheckDetails ?? new List<QCCheckDetail>();
+            var qcDetails = incident.QCCheck?.QCCheckDetails ?? new List<QCCheckDetail>();
+            var qcByReceiptDetailId = qcDetails
+                .GroupBy(d => d.ReceiptDetailId)
+                .ToDictionary(g => g.Key, g => g.First());
 
-            return details.Select(d => new ManagerIncidentItemSummaryDto
+            var receiptDetails = incident.Receipt?.ReceiptDetails?.ToList()
+                ?? qcDetails
+                    .Where(d => d.ReceiptDetail != null)
+                    .Select(d => d.ReceiptDetail!)
+                    .GroupBy(rd => rd.DetailId)
+                    .Select(g => g.First())
+                    .ToList();
+
+            return receiptDetails.Select(rd =>
             {
-                MaterialId = d.ReceiptDetail.MaterialId,
-                MaterialName = d.ReceiptDetail.Material?.Name,
-                OrderedQuantity = d.ReceiptDetail.Quantity,
-                ActualQuantity = d.ReceiptDetail.ActualQuantity,
-                PassQuantity = d.PassQuantity,
-                FailQuantity = d.FailQuantity,
-                FailReason = d.FailReason,
-                // Include breakdown columns
-                FailQuantityQuantity = d.FailQuantityQuantity,
-                FailQuantityQuality = d.FailQuantityQuality,
-                FailQuantityDamage = d.FailQuantityDamage,
-                EvidenceImages = evidenceByMaterial.TryGetValue(d.ReceiptDetail.MaterialId, out var images)
+                qcByReceiptDetailId.TryGetValue(rd.DetailId, out var qcd);
+
+                return new ManagerIncidentItemSummaryDto
+                {
+                    MaterialId = rd.MaterialId,
+                    MaterialName = rd.Material?.Name,
+                    OrderedQuantity = rd.Quantity,
+                    ActualQuantity = rd.ActualQuantity,
+                    PassQuantity = qcd?.PassQuantity ?? 0,
+                    FailQuantity = qcd?.FailQuantity ?? 0,
+                    FailReason = qcd?.FailReason,
+                    // Include breakdown columns
+                    FailQuantityQuantity = qcd?.FailQuantityQuantity,
+                    FailQuantityQuality = qcd?.FailQuantityQuality,
+                    FailQuantityDamage = qcd?.FailQuantityDamage,
+                    EvidenceImages = evidenceByMaterial.TryGetValue(rd.MaterialId, out var images)
                     ? images
                     : new List<string>()
+                };
             }).ToList();
         }
 
-        private static QCCheckDto MapQCCheckToDto(QCCheck qcCheck, string? receiptCode)
+        private static QCCheckDto MapQCCheckToDto(QCCheck qcCheck, string? receiptCode, string? checkedByName = null)
         {
             return new QCCheckDto
             {
@@ -566,6 +655,7 @@ namespace Backend.Domains.Import.Services
                 ReceiptId = qcCheck.ReceiptId,
                 ReceiptCode = receiptCode,
                 CheckedBy = qcCheck.CheckedBy,
+                CheckedByName = checkedByName,
                 CheckedAt = qcCheck.CheckedAt,
                 OverallResult = qcCheck.OverallResult,
                 Notes = qcCheck.Notes,

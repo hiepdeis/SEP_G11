@@ -51,6 +51,7 @@ namespace Backend.Domains.Import.DTOs.Managers
         public decimal ActualQuantity { get; set; }
         public decimal PassQuantity { get; set; }
         public string? BatchCode { get; set; }
+        public string? PutawayImage { get; set; }
         public DateTime? ExpiryDate { get; set; }
         public List<ManagerReceiptBinAllocationDto> BinAllocations { get; set; } = new();
     }

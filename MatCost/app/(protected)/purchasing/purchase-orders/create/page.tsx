@@ -8,22 +8,15 @@ import {
   ArrowLeft,
   Save,
   Loader2,
-  Building2,
   PackagePlus,
   FileText,
   Calculator,
   ChevronRight,
   ChevronLeft,
-  RefreshCw,
-  History,
-  Clock,
-  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -43,13 +36,10 @@ import {
   purchasingPurchaseOrderApi,
   purchasingPurchaseRequestApi,
   PurchaseRequestDto,
-  PurchaseOrderHistoryItemDto, // Thêm DTO này
 } from "@/services/import-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { showConfirmToast } from "@/hooks/confirm-toast";
-import { format } from "date-fns";
-import { formatPascalCase } from "@/lib/format-pascal-case";
 
 interface OrderItemInput {
   id: string;
@@ -68,23 +58,19 @@ export default function CreatePurchaseOrderPage() {
   const { t } = useTranslation();
 
   const requestIdParam = searchParams.get("requestId");
-  const parentPOIdParam = searchParams.get("parentPOId");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   const [requests, setRequests] = useState<PurchaseRequestDto[]>([]);
   const [suppliers, setSuppliers] = useState<
-    { supplierId: number; name: string }[]
+    { supplierId: number; name: string; materialIds: number[] }[]
   >([]);
-  const [poHistory, setPoHistory] = useState<PurchaseOrderHistoryItemDto[]>([]); // State lưu lịch sử PO
 
   const [selectedRequestId, setSelectedRequestId] = useState<string>(
     requestIdParam || "",
   );
   const [globalSupplierId, setGlobalSupplierId] = useState<string>("");
-  const [revisionNote, setRevisionNote] = useState<string>("");
   const [items, setItems] = useState<OrderItemInput[]>([]);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -117,7 +103,7 @@ export default function CreatePurchaseOrderPage() {
   }, [t]);
 
   useEffect(() => {
-    const loadPrDetailsAndHistory = async () => {
+    const loadPrDetails = async () => {
       if (selectedRequestId && requests.length > 0) {
         const pr = requests.find(
           (r) => r.requestId.toString() === selectedRequestId,
@@ -135,28 +121,15 @@ export default function CreatePurchaseOrderPage() {
           }));
           setItems(mappedItems);
           setCurrentPage(1);
-        }
-
-        // Tải lịch sử PO (History)
-        setIsLoadingHistory(true);
-        try {
-          const historyRes = await purchasingPurchaseRequestApi.getPoHistory(
-            Number(selectedRequestId),
-          );
-          setPoHistory(historyRes.data.poChain || []);
-        } catch (error) {
-          console.error("Failed to load PO history", error);
-          setPoHistory([]);
-        } finally {
-          setIsLoadingHistory(false);
+          setGlobalSupplierId("");
         }
       } else {
         setItems([]);
-        setPoHistory([]);
+        setGlobalSupplierId("");
       }
     };
 
-    loadPrDetailsAndHistory();
+    loadPrDetails();
   }, [selectedRequestId, requests]);
 
   const handleItemChange = (
@@ -175,11 +148,6 @@ export default function CreatePurchaseOrderPage() {
 
   const formatCurrency = (val: number) => {
     return val.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
-  };
-
-  const formatDateTime = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-    return format(new Date(dateString), "dd/MM/yyyy HH:mm");
   };
 
   const handleSubmit = () => {
@@ -210,24 +178,12 @@ export default function CreatePurchaseOrderPage() {
       return toast.error(t("Please assign a unit price for all items."));
     }
 
-    if (parentPOIdParam && !revisionNote.trim()) {
-      return toast.error(
-        t("Please provide a revision note explaining the changes."),
-      );
-    }
-
     showConfirmToast({
-      title: parentPOIdParam
-        ? t("Recreate Purchase Order?")
-        : t("Create Purchase Order Draft?"),
-      description: parentPOIdParam
-        ? t("Are you sure you want to submit this revised Purchase Order?")
-        : t(
-            "Are you sure you want to create a Purchase Order draft with these details?",
-          ),
-      confirmLabel: parentPOIdParam
-        ? t("Yes, Submit Revision")
-        : t("Yes, Create Draft"),
+      title: t("Create Purchase Order Draft?"),
+      description: t(
+        "Are you sure you want to create a Purchase Order draft with these details?",
+      ),
+      confirmLabel: t("Yes, Create Draft"),
       onConfirm: async () => {
         setIsSubmitting(true);
 
@@ -235,8 +191,6 @@ export default function CreatePurchaseOrderPage() {
           const payload = {
             requestId: Number(selectedRequestId),
             supplierId: globalSupplierId ? Number(globalSupplierId) : undefined,
-            parentPOId: parentPOIdParam ? Number(parentPOIdParam) : undefined,
-            revisionNote: revisionNote.trim() || undefined,
             items: items.map((i) => ({
               materialId: i.materialId,
               orderedQuantity: Number(i.orderedQuantity),
@@ -246,12 +200,7 @@ export default function CreatePurchaseOrderPage() {
           };
 
           await purchasingPurchaseOrderApi.createDraft(payload);
-          toast.success(
-            parentPOIdParam
-              ? t("Revised Purchase Order submitted successfully!")
-              : t("Purchase Order draft created successfully!"),
-          );
-
+          toast.success(t("Purchase Order draft created successfully!"));
           router.push("/purchasing/purchase-orders");
         } catch (error: any) {
           console.error(error);
@@ -287,17 +236,24 @@ export default function CreatePurchaseOrderPage() {
     );
   }
 
+  const requiredMaterialIds = Array.from(
+    new Set(items.map((item) => item.materialId)),
+  );
+
+  const capableSuppliers = suppliers.filter((supplier) => {
+    if (!supplier.materialIds || supplier.materialIds.length === 0)
+      return false;
+
+    return requiredMaterialIds.every((reqId) =>
+      supplier.materialIds.includes(reqId),
+    );
+  });
+
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header
-          title={
-            parentPOIdParam
-              ? t("Recreate Purchase Order")
-              : t("Create Purchase Order Draft")
-          }
-        />
+        <Header title={t("Create Purchase Order Draft")} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6 mx-auto w-full">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -311,14 +267,7 @@ export default function CreatePurchaseOrderPage() {
               </Button>
               <div>
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                  {parentPOIdParam ? (
-                    <>
-                      <RefreshCw className="w-6 h-6 text-indigo-600" />
-                      {t("Recreate Rejected Order")}
-                    </>
-                  ) : (
-                    t("New Purchase Order Draft")
-                  )}
+                  {t("New Purchase Order Draft")}
                 </h1>
               </div>
             </div>
@@ -333,9 +282,7 @@ export default function CreatePurchaseOrderPage() {
               ) : (
                 <Save className="w-4 h-4 mr-2" />
               )}
-              {parentPOIdParam
-                ? t("Submit Revised Order")
-                : t("Confirm Purchase Order")}
+              {t("Confirm Purchase Order")}
             </Button>
           </div>
 
@@ -358,31 +305,30 @@ export default function CreatePurchaseOrderPage() {
                     <Select
                       value={selectedRequestId}
                       onValueChange={setSelectedRequestId}
-                      disabled={!!parentPOIdParam}
                     >
-                      <SelectTrigger
-                        className={`w-full bg-slate-50 min-h-[60px] py-2 ${parentPOIdParam ? "border-slate-200 opacity-70" : "border-slate-300"}`}
-                      >
+                      <SelectTrigger className="w-full bg-slate-50 min-h-[60px] py-2 border-slate-300">
                         <SelectValue placeholder={t("Select a PR...")} />
                       </SelectTrigger>
                       <SelectContent className="w-[var(--radix-select-trigger-width)]">
-                        {requests.map((r) => (
-                          <SelectItem
-                            key={r.requestId}
-                            value={r.requestId.toString()}
-                            className="group focus:bg-indigo-600 cursor-pointer"
-                          >
-                            <div className="flex flex-col text-left">
-                              <span className="font-medium text-slate-800 group-focus:text-white">
-                                {r.requestCode}
-                              </span>
-                              <span className="text-xs text-slate-500 mt-0.5 group-focus:text-indigo-100">
-                                {t("Project")}: {r.projectName} | {t("Items")}:{" "}
-                                {r.items?.length || 0}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
+                        {requests
+                          .filter((r) => r.status !== "DraftPO")
+                          .map((r) => (
+                            <SelectItem
+                              key={r.requestId}
+                              value={r.requestId.toString()}
+                              className="group focus:bg-indigo-600 cursor-pointer"
+                            >
+                              <div className="flex flex-col text-left">
+                                <span className="font-medium text-slate-800 group-focus:text-white">
+                                  {r.requestCode}
+                                </span>
+                                <span className="text-xs text-slate-500 mt-0.5 group-focus:text-indigo-100">
+                                  {t("Project")}: {r.projectName} | {t("Items")}
+                                  : {r.items?.length || 0}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -401,14 +347,22 @@ export default function CreatePurchaseOrderPage() {
                         />
                       </SelectTrigger>
                       <SelectContent>
-                        {suppliers.map((s) => (
-                          <SelectItem
-                            key={s.supplierId}
-                            value={s.supplierId.toString()}
-                          >
-                            {s.name}
-                          </SelectItem>
-                        ))}
+                        {capableSuppliers.length > 0 ? (
+                          capableSuppliers.map((s) => (
+                            <SelectItem
+                              key={s.supplierId}
+                              value={s.supplierId.toString()}
+                            >
+                              {s.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="p-3 text-sm text-rose-500 text-center italic bg-rose-50/50">
+                            {t(
+                              "No single supplier can provide all listed materials.",
+                            )}
+                          </div>
+                        )}
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-slate-500 mt-1">
@@ -417,129 +371,8 @@ export default function CreatePurchaseOrderPage() {
                       )}
                     </p>
                   </div>
-
-                  {parentPOIdParam && (
-                    <div className="space-y-2 pt-4 border-t border-slate-100">
-                      <label className="text-sm font-medium text-slate-700">
-                        {t("Revision Note")}{" "}
-                        <span className="text-red-500">*</span>
-                      </label>
-                      <Textarea
-                        placeholder={t(
-                          "Explain the adjustments made (e.g., Updated unit price)...",
-                        )}
-                        value={revisionNote}
-                        onChange={(e) => setRevisionNote(e.target.value)}
-                        className="min-h-[80px] resize-none focus-visible:ring-indigo-600"
-                      />
-                    </div>
-                  )}
                 </CardContent>
               </Card>
-
-              {/* THẺ LỊCH SỬ PO - Nằm dưới cùng cột trái */}
-              {isLoadingHistory ? (
-                <div className="flex items-center justify-center p-4">
-                  <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
-                </div>
-              ) : (
-                poHistory.length > 0 && (
-                  <Card className="border-slate-200 shadow-sm bg-white gap-0 flex-1 min-h-[300px] flex flex-col">
-                    <CardHeader className="border-b border-slate-100 pb-4 shrink-0">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pt-2">
-                        <History className="w-5 h-5 text-indigo-600" />
-                        {t("PO Revision History")}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-5 overflow-y-auto flex-1 relative">
-                      <div className="absolute left-[35px] top-6 bottom-6 w-[2px] bg-slate-100"></div>
-
-                      <div className="space-y-6">
-                        {poHistory.map((historyItem) => (
-                          <div
-                            key={historyItem.poId}
-                            className="relative pl-10"
-                          >
-                            <div className="absolute left-[-11px] top-1 w-4 h-4 rounded-full border-2 border-white bg-indigo-100 ring-1 ring-indigo-200 z-10 flex items-center justify-center">
-                              <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                            </div>
-
-                            <div className="flex flex-col gap-1.5">
-                              <div className="flex items-center justify-between">
-                                <span className="font-semibold text-sm text-slate-800">
-                                  Rev {historyItem.revisionNumber}
-                                </span>
-                                <Badge
-                                  variant="outline"
-                                  className={
-                                    historyItem.status.includes("Rejected")
-                                      ? "text-rose-600 bg-rose-50 border-rose-200"
-                                      : "text-slate-600 bg-slate-50"
-                                  }
-                                >
-                                  {formatPascalCase(historyItem.status)}
-                                </Badge>
-                              </div>
-
-                              <div className="text-xs text-slate-500 flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {formatDateTime(historyItem.createdAt)}
-                              </div>
-
-                              <div className="bg-slate-50 rounded-md p-3 text-sm space-y-2 border border-slate-100 mt-1">
-                                <div className="flex justify-between">
-                                  <span className="text-slate-500">
-                                    {t("Supplier")}:
-                                  </span>
-                                  <span
-                                    className="font-medium text-slate-700 truncate max-w-[120px]"
-                                    title={historyItem.supplierName}
-                                  >
-                                    {historyItem.supplierName}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-slate-500">
-                                    {t("Amount")}:
-                                  </span>
-                                  <span className="font-medium text-slate-700">
-                                    {historyItem.totalAmount
-                                      ? formatCurrency(historyItem.totalAmount)
-                                      : "N/A"}
-                                  </span>
-                                </div>
-
-                                {historyItem.revisionNote && (
-                                  <div className="pt-2 border-t border-slate-100">
-                                    <span className="text-xs font-medium text-indigo-600 block mb-1">
-                                      {t("Revision Note")}:
-                                    </span>
-                                    <p className="text-slate-600 text-xs italic">
-                                      "{historyItem.revisionNote}"
-                                    </p>
-                                  </div>
-                                )}
-
-                                {historyItem.rejectionReason && (
-                                  <div className="pt-2 border-t border-slate-100">
-                                    <span className="text-xs font-medium text-rose-600 flex items-center gap-1 mb-1">
-                                      <XCircle className="w-3 h-3" />{" "}
-                                      {t("Rejection Reason")}:
-                                    </span>
-                                    <p className="text-rose-600 text-xs italic">
-                                      "{historyItem.rejectionReason}"
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              )}
             </div>
 
             {/* DANH SÁCH VẬT TƯ & ĐƠN GIÁ (CỘT PHẢI) */}
@@ -561,9 +394,6 @@ export default function CreatePurchaseOrderPage() {
                           </TableHead>
                           <TableHead className="w-[15%] text-center">
                             {t("Requested")}
-                          </TableHead>
-                          <TableHead className="w-[15%] text-center">
-                            {t("Order Quantity")} *
                           </TableHead>
                           <TableHead className="w-[15%]">
                             {t("Supplier")} *
@@ -591,7 +421,7 @@ export default function CreatePurchaseOrderPage() {
                               key={item.id}
                               className="hover:bg-slate-50/50 transition-colors"
                             >
-                              <TableCell className="pl-6 align-top pt-4">
+                              <TableCell className="pl-6 align-top py-4">
                                 <div className="flex flex-col">
                                   <span className="font-semibold text-slate-800">
                                     {item.materialName}
@@ -602,30 +432,12 @@ export default function CreatePurchaseOrderPage() {
                                 </div>
                               </TableCell>
 
-                              <TableCell className="align-top pt-6 text-center">
+                              <TableCell className="align-top py-4 text-center flex align-center justify-center">
                                 <span className="font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded">
-                                  {item.prQuantity}
+                                  {item.orderedQuantity}
                                 </span>
                               </TableCell>
-
-                              <TableCell className="align-top pt-4">
-                                <Input
-                                  type="number"
-                                  min="1"
-                                  maxLength={5}
-                                  placeholder="Qty"
-                                  className="w-full text-right focus-visible:ring-indigo-600 text-center"
-                                  value={item.orderedQuantity}
-                                  onChange={(e) =>
-                                    handleItemChange(
-                                      item.id,
-                                      "orderedQuantity",
-                                      e.target.value.slice(0, 9),
-                                    )
-                                  }
-                                />
-                              </TableCell>
-                              <TableCell className="align-top pt-4">
+                              <TableCell className="align-top py-4">
                                 <Select
                                   value={item.supplierId}
                                   onValueChange={(val) =>
@@ -642,18 +454,26 @@ export default function CreatePurchaseOrderPage() {
                                     <SelectValue placeholder={t("Select...")} />
                                   </SelectTrigger>
                                   <SelectContent className="w-[var(--radix-select-trigger-width)]">
-                                    {suppliers.map((s) => (
-                                      <SelectItem
-                                        key={s.supplierId}
-                                        value={s.supplierId.toString()}
-                                      >
-                                        {s.name}
-                                      </SelectItem>
-                                    ))}
+                                    {suppliers
+                                      .filter(
+                                        (s) =>
+                                          s.materialIds &&
+                                          s.materialIds.includes(
+                                            item.materialId,
+                                          ),
+                                      )
+                                      .map((s) => (
+                                        <SelectItem
+                                          key={s.supplierId}
+                                          value={s.supplierId.toString()}
+                                        >
+                                          {s.name}
+                                        </SelectItem>
+                                      ))}
                                   </SelectContent>
                                 </Select>
                               </TableCell>
-                              <TableCell className="align-top text-right pt-4 pr-6">
+                              <TableCell className="align-top text-right py-4 pr-6">
                                 <Input
                                   type="number"
                                   min="0"
@@ -664,7 +484,9 @@ export default function CreatePurchaseOrderPage() {
                                     handleItemChange(
                                       item.id,
                                       "unitPrice",
-                                      e.target.value,
+                                      e.target.value
+                                        .replace(/-/g, "")
+                                        .slice(0, 12),
                                     )
                                   }
                                 />

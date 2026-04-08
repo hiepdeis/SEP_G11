@@ -33,11 +33,14 @@ namespace Backend.Domains.Import.Controllers.Purchasing
             try
             {
                 var suppliers = await _supplierService.GetSuppliersAsync();
+
                 var result = suppliers.Select(s => new
                 {
                     supplierId = s.SupplierId,
-                    name = s.Name
+                    name = s.Name,
+                    materialIds = s.MaterialIds
                 }).ToList();
+
                 return Ok(result);
             }
             catch (Exception ex)
