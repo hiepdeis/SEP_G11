@@ -1,5 +1,7 @@
 "use client";
 
+import AdminLayout from "@/components/pages/admin/AdminLayout";
+import { NotificationsProvider } from "@/components/pages/admin/NotificationsContext";
 import AuthProvider from "@/components/providers/auth-provider";
 
 export default function ProtectedLayout({
@@ -10,6 +12,9 @@ export default function ProtectedLayout({
   return (
     <AuthProvider>
       {children}
+      <NotificationsProvider>
+        <AdminLayout>{children}</AdminLayout>
+      </NotificationsProvider>  
     </AuthProvider>
   );
 }
