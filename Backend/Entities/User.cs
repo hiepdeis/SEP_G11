@@ -106,5 +106,6 @@ public partial class User
 
     [InverseProperty("ResolvedByNavigation")]
     public virtual ICollection<IncidentReport> IncidentReportsResolved { get; set; } = new List<IncidentReport>();
-
+    [InverseProperty(nameof(TotpUser.User))]
+    public virtual TotpUser? TotpUser { get; set; }
 }

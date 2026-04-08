@@ -76,5 +76,7 @@ public partial class IssueSlip
     [InverseProperty("Issue")]
     public virtual ICollection<IssueSlipApproval> Approvals { get; set; } = new List<IssueSlipApproval>();
 
+    public int? AssignedPickerId { get; set; }
 
+  
 }
