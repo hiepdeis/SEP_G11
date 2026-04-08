@@ -215,7 +215,7 @@ DocProject/Help/*.hhk
 DocProject/Help/*.hhp
 DocProject/Help/Html2
 DocProject/Help/html
-
+Backend/codex-build-temp/
 # Click-Once directory
 publish/
 
