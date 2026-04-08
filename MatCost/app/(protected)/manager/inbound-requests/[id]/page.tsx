@@ -52,7 +52,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatDateTime } from "@/lib/format-date";
+import { formatDateTime } from "@/lib/format-date-time";
 
 export default function ManagerReceiptDetailPage() {
   const { t } = useTranslation();

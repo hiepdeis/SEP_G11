@@ -39,7 +39,7 @@ import { useTranslation } from "react-i18next";
 import { staffReceiptsApi } from "@/services/import-service";
 import { exportToExcel } from "@/lib/excel-utils";
 import { endOfDay, format, isWithinInterval, startOfDay } from "date-fns";
-import { formatDateTime } from "@/lib/format-date";
+import { formatDateTime } from "@/lib/format-date-time";
 import { warehouseApi } from "@/services/warehouse-service";
 import { Calendar } from "@/components/ui/calendar";
 import {
