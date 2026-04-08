@@ -13,7 +13,6 @@ import { OTPInput } from "input-otp";
 export default function TwoFactorAuthPage() {
   const router = useRouter();
   
-  // State quản lý bước hiện tại: 1 (Giới thiệu) -> 2 (Tải App) -> 3 (Mã QR) -> 4 (Nhập mã)
   const [step, setStep] = useState(1);
   const [code, setCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
@@ -24,11 +23,10 @@ export default function TwoFactorAuthPage() {
       return;
     }
     setIsVerifying(true);
-    // Giả lập API verify backend 1.5 giây
     setTimeout(() => {
       setIsVerifying(false);
       toast.success("Thiết lập xác minh 2 bước thành công!");
-      router.push("/dashboard"); // Chuyển về trang chủ sau khi xong
+      router.push("/dashboard");
     }, 1500);
   };
 
@@ -38,10 +36,9 @@ export default function TwoFactorAuthPage() {
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
         <Header title="Bảo mật & Xác minh 2 lớp (2FA)" />
 
-        {/* Căn giữa màn hình và dùng background chuẩn của hệ thống */}
         <div className="flex-grow overflow-y-auto p-4 sm:p-6 lg:p-10 flex flex-col items-center justify-center">
           
-          {/* ======================= BƯỚC 1: BẢO VỆ TÀI KHOẢN ======================= */}
+          {/* BƯỚC 1: BẢO VỆ TÀI KHOẢN */}
           {step === 1 && (
             <Card className="w-full max-w-[500px] border-slate-200 shadow-sm gap-0">
               <CardHeader className="bg-white border-b border-slate-100 py-4 flex flex-row items-center justify-between">
@@ -74,7 +71,7 @@ export default function TwoFactorAuthPage() {
             </Card>
           )}
 
-          {/* ======================= BƯỚC 2: TẢI APP AUTHENTICATOR ======================= */}
+          {/* BƯỚC 2: TẢI APP AUTHENTICATOR */}
           {step === 2 && (
             <Card className="w-full max-w-[550px] border-slate-200 shadow-sm gap-0">
               <CardHeader className="bg-white border-b border-slate-100 py-4 flex flex-row items-center gap-3">
@@ -110,7 +107,7 @@ export default function TwoFactorAuthPage() {
             </Card>
           )}
 
-          {/* ======================= BƯỚC 3: HIỂN THỊ MÃ QR ======================= */}
+          {/* BƯỚC 3: HIỂN THỊ MÃ QR */}
           {step === 3 && (
             <Card className="w-full max-w-[450px] border-slate-200 shadow-sm gap-0">
               <CardHeader className="bg-white border-b border-slate-100 py-4">
@@ -147,7 +144,7 @@ export default function TwoFactorAuthPage() {
             </Card>
           )}
 
-          {/* ======================= BƯỚC 4: NHẬP MÃ XÁC MINH (DÙNG OTPINPUT CHUẨN) ======================= */}
+          {/* BƯỚC 4: NHẬP MÃ XÁC MINH */}
           {step === 4 && (
             <Card className="w-full max-w-[450px] border-slate-200 shadow-sm gap-0">
               <CardHeader className="bg-white border-b border-slate-100 py-4">
@@ -160,7 +157,6 @@ export default function TwoFactorAuthPage() {
                   Nhập mã 6 ký tự bạn nhìn thấy trong ứng dụng Authenticator để hoàn tất.
                 </p>
                 
-                {/* Dùng OTPInput 6 ô vuông giống IssueSlipDetail */}
                 <div className="flex justify-center py-4">
                   <OTPInput
                     maxLength={6}
