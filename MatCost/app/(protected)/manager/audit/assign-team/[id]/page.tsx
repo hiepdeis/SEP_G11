@@ -92,7 +92,7 @@ export default function AssignTeamPage() {
                     <label className="text-sm font-semibold text-slate-700 uppercase tracking-wider">{t("Add Staff Member")}</label>
                     <Select value={selectedStaffId} onValueChange={setSelectedStaffId} disabled={isSaving || isLoading}>
                      <SelectTrigger className="w-full bg-slate-50 focus:bg-white"><SelectValue placeholder={t("Select available staff...")} /></SelectTrigger>
-                     <SelectContent>
+                     <SelectContent showSearch className="w-full">
                         {eligibleStaff.length === 0 ? (
                             <SelectItem value="none" disabled>{t("No eligible staff found")}</SelectItem>
                         ) : (

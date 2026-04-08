@@ -124,7 +124,9 @@ export default function CreateAuditPage() {
                       <label className="text-sm font-medium text-slate-700">{t("Target Warehouse *")}</label>
                       <Select onValueChange={(val) => setFormData({...formData, warehouseId: parseInt(val)})} disabled={isLoadingWarehouses}>
                         <SelectTrigger className="w-full bg-slate-50 focus:bg-white"><SelectValue placeholder={isLoadingWarehouses ? t("Loading...") : t("Select warehouse...")} /></SelectTrigger>
-                        <SelectContent>{warehouses.length > 0 ? (warehouses.map((wh) => (<SelectItem key={wh.warehouseId} value={wh.warehouseId.toString()}>{wh.name}</SelectItem>))) : (<SelectItem value="0" disabled>{t("No warehouses found")}</SelectItem>)}</SelectContent>
+                        <SelectContent showSearch className="w-full">
+                          {warehouses.length > 0 ? (warehouses.map((wh) => (<SelectItem key={wh.warehouseId} value={wh.warehouseId.toString()}>{wh.name}</SelectItem>))) : (<SelectItem value="0" disabled>{t("No warehouses found")}</SelectItem>)}
+                        </SelectContent>
                       </Select>
                     </div>
                   </div>
