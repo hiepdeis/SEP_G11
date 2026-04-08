@@ -36,7 +36,6 @@ import { useTranslation } from "react-i18next";
 import { formatQuantity } from "@/lib/format-quantity";
 import { formatDateTime } from "@/lib/format-date-time";
 
-
 import { showConfirmToast } from "@/hooks/confirm-toast";
 import { QCReceiptExcelHandler } from "@/components/ui/custom/qc-check-xlxs";
 
@@ -103,8 +102,12 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
               materialName: i.materialName,
               orderedQuantity:
                 i.orderedQuantity || i.supplementaryQuantity || 0,
-              actualQuantity: i.orderedQuantity || i.supplementaryQuantity || 0,
-              passQuantity: i.orderedQuantity || i.supplementaryQuantity || 0,
+              actualQuantity: Number(
+                formatQuantity(i.orderedQuantity || i.supplementaryQuantity),
+              ),
+              passQuantity: Number(
+                formatQuantity(i.orderedQuantity || i.supplementaryQuantity),
+              ),
               failQuantity: 0,
               failReason: "",
             }),
@@ -240,6 +243,8 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
             payload.purchaseOrderId = Number(poIdParam);
           }
 
+          // console.log("payload", payload);
+
           // console.log(
           //   "failquantity",
           //   payload.items.map((i) => i.failQuantity),
@@ -254,6 +259,8 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
           //     (i) => i.passQuantity + 0.0001 >= i.orderedQuantity,
           //   ),
           // );
+
+          // TODO: Uncomment when ready to submit
 
           const res =
             await staffReceiptsApi.receiveGoodsFromPurchaseOrder(payload);
@@ -304,8 +311,6 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
     setItems(updatedItems);
     setCurrentPage(1);
   };
-
-
 
   if (isLoading || !order) {
     return (
@@ -490,7 +495,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
 
                             <TableCell className="text-center pt-5 flex align-center justify-center">
                               <span className="font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
-                                {item.orderedQuantity}
+                                {formatQuantity(item.orderedQuantity)}
                               </span>
                             </TableCell>
 
@@ -501,14 +506,26 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                                 min="0"
                                 className="w-full text-center focus-visible:ring-indigo-600 font-semibold"
                                 value={item.actualQuantity}
-                                onChange={(e) =>
+                                onChange={(e) => {
+                                  let val = e.target.value;
+                                  val = val.replace(/-/g, "");
+                                  if (
+                                    val.length > 1 &&
+                                    val.startsWith("0") &&
+                                    val[1] !== "."
+                                  ) {
+                                    val = val.replace(/^0+/, "") || "0";
+                                  }
+                                  if (val.includes(".")) {
+                                    const parts = val.split(".");
+                                    val = parts[0] + "." + parts[1].slice(0, 3);
+                                  }
+                                  e.target.value = val.slice(0, 12);
                                   handleActualChange(
                                     item.materialId,
-                                    e.target.value
-                                      .replace(/-/g, "")
-                                      .slice(0, 12),
-                                  )
-                                }
+                                    e.target.value,
+                                  );
+                                }}
                               />
                             </TableCell>
 
@@ -520,14 +537,26 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                                 max={item.actualQuantity}
                                 className="w-full text-center focus-visible:ring-emerald-500 font-semibold text-emerald-700"
                                 value={item.passQuantity}
-                                onChange={(e) =>
+                                onChange={(e) => {
+                                  let val = e.target.value;
+                                  val = val.replace(/-/g, "");
+                                  if (
+                                    val.length > 1 &&
+                                    val.startsWith("0") &&
+                                    val[1] !== "."
+                                  ) {
+                                    val = val.replace(/^0+/, "") || "0";
+                                  }
+                                  if (val.includes(".")) {
+                                    const parts = val.split(".");
+                                    val = parts[0] + "." + parts[1].slice(0, 3);
+                                  }
+                                  e.target.value = val.slice(0, 12);
                                   handlePassChange(
                                     item.materialId,
-                                    e.target.value
-                                      .replace(/-/g, "")
-                                      .slice(0, 12),
-                                  )
-                                }
+                                    e.target.value,
+                                  );
+                                }}
                               />
                             </TableCell>
 
