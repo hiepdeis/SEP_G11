@@ -62,6 +62,7 @@ namespace Backend.Domains.Import.Services
                                     SupplierName = rd.Supplier != null ? rd.Supplier.Name : "",
                                     SupplierId = rd.SupplierId,
                                     LineTotal = rd.Quantity * (rd.UnitPrice ?? 0),
+                                    PassQuantity = rd.QCCheckDetails.Sum(q => q.PassQuantity),
                                 }).ToList()
                             }).ToListAsync();
             return receipts;

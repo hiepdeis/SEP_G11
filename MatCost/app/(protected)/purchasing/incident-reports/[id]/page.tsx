@@ -124,7 +124,8 @@ export default function PurchasingIncidentDetailPage() {
           0,
           (item.orderedQuantity || 0) - (item.actualQuantity || 0),
         );
-        const totalToSupplement = (item.failQuantity || 0) + shortage;
+        const totalToSupplement =
+          item.failQuantityQuality! + item.failQuantityDamage! + shortage;
 
         return {
           materialId: item.materialId,
@@ -640,7 +641,6 @@ export default function PurchasingIncidentDetailPage() {
                     </TableRow>
                   ) : (
                     supplementaryItems.map((item, idx) => {
-                      // Tìm lại thông tin gốc để hiển thị
                       const originalItem = incident?.items.find(
                         (i: any) => i.materialId === item.materialId,
                       );
@@ -649,7 +649,9 @@ export default function PurchasingIncidentDetailPage() {
                         (originalItem?.orderedQuantity || 0) -
                           (originalItem?.actualQuantity || 0),
                       );
-                      const failed = originalItem?.failQuantity || 0;
+                      const failed =
+                        originalItem?.failQuantityQuality! +
+                          originalItem?.failQuantityDamage! || 0;
 
                       return (
                         <TableRow key={item.materialId}>

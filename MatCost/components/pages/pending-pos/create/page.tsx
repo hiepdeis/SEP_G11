@@ -503,7 +503,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
 
                             <TableCell className="text-center pt-5 flex align-center justify-center">
                               <span className="font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
-                                {item.orderedQuantity.toLocaleString("vi-VN")}
+                                {item.orderedQuantity}
                               </span>
                             </TableCell>
 

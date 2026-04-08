@@ -21,13 +21,6 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -279,8 +272,15 @@ export default function StaffIncidentPage({
       return toast.error(t("Please provide an overall incident description."));
 
     const invalidBreakdownItem = incidentItems.find((i) => {
+      const failQuantityQuantity = Math.max(
+        i.orderedQuantity - i.actualQuantity,
+        0,
+      );
+
+      const totalFail =
+        i.orderedQuantity - i.passQuantity - failQuantityQuantity;
       const sum = i.breakdown.quality + i.breakdown.damage;
-      return Math.abs(sum - i.failQuantity) > 0.0001;
+      return Math.abs(sum - totalFail) > 0.0001;
     });
 
     if (invalidBreakdownItem) {
@@ -359,7 +359,13 @@ export default function StaffIncidentPage({
       const newItems = [...prev];
       const item = newItems[index];
 
-      const totalFail = item.failQuantity;
+      const failQuantityQuantity = Math.max(
+        item.orderedQuantity - item.actualQuantity,
+        0,
+      );
+
+      const totalFail =
+        item.orderedQuantity - item.passQuantity - failQuantityQuantity;
 
       const safeValue = Number(Math.min(rawValue, totalFail).toFixed(3));
 
@@ -375,7 +381,7 @@ export default function StaffIncidentPage({
       }
 
       const newQuantity = Number(
-        (item.orderedQuantity - item.actualQuantity).toFixed(3),
+        Math.max(item.orderedQuantity - item.actualQuantity, 0).toFixed(3),
       );
 
       newItems[index] = {
@@ -645,9 +651,9 @@ export default function StaffIncidentPage({
                       <TableHead className="w-[10%] text-center text-emerald-700">
                         {t("Passed")}
                       </TableHead>
-                      <TableHead className="w-[10%] text-center text-red-700 font-bold">
+                      {/* <TableHead className="w-[10%] text-center text-red-700 font-bold">
                         {t("Failed")}
-                      </TableHead>
+                      </TableHead> */}
                       <TableHead className="w-[20%] text-center">
                         {t("Defect Breakdown")} *
                       </TableHead>
@@ -705,11 +711,11 @@ export default function StaffIncidentPage({
                                     {item.passQuantity} {item.unit}
                                   </Badge>
                                 </TableCell>
-                                <TableCell className="text-center align-top py-4">
+                                {/* <TableCell className="text-center align-top py-4">
                                   <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">
                                     {item.failQuantity} {item.unit}
                                   </Badge>
-                                </TableCell>
+                                </TableCell> */}
                                 <TableCell className="align-top pt-3">
                                   <div className="flex flex-col gap-2 bg-slate-50 p-2.5 rounded-md border border-slate-200 shadow-sm">
                                     <div className="flex items-center justify-between text-xs mb-1 border-b border-slate-200 pb-2">
@@ -718,10 +724,10 @@ export default function StaffIncidentPage({
                                       </span>
                                       <Badge className="bg-red-100 text-red-700 border-red-200 font-bold shadow-sm">
                                         {(
-                                          item.failQuantity +
-                                          (item.orderedQuantity -
-                                            item.actualQuantity)
-                                        ).toFixed(3)}
+                                          item.orderedQuantity -
+                                          item.passQuantity
+                                        ).toFixed(3)}{" "}
+                                        {item.unit}
                                       </Badge>
                                     </div>
 
@@ -733,9 +739,10 @@ export default function StaffIncidentPage({
                                         type="number"
                                         min="0"
                                         value={
-                                          (
+                                          Math.max(
                                             item.orderedQuantity -
-                                            item.actualQuantity
+                                              item.actualQuantity,
+                                            0,
                                           ).toFixed(3) || ""
                                         }
                                         disabled={isHistoryView}

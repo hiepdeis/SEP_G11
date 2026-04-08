@@ -580,19 +580,25 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                     <Table>
                       <TableHeader className="bg-slate-50 sticky top-0">
                         <TableRow>
-                          <TableHead className="w-[30%] pl-6">
+                          <TableHead className="w-[20%] pl-6">
                             {t("Material")}
                           </TableHead>
-                          <TableHead className="w-[15%] text-right">
+                          <TableHead className="w-[12%] text-right">
                             {t("Quote Price")}
                           </TableHead>
-                          <TableHead className="w-[15%] text-right">
+                          <TableHead className="w-[12%] text-right">
                             {t("PO Price")}
                           </TableHead>
-                          <TableHead className="w-[20%] text-right">
+                          <TableHead className="w-[12%] text-right">
+                            {t("Quantity")}
+                          </TableHead>
+                          <TableHead className="w-[12%] text-right">
+                            {t("Total Price")}
+                          </TableHead>
+                          <TableHead className="w-[15%] text-right">
                             {t("Variance")} (VND)
                           </TableHead>
-                          <TableHead className="w-[20%] text-right pr-6">
+                          <TableHead className="w-[15%] text-right pr-6">
                             {t("Variance")} %
                           </TableHead>
                         </TableRow>
@@ -615,6 +621,15 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                               </TableCell>
                               <TableCell className="text-right font-medium text-slate-800">
                                 {formatCurrency(item.poUnitPrice)}
+                              </TableCell>
+                              <TableCell className="text-right font-medium text-slate-800">
+                                {order.items[index].orderedQuantity}
+                              </TableCell>
+                              <TableCell className="text-right font-medium text-slate-800">
+                                {formatCurrency(
+                                  item.poUnitPrice *
+                                    order.items[index].orderedQuantity,
+                                )}
                               </TableCell>
                               <TableCell
                                 className={`text-right font-bold ${isOver ? "text-rose-600" : isUnder ? "text-emerald-600" : "text-slate-400"}`}

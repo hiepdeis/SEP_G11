@@ -185,9 +185,8 @@ export default function IncidentReportsPage({
             creatorName: r.createdByName || "N/A",
             warehouseName: r.warehouseName || "N/A",
             totalQuantity:
-              r.items.filter(
-                (item: any) => item.passQuantity < item.orderedQuantity,
-              ).length || 0,
+              r.items.filter((item: any) => item.passQuantity < item.quantity)
+                .length || 0,
             status: r.status || "PendingIncident",
           }),
         );
@@ -308,7 +307,7 @@ export default function IncidentReportsPage({
       }
     } else if (item.type === "PendingReceipt") {
       if (isSecondaryAction) {
-        router.push(`/${inboundRoutePrefix}/${item.originalId}`);
+        router.push(`${inboundRoutePrefix}/${item.originalId}`);
       } else {
         router.push(`${incidentRoutePrefix}/${item.originalId}`);
       }
