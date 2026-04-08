@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
+import { useTranslation } from "react-i18next";
 import {
   getNotifications,
   createNotifications,
@@ -34,37 +35,38 @@ import {
 import { getUsers, UserItem } from "@/services/admin-users";
 import axiosClient from "@/lib/axios-client";
 
-const formatTime = (iso: string) => {
+const formatTime = (iso: string, t: any, language: string) => {
   const d = new Date(iso);
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 1) return "Vừa xong";
-  if (diffMins < 60) return `${diffMins} phút trước`;
+  if (diffMins < 1) return t("Just now");
+  if (diffMins < 60) return `${diffMins} ${t("minutes ago")}`;
   const diffHrs = Math.floor(diffMins / 60);
-  if (diffHrs < 24) return `${diffHrs} giờ trước`;
+  if (diffHrs < 24) return `${diffHrs} ${t("hours ago")}`;
   const diffDays = Math.floor(diffHrs / 24);
-  if (diffDays < 7) return `${diffDays} ngày trước`;
-  return d.toLocaleDateString("vi-VN");
+  if (diffDays < 7) return `${diffDays} ${t("days ago")}`;
+  return d.toLocaleDateString(language === "vi" ? "vi-VN" : "en-US");
 };
 
-const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("vi-VN", {
+const formatDate = (iso: string, language: string) =>
+  new Date(iso).toLocaleDateString(language === "vi" ? "vi-VN" : "en-US", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   });
 
 const TEMPLATES = [
-  "Yêu cầu phê duyệt đang chờ xử lý. Vui lòng vào hệ thống để xem chi tiết.",
-  "Vật tư sắp hết tồn kho. Vui lòng kiểm tra và lên kế hoạch nhập hàng.",
-  "Hệ thống sẽ bảo trì định kỳ. Vui lòng hoàn tất công việc trước 22:00.",
-  "Báo cáo tháng đã sẵn sàng. Vui lòng xem và xác nhận số liệu.",
-  "Lịch kiểm kê kho được lên kế hoạch. Vui lòng sắp xếp tham gia.",
-  "Có tài liệu mới cần ký xác nhận. Vui lòng kiểm tra ngay.",
+  "Pending approval request. Please check the system for details.",
+  "Material stock is running low. Please check and plan to restock.",
+  "Periodic system maintenance scheduled. Please complete your work before 22:00.",
+  "Monthly report is ready. Please view and confirm the data.",
+  "Inventory audit scheduled. Please arrange to participate.",
+  "New document requires signature. Please check immediately.",
 ];
 
 export default function NotificationsPage() {
+  const { t, i18n } = useTranslation();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -148,12 +150,12 @@ export default function NotificationsPage() {
   };
 
   const deleteAll = async () => {
-    if (!window.confirm("Xóa tất cả thông báo?")) return;
+    if (!window.confirm(t("Delete all notifications?"))) return;
     try {
       await Promise.all(notifications.map(n => deleteNotificationById(n.notiId)));
       await loadNotifications();
     } catch (e) {
-      toast.error("Lỗi khi xóa");
+      toast.error(t("Failed to delete"));
     }
   };
 
@@ -167,7 +169,7 @@ export default function NotificationsPage() {
         toast.error(
           err instanceof Error
             ? err.message
-            : "Không tải được danh sách người dùng",
+            : t("Failed to load user list"),
         );
       } finally {
         setUsersLoading(false);
@@ -221,11 +223,11 @@ export default function NotificationsPage() {
 
   const handleSend = async () => {
     if (!message.trim() || message.trim().length < 10) {
-      toast.error("Nội dung thông báo quá ngắn");
+      toast.error(t("Notification content too short"));
       return;
     }
     if (targetMode === "single" && !selectedUser) {
-      toast.error("Vui lòng chọn người nhận");
+      toast.error(t("Please select a recipient"));
       return;
     }
     try {
@@ -235,10 +237,10 @@ export default function NotificationsPage() {
         message.trim(),
         allIds,
       );
-      toast.success("Đã gửi thông báo");
+      toast.success(t("Notification sent"));
       setModalOpen(false);
     } catch (err) {
-      toast.error("Gửi thất bại");
+      toast.error(t("Failed to send"));
     }
   };
 
@@ -249,32 +251,32 @@ export default function NotificationsPage() {
   };
 
   if (loading || usersLoading)
-    return <div className="p-10 text-center text-gray-500">Đang tải...</div>;
+    return <div className="p-10 text-center text-gray-500">{t("Loading...")}</div>;
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title="Thông báo" />
+        <Header title={t("Notifications")} />
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Thông báo</h1>
-                <p className="text-sm text-gray-500 mt-1">Theo dõi các cập nhật và cảnh báo từ hệ thống</p>
+                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t("Notifications")}</h1>
+                <p className="text-sm text-gray-500 mt-1">{t("Track updates and alerts from the system")}</p>
               </div>
               <div className="flex items-center gap-2">
                 <button 
                   onClick={markAllAsRead} 
                   className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
                 >
-                  <Check className="w-3.5 h-3.5" /> Đánh dấu tất cả đã đọc
+                  <Check className="w-3.5 h-3.5" /> {t("Mark all as read")}
                 </button>
                 <button 
                   onClick={deleteAll} 
                   className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-100 rounded-xl text-xs font-bold text-red-600 hover:bg-red-100 transition-all shadow-sm"
                 >
-                  <Trash2 className="w-3.5 h-3.5" /> Xóa tất cả
+                  <Trash2 className="w-3.5 h-3.5" /> {t("Delete all")}
                 </button>
                 <button
                   onClick={() => {
@@ -283,7 +285,7 @@ export default function NotificationsPage() {
                   }}
                   className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Gửi thông báo
+                  <Plus className="w-3.5 h-3.5" /> {t("Send Notification")}
                 </button>
               </div>
             </div>
@@ -294,7 +296,7 @@ export default function NotificationsPage() {
                 <input 
                   value={search} 
                   onChange={e => { setSearch(e.target.value); setPage(1); }} 
-                  placeholder="Tìm kiếm thông báo..." 
+                  placeholder={t("Search notifications...")} 
                   className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500" 
                 />
               </div>
@@ -304,9 +306,9 @@ export default function NotificationsPage() {
                   onChange={e => { setFilterRead(e.target.value); setPage(1); }} 
                   className="border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none font-medium bg-white"
                 >
-                  <option value="all">Tất cả trạng thái</option>
-                  <option value="unread">Chưa đọc</option>
-                  <option value="read">Đã đọc</option>
+                  <option value="all">{t("All status")}</option>
+                  <option value="unread">{t("Unread")}</option>
+                  <option value="read">{t("Read")}</option>
                 </select>
               </div>
             </div>
@@ -315,7 +317,7 @@ export default function NotificationsPage() {
               {paginated.length === 0 ? (
                 <div className="py-20 text-center flex flex-col items-center gap-3">
                   <div className="p-4 bg-gray-100 rounded-full"><BellOff className="w-8 h-8 text-gray-400" /></div>
-                  <p className="text-gray-500 font-medium">Không có thông báo nào</p>
+                  <p className="text-gray-500 font-medium">{t("No notifications")}</p>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-50">
@@ -338,7 +340,7 @@ export default function NotificationsPage() {
                             </div>
                           </div>
                           <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1 shrink-0">
-                            <Clock className="w-3 h-3" /> {formatTime(n.createdAt)}
+                            <Clock className="w-3 h-3" /> {formatTime(n.createdAt, t, i18n.language)}
                           </span>
                         </div>
                         <p className={`text-sm leading-relaxed ${n.isRead ? "text-gray-500" : "text-gray-800 font-medium"}`}>
@@ -350,7 +352,7 @@ export default function NotificationsPage() {
                               onClick={() => markAsRead(n.notiId)} 
                               className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-600 text-white text-[10px] font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
                             >
-                              <Check className="w-3 h-3" /> Đánh dấu đã đọc
+                              <Check className="w-3 h-3" /> {t("Mark as read")}
                             </button>
                           )}
                           <button 
@@ -366,7 +368,7 @@ export default function NotificationsPage() {
                 </div>
               )}
               <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex justify-between items-center text-xs text-gray-500 font-medium">
-                <span>Hiển thị {paginated.length} / {filtered.length} thông báo</span>
+                <span>{t("Showing")} {paginated.length} / {filtered.length} {t("notifications")}</span>
                 <div className="flex gap-1">
                   <button 
                     disabled={page === 1} 
@@ -399,8 +401,8 @@ export default function NotificationsPage() {
                    <Send className="w-6 h-6" />
                  </div>
                  <div>
-                   <h3 className="font-bold text-gray-900 text-lg">Gửi thông báo</h3>
-                   <p className="text-xs text-gray-500 font-medium tracking-wide">Gửi tin nhắn trực tiếp tới người dùng hệ thống</p>
+                   <h3 className="font-bold text-gray-900 text-lg">{t("Send Notification")}</h3>
+                   <p className="text-xs text-gray-500 font-medium tracking-wide">{t("Send direct messages to system users")}</p>
                  </div>
                </div>
                <button onClick={() => setModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
@@ -410,20 +412,20 @@ export default function NotificationsPage() {
             <div className="p-8 space-y-6">
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1 block mb-3">
-                  Đối tượng nhận
+                  {t("Target Recipient")}
                 </label>
                 <div className="flex gap-2 p-1 bg-gray-100 rounded-xl mb-4">
                   <button
                     onClick={() => setTargetMode("single")}
                     className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${targetMode === "single" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                   >
-                    Một người dùng
+                    {t("One User")}
                   </button>
                   <button
                     onClick={() => setTargetMode("all")}
                     className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${targetMode === "all" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                   >
-                    Tất cả ({activeUsers.length})
+                    {t("All Users")} ({activeUsers.length})
                   </button>
                 </div>
                 {targetMode === "single" && (
@@ -442,19 +444,19 @@ export default function NotificationsPage() {
               </div>
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1 block mb-2">
-                  Nội dung thông báo
+                  {t("Notification Content")}
                 </label>
                 <div className="flex flex-wrap gap-1.5 mb-3">
-                  {TEMPLATES.map((t, idx) => (
+                  {TEMPLATES.map((tpl, idx) => (
                     <button
                       key={idx}
                       onClick={() => {
-                        setMessage(t);
-                        setCharCount(t.length);
+                        setMessage(tpl);
+                        setCharCount(tpl.length);
                       }}
                       className="text-[10px] px-2.5 py-1 bg-gray-100 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors text-gray-500 font-bold"
                     >
-                      Mẫu {idx + 1}
+                      {t("Template")} {idx + 1}
                     </button>
                   ))}
                 </div>
@@ -467,7 +469,7 @@ export default function NotificationsPage() {
                       setCharCount(e.target.value.length);
                     }}
                     className="w-full border border-gray-200 rounded-xl p-4 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-gray-50/50 placeholder:text-gray-400"
-                    placeholder="Nhập nội dung thông báo tối thiểu 10 ký tự..."
+                    placeholder={t("Enter notification content (min 10 characters)...")}
                   />
                   <div className="absolute bottom-3 right-3 flex items-center gap-2">
                     <span className={`text-[10px] font-bold ${charCount > 450 ? "text-red-500" : "text-gray-300"}`}>
@@ -482,14 +484,14 @@ export default function NotificationsPage() {
                 onClick={() => setModalOpen(false)}
                 className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
               >
-                Hủy
+                {t("Cancel")}
               </button>
               <button
                 onClick={handleSend}
                 disabled={!message.trim() || message.trim().length < 10}
                 className="px-8 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-xl shadow-blue-200 hover:bg-blue-700 hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0 transition-all"
               >
-                Gửi thông báo
+                {t("Send Notification")}
               </button>
             </div>
           </div>

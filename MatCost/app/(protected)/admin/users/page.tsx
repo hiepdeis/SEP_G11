@@ -26,6 +26,7 @@ import {
 } from "@/services/admin-users";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
+import { useTranslation } from "react-i18next";
 
 interface UserItem {
   userId: number;
@@ -61,6 +62,7 @@ const inputCls =
   "w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50/50 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all text-sm font-medium text-gray-900";
 
 export default function UsersPage() {
+  const { t } = useTranslation();
   const [roles, setRoles] = useState<RoleItem[]>([]);
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,7 +93,7 @@ export default function UsersPage() {
           rolesData.find((r) => !isAdminRole(r)) ?? rolesData[0];
         setForm((f) => ({ ...f, roleId: defaultRole?.roleId ?? 0 }));
       } catch (err) {
-        toast.error("Không tải được dữ liệu");
+        toast.error(t("Failed to load data"));
       } finally {
         setLoading(false);
       }
@@ -146,7 +148,7 @@ export default function UsersPage() {
 
   const save = async () => {
     if (!form.username || !form.fullName) {
-      toast.error("Vui lòng điền đủ thông tin");
+      toast.error(t("Please fill in all information"));
       return;
     }
     try {
@@ -161,31 +163,31 @@ export default function UsersPage() {
         setUsers((prev) =>
           prev.map((u) => (u.userId === editId ? { ...u, ...form } : u)),
         );
-        toast.success("Cập nhật thành công");
+        toast.success(t("Update Successful"));
       }
       setModalOpen(false);
     } catch (e) {
-      toast.error("Lỗi cập nhật");
+      toast.error(t("Update Failed"));
     }
   };
 
   if (loading)
-    return <div className="p-10 text-center text-gray-500">Đang tải...</div>;
+    return <div className="p-10 text-center text-gray-500">{t("Loading...")}</div>;
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title="Quản lý người dùng" />
+        <Header title={t("User Management")} />
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-                  Người dùng
+                  {t("Users")}
                 </h1>
                 <p className="text-sm text-gray-500 mt-1">
-                  Quản lý tài khoản & phân quyền truy cập hệ thống
+                  {t("Manage accounts & system access permissions")}
                 </p>
               </div>
             </div>
@@ -199,7 +201,7 @@ export default function UsersPage() {
                     setSearch(e.target.value);
                     setPage(1);
                   }}
-                  placeholder="Tìm kiếm theo tên, username, email..."
+                  placeholder={t("Search by name, username, email...")}
                   className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -212,9 +214,9 @@ export default function UsersPage() {
                   }}
                   className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none bg-white font-medium"
                 >
-                  <option value="all">Tất cả trạng thái</option>
-                  <option value="active">Hoạt động</option>
-                  <option value="inactive">Ngừng hoạt động</option>
+                  <option value="all">{t("All status")}</option>
+                  <option value="active">{t("Active")}</option>
+                  <option value="inactive">{t("Inactive")}</option>
                 </select>
                 <select
                   value={filterRole}
@@ -224,7 +226,7 @@ export default function UsersPage() {
                   }}
                   className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none bg-white font-medium"
                 >
-                  <option value="all">Tất cả vai trò</option>
+                  <option value="all">{t("All roles")}</option>
                   {getVisibleRoles(roles).map((r) => (
                     <option key={r.roleId} value={r.roleId}>
                       {r.roleName}
@@ -244,7 +246,7 @@ export default function UsersPage() {
                         onClick={() => toggleSort("fullName")}
                       >
                         <span className="flex items-center gap-1.5">
-                          Họ và tên <ArrowUpDown className="w-3 h-3" />
+                          {t("Full Name")} <ArrowUpDown className="w-3 h-3" />
                         </span>
                       </th>
                       <th
@@ -252,13 +254,13 @@ export default function UsersPage() {
                         onClick={() => toggleSort("username")}
                       >
                         <span className="flex items-center gap-1.5">
-                          Tên đăng nhập <ArrowUpDown className="w-3 h-3" />
+                          {t("Username")} <ArrowUpDown className="w-3 h-3" />
                         </span>
                       </th>
-                      <th className="px-6 py-4">Liên hệ</th>
-                      <th className="px-6 py-4">Vai trò</th>
-                      <th className="px-6 py-4">Trạng thái</th>
-                      <th className="px-6 py-4 text-center">Thao tác</th>
+                      <th className="px-6 py-4">{t("Contact")}</th>
+                      <th className="px-6 py-4">{t("Role")}</th>
+                      <th className="px-6 py-4">{t("Status")}</th>
+                      <th className="px-6 py-4 text-center">{t("Actions")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -301,7 +303,7 @@ export default function UsersPage() {
                             <span
                               className={`w-1 h-1 rounded-full ${u.status ? "bg-emerald-500" : "bg-gray-400"}`}
                             />
-                            {u.status ? "Hoạt động" : "Tạm dừng"}
+                            {u.status ? t("Active") : t("Suspended")}
                           </span>
                         </td>
                         <td className="px-6 py-4">
@@ -321,8 +323,8 @@ export default function UsersPage() {
               </div>
               <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex justify-between items-center text-xs font-medium text-gray-500">
                 <span>
-                  Hiển thị {Math.min(filtered.length, perPage)} /{" "}
-                  {filtered.length} người dùng
+                  {t("Showing")} {Math.min(filtered.length, perPage)} /{" "}
+                  {filtered.length} {t("users")}
                 </span>
                 <div className="flex gap-1">
                   <button
@@ -359,10 +361,10 @@ export default function UsersPage() {
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900 text-lg">
-                    Chỉnh sửa người dùng
+                    {t("Edit User")}
                   </h3>
                   <p className="text-xs text-gray-500 font-medium tracking-wide">
-                    Cập nhật quyền hạn và thông tin cá nhân
+                    {t("Update permissions and personal information")}
                   </p>
                 </div>
               </div>
@@ -376,7 +378,7 @@ export default function UsersPage() {
             <div className="p-8 space-y-5">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
-                  Họ và tên *
+                  {t("Full Name")} *
                 </label>
                 <input
                   value={form.fullName}
@@ -389,7 +391,7 @@ export default function UsersPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
-                    Username
+                    {t("Username")}
                   </label>
                   <input
                     value={form.username}
@@ -399,7 +401,7 @@ export default function UsersPage() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
-                    Điện thoại
+                    {t("Phone")}
                   </label>
                   <input
                     value={form.phoneNumber}
@@ -412,7 +414,7 @@ export default function UsersPage() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
-                  Email
+                  {t("Email")}
                 </label>
                 <input
                   value={form.email}
@@ -423,7 +425,7 @@ export default function UsersPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
-                    Vai trò
+                    {t("Role")}
                   </label>
                   <select
                     value={form.roleId}
@@ -441,7 +443,7 @@ export default function UsersPage() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
-                    Trạng thái
+                    {t("Status")}
                   </label>
                   <select
                     value={form.status ? "true" : "false"}
@@ -450,8 +452,8 @@ export default function UsersPage() {
                     }
                     className={inputCls}
                   >
-                    <option value="true">Hoạt động</option>
-                    <option value="false">Tạm dừng</option>
+                    <option value="true">{t("Active")}</option>
+                    <option value="false">{t("Suspended")}</option>
                   </select>
                 </div>
               </div>
@@ -461,13 +463,13 @@ export default function UsersPage() {
                 onClick={() => setModalOpen(false)}
                 className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
               >
-                Hủy
+                {t("Cancel")}
               </button>
               <button
                 onClick={save}
                 className="px-8 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-xl shadow-blue-200 hover:bg-blue-700 hover:-translate-y-0.5 transition-all"
               >
-                Lưu thay đổi
+                {t("Save Changes")}
               </button>
             </div>
           </div>

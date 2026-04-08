@@ -73,18 +73,18 @@ const urgencyColor = (pct: number) => {
     return {
       bar: "bg-red-500",
       badge: "bg-red-100 text-red-700",
-      label: "Nguy cấp",
+      label: "Critical",
     };
   if (pct <= 60)
     return {
       bar: "bg-amber-400",
       badge: "bg-amber-100 text-amber-700",
-      label: "Thấp",
+      label: "Low",
     };
   return {
     bar: "bg-blue-400",
     badge: "bg-blue-100 text-blue-700",
-    label: "Cảnh báo",
+    label: "Warning",
   };
 };
 
@@ -108,7 +108,7 @@ const mapStatusKey = (status: string) => {
   return "pending";
 };
 
-const formatDateTime = (value: string) => {
+const formatDateTime = (value: string, locale: string = "vi-VN") => {
   if (!value) return { date: "-", time: "-" };
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) {
@@ -116,15 +116,15 @@ const formatDateTime = (value: string) => {
     return { date: parts[0] || value, time: parts[1] || "-" };
   }
   return {
-    date: d.toLocaleDateString("vi-VN"),
-    time: d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+    date: d.toLocaleDateString(locale),
+    time: d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }),
   };
 };
 
 // --- PAGE COMPONENT ---
 export default function DashboardPage() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -136,7 +136,7 @@ export default function DashboardPage() {
         setData(json);
       } catch (error) {
         console.error(error);
-        toast.error("Không tải được dữ liệu dashboard");
+        toast.error(t("Failed to load dashboard data"));
       } finally {
         setLoading(false);
       }
@@ -145,11 +145,11 @@ export default function DashboardPage() {
   }, []);
 
   if (loading) {
-    return <div className="p-6 text-gray-500">Đang tải dữ liệu...</div>;
+    return <div className="p-6 text-gray-500">{t("Loading data...")}</div>;
   }
 
   if (!data) {
-    return <div className="p-6 text-gray-500">Không có dữ liệu.</div>;
+    return <div className="p-6 text-gray-500">{t("No data.")}</div>;
   }
 
   const {
@@ -173,7 +173,7 @@ export default function DashboardPage() {
               </h1>
               <p className="text-sm text-gray-500 mt-0.5">
                 {t("Warehouse overview")} —{" "}
-                {new Date().toLocaleDateString("vi-VN", {
+                {new Date().toLocaleDateString(i18n.language === "vi" ? "vi-VN" : "en-US", {
                   weekday: "long",
                   day: "2-digit",
                   month: "2-digit",
@@ -311,7 +311,7 @@ export default function DashboardPage() {
 
                 <div className="divide-y divide-gray-50">
                   {recentReceipts.map((r) => {
-                    const dt = formatDateTime(r.date);
+                    const dt = formatDateTime(r.date, i18n.language === "vi" ? "vi-VN" : "en-US");
                     const statusKey = r.statusKey || mapStatusKey(r.status);
 
                     return (
@@ -368,7 +368,7 @@ export default function DashboardPage() {
 
                 <div className="divide-y divide-gray-50">
                   {recentIssues.map((s) => {
-                    const dt = formatDateTime(s.date);
+                    const dt = formatDateTime(s.date, i18n.language === "vi" ? "vi-VN" : "en-US");
                     const statusKey = s.statusKey || mapStatusKey(s.status);
 
                     return (

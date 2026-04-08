@@ -26,6 +26,7 @@ import {
 import { toast } from "sonner";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
+import { useTranslation } from "react-i18next";
 import {
   getRoles,
   updateRole,
@@ -114,10 +115,10 @@ interface BinRow extends BaseItem {
 interface ProjectItem extends BaseItem {
   code: string;
   name: string;
-  startDate: string;
-  endDate: string;
+  startDate: string | null;
+  endDate: string | null;
   budget: number | null;
-  status: string;
+  status: string | null;
   contracts: ContractDto[];
 }
 
@@ -137,13 +138,13 @@ type TabKey = (typeof tabs)[number]["key"];
 const inputCls =
   "w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 text-sm";
 
-const moneyFormatter = new Intl.NumberFormat("vi-VN", {
+const moneyFormatter = (locale: string) => new Intl.NumberFormat(locale, {
   style: "currency",
   currency: "VND",
   maximumFractionDigits: 0,
 });
 
-const quantityFormatter = new Intl.NumberFormat("vi-VN", {
+const quantityFormatter = (locale: string) => new Intl.NumberFormat(locale, {
   maximumFractionDigits: 2,
 });
 
@@ -152,21 +153,21 @@ const normalizeSearchValue = (value: unknown) =>
     .trim()
     .toLowerCase();
 
-const formatMoney = (value?: number | null) =>
-  value == null ? "—" : moneyFormatter.format(value);
+const formatMoney = (value?: number | null, locale: string = "vi-VN") =>
+  value == null ? "—" : moneyFormatter(locale).format(value);
 
-const formatDate = (value?: string | null) => {
+const formatDate = (value?: string | null, locale: string = "vi-VN") => {
   if (!value) return "—";
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime())
     ? value
-    : parsed.toLocaleDateString("vi-VN");
+    : parsed.toLocaleDateString(locale);
 };
 
-const formatQuantity = (value?: number | null, unit?: string | null) => {
+const formatQuantity = (value?: number | null, unit?: string | null, locale: string = "vi-VN") => {
   if (value == null) return "—";
   const suffix = unit ? ` ${unit}` : "";
-  return `${quantityFormatter.format(value)}${suffix}`;
+  return `${quantityFormatter(locale).format(value)}${suffix}`;
 };
 
 const matchesContracts = (contracts: ContractDto[], keyword: string) =>
@@ -185,21 +186,21 @@ const matchesContracts = (contracts: ContractDto[], keyword: string) =>
       ),
   );
 
-const renderContractCountBadge = (contracts: ContractDto[]) => {
+const renderContractCountBadge = (contracts: ContractDto[], t: (s: string) => string) => {
   const count = contracts.length;
   if (count === 0)
     return (
       <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
-        Chưa có
+        {t("N/A")}
       </span>
     );
   return (
     <div className="flex flex-col gap-1">
       <span className="inline-flex w-fit rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-        {count} hợp đồng
+        {count} {t("contracts")}
       </span>
       <span className="text-[10px] text-slate-400">
-        Bấm mũi tên để xem chi tiết
+        {t("Click arrow to view details")}
       </span>
     </div>
   );
@@ -214,6 +215,7 @@ function ContractsExpandedContent({
   emptyMessage: string;
   showSupplierName?: boolean;
 }) {
+  const { t } = useTranslation();
   if (contracts.length === 0)
     return (
       <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
@@ -236,21 +238,21 @@ function ContractsExpandedContent({
                 </span>
                 {contract.contractNumber && (
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
-                    Số HĐ: {contract.contractNumber}
+                    {t("No.")}: {contract.contractNumber}
                   </span>
                 )}
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-medium ${contract.isActive ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}
                 >
-                  {contract.status}
+                  {t(contract.status)}
                 </span>
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
                 {showSupplierName && contract.supplierName && (
-                  <span>Nhà cung cấp: {contract.supplierName}</span>
+                  <span>{t("Supplier")}: {contract.supplierName}</span>
                 )}
-                <span>Hiệu lực: {formatDate(contract.effectiveFrom)}</span>
-                <span>Hết hạn: {formatDate(contract.effectiveTo)}</span>
+                <span>{t("Effective")}: {formatDate(contract.effectiveFrom)}</span>
+                <span>{t("Expiry")}: {formatDate(contract.effectiveTo)}</span>
               </div>
             </div>
             <div className="grid grid-cols-1 gap-2 text-xs text-slate-600 sm:grid-cols-3">
@@ -283,26 +285,26 @@ function ContractsExpandedContent({
           <div className="px-4 py-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-800">
               <Package className="h-4 w-4 text-slate-500" />
-              Danh sách vật liệu
+              {t("Materials List")}
             </div>
             <div className="overflow-x-auto rounded-xl border border-slate-100">
               <table className="min-w-full divide-y divide-slate-100 text-xs text-left">
                 <thead className="bg-slate-50 text-slate-500 font-medium">
                   <tr>
                     <th className="px-4 py-3 uppercase tracking-wider">
-                      Mã vật liệu
+                      {t("Material Code")}
                     </th>
                     <th className="px-4 py-3 uppercase tracking-wider">
-                      Tên vật liệu
+                      {t("Material Name")}
                     </th>
                     <th className="px-4 py-3 uppercase tracking-wider">
-                      Đơn vị
+                      {t("Unit")}
                     </th>
                     <th className="px-4 py-3 uppercase tracking-wider">
-                      Số lượng
+                      {t("Quantity")}
                     </th>
                     <th className="px-4 py-3 uppercase tracking-wider">
-                      Thành tiền
+                      {t("Total")}
                     </th>
                   </tr>
                 </thead>
@@ -384,6 +386,7 @@ function GenericTable<T extends BaseItem>({
   onToggleExpand?: (item: T) => void;
   canExpandRow?: (item: T) => boolean;
 }) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<T> | null>(null);
@@ -429,32 +432,32 @@ function GenericTable<T extends BaseItem>({
             i._id === editing._id ? ({ ...i, ...resolved } as T) : i,
           ),
         );
-        toast.success("Cập nhật thành công");
+        toast.success(t("Update Successful"));
       } else {
         if (typeof resolved._id !== "number" || Number.isNaN(resolved._id))
-          throw new Error("Khong nhan duoc ID ban ghi moi tu may chu");
+          throw new Error(t("ID received for new record is invalid"));
         setItems((prev) => [...prev, resolved]);
-        toast.success("Thêm mới thành công");
+        toast.success(t("Add New Successful"));
       }
       closeModal();
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : "Lưu thất bại");
+      toast.error(error instanceof Error ? error.message : t("Save Failed"));
     } finally {
       setSaving(false);
     }
   };
 
   const remove = async (id: number) => {
-    if (!window.confirm("Bạn có chắc muốn xóa bản ghi này?")) return;
+    if (!window.confirm(t("Are you sure you want to delete this record?"))) return;
     try {
       setDeletingId(id);
       if (onDeleteItem) await onDeleteItem(id);
       setItems((prev) => prev.filter((i) => i._id !== id));
-      toast.success("Đã xóa");
+      toast.success(t("Delete Successful"));
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : "Xóa thất bại");
+      toast.error(error instanceof Error ? error.message : t("Delete Failed"));
     } finally {
       setDeletingId(null);
     }
@@ -473,7 +476,7 @@ function GenericTable<T extends BaseItem>({
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="Tìm kiếm..."
+            placeholder={t("Search...")}
             className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
           />
         </div>
@@ -481,7 +484,7 @@ function GenericTable<T extends BaseItem>({
           onClick={openAdd}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
         >
-          <Plus className="w-4 h-4" /> Thêm mới
+          <Plus className="w-4 h-4" /> {t("Add New")}
         </button>
       </div>
 
@@ -492,7 +495,7 @@ function GenericTable<T extends BaseItem>({
               <tr>
                 {hasExpandableRows && (
                   <th className="w-14 px-3 py-3 text-left text-[10px] text-gray-500 uppercase tracking-wider">
-                    Chi tiết
+                    {t("Details")}
                   </th>
                 )}
                 {columns.map((c) => (
@@ -504,7 +507,7 @@ function GenericTable<T extends BaseItem>({
                   </th>
                 ))}
                 <th className="text-left px-5 py-3 text-[10px] text-gray-500 uppercase tracking-wider">
-                  Thao tác
+                  {t("Actions")}
                 </th>
               </tr>
             </thead>
@@ -515,7 +518,7 @@ function GenericTable<T extends BaseItem>({
                     colSpan={columns.length + 1 + (hasExpandableRows ? 1 : 0)}
                     className="px-5 py-8 text-center text-gray-400 text-sm"
                   >
-                    Không có dữ liệu
+                    {t("No Data")}
                   </td>
                 </tr>
               ) : (
@@ -592,7 +595,7 @@ function GenericTable<T extends BaseItem>({
           </table>
         </div>
         <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 text-xs text-gray-500">
-          <span>{filtered.length} bản ghi</span>
+          <span>{filtered.length} {t("records")}</span>
           <div className="flex gap-1">
             <button
               disabled={page === 1}
@@ -617,7 +620,7 @@ function GenericTable<T extends BaseItem>({
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h3 className="font-semibold text-gray-900">
-                {editing._id ? "Chỉnh sửa" : "Thêm mới"}
+                {editing._id ? t("Edit") : t("Add New")}
               </h3>
               <button
                 onClick={closeModal}
@@ -637,14 +640,14 @@ function GenericTable<T extends BaseItem>({
                 disabled={saving}
                 className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg disabled:opacity-40"
               >
-                Hủy
+                {t("Cancel")}
               </button>
               <button
                 onClick={save}
                 disabled={saving}
                 className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40"
               >
-                {saving ? "Đang lưu..." : "Lưu"}
+                {saving ? t("Saving...") : t("Save")}
               </button>
             </div>
           </div>
@@ -656,6 +659,7 @@ function GenericTable<T extends BaseItem>({
 
 // --- TAB COMPONENTS ---
 function RolesTab() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -679,7 +683,7 @@ function RolesTab() {
     };
   }, []);
   if (loading)
-    return <div className="text-sm text-gray-500">Đang tải vai trò...</div>;
+    return <div className="text-sm text-gray-500">{t("Loading roles...")}</div>;
   return (
     <GenericTable
       items={items}
@@ -688,7 +692,7 @@ function RolesTab() {
       searchFn={(i, q) => i.roleName.toLowerCase().includes(q)}
       onSaveItem={async (item) => {
         const roleName = item.roleName?.trim();
-        if (!roleName) throw new Error("Tên vai trò không được để trống");
+        if (!roleName) throw new Error(t("Role name cannot be empty"));
         if (item._id) {
           await updateRole(item._id, { roleName });
           return { _id: item._id, roleName };
@@ -700,14 +704,14 @@ function RolesTab() {
       columns={[
         {
           key: "id",
-          label: "Mã vai trò",
+          label: t("Role ID"),
           render: (i) => (
             <span className="text-xs text-gray-500">#{i._id}</span>
           ),
         },
         {
           key: "name",
-          label: "Tên vai trò",
+          label: t("Role Name"),
           render: (i) => (
             <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">
               {i.roleName}
@@ -718,13 +722,13 @@ function RolesTab() {
       renderForm={(item, onChange) => (
         <div>
           <label className="block text-sm text-gray-600 mb-1">
-            Tên vai trò *
+            {t("Role Name")} *
           </label>
           <input
             value={item.roleName || ""}
             onChange={(e) => onChange({ roleName: e.target.value })}
             className={inputCls}
-            placeholder="VD: Admin"
+            placeholder={t("e.g., Admin")}
           />
         </div>
       )}
@@ -733,6 +737,7 @@ function RolesTab() {
 }
 
 function CategoriesTab() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -775,7 +780,7 @@ function CategoriesTab() {
         const name = item.name?.trim();
         const description = item.description?.trim() ?? "";
         if (!code || !name)
-          throw new Error("Mã và tên danh mục không được để trống");
+          throw new Error(t("Code and name cannot be empty"));
         if (item._id) {
           await updateCategory(item._id, { code, name, description });
           return { _id: item._id, code, name, description };
@@ -787,21 +792,21 @@ function CategoriesTab() {
       columns={[
         {
           key: "code",
-          label: "Mã",
+          label: t("Code"),
           render: (i) => (
             <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-medium">
               {i.code}
             </span>
           ),
         },
-        { key: "name", label: "Tên danh mục", render: (i) => i.name },
-        { key: "desc", label: "Mô tả", render: (i) => i.description || "—" },
+        { key: "name", label: t("Category Name"), render: (i) => i.name },
+        { key: "desc", label: t("Description"), render: (i) => i.description || "—" },
       ]}
       renderForm={(item, onChange) => (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Mã *</label>
+              <label className="block text-sm text-gray-600 mb-1">{t("Code")} *</label>
               <input
                 value={item.code || ""}
                 onChange={(e) =>
@@ -811,7 +816,7 @@ function CategoriesTab() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Tên *</label>
+              <label className="block text-sm text-gray-600 mb-1">{t("Name")} *</label>
               <input
                 value={item.name || ""}
                 onChange={(e) => onChange({ name: e.target.value })}
@@ -820,7 +825,7 @@ function CategoriesTab() {
             </div>
           </div>
           <div>
-            <label className="block text-sm text-gray-600 mb-1">Mô tả</label>
+            <label className="block text-sm text-gray-600 mb-1">{t("Description")}</label>
             <input
               value={item.description || ""}
               onChange={(e) => onChange({ description: e.target.value })}
@@ -834,6 +839,7 @@ function CategoriesTab() {
 }
 
 function ReasonsTab() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<AdjReason[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -855,7 +861,7 @@ function ReasonsTab() {
       })
       .catch((err) => {
         console.error(err);
-        toast.error("Không tải được lý do điều chỉnh");
+        toast.error(t("Failed to load adjustment reasons"));
         if (mounted) setLoading(false);
       });
     return () => {
@@ -863,7 +869,7 @@ function ReasonsTab() {
     };
   }, []);
   if (loading)
-    return <div className="text-sm text-gray-500">Đang tải lý do...</div>;
+    return <div className="text-sm text-gray-500">{t("Loading reasons...")}</div>;
   return (
     <GenericTable
       items={items}
@@ -877,7 +883,7 @@ function ReasonsTab() {
           name = item.name?.trim(),
           description = item.description?.trim() ?? "",
           isActive = item.isActive ?? true;
-        if (!code || !name) throw new Error("Mã và tên không được để trống");
+        if (!code || !name) throw new Error(t("Code and name cannot be empty"));
         if (item._id) {
           await updateAdjustmentReason(item._id, {
             code,
@@ -899,23 +905,23 @@ function ReasonsTab() {
       columns={[
         {
           key: "code",
-          label: "Mã",
+          label: t("Code"),
           render: (i) => (
             <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-[10px] font-medium">
               {i.code}
             </span>
           ),
         },
-        { key: "name", label: "Tên lý do", render: (i) => i.name },
-        { key: "desc", label: "Mô tả", render: (i) => i.description || "—" },
+        { key: "name", label: t("Adjustment Reason Name"), render: (i) => i.name },
+        { key: "desc", label: t("Description"), render: (i) => i.description || "—" },
         {
           key: "active",
-          label: "Trạng thái",
+          label: t("Status"),
           render: (i) => (
             <span
               className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${i.isActive ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"}`}
             >
-              {i.isActive ? "Hoạt động" : "Ngừng"}
+              {i.isActive ? t("Active") : t("Inactive")}
             </span>
           ),
         },
@@ -924,7 +930,7 @@ function ReasonsTab() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Mã *</label>
+              <label className="block text-sm text-gray-600 mb-1">{t("Code")} *</label>
               <input
                 value={item.code || ""}
                 onChange={(e) =>
@@ -934,7 +940,7 @@ function ReasonsTab() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Tên *</label>
+              <label className="block text-sm text-gray-600 mb-1">{t("Name")} *</label>
               <input
                 value={item.name || ""}
                 onChange={(e) => onChange({ name: e.target.value })}
@@ -943,7 +949,7 @@ function ReasonsTab() {
             </div>
           </div>
           <div>
-            <label className="block text-sm text-gray-600 mb-1">Mô tả</label>
+            <label className="block text-sm text-gray-600 mb-1">{t("Description")}</label>
             <input
               value={item.description || ""}
               onChange={(e) => onChange({ description: e.target.value })}
@@ -952,7 +958,7 @@ function ReasonsTab() {
           </div>
           <div>
             <label className="block text-sm text-gray-600 mb-1">
-              Trạng thái
+              {t("Status")}
             </label>
             <select
               value={item.isActive === false ? "false" : "true"}
@@ -961,8 +967,8 @@ function ReasonsTab() {
               }
               className={inputCls}
             >
-              <option value="true">Hoạt động</option>
-              <option value="false">Ngừng hoạt động</option>
+              <option value="true">{t("Active")}</option>
+              <option value="false">{t("Inactive")}</option>
             </select>
           </div>
         </div>
@@ -972,9 +978,10 @@ function ReasonsTab() {
 }
 
 function SuppliersTab() {
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useState<SupplierItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedIds, setExpandedIds] = useState<number[]>([]);
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   useEffect(() => {
     let mounted = true;
     getSuppliers()
@@ -995,7 +1002,7 @@ function SuppliersTab() {
       })
       .catch((err) => {
         console.error(err);
-        toast.error("Không tải được nhà cung cấp");
+        toast.error(t("Failed to load suppliers"));
         if (mounted) setLoading(false);
       });
     return () => {
@@ -1004,7 +1011,7 @@ function SuppliersTab() {
   }, []);
   if (loading)
     return (
-      <div className="text-sm text-gray-500">Đang tải nhà cung cấp...</div>
+      <div className="text-sm text-gray-500">{t("Loading suppliers...")}</div>
     );
   return (
     <GenericTable
@@ -1022,7 +1029,7 @@ function SuppliersTab() {
           name = item.name?.trim(),
           taxCode = item.taxCode?.trim() ?? "",
           address = item.address?.trim() ?? "";
-        if (!code || !name) throw new Error("Mã và tên không được để trống");
+        if (!code || !name) throw new Error(t("Code and name cannot be empty"));
         if (item._id) {
           await updateSupplier(item._id, { code, name, taxCode, address });
           return {
@@ -1041,40 +1048,41 @@ function SuppliersTab() {
       renderExpandedContent={(item) => (
         <ContractsExpandedContent
           contracts={item.contracts}
-          emptyMessage="Chưa có hợp đồng nào."
+          emptyMessage={t("No contracts available for this supplier.")}
         />
       )}
-      isRowExpanded={(item) => expandedIds.includes(item._id)}
+      isRowExpanded={(item) => expandedIds.has(item._id)}
       onToggleExpand={(item) =>
-        setExpandedIds((prev) =>
-          prev.includes(item._id)
-            ? prev.filter((id) => id !== item._id)
-            : [...prev, item._id],
-        )
+        setExpandedIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(item._id)) next.delete(item._id);
+          else next.add(item._id);
+          return next;
+        })
       }
       columns={[
         {
           key: "code",
-          label: "Mã",
+          label: t("Code"),
           render: (i) => (
             <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-medium">
               {i.code}
             </span>
           ),
         },
-        { key: "name", label: "Tên nhà cung cấp", render: (i) => i.name },
-        { key: "taxCode", label: "MST", render: (i) => i.taxCode || "—" },
+        { key: "name", label: t("Supplier Name"), render: (i) => i.name },
+        { key: "taxCode", label: t("Tax Code"), render: (i) => i.taxCode || "—" },
         {
           key: "contracts",
-          label: "Hợp đồng",
-          render: (i) => renderContractCountBadge(i.contracts),
+          label: t("Contracts"),
+          render: (i) => renderContractCountBadge(i.contracts, t),
         },
       ]}
       renderForm={(item, onChange) => (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Mã *</label>
+              <label className="block text-sm text-gray-600 mb-1">{t("Code")} *</label>
               <input
                 value={item.code || ""}
                 onChange={(e) =>
@@ -1084,7 +1092,7 @@ function SuppliersTab() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Tên *</label>
+              <label className="block text-sm text-gray-600 mb-1">{t("Name")} *</label>
               <input
                 value={item.name || ""}
                 onChange={(e) => onChange({ name: e.target.value })}
@@ -1095,7 +1103,7 @@ function SuppliersTab() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-gray-600 mb-1">
-                Mã số thuế
+                {t("Tax Code")}
               </label>
               <input
                 value={item.taxCode || ""}
@@ -1105,7 +1113,7 @@ function SuppliersTab() {
             </div>
             <div>
               <label className="block text-sm text-gray-600 mb-1">
-                Địa chỉ
+                {t("Address")}
               </label>
               <input
                 value={item.address || ""}
@@ -1121,6 +1129,7 @@ function SuppliersTab() {
 }
 
 function WarehousesTab() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<WarehouseRow[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -1138,12 +1147,12 @@ function WarehousesTab() {
       })
       .catch((err) => {
         console.error(err);
-        toast.error("Không tải được kho");
+        toast.error(t("Failed to load warehouses"));
         setLoading(false);
       });
   }, []);
   if (loading)
-    return <div className="text-sm text-gray-500">Đang tải kho...</div>;
+    return <div className="text-sm text-gray-500">{t("Loading warehouses...")}</div>;
   return (
     <GenericTable
       items={items}
@@ -1155,7 +1164,7 @@ function WarehousesTab() {
       onSaveItem={async (item) => {
         const name = item.name?.trim(),
           address = item.address?.trim() ?? "";
-        if (!name) throw new Error("Tên kho không được bỏ trống");
+        if (!name) throw new Error(t("Warehouse name cannot be empty"));
         if (item._id) {
           await updateWarehouse(item._id, { name, address });
           return { _id: item._id, name, address };
@@ -1165,14 +1174,14 @@ function WarehousesTab() {
       }}
       onDeleteItem={deleteWarehouse}
       columns={[
-        { key: "name", label: "Tên kho", render: (i) => i.name },
-        { key: "address", label: "Địa chỉ", render: (i) => i.address || "—" },
+        { key: "name", label: t("Warehouse Name"), render: (i) => i.name },
+        { key: "address", label: t("Address"), render: (i) => i.address || "—" },
       ]}
       renderForm={(item, onChange) => (
         <div className="space-y-4">
           <div>
             <label className="block text-sm text-gray-600 mb-1">
-              Tên kho *
+              {t("Warehouse Name")} *
             </label>
             <input
               value={item.name || ""}
@@ -1181,7 +1190,7 @@ function WarehousesTab() {
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-600 mb-1">Địa chỉ</label>
+            <label className="block text-sm text-gray-600 mb-1">{t("Address")}</label>
             <input
               value={item.address || ""}
               onChange={(e) => onChange({ address: e.target.value })}
@@ -1195,6 +1204,7 @@ function WarehousesTab() {
 }
 
 function BinsTab() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<BinRow[]>([]);
   const [warehouses, setWarehouses] = useState<
     { warehouseId: number; name: string }[]
@@ -1227,14 +1237,14 @@ function BinsTab() {
       })
       .catch((err) => {
         console.error(err);
-        toast.error("Không tải được vị trí");
+        toast.error(t("Failed to load bins"));
         setLoading(false);
       });
   }, []);
   const getWarehouseName = (id: number) =>
-    warehouses.find((w) => w.warehouseId === id)?.name || `Kho #${id}`;
+    warehouses.find((w) => w.warehouseId === id)?.name || `${t("Warehouse")} #${id}`;
   if (loading)
-    return <div className="text-sm text-gray-500">Đang tải vị trí...</div>;
+    return <div className="text-sm text-gray-500">{t("Loading bins...")}</div>;
   return (
     <GenericTable
       items={items}
@@ -1250,7 +1260,7 @@ function BinsTab() {
           code = item.code?.trim().toUpperCase(),
           type = item.type?.trim();
         if (!warehouseId || !code || !type)
-          throw new Error("Dữ liệu không được trống");
+          throw new Error(t("Data cannot be empty"));
         if (item._id) {
           await updateBin(item._id, { warehouseId, code, type });
           return { _id: item._id, warehouseId, code, type };
@@ -1262,24 +1272,24 @@ function BinsTab() {
       columns={[
         {
           key: "warehouse",
-          label: "Kho",
+          label: t("Warehouse"),
           render: (i) => getWarehouseName(i.warehouseId),
         },
         {
           key: "code",
-          label: "Mã vị trí",
+          label: t("Bin Code"),
           render: (i) => (
             <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-[10px] font-medium">
               {i.code}
             </span>
           ),
         },
-        { key: "type", label: "Loại", render: (i) => i.type },
+        { key: "type", label: t("Type"), render: (i) => i.type },
       ]}
       renderForm={(item, onChange) => (
         <div className="space-y-4">
           <div>
-            <label className="block text-sm text-gray-600 mb-1">Kho *</label>
+            <label className="block text-sm text-gray-600 mb-1">{t("Warehouse")} *</label>
             <select
               value={item.warehouseId || ""}
               onChange={(e) =>
@@ -1287,7 +1297,7 @@ function BinsTab() {
               }
               className={inputCls}
             >
-              <option value="">Chọn kho</option>
+              <option value="">{t("Select warehouse")}</option>
               {warehouses.map((w) => (
                 <option key={w.warehouseId} value={w.warehouseId}>
                   {w.name}
@@ -1298,7 +1308,7 @@ function BinsTab() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-gray-600 mb-1">
-                Mã vị trí *
+                {t("Bin Code")} *
               </label>
               <input
                 value={item.code || ""}
@@ -1309,7 +1319,7 @@ function BinsTab() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Loại *</label>
+              <label className="block text-sm text-gray-600 mb-1">{t("Type")} *</label>
               <input
                 value={item.type || ""}
                 onChange={(e) => onChange({ type: e.target.value })}
@@ -1324,9 +1334,10 @@ function BinsTab() {
 }
 
 function ProjectsTab() {
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useState<ProjectItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedIds, setExpandedIds] = useState<number[]>([]);
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   useEffect(() => {
     getProjects()
       .then((data) => {
@@ -1347,7 +1358,7 @@ function ProjectsTab() {
       })
       .catch((err) => {
         console.error(err);
-        toast.error("Không tải được dự án");
+        toast.error(t("Failed to load projects"));
         setLoading(false);
       });
   }, []);
@@ -1358,13 +1369,13 @@ function ProjectsTab() {
     Cancelled: "bg-red-50 text-red-700",
   };
   const statusProjLabel: Record<string, string> = {
-    Active: "Đang thực hiện",
-    Completed: "Hoàn thành",
-    Planned: "Kế hoạch",
-    Cancelled: "Hủy",
+    Active: t("Active"),
+    Completed: t("Completed"),
+    Planned: t("Planned"),
+    Cancelled: t("Cancelled"),
   };
   if (loading)
-    return <div className="text-sm text-gray-500">Đang tải dự án...</div>;
+    return <div className="text-sm text-gray-500">{t("Loading projects...")}</div>;
   return (
     <GenericTable
       items={items}
@@ -1378,7 +1389,7 @@ function ProjectsTab() {
       onSaveItem={async (item) => {
         const { code, name, startDate, endDate, budget, status } =
           item as ProjectItem;
-        if (!code || !name) throw new Error("Mã và tên không được trống");
+        if (!code || !name) throw new Error(t("Code and name cannot be empty"));
         const payload = {
           code,
           name,
@@ -1399,44 +1410,45 @@ function ProjectsTab() {
       renderExpandedContent={(item) => (
         <ContractsExpandedContent
           contracts={item.contracts}
-          emptyMessage="Chưa có hợp đồng nào."
+          emptyMessage={t("No contracts available for this project.")}
           showSupplierName
         />
       )}
-      isRowExpanded={(item) => expandedIds.includes(item._id)}
+      isRowExpanded={(item) => expandedIds.has(item._id)}
       onToggleExpand={(item) =>
-        setExpandedIds((prev) =>
-          prev.includes(item._id)
-            ? prev.filter((id) => id !== item._id)
-            : [...prev, item._id],
-        )
+        setExpandedIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(item._id)) next.delete(item._id);
+          else next.add(item._id);
+          return next;
+        })
       }
       columns={[
         {
           key: "code",
-          label: "Mã dự án",
+          label: t("Project Code"),
           render: (i) => (
             <span className="px-2 py-0.5 bg-gray-100 rounded text-[10px] font-medium">
               {i.code}
             </span>
           ),
         },
-        { key: "name", label: "Tên dự án", render: (i) => i.name },
+        { key: "name", label: t("Project Name"), render: (i) => i.name },
         {
           key: "status",
-          label: "Trạng thái",
+          label: t("Status"),
           render: (i) => (
             <span
-              className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${statusProjCls[i.status] || "bg-gray-100 text-gray-600"}`}
+              className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${(i.status && statusProjCls[i.status]) || "bg-gray-100 text-gray-600"}`}
             >
-              {statusProjLabel[i.status] || i.status}
+              {(i.status && statusProjLabel[i.status]) || i.status || "—"}
             </span>
           ),
         },
         {
           key: "contracts",
-          label: "Hợp đồng",
-          render: (i) => renderContractCountBadge(i.contracts),
+          label: t("Contracts"),
+          render: (i) => renderContractCountBadge(i.contracts, t),
         },
       ]}
       renderForm={(item, onChange) => (
@@ -1444,7 +1456,7 @@ function ProjectsTab() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-gray-600 mb-1">
-                Mã dự án *
+                {t("Project Code")} *
               </label>
               <input
                 value={item.code || ""}
@@ -1456,23 +1468,23 @@ function ProjectsTab() {
             </div>
             <div>
               <label className="block text-sm text-gray-600 mb-1">
-                Trạng thái
+                {t("Status")}
               </label>
               <select
                 value={item.status || "Active"}
                 onChange={(e) => onChange({ status: e.target.value })}
                 className={inputCls}
               >
-                <option value="Active">Đang thực hiện</option>
-                <option value="Planned">Kế hoạch</option>
-                <option value="Completed">Hoàn thành</option>
-                <option value="Cancelled">Hủy</option>
+                <option value="Active">{t("Active")}</option>
+                <option value="Planned">{t("Planned")}</option>
+                <option value="Completed">{t("Completed")}</option>
+                <option value="Cancelled">{t("Cancelled")}</option>
               </select>
             </div>
           </div>
           <div>
             <label className="block text-sm text-gray-600 mb-1">
-              Tên dự án *
+              {t("Project Name")} *
             </label>
             <input
               value={item.name || ""}
@@ -1483,7 +1495,7 @@ function ProjectsTab() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-gray-600 mb-1">
-                Ngày bắt đầu
+                {t("Start Date")}
               </label>
               <input
                 type="date"
@@ -1494,7 +1506,7 @@ function ProjectsTab() {
             </div>
             <div>
               <label className="block text-sm text-gray-600 mb-1">
-                Ngày kết thúc
+                {t("End Date")}
               </label>
               <input
                 type="date"
@@ -1506,7 +1518,7 @@ function ProjectsTab() {
           </div>
           <div>
             <label className="block text-sm text-gray-600 mb-1">
-              Ngân sách (VNĐ)
+              {t("Budget")}
             </label>
             <input
               type="number"
@@ -1527,59 +1539,63 @@ function ProjectsTab() {
 
 // --- MAIN PAGE ---
 export default function MasterDataPage() {
-  const [activeTab, setActiveTab] = useState<TabKey>("roles");
-  const renderTab = () => {
-    switch (activeTab) {
+  const [tab, setTab] = useState<TabKey>("roles");
+  const { t } = useTranslation();
+  const ActiveTab = useMemo(() => {
+    switch (tab) {
       case "roles":
-        return <RolesTab />;
+        return RolesTab;
       case "categories":
-        return <CategoriesTab />;
+        return CategoriesTab;
       case "reasons":
-        return <ReasonsTab />;
+        return ReasonsTab;
       case "suppliers":
-        return <SuppliersTab />;
+        return SuppliersTab;
       case "warehouses":
-        return <WarehousesTab />;
+        return WarehousesTab;
       case "bins":
-        return <BinsTab />;
+        return BinsTab;
       case "projects":
-        return <ProjectsTab />;
+        return ProjectsTab;
+      default:
+        return RolesTab;
     }
-  };
+  }, [tab]);
+
   return (
-    <div className="flex h-screen w-screen flex-row overflow-hidden bg-slate-50/50">
+    <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
-      <main className="relative z-10 flex flex-grow flex-col overflow-hidden">
-        <Header title="Dữ liệu danh mục" />
-        <div className="flex-grow space-y-6 overflow-y-auto p-6 lg:p-10">
-          <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-                Dữ liệu danh mục
-              </h1>
-              <p className="mt-1 text-sm text-gray-500">
-                Quản lý các thông tin tham chiếu hệ thống
-              </p>
-            </div>
-            <div className="mt-6 flex flex-wrap gap-1 rounded-2xl border border-gray-100 bg-white p-2 shadow-sm">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    onClick={() => setActiveTab(tab.key)}
-                    className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition-all ${isActive ? "bg-blue-600 text-white shadow-lg shadow-blue-100" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="mt-6 min-h-[500px]">
-              {renderTab()}
-            </div>
+      <main className="flex-grow flex flex-col overflow-hidden relative z-10">
+        <Header title={t("Master Data Management")} />
+        <div className="flex-grow overflow-hidden flex flex-col p-6 lg:p-10">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">
+              {t("Master Data Management")}
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              {t("Configure and manage system-wide parameters and reference data.")}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1 p-1 bg-gray-100/80 rounded-xl w-fit mb-6 overflow-x-auto no-scrollbar max-w-full">
+            {tabs.map((T) => (
+              <button
+                key={T.key}
+                onClick={() => setTab(T.key)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                  tab === T.key
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                <T.icon className="w-4 h-4" />
+                {t(T.label)}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex-grow overflow-y-auto">
+            <ActiveTab />
           </div>
         </div>
       </main>
