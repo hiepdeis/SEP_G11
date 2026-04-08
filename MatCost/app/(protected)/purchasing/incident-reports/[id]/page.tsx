@@ -50,6 +50,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { DateTimePicker } from "@/components/ui/custom/date-time-picker";
 import { ImageGallery } from "@/components/ui/custom/image-gallery";
+import { formatQuantity } from "@/lib/format-quantity";
+import { formatDateTime } from "@/lib/format-date-time";
 
 export default function PurchasingIncidentDetailPage() {
   const { t } = useTranslation();
@@ -182,24 +184,6 @@ export default function PurchasingIncidentDetailPage() {
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const formatDateTime = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-
-    let safeDateString = dateString;
-
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
   if (isLoading || !incident) {
@@ -660,14 +644,13 @@ export default function PurchasingIncidentDetailPage() {
                           </TableCell>
 
                           <TableCell className="text-center font-bold text-amber-600">
-                            {Number(shortage.toFixed(3))}
+                            {formatQuantity(shortage)}
                           </TableCell>
-
                           <TableCell className="text-center font-bold text-rose-600">
-                            {Number(failed.toFixed(3))}
+                            {formatQuantity(failed)}
                           </TableCell>
                           <TableCell className="text-center font-bold text-green-600">
-                            {Number(item.supplementaryQuantity.toFixed(3))}
+                            {formatQuantity(item.supplementaryQuantity)}
                           </TableCell>
                         </TableRow>
                       );

@@ -70,6 +70,7 @@ import {
   updateProject,
   deleteProject,
 } from "@/services/admin-projects";
+import { formatDateTime } from "@/lib/format-date-time";
 
 // --- TYPES & INTERFACES ---
 interface BaseItem {
@@ -138,15 +139,17 @@ type TabKey = (typeof tabs)[number]["key"];
 const inputCls =
   "w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 text-sm";
 
-const moneyFormatter = (locale: string) => new Intl.NumberFormat(locale, {
-  style: "currency",
-  currency: "VND",
-  maximumFractionDigits: 0,
-});
+const moneyFormatter = (locale: string) =>
+  new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  });
 
-const quantityFormatter = (locale: string) => new Intl.NumberFormat(locale, {
-  maximumFractionDigits: 2,
-});
+const quantityFormatter = (locale: string) =>
+  new Intl.NumberFormat(locale, {
+    maximumFractionDigits: 2,
+  });
 
 const normalizeSearchValue = (value: unknown) =>
   String(value ?? "")
@@ -156,15 +159,11 @@ const normalizeSearchValue = (value: unknown) =>
 const formatMoney = (value?: number | null, locale: string = "vi-VN") =>
   value == null ? "—" : moneyFormatter(locale).format(value);
 
-const formatDate = (value?: string | null, locale: string = "vi-VN") => {
-  if (!value) return "—";
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime())
-    ? value
-    : parsed.toLocaleDateString(locale);
-};
-
-const formatQuantity = (value?: number | null, unit?: string | null, locale: string = "vi-VN") => {
+const formatQuantity = (
+  value?: number | null,
+  unit?: string | null,
+  locale: string = "vi-VN",
+) => {
   if (value == null) return "—";
   const suffix = unit ? ` ${unit}` : "";
   return `${quantityFormatter(locale).format(value)}${suffix}`;
@@ -186,7 +185,10 @@ const matchesContracts = (contracts: ContractDto[], keyword: string) =>
       ),
   );
 
-const renderContractCountBadge = (contracts: ContractDto[], t: (s: string) => string) => {
+const renderContractCountBadge = (
+  contracts: ContractDto[],
+  t: (s: string) => string,
+) => {
   const count = contracts.length;
   if (count === 0)
     return (
@@ -249,10 +251,16 @@ function ContractsExpandedContent({
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
                 {showSupplierName && contract.supplierName && (
-                  <span>{t("Supplier")}: {contract.supplierName}</span>
+                  <span>
+                    {t("Supplier")}: {contract.supplierName}
+                  </span>
                 )}
-                <span>{t("Effective")}: {formatDate(contract.effectiveFrom)}</span>
-                <span>{t("Expiry")}: {formatDate(contract.effectiveTo)}</span>
+                <span>
+                  {t("Effective")}: {formatDateTime(contract.effectiveFrom)}
+                </span>
+                <span>
+                  {t("Expiry")}: {formatDateTime(contract.effectiveTo)}
+                </span>
               </div>
             </div>
             <div className="grid grid-cols-1 gap-2 text-xs text-slate-600 sm:grid-cols-3">
@@ -449,7 +457,8 @@ function GenericTable<T extends BaseItem>({
   };
 
   const remove = async (id: number) => {
-    if (!window.confirm(t("Are you sure you want to delete this record?"))) return;
+    if (!window.confirm(t("Are you sure you want to delete this record?")))
+      return;
     try {
       setDeletingId(id);
       if (onDeleteItem) await onDeleteItem(id);
@@ -462,8 +471,6 @@ function GenericTable<T extends BaseItem>({
       setDeletingId(null);
     }
   };
-
-
 
   return (
     <>
@@ -595,7 +602,9 @@ function GenericTable<T extends BaseItem>({
           </table>
         </div>
         <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 text-xs text-gray-500">
-          <span>{filtered.length} {t("records")}</span>
+          <span>
+            {filtered.length} {t("records")}
+          </span>
           <div className="flex gap-1">
             <button
               disabled={page === 1}
@@ -779,8 +788,7 @@ function CategoriesTab() {
         const code = item.code?.trim().toUpperCase();
         const name = item.name?.trim();
         const description = item.description?.trim() ?? "";
-        if (!code || !name)
-          throw new Error(t("Code and name cannot be empty"));
+        if (!code || !name) throw new Error(t("Code and name cannot be empty"));
         if (item._id) {
           await updateCategory(item._id, { code, name, description });
           return { _id: item._id, code, name, description };
@@ -800,13 +808,19 @@ function CategoriesTab() {
           ),
         },
         { key: "name", label: t("Category Name"), render: (i) => i.name },
-        { key: "desc", label: t("Description"), render: (i) => i.description || "—" },
+        {
+          key: "desc",
+          label: t("Description"),
+          render: (i) => i.description || "—",
+        },
       ]}
       renderForm={(item, onChange) => (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-600 mb-1">{t("Code")} *</label>
+              <label className="block text-sm text-gray-600 mb-1">
+                {t("Code")} *
+              </label>
               <input
                 value={item.code || ""}
                 onChange={(e) =>
@@ -816,7 +830,9 @@ function CategoriesTab() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">{t("Name")} *</label>
+              <label className="block text-sm text-gray-600 mb-1">
+                {t("Name")} *
+              </label>
               <input
                 value={item.name || ""}
                 onChange={(e) => onChange({ name: e.target.value })}
@@ -825,7 +841,9 @@ function CategoriesTab() {
             </div>
           </div>
           <div>
-            <label className="block text-sm text-gray-600 mb-1">{t("Description")}</label>
+            <label className="block text-sm text-gray-600 mb-1">
+              {t("Description")}
+            </label>
             <input
               value={item.description || ""}
               onChange={(e) => onChange({ description: e.target.value })}
@@ -869,7 +887,9 @@ function ReasonsTab() {
     };
   }, []);
   if (loading)
-    return <div className="text-sm text-gray-500">{t("Loading reasons...")}</div>;
+    return (
+      <div className="text-sm text-gray-500">{t("Loading reasons...")}</div>
+    );
   return (
     <GenericTable
       items={items}
@@ -912,8 +932,16 @@ function ReasonsTab() {
             </span>
           ),
         },
-        { key: "name", label: t("Adjustment Reason Name"), render: (i) => i.name },
-        { key: "desc", label: t("Description"), render: (i) => i.description || "—" },
+        {
+          key: "name",
+          label: t("Adjustment Reason Name"),
+          render: (i) => i.name,
+        },
+        {
+          key: "desc",
+          label: t("Description"),
+          render: (i) => i.description || "—",
+        },
         {
           key: "active",
           label: t("Status"),
@@ -930,7 +958,9 @@ function ReasonsTab() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-600 mb-1">{t("Code")} *</label>
+              <label className="block text-sm text-gray-600 mb-1">
+                {t("Code")} *
+              </label>
               <input
                 value={item.code || ""}
                 onChange={(e) =>
@@ -940,7 +970,9 @@ function ReasonsTab() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">{t("Name")} *</label>
+              <label className="block text-sm text-gray-600 mb-1">
+                {t("Name")} *
+              </label>
               <input
                 value={item.name || ""}
                 onChange={(e) => onChange({ name: e.target.value })}
@@ -949,7 +981,9 @@ function ReasonsTab() {
             </div>
           </div>
           <div>
-            <label className="block text-sm text-gray-600 mb-1">{t("Description")}</label>
+            <label className="block text-sm text-gray-600 mb-1">
+              {t("Description")}
+            </label>
             <input
               value={item.description || ""}
               onChange={(e) => onChange({ description: e.target.value })}
@@ -1071,7 +1105,11 @@ function SuppliersTab() {
           ),
         },
         { key: "name", label: t("Supplier Name"), render: (i) => i.name },
-        { key: "taxCode", label: t("Tax Code"), render: (i) => i.taxCode || "—" },
+        {
+          key: "taxCode",
+          label: t("Tax Code"),
+          render: (i) => i.taxCode || "—",
+        },
         {
           key: "contracts",
           label: t("Contracts"),
@@ -1082,7 +1120,9 @@ function SuppliersTab() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-600 mb-1">{t("Code")} *</label>
+              <label className="block text-sm text-gray-600 mb-1">
+                {t("Code")} *
+              </label>
               <input
                 value={item.code || ""}
                 onChange={(e) =>
@@ -1092,7 +1132,9 @@ function SuppliersTab() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">{t("Name")} *</label>
+              <label className="block text-sm text-gray-600 mb-1">
+                {t("Name")} *
+              </label>
               <input
                 value={item.name || ""}
                 onChange={(e) => onChange({ name: e.target.value })}
@@ -1152,7 +1194,9 @@ function WarehousesTab() {
       });
   }, []);
   if (loading)
-    return <div className="text-sm text-gray-500">{t("Loading warehouses...")}</div>;
+    return (
+      <div className="text-sm text-gray-500">{t("Loading warehouses...")}</div>
+    );
   return (
     <GenericTable
       items={items}
@@ -1175,7 +1219,11 @@ function WarehousesTab() {
       onDeleteItem={deleteWarehouse}
       columns={[
         { key: "name", label: t("Warehouse Name"), render: (i) => i.name },
-        { key: "address", label: t("Address"), render: (i) => i.address || "—" },
+        {
+          key: "address",
+          label: t("Address"),
+          render: (i) => i.address || "—",
+        },
       ]}
       renderForm={(item, onChange) => (
         <div className="space-y-4">
@@ -1190,7 +1238,9 @@ function WarehousesTab() {
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-600 mb-1">{t("Address")}</label>
+            <label className="block text-sm text-gray-600 mb-1">
+              {t("Address")}
+            </label>
             <input
               value={item.address || ""}
               onChange={(e) => onChange({ address: e.target.value })}
@@ -1242,7 +1292,8 @@ function BinsTab() {
       });
   }, []);
   const getWarehouseName = (id: number) =>
-    warehouses.find((w) => w.warehouseId === id)?.name || `${t("Warehouse")} #${id}`;
+    warehouses.find((w) => w.warehouseId === id)?.name ||
+    `${t("Warehouse")} #${id}`;
   if (loading)
     return <div className="text-sm text-gray-500">{t("Loading bins...")}</div>;
   return (
@@ -1289,7 +1340,9 @@ function BinsTab() {
       renderForm={(item, onChange) => (
         <div className="space-y-4">
           <div>
-            <label className="block text-sm text-gray-600 mb-1">{t("Warehouse")} *</label>
+            <label className="block text-sm text-gray-600 mb-1">
+              {t("Warehouse")} *
+            </label>
             <select
               value={item.warehouseId || ""}
               onChange={(e) =>
@@ -1319,7 +1372,9 @@ function BinsTab() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">{t("Type")} *</label>
+              <label className="block text-sm text-gray-600 mb-1">
+                {t("Type")} *
+              </label>
               <input
                 value={item.type || ""}
                 onChange={(e) => onChange({ type: e.target.value })}
@@ -1375,7 +1430,9 @@ function ProjectsTab() {
     Cancelled: t("Cancelled"),
   };
   if (loading)
-    return <div className="text-sm text-gray-500">{t("Loading projects...")}</div>;
+    return (
+      <div className="text-sm text-gray-500">{t("Loading projects...")}</div>
+    );
   return (
     <GenericTable
       items={items}
@@ -1573,7 +1630,9 @@ export default function MasterDataPage() {
               {t("Master Data Management")}
             </h1>
             <p className="text-sm text-gray-500 mt-1">
-              {t("Configure and manage system-wide parameters and reference data.")}
+              {t(
+                "Configure and manage system-wide parameters and reference data.",
+              )}
             </p>
           </div>
 

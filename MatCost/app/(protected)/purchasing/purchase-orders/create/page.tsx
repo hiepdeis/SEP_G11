@@ -39,8 +39,8 @@ import {
 } from "@/services/import-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { formatCurrency } from "@/lib/format-currency";
 import { showConfirmToast } from "@/hooks/confirm-toast";
-
 interface OrderItemInput {
   id: string;
   materialId: number;
@@ -144,10 +144,6 @@ export default function CreatePurchaseOrderPage() {
     if (field === "supplierId") {
       setGlobalSupplierId("");
     }
-  };
-
-  const formatCurrency = (val: number) => {
-    return val.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
   };
 
   const handleSubmit = () => {

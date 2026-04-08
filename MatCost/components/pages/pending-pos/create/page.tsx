@@ -33,6 +33,10 @@ import {
 } from "@/services/import-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { formatQuantity } from "@/lib/format-quantity";
+import { formatDateTime } from "@/lib/format-date-time";
+
+
 import { showConfirmToast } from "@/hooks/confirm-toast";
 import { QCReceiptExcelHandler } from "@/components/ui/custom/qc-check-xlxs";
 
@@ -301,23 +305,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
     setCurrentPage(1);
   };
 
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
 
-    let safeDateString = dateString;
-
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   if (isLoading || !order) {
     return (
@@ -401,8 +389,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                       {t("Expected Delivery")}
                     </span>
                     <div className="flex items-center gap-2 text-slate-800 font-medium">
-                      <CalendarDays className="w-4 h-4 text-slate-400" />
-                      {formatDate(order.expectedDeliveryDate)}
+                      {formatDateTime(order.expectedDeliveryDate)}
                     </div>
                   </div>
                   <div className="space-y-1 pt-4 border-t border-slate-100">
@@ -553,7 +540,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                                     : "text-slate-400"
                                 }`}
                               >
-                                {item.failQuantity.toFixed(3)}
+                                {formatQuantity(item.failQuantity)}
                               </span>
                             </TableCell>
 

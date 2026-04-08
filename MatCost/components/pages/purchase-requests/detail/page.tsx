@@ -33,6 +33,9 @@ import {
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { formatPascalCase } from "@/lib/format-pascal-case";
+import { formatQuantity } from "@/lib/format-quantity";
+import { formatDateTime } from "@/lib/format-date-time";
+
 
 export default function PurchaseRequestDetailPage({ role = "admin" }) {
   const params = useParams();
@@ -66,23 +69,7 @@ export default function PurchaseRequestDetailPage({ role = "admin" }) {
     }
   }, [id, router, t]);
 
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
 
-    let safeDateString = dateString;
-
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -181,7 +168,7 @@ export default function PurchaseRequestDetailPage({ role = "admin" }) {
                     </span>
                     <div className="flex items-center gap-2 text-slate-800 font-medium">
                       <CalendarDays className="w-4 h-4 text-slate-400" />
-                      {formatDate(request.createdAt)}
+                      {formatDateTime(request.createdAt)}
                     </div>
                   </div>
 
@@ -271,7 +258,7 @@ export default function PurchaseRequestDetailPage({ role = "admin" }) {
                               </TableCell>
                               <TableCell className="text-center">
                                 <span className="font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md">
-                                  {item.quantity.toLocaleString("vi-VN")}
+                                  {formatQuantity(item.quantity)}
                                 </span>
                               </TableCell>
                               <TableCell className="pr-6 text-slate-600 text-sm">

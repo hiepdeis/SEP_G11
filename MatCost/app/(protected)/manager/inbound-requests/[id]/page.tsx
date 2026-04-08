@@ -52,6 +52,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatDateTime } from "@/lib/format-date";
 
 export default function ManagerReceiptDetailPage() {
   const { t } = useTranslation();
@@ -109,24 +110,6 @@ export default function ManagerReceiptDetailPage() {
     } finally {
       setIsStamping(false);
     }
-  };
-
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-
-    let safeDateString = dateString;
-
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
   const totalItems = receipt?.items.length || 0;
@@ -246,7 +229,7 @@ export default function ManagerReceiptDetailPage() {
                       <div className="flex items-center gap-2 text-slate-700 font-medium">
                         <FileInput className="w-4 h-4 text-slate-400" />
                         {receipt.putawayCompletedByName} -{" "}
-                        {formatDate(receipt.putawayCompletedAt)}
+                        {formatDateTime(receipt.putawayCompletedAt)}
                       </div>
                     </div>
                   )}
@@ -364,7 +347,7 @@ export default function ManagerReceiptDetailPage() {
                                       <span className="flex items-center gap-1 text-slate-500">
                                         <CalendarDays className="w-3 h-3" />
                                         {t("Exp")}:{" "}
-                                        {formatDate(item.expiryDate)}
+                                        {formatDateTime(item.expiryDate)}
                                       </span>
                                     )}
                                   </>

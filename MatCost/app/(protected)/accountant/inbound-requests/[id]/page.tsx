@@ -49,6 +49,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { formatPascalCase } from "@/lib/format-pascal-case";
+import { formatCurrency } from "@/lib/format-currency";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +57,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { formatDateTime } from "@/lib/format-date-time";
 
 export default function AccountantReceiptDetailPage() {
   const { t } = useTranslation();
@@ -120,29 +122,6 @@ export default function AccountantReceiptDetailPage() {
     } finally {
       setIsClosing(false);
     }
-  };
-
-  const formatDateTime = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-
-    let safeDateString = dateString;
-
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const formatCurrency = (val: number | null | undefined) => {
-    if (val === null || val === undefined) return "0 ₫";
-    return val.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
   };
 
   if (isLoading || !receipt) {

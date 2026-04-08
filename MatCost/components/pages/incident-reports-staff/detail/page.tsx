@@ -40,6 +40,8 @@ import { Badge } from "@/components/ui/badge";
 import { useTranslation } from "react-i18next";
 import { showConfirmToast } from "@/hooks/confirm-toast";
 import { formatPascalCase } from "@/lib/format-pascal-case";
+import { formatQuantity } from "@/lib/format-quantity";
+
 import { ImageGallery } from "@/components/ui/custom/image-gallery";
 import { IncidentExcelHandler } from "@/components/ui/custom/incident-xlxs";
 
@@ -723,10 +725,10 @@ export default function StaffIncidentPage({
                                         {t("Total Failed")}
                                       </span>
                                       <Badge className="bg-red-100 text-red-700 border-red-200 font-bold shadow-sm">
-                                        {(
+                                        {formatQuantity(
                                           item.orderedQuantity -
-                                          item.passQuantity
-                                        ).toFixed(3)}{" "}
+                                            item.passQuantity,
+                                        )}{" "}
                                         {item.unit}
                                       </Badge>
                                     </div>
@@ -738,13 +740,13 @@ export default function StaffIncidentPage({
                                       <Input
                                         type="number"
                                         min="0"
-                                        value={
+                                        value={formatQuantity(
                                           Math.max(
                                             item.orderedQuantity -
                                               item.actualQuantity,
                                             0,
-                                          ).toFixed(3) || ""
-                                        }
+                                          ),
+                                        )}
                                         disabled={isHistoryView}
                                         readOnly
                                         className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-slate-100 min-w-[150px]"

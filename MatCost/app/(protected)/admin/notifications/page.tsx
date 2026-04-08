@@ -49,13 +49,6 @@ const formatTime = (iso: string, t: any, language: string) => {
   return d.toLocaleDateString(language === "vi" ? "vi-VN" : "en-US");
 };
 
-const formatDate = (iso: string, language: string) =>
-  new Date(iso).toLocaleDateString(language === "vi" ? "vi-VN" : "en-US", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-
 const TEMPLATES = [
   "Pending approval request. Please check the system for details.",
   "Material stock is running low. Please check and plan to restock.",
@@ -93,7 +86,9 @@ export default function NotificationsPage() {
       setNotifications(res.items ?? []);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error loading notifications");
+      setError(
+        err instanceof Error ? err.message : "Error loading notifications",
+      );
     } finally {
       setLoading(false);
     }
@@ -152,7 +147,9 @@ export default function NotificationsPage() {
   const deleteAll = async () => {
     if (!window.confirm(t("Delete all notifications?"))) return;
     try {
-      await Promise.all(notifications.map(n => deleteNotificationById(n.notiId)));
+      await Promise.all(
+        notifications.map((n) => deleteNotificationById(n.notiId)),
+      );
       await loadNotifications();
     } catch (e) {
       toast.error(t("Failed to delete"));
@@ -167,9 +164,7 @@ export default function NotificationsPage() {
         setUsers(res.items ?? []);
       } catch (err) {
         toast.error(
-          err instanceof Error
-            ? err.message
-            : t("Failed to load user list"),
+          err instanceof Error ? err.message : t("Failed to load user list"),
         );
       } finally {
         setUsersLoading(false);
@@ -247,11 +242,13 @@ export default function NotificationsPage() {
   const typeIcon: Record<string, React.ReactNode> = {
     System: <Bell className="w-5 h-5" />,
     Inventory: <AlertCircle className="w-5 h-5" />,
-    Order: <Mail className="w-5 h-5" />
+    Order: <Mail className="w-5 h-5" />,
   };
 
   if (loading || usersLoading)
-    return <div className="p-10 text-center text-gray-500">{t("Loading...")}</div>;
+    return (
+      <div className="p-10 text-center text-gray-500">{t("Loading...")}</div>
+    );
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
@@ -262,18 +259,22 @@ export default function NotificationsPage() {
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t("Notifications")}</h1>
-                <p className="text-sm text-gray-500 mt-1">{t("Track updates and alerts from the system")}</p>
+                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+                  {t("Notifications")}
+                </h1>
+                <p className="text-sm text-gray-500 mt-1">
+                  {t("Track updates and alerts from the system")}
+                </p>
               </div>
               <div className="flex items-center gap-2">
-                <button 
-                  onClick={markAllAsRead} 
+                <button
+                  onClick={markAllAsRead}
                   className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
                 >
                   <Check className="w-3.5 h-3.5" /> {t("Mark all as read")}
                 </button>
-                <button 
-                  onClick={deleteAll} 
+                <button
+                  onClick={deleteAll}
                   className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-100 rounded-xl text-xs font-bold text-red-600 hover:bg-red-100 transition-all shadow-sm"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> {t("Delete all")}
@@ -293,17 +294,23 @@ export default function NotificationsPage() {
             <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-3 mt-6">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input 
-                  value={search} 
-                  onChange={e => { setSearch(e.target.value); setPage(1); }} 
-                  placeholder={t("Search notifications...")} 
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500" 
+                <input
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                  placeholder={t("Search notifications...")}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div className="flex gap-2">
-                <select 
-                  value={filterRead} 
-                  onChange={e => { setFilterRead(e.target.value); setPage(1); }} 
+                <select
+                  value={filterRead}
+                  onChange={(e) => {
+                    setFilterRead(e.target.value);
+                    setPage(1);
+                  }}
                   className="border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none font-medium bg-white"
                 >
                   <option value="all">{t("All status")}</option>
@@ -316,47 +323,64 @@ export default function NotificationsPage() {
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mt-6">
               {paginated.length === 0 ? (
                 <div className="py-20 text-center flex flex-col items-center gap-3">
-                  <div className="p-4 bg-gray-100 rounded-full"><BellOff className="w-8 h-8 text-gray-400" /></div>
-                  <p className="text-gray-500 font-medium">{t("No notifications")}</p>
+                  <div className="p-4 bg-gray-100 rounded-full">
+                    <BellOff className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 font-medium">
+                    {t("No notifications")}
+                  </p>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-50">
                   {paginated.map((n) => (
-                    <div 
-                      key={n.notiId} 
+                    <div
+                      key={n.notiId}
                       className={`flex items-start gap-4 px-6 py-5 hover:bg-gray-50/50 transition-colors group ${!n.isRead ? "bg-blue-50/20" : ""}`}
                     >
-                      <div className={`mt-1 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${n.isRead ? "bg-gray-100 text-gray-400" : "bg-blue-600 text-white shadow-lg shadow-blue-100"}`}>
-                        {n.isRead ? <MailOpen className="w-5 h-5" /> : <Mail className="w-5 h-5" />}
+                      <div
+                        className={`mt-1 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${n.isRead ? "bg-gray-100 text-gray-400" : "bg-blue-600 text-white shadow-lg shadow-blue-100"}`}
+                      >
+                        {n.isRead ? (
+                          <MailOpen className="w-5 h-5" />
+                        ) : (
+                          <Mail className="w-5 h-5" />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start mb-1 gap-4">
                           <div>
                             <div className="flex items-center gap-2 mb-0.5">
-                              <span className={`text-[10px] font-bold uppercase tracking-wider ${n.isRead ? "text-gray-400" : "text-blue-600"}`}>
+                              <span
+                                className={`text-[10px] font-bold uppercase tracking-wider ${n.isRead ? "text-gray-400" : "text-blue-600"}`}
+                              >
                                 {getUserName(n.userId)}
                               </span>
-                              {!n.isRead && <span className="w-1 h-1 rounded-full bg-blue-600 animate-pulse" />}
+                              {!n.isRead && (
+                                <span className="w-1 h-1 rounded-full bg-blue-600 animate-pulse" />
+                              )}
                             </div>
                           </div>
                           <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1 shrink-0">
-                            <Clock className="w-3 h-3" /> {formatTime(n.createdAt, t, i18n.language)}
+                            <Clock className="w-3 h-3" />{" "}
+                            {formatTime(n.createdAt, t, i18n.language)}
                           </span>
                         </div>
-                        <p className={`text-sm leading-relaxed ${n.isRead ? "text-gray-500" : "text-gray-800 font-medium"}`}>
+                        <p
+                          className={`text-sm leading-relaxed ${n.isRead ? "text-gray-500" : "text-gray-800 font-medium"}`}
+                        >
                           {n.message}
                         </p>
                         <div className="mt-3 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           {!n.isRead && (
-                            <button 
-                              onClick={() => markAsRead(n.notiId)} 
+                            <button
+                              onClick={() => markAsRead(n.notiId)}
                               className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-600 text-white text-[10px] font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
                             >
                               <Check className="w-3 h-3" /> {t("Mark as read")}
                             </button>
                           )}
-                          <button 
-                            onClick={() => deleteNotification(n.notiId)} 
+                          <button
+                            onClick={() => deleteNotification(n.notiId)}
                             className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -368,19 +392,24 @@ export default function NotificationsPage() {
                 </div>
               )}
               <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex justify-between items-center text-xs text-gray-500 font-medium">
-                <span>{t("Showing")} {paginated.length} / {filtered.length} {t("notifications")}</span>
+                <span>
+                  {t("Showing")} {paginated.length} / {filtered.length}{" "}
+                  {t("notifications")}
+                </span>
                 <div className="flex gap-1">
-                  <button 
-                    disabled={page === 1} 
-                    onClick={() => setPage(page - 1)} 
+                  <button
+                    disabled={page === 1}
+                    onClick={() => setPage(page - 1)}
                     className="p-1.5 rounded-lg border border-gray-200 hover:bg-white disabled:opacity-30 transition-all"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
-                  <div className="flex items-center px-4 font-bold text-gray-900">{page} / {totalPages}</div>
-                  <button 
-                    disabled={page >= totalPages} 
-                    onClick={() => setPage(page + 1)} 
+                  <div className="flex items-center px-4 font-bold text-gray-900">
+                    {page} / {totalPages}
+                  </div>
+                  <button
+                    disabled={page >= totalPages}
+                    onClick={() => setPage(page + 1)}
                     className="p-1.5 rounded-lg border border-gray-200 hover:bg-white disabled:opacity-30 transition-all"
                   >
                     <ChevronRight className="w-4 h-4" />
@@ -396,19 +425,26 @@ export default function NotificationsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200">
             <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-               <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-100">
-                   <Send className="w-6 h-6" />
-                 </div>
-                 <div>
-                   <h3 className="font-bold text-gray-900 text-lg">{t("Send Notification")}</h3>
-                   <p className="text-xs text-gray-500 font-medium tracking-wide">{t("Send direct messages to system users")}</p>
-                 </div>
-               </div>
-               <button onClick={() => setModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-                 <X className="w-5 h-5 text-gray-400" />
-               </button>
-             </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-100">
+                  <Send className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg">
+                    {t("Send Notification")}
+                  </h3>
+                  <p className="text-xs text-gray-500 font-medium tracking-wide">
+                    {t("Send direct messages to system users")}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setModalOpen(false)}
+                className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
             <div className="p-8 space-y-6">
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1 block mb-3">
@@ -469,10 +505,14 @@ export default function NotificationsPage() {
                       setCharCount(e.target.value.length);
                     }}
                     className="w-full border border-gray-200 rounded-xl p-4 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-gray-50/50 placeholder:text-gray-400"
-                    placeholder={t("Enter notification content (min 10 characters)...")}
+                    placeholder={t(
+                      "Enter notification content (min 10 characters)...",
+                    )}
                   />
                   <div className="absolute bottom-3 right-3 flex items-center gap-2">
-                    <span className={`text-[10px] font-bold ${charCount > 450 ? "text-red-500" : "text-gray-300"}`}>
+                    <span
+                      className={`text-[10px] font-bold ${charCount > 450 ? "text-red-500" : "text-gray-300"}`}
+                    >
                       {charCount}/500
                     </span>
                   </div>

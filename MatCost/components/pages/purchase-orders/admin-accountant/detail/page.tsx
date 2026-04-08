@@ -45,6 +45,9 @@ import {
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { formatPascalCase } from "@/lib/format-pascal-case";
+import { formatCurrency } from "@/lib/format-currency";
+import { formatDateTime } from "@/lib/format-date-time";
+
 import { showConfirmToast } from "@/hooks/confirm-toast";
 import {
   Dialog,
@@ -53,6 +56,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { formatQuantity } from "@/lib/format-quantity";
 
 export default function PurchaseOrderReviewPage({ role = "accountant" }) {
   const params = useParams();
@@ -153,28 +157,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
     }
   };
 
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
 
-    let safeDateString = dateString;
-
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const formatCurrency = (val?: number | null) => {
-    if (val == null) return "0 ₫";
-    return val.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
-  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -318,7 +301,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                         {t("Draft Created")}
                       </p>
                       <p className="text-[11px] text-slate-400 mt-0.5">
-                        {formatDate(order.createdAt)}
+                        {formatDateTime(order.createdAt)}
                         <br />
                         {order.createdByName}
                       </p>
@@ -349,7 +332,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                       </p>
                       {order.accountantApprovedAt || isAccountantRejected ? (
                         <p className="text-[11px] text-slate-400 mt-0.5">
-                          {formatDate(order.accountantApprovedAt)}
+                          {formatDateTime(order.accountantApprovedAt)}
                           <br />
                           {order.accountantApprovedByName}
                         </p>
@@ -383,7 +366,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                       </p>
                       {order.adminApprovedAt || isAdminRejected ? (
                         <p className="text-[11px] text-slate-400 mt-0.5">
-                          {formatDate(order.adminApprovedAt)}
+                          {formatDateTime(order.adminApprovedAt)}
                           <br />
                           {order.adminApprovedByName}
                         </p>
@@ -411,7 +394,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                       </p>
                       {order.sentToSupplierAt ? (
                         <p className="text-[11px] text-emerald-600 mt-0.5 font-medium">
-                          {formatDate(order.sentToSupplierAt)}
+                          {formatDateTime(order.sentToSupplierAt)}
                         </p>
                       ) : (
                         <p className="text-xs text-slate-400 italic mt-0.5">
@@ -504,7 +487,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                                 {t("Revision")} #{rev.revisionNumber}
                               </span>
                               <span className="text-[10px] text-slate-400">
-                                {formatDate(rev.rejectedAt)}
+                                {formatDateTime(rev.rejectedAt)}
                               </span>
                             </div>
                             <div className="text-xs text-slate-700 mt-1">
@@ -623,7 +606,9 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                                 {formatCurrency(item.poUnitPrice)}
                               </TableCell>
                               <TableCell className="text-right font-medium text-slate-800">
-                                {order.items[index].orderedQuantity}
+                                {formatQuantity(
+                                  order.items[index].orderedQuantity,
+                                )}
                               </TableCell>
                               <TableCell className="text-right font-medium text-slate-800">
                                 {formatCurrency(
