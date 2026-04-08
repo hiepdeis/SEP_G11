@@ -124,7 +124,10 @@ namespace Backend.Domains.Import.Services
                     MaterialCode = rd.Material != null ? rd.Material.Code : "",
                     MaterialName = rd.Material != null ? rd.Material.Name : "",
                     PassQuantity = rd.QCCheckDetails.Sum(q => q.PassQuantity),
+                    // Fail nay la fail tong = Actual - Pass 
                     FailQuantity = rd.QCCheckDetails.Sum(q => q.FailQuantity),
+                    // Fail Claim Quantity là số lượng được claim = |Ordered - Pass| => Lấy cái này
+                    FailClaimQuantity = rd.QCCheckDetails.Sum(q => q.FailQuantityQuantity) ?? 0,
                     Quantity = rd.Quantity,
                     ActualQuantity = rd.ActualQuantity,
                     UnitPrice = rd.UnitPrice,
