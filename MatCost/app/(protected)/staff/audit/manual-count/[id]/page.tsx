@@ -103,6 +103,12 @@ export default function StaffCountingPage() {
     const term = searchTerm.toLowerCase();
     return task.materialName.toLowerCase().includes(term) || (task.batchCode && task.batchCode.toLowerCase().includes(term));
   });
+  const displayRecountData = uncountedOnly ? recountTasks : [];
+  const filteredRecountData = displayRecountData.filter(task => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return task.materialName?.toLowerCase().includes(term) || (task.batchCode && task.batchCode.toLowerCase().includes(term));
+  });
 
   return (
     <div className="flex flex-row h-screen w-screen bg-slate-50/50">
@@ -141,20 +147,20 @@ export default function StaffCountingPage() {
                     {t("Recount Tasks")}{recountTasks.length > 0 && <span className="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full">{recountTasks.length}</span>}
                   </button>
               </div>
-              {activeTab === "normal" && (
-                <div className="flex gap-3 items-center">
-                    <div className="relative flex-1"><Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" /><Input placeholder={t("Search name or batch...")} className="pl-10 h-11 bg-white shadow-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
-                    <Button variant={uncountedOnly ? "default" : "outline"} onClick={() => setUncountedOnly(!uncountedOnly)} className={`h-11 w-[140px] flex-shrink-0 transition-colors ${uncountedOnly ? "bg-indigo-600 text-white border-indigo-600" : "bg-white"}`}><Filter className="w-4 h-4 mr-2 flex-shrink-0" /> <span className="truncate">{uncountedOnly ? t("Uncounted") : t("Counted")}</span></Button>
-                </div>
-              )}
+              <div className="flex gap-3 items-center">
+                  <div className="relative flex-1"><Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" /><Input placeholder={t("Search name or batch...")} className="pl-10 h-11 bg-white shadow-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+                  <Button variant={uncountedOnly ? "default" : "outline"} onClick={() => setUncountedOnly(!uncountedOnly)} className={`h-11 w-[140px] flex-shrink-0 transition-colors ${uncountedOnly ? "bg-indigo-600 text-white border-indigo-600" : "bg-white"}`}><Filter className="w-4 h-4 mr-2 flex-shrink-0" /> <span className="truncate">{uncountedOnly ? t("Uncounted") : t("Counted")}</span></Button>
+              </div>
               <div className="space-y-3">
-                {activeTab === "recount" ? recountTasks.map(task => (
+                {activeTab === "recount" ? filteredRecountData.length === 0 ? (
+                    <div className="text-center py-10 text-slate-400">{searchTerm || !uncountedOnly ? t("No items found.") : t("List is empty.")}</div>
+                ) : filteredRecountData.map(task => (
                     <Card key={task.id} className="border-l-4 border-l-rose-500 bg-rose-50/10 shadow-sm">
                         <CardContent className="p-4 flex justify-between items-center">
                           <div>
                               <div className="font-bold flex items-center gap-2 text-slate-800">{task.materialName} <AlertTriangle className="w-4 h-4 text-rose-500"/></div>
-                              <div className="text-xs text-slate-500 mt-1">{t("Batch:")} {task.batchCode} | {t("Count Round:")} {task.countRound || 1}</div>
-                              <div className="text-xs text-rose-600 font-medium flex items-center gap-1 mt-1"><MapPin className="w-3 h-3"/> {t("Bin:")} {task.binCode}</div>
+                              <div className="text-xs text-slate-500 mt-1">{t("Batch:")} {task.batchCode} | {t("Round:")} {task.countRound || 1}</div>
+                              <div className="text-xs text-rose-600 font-medium flex items-center gap-1 mt-1"><MapPin className="w-3 h-3"/> {t("Bin Code:")} {task.binCode}</div>
                           </div>
                           <Button size="sm" onClick={() => startEdit(task, true)} className="bg-rose-100 text-rose-700 hover:bg-rose-200"><RefreshCcw className="w-3 h-3 mr-1.5" /> {t("Recount")}</Button>
                         </CardContent>
