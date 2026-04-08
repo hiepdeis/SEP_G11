@@ -1159,7 +1159,7 @@ const handleSignatureEnd = () => {
                         <SelectTrigger className="bg-white">
                           <SelectValue placeholder="-- Chọn nhân viên --" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent showSearch className="w-full">
                           {pickers.map((p) => (
                             <SelectItem key={p.userId} value={p.userId.toString()}>
                               {p.fullName}
