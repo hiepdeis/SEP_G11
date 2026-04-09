@@ -14,6 +14,10 @@
     <Content Remove="Domains\user\Business\**" />
     <EmbeddedResource Remove="Domains\user\Business\**" />
     <None Remove="Domains\user\Business\**" />
+    <Compile Remove="Backend.Tests\**" />
+    <Content Remove="Backend.Tests\**" />
+    <EmbeddedResource Remove="Backend.Tests\**" />
+    <None Remove="Backend.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>
