@@ -140,7 +140,8 @@ namespace Backend.Domains.Import.Services
                     BatchId = rd.Batch != null ? rd.Batch.BatchId : null,
                     BatchCode = rd.Batch?.BatchCode,
                     MfgDate = rd.Batch?.MfgDate,
-                    Unit = rd.Material?.Unit
+                    Unit = rd.Material?.Unit,
+                    IsDecimalUnit = rd.Material?.IsDecimalUnit
                 }).ToList()
             };
         }
@@ -733,7 +734,9 @@ namespace Backend.Domains.Import.Services
                             MaterialId = d.MaterialId,
                             MaterialName = d.Material?.Name ?? string.Empty,
                             QuantityToPutaway = passQty,
-                            Note = note
+                            Note = note,
+                            Unit = d.Material?.Unit ?? string.Empty,
+                            IsDecimalUnit = d.Material?.IsDecimalUnit ?? false
                         };
                     })
                     .Where(i => i.QuantityToPutaway > 0)
@@ -799,7 +802,9 @@ namespace Backend.Domains.Import.Services
                         MaterialCode = d.Material?.Code ?? string.Empty,
                         MaterialName = d.Material?.Name ?? string.Empty,
                         QuantityToPutaway = passQty,
-                        Note = note
+                        Note = note,
+                        Unit = d.Material?.Unit ?? string.Empty,
+                        IsDecimalUnit = d.Material?.IsDecimalUnit ?? false
                     };
                 })
                 .Where(i => i.QuantityToPutaway > 0)

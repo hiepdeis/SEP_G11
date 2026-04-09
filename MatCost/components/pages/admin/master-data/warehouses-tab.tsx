@@ -1,7 +1,14 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { Search, Plus, Edit2, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Edit2,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -99,6 +106,11 @@ export function WarehousesTab() {
 
     if (!name) {
       toast.error(t("Warehouse name cannot be empty"));
+      return;
+    }
+
+    if (!address) {
+      toast.error(t("Address cannot be empty"));
       return;
     }
 
@@ -283,7 +295,7 @@ export function WarehousesTab() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>{t("Address")}</Label>
+                  <Label>{t("Address")} *</Label>
                   <Input
                     value={editing.address || ""}
                     onChange={(e) =>

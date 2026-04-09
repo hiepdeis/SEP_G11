@@ -7,6 +7,8 @@ export type ProjectItem = {
   startDate: string | null;
   endDate: string | null;
   budget: number | null;
+  budgetUsed: number | null;
+  overBudgetAllowance: number | null;
   status: string | null;
 };
 
@@ -24,6 +26,8 @@ export type UpsertProjectPayload = {
   startDate: string | null;
   endDate: string | null;
   budget: number | null;
+  budgetUsed: number | null;
+  overBudgetAllowance: number | null;
   status: string | null;
 };
 

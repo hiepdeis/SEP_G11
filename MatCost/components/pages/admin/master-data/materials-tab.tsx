@@ -1,7 +1,16 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { Search, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, Eye, Package } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Edit2,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Package,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +41,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { showConfirmToast } from "@/hooks/confirm-toast";
+import { CurrencyInput } from "@/components/ui/custom/currency-input";
+import { QuantityInput } from "@/components/ui/custom/quantity-input";
 
 import {
   getMaterials,
@@ -40,7 +51,10 @@ import {
   removeMaterial,
   type MaterialItem,
 } from "@/services/admin-materials";
-import { getCategories, type CategoryItem } from "@/services/material-categories";
+import {
+  getCategories,
+  type CategoryItem,
+} from "@/services/material-categories";
 import {
   MATERIAL_UNIT_OPTIONS,
   canonicalizeMaterialUnit,
@@ -171,7 +185,11 @@ export function MaterialsTab() {
         const created = await createMaterial(payload);
         setItems((prev) => [
           ...prev,
-          { _id: created.materialId, materialId: created.materialId, ...payload },
+          {
+            _id: created.materialId,
+            materialId: created.materialId,
+            ...payload,
+          },
         ]);
         toast.success(t("Add New Successful"));
       }
@@ -296,7 +314,9 @@ export function MaterialsTab() {
                       <span
                         className="font-medium hover:text-indigo-600 cursor-pointer"
                         onClick={() =>
-                          router.push(`/admin/master-data/materials/${item.materialId}`)
+                          router.push(
+                            `/admin/master-data/materials/${item.materialId}`,
+                          )
                         }
                       >
                         {item.name}
@@ -324,7 +344,9 @@ export function MaterialsTab() {
                           variant="ghost"
                           size="icon"
                           onClick={() =>
-                            router.push(`/admin/master-data/materials/${item.materialId}`)
+                            router.push(
+                              `/admin/master-data/materials/${item.materialId}`,
+                            )
                           }
                           className="h-8 w-8 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
                         >
@@ -412,10 +434,12 @@ export function MaterialsTab() {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-bold text-gray-500 uppercase">
-                      {t("Category")}
+                      {t("Category")} *
                     </Label>
                     <Select
-                      value={editing.categoryId ? String(editing.categoryId) : ""}
+                      value={
+                        editing.categoryId ? String(editing.categoryId) : ""
+                      }
                       onValueChange={(val) =>
                         setEditing((prev) => ({
                           ...prev,
@@ -423,12 +447,15 @@ export function MaterialsTab() {
                         }))
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full border border-slate-300">
                         <SelectValue placeholder={t("Select...")} />
                       </SelectTrigger>
                       <SelectContent>
                         {categories.map((c) => (
-                          <SelectItem key={c.categoryId} value={String(c.categoryId)}>
+                          <SelectItem
+                            key={c.categoryId}
+                            value={String(c.categoryId)}
+                          >
                             {c.name}
                           </SelectItem>
                         ))}
@@ -467,10 +494,10 @@ export function MaterialsTab() {
                         }))
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full border border-slate-300">
                         <SelectValue placeholder={t("Select...")} />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent showSearch>
                         {MATERIAL_UNIT_OPTIONS.map((o) => (
                           <SelectItem key={o.value} value={o.value}>
                             {o.label}
@@ -481,48 +508,38 @@ export function MaterialsTab() {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-bold text-gray-500 uppercase">
-                      {t("Mass/Unit")}
+                      {t("Mass/Unit")} *
                     </Label>
-                    <Input
-                      type="number"
-                      value={editing.massPerUnit ?? ""}
-                      onChange={(e) =>
-                        setEditing((prev) => ({
-                          ...prev,
-                          massPerUnit: e.target.value ? Number(e.target.value) : null,
-                        }))
+                    <QuantityInput
+                      value={editing.massPerUnit}
+                      onValueChange={(val) =>
+                        setEditing((prev) => ({ ...prev!, massPerUnit: val }))
                       }
+                      placeholder={t("Enter mass...")}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-bold text-gray-500 uppercase">
-                      {t("Min Stock")}
+                      {t("Min Stock")} *
                     </Label>
-                    <Input
-                      type="number"
-                      value={editing.minStockLevel ?? ""}
-                      onChange={(e) =>
-                        setEditing((prev) => ({
-                          ...prev,
-                          minStockLevel: e.target.value ? Number(e.target.value) : null,
-                        }))
+                    <QuantityInput
+                      value={editing.minStockLevel}
+                      onValueChange={(val) =>
+                        setEditing((prev) => ({ ...prev!, minStockLevel: val }))
                       }
+                      maxLength={12}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-gray-500 uppercase">
-                    {t("Price (VND)")}
+                    {t("Price (VND)")} *
                   </Label>
-                  <Input
-                    type="number"
-                    value={editing.unitPrice ?? ""}
-                    onChange={(e) =>
-                      setEditing((prev) => ({
-                        ...prev,
-                        unitPrice: e.target.value ? Number(e.target.value) : null,
-                      }))
+                  <CurrencyInput
+                    value={editing.unitPrice}
+                    onValueChange={(val) =>
+                      setEditing((prev) => ({ ...prev!, unitPrice: val }))
                     }
                   />
                 </div>
@@ -555,7 +572,7 @@ export function MaterialsTab() {
                       }))
                     }
                     rows={3}
-                    className="resize-none"
+                    className="resize-none border border-slate-300"
                   />
                 </div>
               </div>

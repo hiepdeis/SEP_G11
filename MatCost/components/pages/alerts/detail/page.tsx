@@ -100,7 +100,7 @@ export default function AlertDetailPage({ role = "manager" }) {
         setIsConfirming(true);
         try {
           await managerStockShortageAlertApi.confirmAlert(id, {
-            adjustedQuantity: Number(adjustedQuantity),
+            adjustedQuantity: Number(Number(adjustedQuantity).toFixed(3)),
             notes: notes.trim() || undefined,
           });
 

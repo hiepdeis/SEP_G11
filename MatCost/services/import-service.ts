@@ -468,6 +468,7 @@ export interface GetInboundRequestItemDto {
   supplierName: string;
   unitPrice?: number;
   unit?: string;
+  isDecimalUnit?: boolean;
   lineTotal?: number;
 }
 
@@ -790,6 +791,8 @@ export interface PendingPutawayItemDto {
   materialName: string;
   quantityToPutaway: number;
   note?: string | null;
+  unit: string;
+  isDecimalUnit: boolean;
 }
 
 // ==========================================

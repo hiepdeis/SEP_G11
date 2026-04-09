@@ -46,6 +46,8 @@ export interface ProjectItem extends BaseItem {
   startDate: string | null;
   endDate: string | null;
   budget: number | null;
+  budgetUsed: number | null;
+  overBudgetAllowance: number | null;
   status: string | null;
   contracts: ContractDto[];
 }

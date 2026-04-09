@@ -47,6 +47,7 @@
         public string SupplierName { get; set; } = string.Empty;
         public decimal? UnitPrice { get; set; }
         public string? Unit { get; set; }
+        public bool? IsDecimalUnit { get; set; }
         public decimal? LineTotal { get; set; }
     }
 }

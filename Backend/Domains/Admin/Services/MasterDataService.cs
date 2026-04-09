@@ -1,4 +1,4 @@
-﻿using Backend.Data;
+using Backend.Data;
 using Backend.Domains.Admin.Dtos;
 using Backend.Domains.Admin.Interface;
 
@@ -1220,6 +1220,8 @@ namespace Backend.Domains.Admin.Services
                          StartDate = x.StartDate,
                          EndDate = x.EndDate,
                          Budget = x.Budget,
+                         BudgetUsed = x.BudgetUsed,
+                         OverBudgetAllowance = x.OverBudgetAllowance,
                          Status = x.Status
                      }),
                     query.Page,
@@ -1253,6 +1255,8 @@ namespace Backend.Domains.Admin.Services
                     StartDate = x.StartDate,
                     EndDate = x.EndDate,
                     Budget = x.Budget,
+                    BudgetUsed = x.BudgetUsed,
+                    OverBudgetAllowance = x.OverBudgetAllowance,
                     Status = x.Status
                 })
                 .FirstOrDefaultAsync(ct);
@@ -1301,6 +1305,8 @@ namespace Backend.Domains.Admin.Services
                 StartDate = request.StartDate,
                 EndDate = request.EndDate,
                 Budget = request.Budget,
+                BudgetUsed = request.BudgetUsed,
+                OverBudgetAllowance = request.OverBudgetAllowance,
                 Status = status
             };
 
@@ -1342,6 +1348,8 @@ namespace Backend.Domains.Admin.Services
             entity.StartDate = request.StartDate;
             entity.EndDate = request.EndDate;
             entity.Budget = request.Budget;
+            entity.BudgetUsed = request.BudgetUsed;
+            entity.OverBudgetAllowance = request.OverBudgetAllowance;
             entity.Status = status;
 
             await _db.SaveChangesAsync(ct);

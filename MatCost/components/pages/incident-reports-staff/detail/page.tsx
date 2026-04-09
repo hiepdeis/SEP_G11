@@ -62,6 +62,7 @@ interface IncidentItemInput {
     quality: number;
     damage: number;
   };
+  isDecimalUnit: boolean;
 }
 
 export default function StaffIncidentPage({
@@ -150,6 +151,7 @@ export default function StaffIncidentPage({
               quality: 0,
               damage: 0,
             },
+            isDecimalUnit: receiptItem?.isDecimalUnit || false,
           };
         },
       );
@@ -234,6 +236,7 @@ export default function StaffIncidentPage({
                 quality: 0,
                 damage: 0,
               },
+              isDecimalUnit: receiptItem?.isDecimalUnit || false,
             };
           },
         );
@@ -349,41 +352,54 @@ export default function StaffIncidentPage({
     });
   };
 
+  // update
   const updateBreakdown = (
     index: number,
     field: "quality" | "damage",
     value: string,
   ) => {
     if (isHistoryView) return;
-    const rawValue = Math.max(0, Number(value) || 0);
 
     setIncidentItems((prev) => {
       const newItems = [...prev];
       const item = newItems[index];
 
-      const failQuantityQuantity = Math.max(
-        item.orderedQuantity - item.actualQuantity,
-        0,
+      const precision = item.isDecimalUnit ? 3 : 0;
+      const rawValue = Math.max(0, Number(value) || 0);
+
+      const failQuantityQuantity = Number(
+        Math.max(item.orderedQuantity - item.actualQuantity, 0).toFixed(
+          precision,
+        ),
       );
 
-      const totalFail =
-        item.orderedQuantity - item.passQuantity - failQuantityQuantity;
+      const totalFail = Number(
+        (
+          item.orderedQuantity -
+          item.passQuantity -
+          failQuantityQuantity
+        ).toFixed(precision),
+      );
 
-      const safeValue = Number(Math.min(rawValue, totalFail).toFixed(3));
+      const safeValue = Number(
+        Math.min(rawValue, totalFail).toFixed(precision),
+      );
 
       let newQuality = item.breakdown.quality;
       let newDamage = item.breakdown.damage;
 
       if (field === "quality") {
         newQuality = safeValue;
-        newDamage = Number((totalFail - newQuality).toFixed(3));
+        newDamage = Number((totalFail - newQuality).toFixed(precision));
       } else if (field === "damage") {
         newDamage = safeValue;
-        newQuality = Number((totalFail - newDamage).toFixed(3));
+        newQuality = Number((totalFail - newDamage).toFixed(precision));
       }
 
       const newQuantity = Number(
-        Math.max(item.orderedQuantity - item.actualQuantity, 0).toFixed(3),
+        Math.max(item.orderedQuantity - item.actualQuantity, 0).toFixed(
+          precision,
+        ),
       );
 
       newItems[index] = {
@@ -740,13 +756,11 @@ export default function StaffIncidentPage({
                                       <Input
                                         type="number"
                                         min="0"
-                                        value={formatQuantity(
-                                          Math.max(
-                                            item.orderedQuantity -
-                                              item.actualQuantity,
-                                            0,
-                                          ),
-                                        )}
+                                        value={Math.max(
+                                          item.orderedQuantity -
+                                            item.actualQuantity,
+                                          0,
+                                        ).toFixed(item.isDecimalUnit ? 3 : 0)}
                                         disabled={isHistoryView}
                                         readOnly
                                         className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-slate-100 min-w-[150px]"
@@ -760,7 +774,7 @@ export default function StaffIncidentPage({
                                       <Input
                                         type="number"
                                         min="0"
-                                        value={item.breakdown.quality || ""}
+                                        value={item.breakdown.quality}
                                         onChange={(e) =>
                                           updateBreakdown(
                                             absoluteIdx,
@@ -769,6 +783,9 @@ export default function StaffIncidentPage({
                                           )
                                         }
                                         disabled={isHistoryView}
+                                        step={
+                                          item.isDecimalUnit ? "0.001" : "1"
+                                        }
                                         className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-white min-w-[150px]"
                                       />
                                     </div>
@@ -780,7 +797,7 @@ export default function StaffIncidentPage({
                                       <Input
                                         type="number"
                                         min="0"
-                                        value={item.breakdown.damage || ""}
+                                        value={item.breakdown.damage}
                                         onChange={(e) =>
                                           updateBreakdown(
                                             absoluteIdx,
@@ -789,6 +806,9 @@ export default function StaffIncidentPage({
                                           )
                                         }
                                         disabled={isHistoryView}
+                                        step={
+                                          item.isDecimalUnit ? "0.001" : "1"
+                                        }
                                         className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-white min-w-[150px]"
                                       />
                                     </div>

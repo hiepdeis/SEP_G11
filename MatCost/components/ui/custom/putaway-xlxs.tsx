@@ -192,7 +192,9 @@ export function PutawayExcelHandler({
                   newAllocations.push({
                     id: crypto.randomUUID(),
                     binId: matchedBin.binId,
-                    quantity: b.binQty,
+                    quantity: item.isDecimalUnit
+                      ? Number(b.binQty.toFixed(3))
+                      : Math.floor(b.binQty),
                   });
                 } else {
                   hasWarning = true; // Báo lỗi nếu gõ sai tên Bin

@@ -46,7 +46,6 @@ import { SupplierItem } from "@/lib/master-data-types";
 import {
   normalizeSearchValue,
   matchesContracts,
-  renderContractCountBadge,
 } from "@/lib/master-data-utils";
 import { formatDateTime } from "@/lib/format-date-time";
 
@@ -300,6 +299,16 @@ export function SuppliersTab() {
       return;
     }
 
+    if (!taxCode) {
+      toast.error(t("Tax code cannot be empty"));
+      return;
+    }
+
+    if (!address) {
+      toast.error(t("Address cannot be empty"));
+      return;
+    }
+
     try {
       setSaving(true);
       if (editing._id) {
@@ -349,6 +358,29 @@ export function SuppliersTab() {
     return (
       <div className="text-sm text-gray-500">{t("Loading suppliers...")}</div>
     );
+
+  const renderContractCountBadge = (
+    contracts: ContractDto[],
+    t: (s: string) => string,
+  ) => {
+    const count = contracts.length;
+    if (count === 0)
+      return (
+        <Badge
+          variant="secondary"
+          className="bg-slate-100 text-slate-500 font-normal"
+        >
+          {t("N/A")}
+        </Badge>
+      );
+    return (
+      <div className="flex flex-col gap-1">
+        <Badge className="w-fit bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-100 shadow-none">
+          {count} {t("contracts")}
+        </Badge>
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -537,7 +569,7 @@ export function SuppliersTab() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>{t("Tax Code")}</Label>
+                    <Label>{t("Tax Code")} *</Label>
                     <Input
                       value={editing.taxCode || ""}
                       onChange={(e) =>
@@ -549,7 +581,7 @@ export function SuppliersTab() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>{t("Address")}</Label>
+                    <Label>{t("Address")} *</Label>
                     <Input
                       value={editing.address || ""}
                       onChange={(e) =>

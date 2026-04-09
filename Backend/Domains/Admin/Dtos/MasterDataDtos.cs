@@ -1,4 +1,4 @@
-﻿namespace Backend.Domains.Admin.Dtos
+namespace Backend.Domains.Admin.Dtos
 {
     public sealed class MasterDataQueryDto
     {
@@ -152,6 +152,8 @@
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public decimal? Budget { get; set; }
+        public decimal? BudgetUsed { get; set; }
+        public decimal? OverBudgetAllowance { get; set; }
         public string? Status { get; set; }
         public List<MasterDataContractDto> Contracts { get; set; } = new();
     }
@@ -163,6 +165,8 @@
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public decimal? Budget { get; set; }
+        public decimal? BudgetUsed { get; set; }
+        public decimal? OverBudgetAllowance { get; set; }
         public string? Status { get; set; }
     }
 

@@ -1,7 +1,14 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { Search, Plus, Edit2, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Edit2,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -97,7 +104,9 @@ export function BinsTab() {
         (i) =>
           i.code.toLowerCase().includes(search.toLowerCase()) ||
           i.type.toLowerCase().includes(search.toLowerCase()) ||
-          getWarehouseName(i.warehouseId).toLowerCase().includes(search.toLowerCase()),
+          getWarehouseName(i.warehouseId)
+            .toLowerCase()
+            .includes(search.toLowerCase()),
       ),
     [items, search, warehouses],
   );
@@ -144,7 +153,10 @@ export function BinsTab() {
         toast.success(t("Update Successful"));
       } else {
         const created = await createBin({ warehouseId, code, type });
-        setItems((prev) => [...prev, { _id: created.id, warehouseId, code, type }]);
+        setItems((prev) => [
+          ...prev,
+          { _id: created.id, warehouseId, code, type },
+        ]);
         toast.success(t("Add New Successful"));
       }
       closeModal();
@@ -312,7 +324,9 @@ export function BinsTab() {
                 <div className="space-y-2">
                   <Label>{t("Warehouse")} *</Label>
                   <Select
-                    value={editing.warehouseId ? String(editing.warehouseId) : ""}
+                    value={
+                      editing.warehouseId ? String(editing.warehouseId) : ""
+                    }
                     onValueChange={(val) =>
                       setEditing((prev) => ({
                         ...prev,
@@ -320,12 +334,15 @@ export function BinsTab() {
                       }))
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full border border-slate-300">
                       <SelectValue placeholder={t("Select warehouse")} />
                     </SelectTrigger>
                     <SelectContent>
                       {warehouses.map((w) => (
-                        <SelectItem key={w.warehouseId} value={String(w.warehouseId)}>
+                        <SelectItem
+                          key={w.warehouseId}
+                          value={String(w.warehouseId)}
+                        >
                           {w.name}
                         </SelectItem>
                       ))}

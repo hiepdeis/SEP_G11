@@ -38,6 +38,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { showConfirmToast } from "@/hooks/confirm-toast";
+import { DateTimePicker } from "@/components/ui/custom/date-time-picker";
+import { CurrencyInput } from "@/components/ui/custom/currency-input";
 
 import {
   getProjects,
@@ -50,6 +52,8 @@ import {
   normalizeSearchValue,
   matchesContracts,
 } from "@/lib/master-data-utils";
+import { formatMoney } from "@/lib/master-data-utils";
+import { formatCurrency } from "@/lib/format-currency";
 
 export function ProjectsTab() {
   const { t } = useTranslation();
@@ -73,9 +77,11 @@ export function ProjectsTab() {
             _id: Number(p.projectId ?? 0),
             code: p.code ?? "",
             name: p.name ?? "",
-            startDate: p.startDate ? String(p.startDate).slice(0, 10) : "",
-            endDate: p.endDate ? String(p.endDate).slice(0, 10) : "",
+            startDate: p.startDate ?? "",
+            endDate: p.endDate ?? "",
             budget: p.budget ?? null,
+            budgetUsed: p.budgetUsed ?? null,
+            overBudgetAllowance: p.overBudgetAllowance ?? null,
             status: p.status ?? "Planned",
             contracts: p.contracts ?? [],
           })),
@@ -151,10 +157,20 @@ export function ProjectsTab() {
 
   const save = async () => {
     if (!editing) return;
-    const { code, name, startDate, endDate, budget, status } =
+    const { code, name, startDate, endDate, budget, budgetUsed, status } =
       editing as ProjectItem;
     if (!code || !name) {
       toast.error(t("Code and name cannot be empty"));
+      return;
+    }
+
+    if (!budgetUsed || !budget) {
+      toast.error(t("Budget used and budget cannot be empty"));
+      return;
+    }
+
+    if (budgetUsed && budget && budgetUsed > budget) {
+      toast.error(t("Budget used cannot be greater than budget"));
       return;
     }
 
@@ -164,6 +180,8 @@ export function ProjectsTab() {
       startDate: startDate || null,
       endDate: endDate || null,
       budget,
+      budgetUsed: editing.budgetUsed ?? null,
+      overBudgetAllowance: editing.overBudgetAllowance ?? null,
       status: status || "Planned",
     };
 
@@ -240,9 +258,6 @@ export function ProjectsTab() {
           <Table>
             <TableHeader className="sticky top-0 z-20 bg-gray-50 shadow-sm outline outline-1 outline-gray-200">
               <TableRow className="bg-gray-50 border-none">
-                <TableHead className="sticky top-0 z-20 bg-gray-50 w-14 px-5 text-[10px] text-gray-500 uppercase tracking-wider">
-                  {t("Details")}
-                </TableHead>
                 <TableHead className="sticky top-0 z-20 bg-gray-50 px-5 text-[10px] text-gray-500 uppercase tracking-wider">
                   {t("Project Code")}
                 </TableHead>
@@ -252,8 +267,11 @@ export function ProjectsTab() {
                 <TableHead className="sticky top-0 z-20 bg-gray-50 px-5 text-[10px] text-gray-500 uppercase tracking-wider">
                   {t("Status")}
                 </TableHead>
-                <TableHead className="sticky top-0 z-20 bg-gray-50 px-5 text-[10px] text-gray-500 uppercase tracking-wider">
-                  {t("Contracts")}
+                <TableHead className="sticky top-0 z-20 bg-gray-50 px-5 text-[10px] text-gray-500 uppercase tracking-wider text-right">
+                  {t("Budget")}
+                </TableHead>
+                <TableHead className="sticky top-0 z-20 bg-gray-50 px-5 text-[10px] text-gray-500 uppercase tracking-wider text-right">
+                  {t("Used")}
                 </TableHead>
                 <TableHead className="sticky top-0 z-20 bg-gray-50 px-5 text-[10px] text-gray-500 uppercase tracking-wider text-right">
                   {t("Actions")}
@@ -273,7 +291,6 @@ export function ProjectsTab() {
               ) : (
                 paginated.map((item) => {
                   const expanded = expandedIds.has(item._id);
-                  const canExpand = item.contracts.length > 0;
                   return (
                     <Fragment key={item._id}>
                       <TableRow
@@ -281,20 +298,6 @@ export function ProjectsTab() {
                           expanded ? "bg-indigo-50/30" : "hover:bg-gray-50/50"
                         }
                       >
-                        <TableCell className="px-5 py-3 text-sm">
-                          {canExpand && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => toggleExpand(item._id)}
-                              className="h-8 w-8 text-gray-500 transition-colors hover:bg-indigo-50 hover:text-indigo-600"
-                            >
-                              <ChevronDown
-                                className={`h-4 w-4 transition-transform ${expanded ? "" : "-rotate-90"}`}
-                              />
-                            </Button>
-                          )}
-                        </TableCell>
                         <TableCell className="px-5 py-3 text-sm">
                           <Badge
                             variant="outline"
@@ -314,6 +317,12 @@ export function ProjectsTab() {
                             {statusProjLabel[item.status || "Planned"] ||
                               item.status}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="px-5 py-3 text-sm font-semibold text-slate-700 text-right">
+                          {formatCurrency(item.budget)}
+                        </TableCell>
+                        <TableCell className="px-5 py-3 text-sm font-semibold text-indigo-600 text-right">
+                          {formatCurrency(item.budgetUsed)}
                         </TableCell>
                         <TableCell className="px-5 py-3 text-right">
                           <div className="flex justify-end gap-1">
@@ -407,7 +416,7 @@ export function ProjectsTab() {
                         }))
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full border border-slate-300">
                         <SelectValue placeholder={t("Status")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -438,40 +447,73 @@ export function ProjectsTab() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>{t("Start Date")}</Label>
-                    <Input
-                      type="date"
-                      value={editing.startDate || ""}
-                      onChange={(e) =>
+                    <DateTimePicker
+                      value={
+                        editing.startDate
+                          ? new Date(editing.startDate)
+                          : undefined
+                      }
+                      onChange={(date) =>
                         setEditing((prev) => ({
                           ...prev,
-                          startDate: e.target.value,
+                          startDate: date ? date.toISOString() : "",
                         }))
                       }
+                      placeholder={t("Pick start date")}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>{t("End Date")}</Label>
-                    <Input
-                      type="date"
-                      value={editing.endDate || ""}
-                      onChange={(e) =>
+                    <DateTimePicker
+                      value={
+                        editing.endDate ? new Date(editing.endDate) : undefined
+                      }
+                      onChange={(date) =>
                         setEditing((prev) => ({
                           ...prev,
-                          endDate: e.target.value,
+                          endDate: date ? date.toISOString() : "",
                         }))
+                      }
+                      minDate={
+                        editing.startDate
+                          ? new Date(editing.startDate)
+                          : undefined
+                      }
+                      placeholder={t("Pick end date")}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>{t("Limit Budget")}</Label>
+                    <CurrencyInput
+                      value={editing.budget}
+                      onValueChange={(val) =>
+                        setEditing((prev) => ({ ...prev!, budget: val }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t("Budget Used")}</Label>
+                    <CurrencyInput
+                      value={editing.budgetUsed}
+                      onValueChange={(val) =>
+                        setEditing((prev) => ({ ...prev!, budgetUsed: val }))
                       }
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>{t("Budget")}</Label>
+                  <Label>{t("Over Budget Allowance (%)")}</Label>
                   <Input
                     type="number"
-                    value={editing.budget ?? ""}
+                    value={editing.overBudgetAllowance ?? ""}
                     onChange={(e) =>
                       setEditing((prev) => ({
                         ...prev,
-                        budget: e.target.value ? Number(e.target.value) : null,
+                        overBudgetAllowance: e.target.value
+                          ? Number(e.target.value)
+                          : null,
                       }))
                     }
                   />

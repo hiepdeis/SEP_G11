@@ -12,6 +12,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 
+const SelectValueContext = React.createContext<string | undefined>(undefined);
+
 const SelectSearchContext = React.createContext<{
   search: string;
   setSearch: (value: string) => void;
@@ -31,9 +33,37 @@ const getTextContent = (children: React.ReactNode): string => {
 };
 
 function Select({
+  value,
+  defaultValue,
+  onValueChange,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />;
+  const [internalValue, setInternalValue] = React.useState(
+    value || defaultValue,
+  );
+
+  React.useEffect(() => {
+    if (value !== undefined) {
+      setInternalValue(value);
+    }
+  }, [value]);
+
+  const handleValueChange = (val: string) => {
+    setInternalValue(val);
+    onValueChange?.(val);
+  };
+
+  return (
+    <SelectValueContext.Provider value={internalValue}>
+      <SelectPrimitive.Root
+        data-slot="select"
+        value={value}
+        defaultValue={defaultValue}
+        onValueChange={handleValueChange}
+        {...props}
+      />
+    </SelectValueContext.Provider>
+  );
 }
 
 function SelectGroup({
@@ -156,13 +186,16 @@ function SelectLabel({
 function SelectItem({
   className,
   children,
+  value,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Item>) {
   const searchCtx = React.useContext(SelectSearchContext);
+  const selectedValue = React.useContext(SelectValueContext);
 
   if (searchCtx && searchCtx.search) {
+    const isSelected = selectedValue === value;
     const itemText = getTextContent(children).toLowerCase();
-    if (!itemText.includes(searchCtx.search.toLowerCase())) {
+    if (!isSelected && !itemText.includes(searchCtx.search.toLowerCase())) {
       return null;
     }
   }
@@ -170,6 +203,7 @@ function SelectItem({
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
+      value={value}
       className={cn(
         "group focus:bg-accent focus:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
         className,

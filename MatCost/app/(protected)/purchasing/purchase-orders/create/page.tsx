@@ -41,6 +41,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/format-currency";
 import { showConfirmToast } from "@/hooks/confirm-toast";
+import { CurrencyInput } from "@/components/ui/custom/currency-input";
 interface OrderItemInput {
   id: string;
   materialId: number;
@@ -476,21 +477,19 @@ export default function CreatePurchaseOrderPage() {
                                 </Select>
                               </TableCell>
                               <TableCell className="align-top text-right py-4 pr-6">
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  placeholder="0"
-                                  className="w-full text-right focus-visible:ring-indigo-600"
-                                  value={item.unitPrice}
-                                  onChange={(e) =>
+                                <CurrencyInput
+                                  value={
+                                    item.unitPrice ? Number(item.unitPrice) : 0
+                                  }
+                                  onValueChange={(val) =>
                                     handleItemChange(
                                       item.id,
                                       "unitPrice",
-                                      e.target.value
-                                        .replace(/-/g, "")
-                                        .slice(0, 12),
+                                      val !== null ? val.toString() : "",
                                     )
                                   }
+                                  className="w-full text-right focus-visible:ring-indigo-600"
+                                  placeholder="0"
                                 />
                               </TableCell>
                             </TableRow>

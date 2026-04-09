@@ -18,5 +18,7 @@ namespace Backend.Domains.Import.DTOs.Staff
         public string MaterialName { get; set; } = string.Empty;
         public decimal QuantityToPutaway { get; set; }
         public string? Note { get; set; }
+        public string Unit { get; set; } = string.Empty;
+        public bool IsDecimalUnit { get; set; }
     }
 }
