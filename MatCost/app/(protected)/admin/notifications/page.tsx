@@ -25,6 +25,33 @@ import { toast } from "sonner";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { showConfirmToast } from "@/hooks/confirm-toast";
 import {
   getNotifications,
   createNotifications,
@@ -78,6 +105,7 @@ export default function NotificationsPage() {
   const [selectedUser, setSelectedUser] = useState<number>(0);
   const [message, setMessage] = useState("");
   const [charCount, setCharCount] = useState(0);
+  const [showPreview, setShowPreview] = useState(false);
 
   const loadNotifications = async () => {
     try {
@@ -145,15 +173,21 @@ export default function NotificationsPage() {
   };
 
   const deleteAll = async () => {
-    if (!window.confirm(t("Delete all notifications?"))) return;
-    try {
-      await Promise.all(
-        notifications.map((n) => deleteNotificationById(n.notiId)),
-      );
-      await loadNotifications();
-    } catch (e) {
-      toast.error(t("Failed to delete"));
-    }
+    showConfirmToast({
+      title: t("Are you sure?"),
+      description: t("Delete all notifications?"),
+      onConfirm: async () => {
+        try {
+          await Promise.all(
+            notifications.map((n) => deleteNotificationById(n.notiId)),
+          );
+          await loadNotifications();
+          toast.success(t("Delete Successful"));
+        } catch (e) {
+          toast.error(t("Failed to delete"));
+        }
+      },
+    });
   };
 
   useEffect(() => {
@@ -267,56 +301,65 @@ export default function NotificationsPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={markAllAsRead}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
+                  className="bg-white rounded-xl border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 shadow-sm"
                 >
-                  <Check className="w-3.5 h-3.5" /> {t("Mark all as read")}
-                </button>
-                <button
+                  <Check className="w-3.5 h-3.5 mr-2" /> {t("Mark all as read")}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
                   onClick={deleteAll}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-100 rounded-xl text-xs font-bold text-red-600 hover:bg-red-100 transition-all shadow-sm"
+                  className="bg-red-50 hover:bg-red-100 border-red-100 rounded-xl text-xs font-bold text-red-600 shadow-sm shadow-none"
                 >
-                  <Trash2 className="w-3.5 h-3.5" /> {t("Delete all")}
-                </button>
-                <button
+                  <Trash2 className="w-3.5 h-3.5 mr-2" /> {t("Delete all")}
+                </Button>
+                <Button
+                  size="sm"
                   onClick={() => {
                     setModalOpen(true);
                     setMessage("");
                   }}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+                  className="bg-indigo-600 hover:bg-indigo-700 rounded-xl text-xs font-bold shadow-lg shadow-indigo-100"
                 >
-                  <Plus className="w-3.5 h-3.5" /> {t("Send Notification")}
-                </button>
+                  <Plus className="w-3.5 h-3.5 mr-2" /> {t("Send Notification")}
+                </Button>
               </div>
             </div>
 
             <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-3 mt-6">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
+                <Input
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
                     setPage(1);
                   }}
                   placeholder={t("Search notifications...")}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  className="pl-10 rounded-xl bg-white border-gray-200 focus:ring-indigo-500"
                 />
               </div>
               <div className="flex gap-2">
-                <select
+                <Select
                   value={filterRead}
-                  onChange={(e) => {
-                    setFilterRead(e.target.value);
+                  onValueChange={(val) => {
+                    setFilterRead(val);
                     setPage(1);
                   }}
-                  className="border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none font-medium bg-white"
                 >
-                  <option value="all">{t("All status")}</option>
-                  <option value="unread">{t("Unread")}</option>
-                  <option value="read">{t("Read")}</option>
-                </select>
+                  <SelectTrigger className="w-[180px] rounded-xl border-gray-200 bg-white">
+                    <SelectValue placeholder={t("All status")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("All status")}</SelectItem>
+                    <SelectItem value="unread">{t("Unread")}</SelectItem>
+                    <SelectItem value="read">{t("Read")}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -335,10 +378,10 @@ export default function NotificationsPage() {
                   {paginated.map((n) => (
                     <div
                       key={n.notiId}
-                      className={`flex items-start gap-4 px-6 py-5 hover:bg-gray-50/50 transition-colors group ${!n.isRead ? "bg-blue-50/20" : ""}`}
+                      className={`flex items-start gap-4 px-6 py-5 hover:bg-gray-50/50 transition-colors group ${!n.isRead ? "bg-indigo-50/20" : ""}`}
                     >
                       <div
-                        className={`mt-1 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${n.isRead ? "bg-gray-100 text-gray-400" : "bg-blue-600 text-white shadow-lg shadow-blue-100"}`}
+                        className={`mt-1 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${n.isRead ? "bg-gray-100 text-gray-400" : "bg-indigo-600 text-white shadow-lg shadow-indigo-100"}`}
                       >
                         {n.isRead ? (
                           <MailOpen className="w-5 h-5" />
@@ -350,13 +393,14 @@ export default function NotificationsPage() {
                         <div className="flex justify-between items-start mb-1 gap-4">
                           <div>
                             <div className="flex items-center gap-2 mb-0.5">
-                              <span
-                                className={`text-[10px] font-bold uppercase tracking-wider ${n.isRead ? "text-gray-400" : "text-blue-600"}`}
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] font-bold uppercase tracking-wider border-none shadow-none px-0 ${n.isRead ? "text-gray-400" : "text-indigo-600"}`}
                               >
                                 {getUserName(n.userId)}
-                              </span>
+                              </Badge>
                               {!n.isRead && (
-                                <span className="w-1 h-1 rounded-full bg-blue-600 animate-pulse" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
                               )}
                             </div>
                           </div>
@@ -372,19 +416,22 @@ export default function NotificationsPage() {
                         </p>
                         <div className="mt-3 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           {!n.isRead && (
-                            <button
+                            <Button
+                              size="sm"
                               onClick={() => markAsRead(n.notiId)}
-                              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-600 text-white text-[10px] font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
+                              className="h-7 px-3 bg-indigo-600 text-white text-[10px] font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all rounded-lg"
                             >
-                              <Check className="w-3 h-3" /> {t("Mark as read")}
-                            </button>
+                              <Check className="w-3 h-3 mr-1.5" /> {t("Mark as read")}
+                            </Button>
                           )}
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => deleteNotification(n.notiId)}
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                            className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -397,23 +444,30 @@ export default function NotificationsPage() {
                   {t("notifications")}
                 </span>
                 <div className="flex gap-1">
-                  <button
+                  <Button
+                    variant="outline"
+                    size="icon"
                     disabled={page === 1}
                     onClick={() => setPage(page - 1)}
-                    className="p-1.5 rounded-lg border border-gray-200 hover:bg-white disabled:opacity-30 transition-all"
+                    className="h-8 w-8 rounded-lg border-gray-200 hover:bg-white transition-all shadow-none"
                   >
                     <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <div className="flex items-center px-4 font-bold text-gray-900">
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-8 px-4 rounded-lg bg-white border-gray-200 shadow-none pointer-events-none"
+                  >
                     {page} / {totalPages}
-                  </div>
-                  <button
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
                     disabled={page >= totalPages}
                     onClick={() => setPage(page + 1)}
-                    className="p-1.5 rounded-lg border border-gray-200 hover:bg-white disabled:opacity-30 transition-all"
+                    className="h-8 w-8 rounded-lg border-gray-200 hover:bg-white transition-all shadow-none"
                   >
                     <ChevronRight className="w-4 h-4" />
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -421,122 +475,186 @@ export default function NotificationsPage() {
         </div>
       </main>
 
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200">
-            <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-100">
-                  <Send className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 text-lg">
-                    {t("Send Notification")}
-                  </h3>
-                  <p className="text-xs text-gray-500 font-medium tracking-wide">
-                    {t("Send direct messages to system users")}
-                  </p>
-                </div>
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="sm:max-w-2xl overflow-hidden flex flex-col max-h-[90vh] p-0">
+          <DialogHeader className="px-8 py-6 border-b bg-gray-50/50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-100">
+                <Send className="w-5 h-5" />
               </div>
-              <button
-                onClick={() => setModalOpen(false)}
-                className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-            <div className="p-8 space-y-6">
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1 block mb-3">
-                  {t("Target Recipient")}
-                </label>
-                <div className="flex gap-2 p-1 bg-gray-100 rounded-xl mb-4">
-                  <button
-                    onClick={() => setTargetMode("single")}
-                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${targetMode === "single" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                <DialogTitle className="text-xl font-bold text-gray-900">
+                  {t("Send Notification")}
+                </DialogTitle>
+                <p className="text-xs text-gray-500 font-medium tracking-wide mt-0.5">
+                  {t("Send direct messages to system users")}
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-grow overflow-y-auto px-8 py-6 space-y-6">
+            <div className="space-y-4">
+              <Label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">
+                {t("Target Recipient")}
+              </Label>
+              <Tabs
+                value={targetMode}
+                onValueChange={(val) => setTargetMode(val as "single" | "all")}
+                className="w-full"
+              >
+                <TabsList className="grid w-full grid-cols-2 bg-gray-100 p-1 h-11 rounded-xl">
+                  <TabsTrigger
+                    value="single"
+                    className="rounded-lg text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm"
                   >
                     {t("One User")}
-                  </button>
-                  <button
-                    onClick={() => setTargetMode("all")}
-                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${targetMode === "all" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="all"
+                    className="rounded-lg text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm"
                   >
                     {t("All Users")} ({activeUsers.length})
-                  </button>
-                </div>
-                {targetMode === "single" && (
-                  <select
-                    value={selectedUser}
-                    onChange={(e) => setSelectedUser(Number(e.target.value))}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="single" className="pt-3">
+                  <Select
+                    value={String(selectedUser)}
+                    onValueChange={(val) => setSelectedUser(Number(val))}
                   >
-                    {activeUsers.map((u) => (
-                      <option key={u.userId} value={u.userId}>
-                        {u.fullName} ({u.username})
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1 block mb-2">
+                    <SelectTrigger className="w-full h-11 rounded-xl border-gray-200 bg-white font-medium">
+                      <SelectValue placeholder={t("Select a user")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeUsers.map((u) => (
+                        <SelectItem key={u.userId} value={String(u.userId)}>
+                          {u.fullName} ({u.username})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </TabsContent>
+                <TabsContent value="all" className="pt-3">
+                  <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 rounded-xl border border-amber-100">
+                    <AlertCircle className="w-4 h-4 text-amber-600" />
+                    <p className="text-xs text-amber-700 font-medium">
+                      {t("This message will be sent to all active users.")}
+                    </p>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex justify-between items-end">
+                <Label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block ml-1">
                   {t("Notification Content")}
-                </label>
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {TEMPLATES.map((tpl, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        setMessage(tpl);
-                        setCharCount(tpl.length);
-                      }}
-                      className="text-[10px] px-2.5 py-1 bg-gray-100 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors text-gray-500 font-bold"
-                    >
-                      {t("Template")} {idx + 1}
-                    </button>
-                  ))}
+                </Label>
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowPreview(!showPreview)}
+                    className={`h-7 px-3 text-[10px] font-bold rounded-lg transition-all ${showPreview ? "bg-indigo-50 text-indigo-600" : "text-gray-400 hover:text-indigo-600 hover:bg-indigo-50"}`}
+                  >
+                    {showPreview ? t("Hide Preview") : t("Show Preview")}
+                  </Button>
                 </div>
-                <div className="relative">
-                  <textarea
-                    rows={4}
-                    value={message}
-                    onChange={(e) => {
-                      setMessage(e.target.value);
-                      setCharCount(e.target.value.length);
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {TEMPLATES.map((tpl, idx) => (
+                  <Button
+                    key={idx}
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setMessage(tpl);
+                      setCharCount(tpl.length);
                     }}
-                    className="w-full border border-gray-200 rounded-xl p-4 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-gray-50/50 placeholder:text-gray-400"
-                    placeholder={t(
-                      "Enter notification content (min 10 characters)...",
-                    )}
-                  />
-                  <div className="absolute bottom-3 right-3 flex items-center gap-2">
-                    <span
-                      className={`text-[10px] font-bold ${charCount > 450 ? "text-red-500" : "text-gray-300"}`}
-                    >
-                      {charCount}/500
-                    </span>
+                    className="h-7 px-2.5 bg-gray-100 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 text-[10px] text-gray-500 font-bold border-none transition-colors"
+                  >
+                    {t("Template")} {idx + 1}
+                  </Button>
+                ))}
+              </div>
+
+              <div className="relative">
+                <Textarea
+                  rows={4}
+                  value={message}
+                  onChange={(e) => {
+                    setMessage(e.target.value);
+                    setCharCount(e.target.value.length);
+                  }}
+                  className="w-full border-gray-200 rounded-xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 resize-none bg-gray-50/50 placeholder:text-gray-400"
+                  placeholder={t(
+                    "Enter notification content (min 10 characters)...",
+                  )}
+                />
+                <div className="absolute bottom-3 right-3 flex items-center gap-2 pointer-events-none">
+                  <span
+                    className={`text-[10px] font-bold ${charCount > 450 ? "text-red-500" : "text-gray-300"}`}
+                  >
+                    {charCount}/500
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {showPreview && message.trim().length >= 10 && (
+              <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <Label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block ml-1">
+                  {t("Preview")}
+                </Label>
+                <div className="border border-indigo-100 rounded-2xl bg-indigo-50/30 overflow-hidden">
+                  <div className="flex items-start gap-4 px-6 py-5">
+                    <div className="mt-1 w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-indigo-100">
+                      <Mail className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-1 gap-4">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] font-bold uppercase tracking-wider border-none shadow-none px-0 text-indigo-600"
+                          >
+                            {targetMode === "all" ? t("All Users") : getUserName(selectedUser)}
+                          </Badge>
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
+                        </div>
+                        <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> {t("Just now")}
+                        </span>
+                      </div>
+                      <p className="text-sm leading-relaxed text-gray-800 font-medium">
+                        {message}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div className="px-8 py-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
-              <button
-                onClick={() => setModalOpen(false)}
-                className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                {t("Cancel")}
-              </button>
-              <button
-                onClick={handleSend}
-                disabled={!message.trim() || message.trim().length < 10}
-                className="px-8 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-xl shadow-blue-200 hover:bg-blue-700 hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0 transition-all"
-              >
-                {t("Send Notification")}
-              </button>
-            </div>
+            )}
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="px-8 py-6 bg-gray-50 border-t flex justify-end gap-3 sm:justify-end">
+            <Button
+              variant="ghost"
+              onClick={() => setModalOpen(false)}
+              className="px-6 h-11 text-sm font-bold text-gray-500 hover:text-gray-700 hover:bg-transparent"
+            >
+              {t("Cancel")}
+            </Button>
+            <Button
+              onClick={handleSend}
+              disabled={!message.trim() || message.trim().length < 10}
+              className="px-8 h-11 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 hover:shadow-indigo-200 transition-all font-bold"
+            >
+              {t("Send Notification")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

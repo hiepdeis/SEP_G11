@@ -24,6 +24,34 @@ import {
   Mail,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { showConfirmToast } from "@/hooks/confirm-toast";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
 import { useTranslation } from "react-i18next";
@@ -125,19 +153,17 @@ interface ProjectItem extends BaseItem {
 
 // --- TABS DEFINITION ---
 const tabs = [
-  { key: "roles", label: "Vai trò", icon: Shield },
-  { key: "categories", label: "Danh mục vật tư", icon: Layers },
-  { key: "reasons", label: "Lý do điều chỉnh", icon: ClipboardList },
-  { key: "suppliers", label: "Nhà cung cấp", icon: Truck },
-  { key: "warehouses", label: "Kho hàng", icon: Warehouse },
-  { key: "bins", label: "Vị trí kệ", icon: MapPin },
-  { key: "projects", label: "Dự án", icon: FolderKanban },
+  { key: "roles", label: "Roles", icon: Shield },
+  { key: "categories", label: "Material Categories", icon: Layers },
+  { key: "reasons", label: "Adjustment Reasons", icon: ClipboardList },
+  { key: "suppliers", label: "Suppliers", icon: Truck },
+  { key: "warehouses", label: "Warehouses", icon: Warehouse },
+  { key: "bins", label: "Bin Locations", icon: MapPin },
+  { key: "projects", label: "Projects", icon: FolderKanban },
 ] as const;
 type TabKey = (typeof tabs)[number]["key"];
 
 // --- GENERIC COMPONENTS & UTILS ---
-const inputCls =
-  "w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 text-sm";
 
 const moneyFormatter = (locale: string) =>
   new Intl.NumberFormat(locale, {
@@ -192,15 +218,18 @@ const renderContractCountBadge = (
   const count = contracts.length;
   if (count === 0)
     return (
-      <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
+      <Badge
+        variant="secondary"
+        className="bg-slate-100 text-slate-500 font-normal"
+      >
         {t("N/A")}
-      </span>
+      </Badge>
     );
   return (
     <div className="flex flex-col gap-1">
-      <span className="inline-flex w-fit rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+      <Badge className="w-fit bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-100 shadow-none">
         {count} {t("contracts")}
-      </span>
+      </Badge>
       <span className="text-[10px] text-slate-400">
         {t("Click arrow to view details")}
       </span>
@@ -234,20 +263,24 @@ function ContractsExpandedContent({
           <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+                <Badge className="items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100 border-indigo-100 shadow-none">
                   <FileText className="h-3.5 w-3.5" />
                   {contract.contractCode}
-                </span>
+                </Badge>
                 {contract.contractNumber && (
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
+                  <Badge
+                    variant="secondary"
+                    className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600 font-normal"
+                  >
                     {t("No.")}: {contract.contractNumber}
-                  </span>
+                  </Badge>
                 )}
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${contract.isActive ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}
+                <Badge
+                  variant={contract.isActive ? "default" : "secondary"}
+                  className={`rounded-full px-3 py-1 text-xs font-medium border-none shadow-none ${contract.isActive ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : "bg-slate-100 text-slate-600"}`}
                 >
                   {t(contract.status)}
-                </span>
+                </Badge>
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
                 {showSupplierName && contract.supplierName && (
@@ -274,7 +307,7 @@ function ContractsExpandedContent({
               </div>
               <div className="rounded-xl bg-slate-50 px-3 py-2">
                 <div className="text-[10px] uppercase tracking-wide text-slate-400">
-                  Vật liệu
+                  {t("Materials")}
                 </div>
                 <div className="font-medium text-slate-900">
                   {contract.materialCount}
@@ -282,7 +315,7 @@ function ContractsExpandedContent({
               </div>
               <div className="rounded-xl bg-slate-50 px-3 py-2">
                 <div className="text-[10px] uppercase tracking-wide text-slate-400">
-                  Tổng giá trị
+                  {t("Total Value")}
                 </div>
                 <div className="font-medium text-slate-900">
                   {formatMoney(contract.totalAmount)}
@@ -296,63 +329,70 @@ function ContractsExpandedContent({
               {t("Materials List")}
             </div>
             <div className="overflow-x-auto rounded-xl border border-slate-100">
-              <table className="min-w-full divide-y divide-slate-100 text-xs text-left">
-                <thead className="bg-slate-50 text-slate-500 font-medium">
-                  <tr>
-                    <th className="px-4 py-3 uppercase tracking-wider">
+              <Table className="text-xs text-left">
+                <TableHeader className="bg-slate-50 text-slate-500 font-medium">
+                  <TableRow>
+                    <TableHead className="px-4 h-10 uppercase tracking-wider">
                       {t("Material Code")}
-                    </th>
-                    <th className="px-4 py-3 uppercase tracking-wider">
+                    </TableHead>
+                    <TableHead className="px-4 h-10 uppercase tracking-wider">
                       {t("Material Name")}
-                    </th>
-                    <th className="px-4 py-3 uppercase tracking-wider">
+                    </TableHead>
+                    <TableHead className="px-4 h-10 uppercase tracking-wider">
                       {t("Unit")}
-                    </th>
-                    <th className="px-4 py-3 uppercase tracking-wider">
+                    </TableHead>
+                    <TableHead className="px-4 h-10 uppercase tracking-wider">
                       {t("Quantity")}
-                    </th>
-                    <th className="px-4 py-3 uppercase tracking-wider">
+                    </TableHead>
+                    <TableHead className="px-4 h-10 uppercase tracking-wider">
                       {t("Total")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="bg-white">
                   {contract.materials.length === 0 ? (
-                    <tr>
-                      <td
+                    <TableRow>
+                      <TableCell
                         colSpan={5}
-                        className="px-4 py-5 text-center text-slate-400"
+                        className="px-4 py-8 text-center text-slate-400 h-24"
                       >
-                        Hợp đồng này chưa có vật liệu.
-                      </td>
-                    </tr>
+                        {t("This contract has no materials.")}
+                      </TableCell>
+                    </TableRow>
                   ) : (
                     contract.materials.map((material) => (
-                      <tr
+                      <TableRow
                         key={`${contract.contractId}-${material.materialId}`}
                         className="text-slate-700"
                       >
-                        <td className="px-4 py-3">
-                          <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-700">
+                        <TableCell className="px-4 py-3">
+                          <Badge
+                            variant="outline"
+                            className="font-mono bg-slate-50"
+                          >
                             {material.code}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">{material.name}</td>
-                        <td className="px-4 py-3">{material.unit || "—"}</td>
-                        <td className="px-4 py-3">
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="px-4 py-3 font-medium">
+                          {material.name}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-slate-500">
+                          {material.unit || "—"}
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
                           {formatQuantity(
                             material.orderedQuantity,
                             material.unit,
                           )}
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell className="px-4 py-3 font-semibold text-indigo-600">
                           {formatMoney(material.totalAmount)}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))
                   )}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </div>
         </div>
@@ -428,16 +468,18 @@ function GenericTable<T extends BaseItem>({
   };
 
   const save = async () => {
-    if (!editing) return;
+    const currentEditing = editing;
+    if (!currentEditing) return;
     try {
       setSaving(true);
       const saved =
-        (onSaveItem ? await onSaveItem(editing) : editing) ?? editing;
-      const resolved = { ...editing, ...saved } as T;
-      if (editing._id) {
+        (onSaveItem ? await onSaveItem(currentEditing) : currentEditing) ??
+        currentEditing;
+      const resolved = { ...currentEditing, ...saved } as T;
+      if (currentEditing._id) {
         setItems((prev) =>
           prev.map((i) =>
-            i._id === editing._id ? ({ ...i, ...resolved } as T) : i,
+            i._id === currentEditing._id ? ({ ...i, ...resolved } as T) : i,
           ),
         );
         toast.success(t("Update Successful"));
@@ -457,211 +499,215 @@ function GenericTable<T extends BaseItem>({
   };
 
   const remove = async (id: number) => {
-    if (!window.confirm(t("Are you sure you want to delete this record?")))
-      return;
-    try {
-      setDeletingId(id);
-      if (onDeleteItem) await onDeleteItem(id);
-      setItems((prev) => prev.filter((i) => i._id !== id));
-      toast.success(t("Delete Successful"));
-    } catch (error) {
-      console.error(error);
-      toast.error(error instanceof Error ? error.message : t("Delete Failed"));
-    } finally {
-      setDeletingId(null);
-    }
+    showConfirmToast({
+      title: t("Are you sure?"),
+      description: t("Are you sure you want to delete this record?"),
+      onConfirm: async () => {
+        try {
+          setDeletingId(id);
+          if (onDeleteItem) await onDeleteItem(id);
+          setItems((prev) => prev.filter((i) => i._id !== id));
+          toast.success(t("Delete Successful"));
+        } catch (error) {
+          console.error(error);
+          toast.error(
+            error instanceof Error ? error.message : t("Delete Failed"),
+          );
+        } finally {
+          setDeletingId(null);
+        }
+      },
+    });
   };
 
   return (
     <>
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Input
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
             }}
             placeholder={t("Search...")}
-            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+            className="pl-10 m-2 bg-white"
           />
         </div>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-        >
-          <Plus className="w-4 h-4" /> {t("Add New")}
-        </button>
+        <Button onClick={openAdd} className="bg-indigo-600 hover:bg-indigo-700">
+          <Plus className="w-4 h-4 mr-2" /> {t("Add New")}
+        </Button>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                {hasExpandableRows && (
-                  <th className="w-14 px-3 py-3 text-left text-[10px] text-gray-500 uppercase tracking-wider">
-                    {t("Details")}
-                  </th>
-                )}
-                {columns.map((c) => (
-                  <th
-                    key={c.key}
-                    className="text-left px-5 py-3 text-[10px] text-gray-500 uppercase tracking-wider"
-                  >
-                    {c.label}
-                  </th>
-                ))}
-                <th className="text-left px-5 py-3 text-[10px] text-gray-500 uppercase tracking-wider">
-                  {t("Actions")}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {paginated.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={columns.length + 1 + (hasExpandableRows ? 1 : 0)}
-                    className="px-5 py-8 text-center text-gray-400 text-sm"
-                  >
-                    {t("No Data")}
-                  </td>
-                </tr>
-              ) : (
-                paginated.map((item) => {
-                  const rowCanExpand = canExpandRow ? canExpandRow(item) : true;
-                  const expanded =
-                    rowCanExpand && isRowExpanded ? isRowExpanded(item) : false;
-                  return (
-                    <Fragment key={item._id}>
-                      <tr
-                        className={
-                          expanded ? "bg-slate-50/80" : "hover:bg-gray-50/50"
-                        }
-                      >
-                        {hasExpandableRows && (
-                          <td className="px-3 py-3 align-top">
-                            {rowCanExpand && (
-                              <button
-                                type="button"
-                                onClick={() => onToggleExpand?.(item)}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
-                              >
-                                {expanded ? (
-                                  <ChevronDown className="h-4 w-4" />
-                                ) : (
-                                  <ChevronRight className="h-4 w-4" />
-                                )}
-                              </button>
-                            )}
-                          </td>
-                        )}
-                        {columns.map((c) => (
-                          <td
-                            key={c.key}
-                            className="px-5 py-3 text-sm text-gray-700"
-                          >
-                            {c.render(item)}
-                          </td>
-                        ))}
-                        <td className="px-5 py-3 align-top flex gap-1">
-                          <button
+        <Table>
+          <TableHeader className="bg-gray-50/50">
+            <TableRow>
+              {hasExpandableRows && (
+                <TableHead className="w-14 px-5 text-[10px] text-gray-500 uppercase tracking-wider">
+                  {t("Details")}
+                </TableHead>
+              )}
+              {columns.map((c) => (
+                <TableHead
+                  key={c.key}
+                  className="px-5 text-[10px] text-gray-500 uppercase tracking-wider"
+                >
+                  {c.label}
+                </TableHead>
+              ))}
+              <TableHead className="px-5 text-[10px] text-gray-500 uppercase tracking-wider text-right">
+                {t("Actions")}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paginated.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length + 1 + (hasExpandableRows ? 1 : 0)}
+                  className="px-5 py-8 text-center text-gray-400 text-sm"
+                >
+                  {t("No Data")}
+                </TableCell>
+              </TableRow>
+            ) : (
+              paginated.map((item) => {
+                const rowCanExpand = canExpandRow ? canExpandRow(item) : true;
+                const expanded =
+                  rowCanExpand && isRowExpanded ? isRowExpanded(item) : false;
+                return (
+                  <Fragment key={item._id}>
+                    <TableRow
+                      className={
+                        expanded ? "bg-indigo-50/30" : "hover:bg-gray-50/50"
+                      }
+                    >
+                      {hasExpandableRows && (
+                        <TableCell className="px-5 py-3">
+                          {rowCanExpand && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onToggleExpand?.(item)}
+                              className="h-8 w-8 text-gray-500 transition-colors hover:bg-indigo-50 hover:text-indigo-600"
+                            >
+                              {expanded ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )}
+                        </TableCell>
+                      )}
+                      {columns.map((c) => (
+                        <TableCell
+                          key={c.key}
+                          className="px-5 py-3 text-sm text-gray-700"
+                        >
+                          {c.render(item)}
+                        </TableCell>
+                      ))}
+                      <TableCell className="px-5 py-3 text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => openEdit(item)}
                             disabled={deletingId === item._id}
-                            className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-600 transition-colors disabled:opacity-40"
+                            className="h-8 w-8 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-40"
                           >
                             <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => remove(item._id)}
                             disabled={deletingId === item._id}
-                            className="p-1.5 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-500 transition-colors disabled:opacity-40"
+                            className="h-8 w-8 text-gray-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-40"
                           >
                             <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                      {hasExpandableRows && expanded && (
-                        <tr className="bg-slate-50/80">
-                          <td
-                            colSpan={
-                              columns.length + 1 + (hasExpandableRows ? 1 : 0)
-                            }
-                            className="px-5 py-4"
-                          >
-                            {renderExpandedContent?.(item)}
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    {hasExpandableRows && expanded && (
+                      <TableRow className="bg-indigo-50/30">
+                        <TableCell
+                          colSpan={
+                            columns.length + 1 + (hasExpandableRows ? 1 : 0)
+                          }
+                          className="px-5 py-4"
+                        >
+                          {renderExpandedContent?.(item)}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
         <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 text-xs text-gray-500">
           <span>
             {filtered.length} {t("records")}
           </span>
           <div className="flex gap-1">
-            <button
+            <Button
+              variant="outline"
+              size="icon"
               disabled={page === 1}
               onClick={() => setPage(page - 1)}
-              className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30"
+              className="h-8 w-8"
             >
               <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
               disabled={page === totalPages}
               onClick={() => setPage(page + 1)}
-              className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30"
+              className="h-8 w-8"
             >
               <ChevronRight className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
         </div>
       </div>
 
-      {modalOpen && editing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="font-semibold text-gray-900">
+      <Dialog open={modalOpen} onOpenChange={(val) => !val && closeModal()}>
+        {editing && (
+          <DialogContent className="sm:max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold text-gray-900">
                 {editing._id ? t("Edit") : t("Add New")}
-              </h3>
-              <button
-                onClick={closeModal}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="px-6 py-4 space-y-4">
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="flex-grow overflow-y-auto px-1 py-4">
               {renderForm(editing, (patch) =>
-                setEditing({ ...editing, ...patch }),
+                setEditing((prev) => (prev ? { ...prev, ...patch } : prev)),
               )}
             </div>
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
-              <button
-                onClick={closeModal}
-                disabled={saving}
-                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg disabled:opacity-40"
-              >
+
+            <DialogFooter className="gap-2 border-t pt-4">
+              <Button variant="outline" onClick={closeModal} disabled={saving}>
                 {t("Cancel")}
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={save}
                 disabled={saving}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40"
+                className="bg-indigo-600 hover:bg-indigo-700"
               >
                 {saving ? t("Saving...") : t("Save")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
     </>
   );
 }
@@ -684,7 +730,7 @@ function RolesTab() {
       })
       .catch((err) => {
         console.error(err);
-        toast.error("Không tải được danh sách vai trò");
+        toast.error(t("Failed to load roles list"));
         if (mounted) setLoading(false);
       });
     return () => {
@@ -715,30 +761,34 @@ function RolesTab() {
           key: "id",
           label: t("Role ID"),
           render: (i) => (
-            <span className="text-xs text-gray-500">#{i._id}</span>
+            <Badge
+              variant="outline"
+              className="text-gray-500 bg-gray-50 font-mono"
+            >
+              #{i._id}
+            </Badge>
           ),
         },
         {
           key: "name",
           label: t("Role Name"),
           render: (i) => (
-            <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">
+            <Badge className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-100 transition-colors">
               {i.roleName}
-            </span>
+            </Badge>
           ),
         },
       ]}
       renderForm={(item, onChange) => (
-        <div>
-          <label className="block text-sm text-gray-600 mb-1">
-            {t("Role Name")} *
-          </label>
-          <input
-            value={item.roleName || ""}
-            onChange={(e) => onChange({ roleName: e.target.value })}
-            className={inputCls}
-            placeholder={t("e.g., Admin")}
-          />
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>{t("Role Name")} *</Label>
+            <Input
+              value={item.roleName || ""}
+              onChange={(e) => onChange({ roleName: e.target.value })}
+              placeholder={t("e.g., Admin")}
+            />
+          </div>
         </div>
       )}
     />
@@ -767,7 +817,7 @@ function CategoriesTab() {
       })
       .catch((err) => {
         console.error(err);
-        toast.error("Không tải được danh mục vật tư");
+        toast.error(t("Failed to load material categories"));
         if (mounted) setLoading(false);
       });
     return () => {
@@ -775,7 +825,9 @@ function CategoriesTab() {
     };
   }, []);
   if (loading)
-    return <div className="text-sm text-gray-500">Đang tải danh mục...</div>;
+    return (
+      <div className="text-sm text-gray-500">{t("Loading categories...")}</div>
+    );
   return (
     <GenericTable
       items={items}
@@ -802,9 +854,12 @@ function CategoriesTab() {
           key: "code",
           label: t("Code"),
           render: (i) => (
-            <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-medium">
+            <Badge
+              variant="outline"
+              className="font-mono bg-indigo-50/50 text-indigo-700 border-indigo-100"
+            >
               {i.code}
-            </span>
+            </Badge>
           ),
         },
         { key: "name", label: t("Category Name"), render: (i) => i.name },
@@ -817,37 +872,29 @@ function CategoriesTab() {
       renderForm={(item, onChange) => (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                {t("Code")} *
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label>{t("Code")} *</Label>
+              <Input
                 value={item.code || ""}
                 onChange={(e) =>
                   onChange({ code: e.target.value.toUpperCase() })
                 }
-                className={inputCls}
               />
             </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                {t("Name")} *
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label>{t("Name")} *</Label>
+              <Input
                 value={item.name || ""}
                 onChange={(e) => onChange({ name: e.target.value })}
-                className={inputCls}
               />
             </div>
           </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">
-              {t("Description")}
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label>{t("Description")}</Label>
+            <Textarea
               value={item.description || ""}
               onChange={(e) => onChange({ description: e.target.value })}
-              className={inputCls}
+              rows={3}
             />
           </div>
         </div>
@@ -927,9 +974,12 @@ function ReasonsTab() {
           key: "code",
           label: t("Code"),
           render: (i) => (
-            <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-[10px] font-medium">
+            <Badge
+              variant="outline"
+              className="font-mono bg-gray-50 text-gray-700"
+            >
               {i.code}
-            </span>
+            </Badge>
           ),
         },
         {
@@ -946,64 +996,60 @@ function ReasonsTab() {
           key: "active",
           label: t("Status"),
           render: (i) => (
-            <span
-              className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${i.isActive ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"}`}
+            <Badge
+              variant={i.isActive ? "default" : "outline"}
+              className={
+                i.isActive
+                  ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-none shadow-none"
+                  : "bg-gray-50 text-gray-500 border-none shadow-none"
+              }
             >
               {i.isActive ? t("Active") : t("Inactive")}
-            </span>
+            </Badge>
           ),
         },
       ]}
       renderForm={(item, onChange) => (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                {t("Code")} *
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label>{t("Code")} *</Label>
+              <Input
                 value={item.code || ""}
                 onChange={(e) =>
                   onChange({ code: e.target.value.toUpperCase() })
                 }
-                className={inputCls}
               />
             </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                {t("Name")} *
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label>{t("Name")} *</Label>
+              <Input
                 value={item.name || ""}
                 onChange={(e) => onChange({ name: e.target.value })}
-                className={inputCls}
               />
             </div>
           </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">
-              {t("Description")}
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label>{t("Description")}</Label>
+            <Input
               value={item.description || ""}
               onChange={(e) => onChange({ description: e.target.value })}
-              className={inputCls}
             />
           </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">
-              {t("Status")}
-            </label>
-            <select
+          <div className="space-y-2">
+            <Label>{t("Status")}</Label>
+            <Select
               value={item.isActive === false ? "false" : "true"}
-              onChange={(e) =>
-                onChange({ isActive: e.target.value === "true" })
-              }
-              className={inputCls}
+              onValueChange={(val) => onChange({ isActive: val === "true" })}
             >
-              <option value="true">{t("Active")}</option>
-              <option value="false">{t("Inactive")}</option>
-            </select>
+              <SelectTrigger>
+                <SelectValue placeholder={t("Status")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="true">{t("Active")}</SelectItem>
+                <SelectItem value="false">{t("Inactive")}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       )}
@@ -1099,9 +1145,12 @@ function SuppliersTab() {
           key: "code",
           label: t("Code"),
           render: (i) => (
-            <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-medium">
+            <Badge
+              variant="outline"
+              className="font-mono bg-indigo-50/50 text-indigo-700 border-indigo-100"
+            >
               {i.code}
-            </span>
+            </Badge>
           ),
         },
         { key: "name", label: t("Supplier Name"), render: (i) => i.name },
@@ -1119,48 +1168,36 @@ function SuppliersTab() {
       renderForm={(item, onChange) => (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                {t("Code")} *
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label>{t("Code")} *</Label>
+              <Input
                 value={item.code || ""}
                 onChange={(e) =>
                   onChange({ code: e.target.value.toUpperCase() })
                 }
-                className={inputCls}
               />
             </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                {t("Name")} *
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label>{t("Name")} *</Label>
+              <Input
                 value={item.name || ""}
                 onChange={(e) => onChange({ name: e.target.value })}
-                className={inputCls}
               />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                {t("Tax Code")}
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label>{t("Tax Code")}</Label>
+              <Input
                 value={item.taxCode || ""}
                 onChange={(e) => onChange({ taxCode: e.target.value })}
-                className={inputCls}
               />
             </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                {t("Address")}
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label>{t("Address")}</Label>
+              <Input
                 value={item.address || ""}
                 onChange={(e) => onChange({ address: e.target.value })}
-                className={inputCls}
               />
             </div>
           </div>
@@ -1227,24 +1264,18 @@ function WarehousesTab() {
       ]}
       renderForm={(item, onChange) => (
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">
-              {t("Warehouse Name")} *
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label>{t("Warehouse Name")} *</Label>
+            <Input
               value={item.name || ""}
               onChange={(e) => onChange({ name: e.target.value })}
-              className={inputCls}
             />
           </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">
-              {t("Address")}
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label>{t("Address")}</Label>
+            <Input
               value={item.address || ""}
               onChange={(e) => onChange({ address: e.target.value })}
-              className={inputCls}
             />
           </div>
         </div>
@@ -1330,55 +1361,51 @@ function BinsTab() {
           key: "code",
           label: t("Bin Code"),
           render: (i) => (
-            <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-[10px] font-medium">
+            <Badge
+              variant="outline"
+              className="font-mono bg-indigo-50/50 text-indigo-700 border-indigo-100"
+            >
               {i.code}
-            </span>
+            </Badge>
           ),
         },
         { key: "type", label: t("Type"), render: (i) => i.type },
       ]}
       renderForm={(item, onChange) => (
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">
-              {t("Warehouse")} *
-            </label>
-            <select
-              value={item.warehouseId || ""}
-              onChange={(e) =>
-                onChange({ warehouseId: Number(e.target.value) })
-              }
-              className={inputCls}
+          <div className="space-y-2">
+            <Label>{t("Warehouse")} *</Label>
+            <Select
+              value={item.warehouseId ? String(item.warehouseId) : ""}
+              onValueChange={(val) => onChange({ warehouseId: Number(val) })}
             >
-              <option value="">{t("Select warehouse")}</option>
-              {warehouses.map((w) => (
-                <option key={w.warehouseId} value={w.warehouseId}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger>
+                <SelectValue placeholder={t("Select warehouse")} />
+              </SelectTrigger>
+              <SelectContent>
+                {warehouses.map((w) => (
+                  <SelectItem key={w.warehouseId} value={String(w.warehouseId)}>
+                    {w.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                {t("Bin Code")} *
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label>{t("Bin Code")} *</Label>
+              <Input
                 value={item.code || ""}
                 onChange={(e) =>
                   onChange({ code: e.target.value.toUpperCase() })
                 }
-                className={inputCls}
               />
             </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                {t("Type")} *
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label>{t("Type")} *</Label>
+              <Input
                 value={item.type || ""}
                 onChange={(e) => onChange({ type: e.target.value })}
-                className={inputCls}
               />
             </div>
           </div>
@@ -1485,22 +1512,29 @@ function ProjectsTab() {
           key: "code",
           label: t("Project Code"),
           render: (i) => (
-            <span className="px-2 py-0.5 bg-gray-100 rounded text-[10px] font-medium">
+            <Badge
+              variant="outline"
+              className="font-mono bg-indigo-50/50 text-indigo-700 border-indigo-100"
+            >
               {i.code}
-            </span>
+            </Badge>
           ),
         },
         { key: "name", label: t("Project Name"), render: (i) => i.name },
         {
           key: "status",
           label: t("Status"),
-          render: (i) => (
-            <span
-              className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${(i.status && statusProjCls[i.status]) || "bg-gray-100 text-gray-600"}`}
-            >
-              {(i.status && statusProjLabel[i.status]) || i.status || "—"}
-            </span>
-          ),
+          render: (i) => {
+            const status = i.status || "Planned";
+            return (
+              <Badge
+                variant="outline"
+                className={`border-none shadow-none ${statusProjCls[status] || "bg-gray-100 text-gray-600"}`}
+              >
+                {statusProjLabel[status] || status}
+              </Badge>
+            );
+          },
         },
         {
           key: "contracts",
@@ -1511,73 +1545,61 @@ function ProjectsTab() {
       renderForm={(item, onChange) => (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                {t("Project Code")} *
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label>{t("Project Code")} *</Label>
+              <Input
                 value={item.code || ""}
                 onChange={(e) =>
                   onChange({ code: e.target.value.toUpperCase() })
                 }
-                className={inputCls}
               />
             </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                {t("Status")}
-              </label>
-              <select
+            <div className="space-y-2">
+              <Label>{t("Status")}</Label>
+              <Select
                 value={item.status || "Active"}
-                onChange={(e) => onChange({ status: e.target.value })}
-                className={inputCls}
+                onValueChange={(val) => onChange({ status: val })}
               >
-                <option value="Active">{t("Active")}</option>
-                <option value="Planned">{t("Planned")}</option>
-                <option value="Completed">{t("Completed")}</option>
-                <option value="Cancelled">{t("Cancelled")}</option>
-              </select>
+                <SelectTrigger>
+                  <SelectValue placeholder={t("Status")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Active">{t("Active")}</SelectItem>
+                  <SelectItem value="Planned">{t("Planned")}</SelectItem>
+                  <SelectItem value="Completed">{t("Completed")}</SelectItem>
+                  <SelectItem value="Cancelled">{t("Cancelled")}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">
-              {t("Project Name")} *
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label>{t("Project Name")} *</Label>
+            <Input
               value={item.name || ""}
               onChange={(e) => onChange({ name: e.target.value })}
-              className={inputCls}
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                {t("Start Date")}
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label>{t("Start Date")}</Label>
+              <Input
                 type="date"
                 value={item.startDate || ""}
                 onChange={(e) => onChange({ startDate: e.target.value })}
-                className={inputCls}
               />
             </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                {t("End Date")}
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label>{t("End Date")}</Label>
+              <Input
                 type="date"
                 value={item.endDate || ""}
                 onChange={(e) => onChange({ endDate: e.target.value })}
-                className={inputCls}
               />
             </div>
           </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">
-              {t("Budget")}
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label>{t("Budget")}</Label>
+            <Input
               type="number"
               value={item.budget ?? ""}
               onChange={(e) =>
@@ -1585,7 +1607,6 @@ function ProjectsTab() {
                   budget: e.target.value ? Number(e.target.value) : null,
                 })
               }
-              className={inputCls}
             />
           </div>
         </div>
@@ -1636,20 +1657,22 @@ export default function MasterDataPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-1 p-1 bg-gray-100/80 rounded-xl w-fit mb-6 overflow-x-auto no-scrollbar max-w-full">
+          <div className="flex items-center gap-1 p-1 bg-gray-100/80 rounded-xl w-fit mb-6 overflow-x-auto no-scrollbar max-w-full border shadow-inner">
             {tabs.map((T) => (
-              <button
+              <Button
                 key={T.key}
+                variant={tab === T.key ? "default" : "ghost"}
+                size="sm"
                 onClick={() => setTab(T.key)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                   tab === T.key
-                    ? "bg-white text-blue-600 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                    ? "bg-white text-indigo-600 shadow-sm hover:bg-white"
+                    : "text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/50"
                 }`}
               >
                 <T.icon className="w-4 h-4" />
                 {t(T.label)}
-              </button>
+              </Button>
             ))}
           </div>
 
