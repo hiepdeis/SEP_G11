@@ -39,8 +39,8 @@ import {
 } from "@/services/import-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { formatCurrency } from "@/lib/format-currency";
 import { showConfirmToast } from "@/hooks/confirm-toast";
-
 interface OrderItemInput {
   id: string;
   materialId: number;
@@ -144,10 +144,6 @@ export default function CreatePurchaseOrderPage() {
     if (field === "supplierId") {
       setGlobalSupplierId("");
     }
-  };
-
-  const formatCurrency = (val: number) => {
-    return val.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
   };
 
   const handleSubmit = () => {
@@ -309,7 +305,10 @@ export default function CreatePurchaseOrderPage() {
                       <SelectTrigger className="w-full bg-slate-50 min-h-[60px] py-2 border-slate-300">
                         <SelectValue placeholder={t("Select a PR...")} />
                       </SelectTrigger>
-                      <SelectContent className="w-[var(--radix-select-trigger-width)]">
+                      <SelectContent
+                        showSearch
+                        className="w-[var(--radix-select-trigger-width)]"
+                      >
                         {requests
                           .filter((r) => r.status !== "DraftPO")
                           .map((r) => (
@@ -346,7 +345,7 @@ export default function CreatePurchaseOrderPage() {
                           placeholder={t("Select to apply to all items...")}
                         />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent showSearch>
                         {capableSuppliers.length > 0 ? (
                           capableSuppliers.map((s) => (
                             <SelectItem
@@ -453,7 +452,10 @@ export default function CreatePurchaseOrderPage() {
                                   >
                                     <SelectValue placeholder={t("Select...")} />
                                   </SelectTrigger>
-                                  <SelectContent className="w-[var(--radix-select-trigger-width)]">
+                                  <SelectContent
+                                    showSearch
+                                    className="w-[var(--radix-select-trigger-width)]"
+                                  >
                                     {suppliers
                                       .filter(
                                         (s) =>

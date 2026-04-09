@@ -54,6 +54,8 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { formatCurrency } from "@/lib/format-currency";
+import { formatDateTime } from "@/lib/format-date-time";
 
 export default function AccountantPurchaseOrderListPage({
   role = "accountant",
@@ -207,15 +209,7 @@ export default function AccountantPurchaseOrderListPage({
     }
   };
 
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("vi-VN");
-  };
 
-  const formatCurrency = (val: number | null | undefined) => {
-    if (val == null) return "0 ₫";
-    return val.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
-  };
 
   const formatPlus = (num: number) => (num > 999 ? "999+" : num);
 
@@ -511,7 +505,7 @@ export default function AccountantPurchaseOrderListPage({
                               </span>
                               <span className="text-xs text-slate-400 flex items-center gap-1 mt-1">
                                 <CalendarDays className="w-3 h-3" />{" "}
-                                {formatDate(item.createdAt)}
+                                {formatDateTime(item.createdAt)}
                               </span>
                             </div>
                           </TableCell>

@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
+import axiosClient from "@/lib/axios-client";
 
 export type BinDto = {
   binId: number;
@@ -40,19 +40,23 @@ export function getBins(params: GetBinsParams = {}) {
   }
 
   const query = qs.toString();
-  return apiGet<BinResponse>(
-    `/admin/master-data/bin-locations${query ? `?${query}` : ""}`
-  );
+  return axiosClient
+    .get<BinResponse>(`/admin/master-data/bin-locations${query ? `?${query}` : ""}`)
+    .then((res) => res.data);
 }
 
 export function createBin(body: UpsertBinPayload) {
-  return apiPost<CreateBinResponse>("/admin/master-data/bin-locations", body);
+  return axiosClient
+    .post<CreateBinResponse>("/admin/master-data/bin-locations", body)
+    .then((res) => res.data);
 }
 
 export function updateBin(id: number, body: UpsertBinPayload) {
-  return apiPut<void>(`/admin/master-data/bin-locations/${id}`, body);
+  return axiosClient
+    .put<void>(`/admin/master-data/bin-locations/${id}`, body)
+    .then((res) => res.data);
 }
 
 export function deleteBin(id: number) {
-  return apiDelete<void>(`/admin/master-data/bin-locations/${id}`);
+  return axiosClient.delete<void>(`/admin/master-data/bin-locations/${id}`).then((res) => res.data);
 }

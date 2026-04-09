@@ -63,8 +63,14 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { formatDateTime } from "@/lib/format-date-time";
 
-export default function PendingDeliveriesPage({ role = "staff" }: { role: string }) {
+
+export default function PendingDeliveriesPage({
+  role = "staff",
+}: {
+  role: string;
+}) {
   const router = useRouter();
   const { t } = useTranslation();
   const rolePath = role === "manager" ? "manager" : "staff";
@@ -200,14 +206,7 @@ export default function PendingDeliveriesPage({ role = "staff" }: { role: string
     }
   };
 
-  const formatDateTime = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-    let safeDateString = dateString;
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-    return format(new Date(safeDateString), "dd/MM/yyyy HH:mm");
-  };
+
 
   const todayStart = startOfDay(new Date());
 
@@ -523,7 +522,7 @@ export default function PendingDeliveriesPage({ role = "staff" }: { role: string
                                 return;
                               handleReceiveGoods(
                                 item.purchaseOrderId,
-                                item.supplementaryReceiptId,
+                                item.supplementaryReceiptId!,
                               );
                             }}
                           >
@@ -613,7 +612,7 @@ export default function PendingDeliveriesPage({ role = "staff" }: { role: string
                                   e.stopPropagation();
                                   handleReceiveGoods(
                                     item.purchaseOrderId,
-                                    item.supplementaryReceiptId,
+                                    item.supplementaryReceiptId!,
                                   );
                                 }}
                                 disabled={loadingId === item.purchaseOrderId}

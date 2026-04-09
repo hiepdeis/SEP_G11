@@ -62,11 +62,11 @@ export default function LoginPage() {
               </svg>
             </div>
             <span className="text-white font-bold text-xl tracking-tight">
-              CWM
+              MatCost
             </span>
           </div>
           <h1 className="text-4xl font-bold text-white mb-3">
-            Construction Warehouse Management
+            Construction Material Inventory and Project Cost Management System
           </h1>
           <p className="text-slate-300 text-lg">
             Material import, export and inventory control

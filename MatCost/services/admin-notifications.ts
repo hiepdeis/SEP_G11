@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
+import axiosClient from "@/lib/axios-client";
 
 export type NotificationItem = {
   notiId: number;
@@ -69,13 +69,15 @@ export function getNotifications(params: GetNotificationsParams = {}) {
   }
 
   const query = search.toString();
-  return apiGet<NotificationPagedResult>(
-    `/admin/notifications${query ? `?${query}` : ""}`
-  );
+  return axiosClient
+    .get<NotificationPagedResult>(`/admin/notifications${query ? `?${query}` : ""}`)
+    .then((res) => res.data);
 }
 
 export function createNotification(payload: CreateNotificationPayload) {
-  return apiPost<NotificationCreateResult>("/admin/notifications", payload);
+  return axiosClient
+    .post<NotificationCreateResult>("/admin/notifications", payload)
+    .then((res) => res.data);
 }
 
 export function createNotifications(payload: CreateNotificationPayload) {
@@ -83,9 +85,9 @@ export function createNotifications(payload: CreateNotificationPayload) {
 }
 
 export function markNotificationAsRead(notiId: number) {
-  return apiPatch(`/admin/notifications/${notiId}/read`, {});
+  return axiosClient.patch(`/admin/notifications/${notiId}/read`, {}).then((res) => res.data);
 }
 
 export function deleteNotificationById(notiId: number) {
-  return apiDelete(`/admin/notifications/${notiId}`);
+  return axiosClient.delete(`/admin/notifications/${notiId}`).then((res) => res.data);
 }

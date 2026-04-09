@@ -50,6 +50,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { DateTimePicker } from "@/components/ui/custom/date-time-picker";
 import { ImageGallery } from "@/components/ui/custom/image-gallery";
+import { formatQuantity } from "@/lib/format-quantity";
+import { formatDateTime } from "@/lib/format-date-time";
 
 export default function PurchasingIncidentDetailPage() {
   const { t } = useTranslation();
@@ -85,7 +87,16 @@ export default function PurchasingIncidentDetailPage() {
       setIsLoading(true);
       try {
         const res = await purchasingIncidentApi.getIncidentDetail(id);
-        setIncident(res.data);
+        const data = res.data;
+        // Filter out items with no failed items
+        const filteredIncident = {
+          ...data,
+          items: data.items.filter(
+            (item: any) =>
+              (item.passQuantity ?? 0) < (item.orderedQuantity ?? 0),
+          ),
+        };
+        setIncident(filteredIncident);
       } catch (error: any) {
         console.error("Failed to fetch purchasing incident detail", error);
         toast.error(
@@ -115,7 +126,8 @@ export default function PurchasingIncidentDetailPage() {
           0,
           (item.orderedQuantity || 0) - (item.actualQuantity || 0),
         );
-        const totalToSupplement = (item.failQuantity || 0) + shortage;
+        const totalToSupplement =
+          item.failQuantityQuality! + item.failQuantityDamage! + shortage;
 
         return {
           materialId: item.materialId,
@@ -172,24 +184,6 @@ export default function PurchasingIncidentDetailPage() {
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const formatDateTime = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-
-    let safeDateString = dateString;
-
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
   if (isLoading || !incident) {
@@ -386,7 +380,7 @@ export default function PurchasingIncidentDetailPage() {
                             <div className="flex flex-col text-xs font-semibold">
                               <span>{t("Defect Breakdown")}</span>
                               <span className="text-[10px] text-amber-600 font-normal uppercase">
-                                {t("Quality & Damage")}
+                                {t("Quantity & Quality & Damage")}
                               </span>
                             </div>
                           </TableHead>
@@ -446,6 +440,15 @@ export default function PurchasingIncidentDetailPage() {
                                       {t("Quality")}
                                     </span>
                                     <span className="text-sm font-bold text-amber-600">
+                                      {item.failQuantityQuantity || 0}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex flex-col items-center px-3 py-1.5 min-w-[70px] hover:bg-slate-50 transition-colors">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">
+                                      {t("Quality")}
+                                    </span>
+                                    <span className="text-sm font-bold text-amber-600">
                                       {item.failQuantityQuality || 0}
                                     </span>
                                   </div>
@@ -463,7 +466,9 @@ export default function PurchasingIncidentDetailPage() {
 
                               <TableCell className="text-center align-top pt-4">
                                 <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-rose-200 shadow-sm">
-                                  {item.failQuantity}
+                                  {item.failQuantityQuantity +
+                                    item.failQuantityQuality +
+                                    item.failQuantityDamage}
                                 </Badge>
                               </TableCell>
 
@@ -620,7 +625,6 @@ export default function PurchasingIncidentDetailPage() {
                     </TableRow>
                   ) : (
                     supplementaryItems.map((item, idx) => {
-                      // Tìm lại thông tin gốc để hiển thị
                       const originalItem = incident?.items.find(
                         (i: any) => i.materialId === item.materialId,
                       );
@@ -629,7 +633,9 @@ export default function PurchasingIncidentDetailPage() {
                         (originalItem?.orderedQuantity || 0) -
                           (originalItem?.actualQuantity || 0),
                       );
-                      const failed = originalItem?.failQuantity || 0;
+                      const failed =
+                        originalItem?.failQuantityQuality! +
+                          originalItem?.failQuantityDamage! || 0;
 
                       return (
                         <TableRow key={item.materialId}>
@@ -638,14 +644,13 @@ export default function PurchasingIncidentDetailPage() {
                           </TableCell>
 
                           <TableCell className="text-center font-bold text-amber-600">
-                            {Number(shortage.toFixed(3))}
+                            {formatQuantity(shortage)}
                           </TableCell>
-
                           <TableCell className="text-center font-bold text-rose-600">
-                            {Number(failed.toFixed(3))}
+                            {formatQuantity(failed)}
                           </TableCell>
                           <TableCell className="text-center font-bold text-green-600">
-                            {Number(item.supplementaryQuantity.toFixed(3))}
+                            {formatQuantity(item.supplementaryQuantity)}
                           </TableCell>
                         </TableRow>
                       );

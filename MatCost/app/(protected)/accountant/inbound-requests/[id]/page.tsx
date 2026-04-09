@@ -20,6 +20,8 @@ import {
   FileBox,
   ClipboardList,
   Check,
+  User,
+  Hash,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,7 +49,15 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { formatPascalCase } from "@/lib/format-pascal-case";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { formatCurrency } from "@/lib/format-currency";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { formatDateTime } from "@/lib/format-date-time";
 
 export default function AccountantReceiptDetailPage() {
   const { t } = useTranslation();
@@ -112,29 +122,6 @@ export default function AccountantReceiptDetailPage() {
     } finally {
       setIsClosing(false);
     }
-  };
-
-  const formatDateTime = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-
-    let safeDateString = dateString;
-    
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const formatCurrency = (val: number | null | undefined) => {
-    if (val === null || val === undefined) return "0 ₫";
-    return val.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
   };
 
   if (isLoading || !receipt) {
@@ -227,24 +214,52 @@ export default function AccountantReceiptDetailPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-5">
-                  <div className="space-y-1">
-                    <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
+                  <div>
+                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">
                       {t("Receipt Code")}
                     </span>
-                    <div className="font-bold text-slate-800 text-lg">
+                    <Badge
+                      variant="outline"
+                      className="font-mono text-md px-3 py-1 text-indigo-600 bg-indigo-50 border-indigo-200"
+                    >
+                      <Hash className="w-3.5 h-3.5 text-indigo-500" />
                       {receipt.receiptCode}
-                    </div>
+                    </Badge>
                   </div>
 
                   <div className="space-y-1">
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                       {t("System Date")}
                     </span>
-                    <div className="flex items-center gap-2 text-slate-700 text-sm font-medium">
+                    <div className="flex items-center gap-2 text-slate-700 text-md font-medium">
                       <CalendarDays className="w-4 h-4 text-slate-400" />
                       {formatDateTime(receipt.receiptDate)}
                     </div>
                   </div>
+
+                  {receipt.status === "Stamped" && (
+                    <div className="space-y-1">
+                      <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
+                        {t("Stamped At")}
+                      </span>
+                      <div className="flex items-center gap-2 text-slate-700 text-md font-medium">
+                        <CalendarDays className="w-4 h-4 text-slate-400" />
+                        {formatDateTime(receipt.stampedAt)}
+                      </div>
+                    </div>
+                  )}
+
+                  {receipt.status === "Stamped" && receipt.stampedByName && (
+                    <div className="space-y-1">
+                      <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
+                        {t("Stamped By")}
+                      </span>
+                      <div className="flex items-center gap-2 text-slate-700 text-md font-medium">
+                        <User className="w-4 h-4 text-slate-400" />
+                        {receipt.stampedByName}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -256,14 +271,17 @@ export default function AccountantReceiptDetailPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-5">
-                  <div className="space-y-1">
-                    <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
+                  <div>
+                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">
                       {t("PO Code")}
                     </span>
-                    <div className="flex items-center gap-2 text-indigo-700 font-medium bg-indigo-50 w-fit px-2 py-1 rounded border border-indigo-100">
-                      <FileText className="w-4 h-4 text-indigo-500" />
+                    <Badge
+                      variant="outline"
+                      className="font-mono text-md px-3 py-1 text-indigo-600 bg-indigo-50 border-indigo-200"
+                    >
+                      <Hash className="w-3.5 h-3.5 text-indigo-500" />
                       {receipt.purchaseOrder?.purchaseOrderCode || "N/A"}
-                    </div>
+                    </Badge>
                   </div>
 
                   <div className="space-y-1">
@@ -288,16 +306,16 @@ export default function AccountantReceiptDetailPage() {
               </Card>
 
               {receipt.qcCheck && (
-                <Card className="border-emerald-200 shadow-sm bg-emerald-50/30">
-                  <CardHeader className="border-b border-emerald-100 py-4">
-                    <CardTitle className="text-base font-semibold flex items-center gap-2 text-emerald-800">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                <Card className="border-slate-200 shadow-sm bg-white">
+                  <CardHeader className="border-b border-slate-100 py-4">
+                    <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                      <CheckCircle2 className="w-5 h-5 text-indigo-600" />
                       {t("QC Check Summary")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-5 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-600">
+                      <span className="text-sm text-slate-600 font-medium">
                         {t("QC Code")}
                       </span>
                       <span className="font-mono text-sm font-medium text-slate-800">
@@ -305,7 +323,7 @@ export default function AccountantReceiptDetailPage() {
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-600">
+                      <span className="text-sm text-slate-600 font-medium">
                         {t("Overall Result")}
                       </span>
                       <Badge
@@ -462,7 +480,7 @@ export default function AccountantReceiptDetailPage() {
               </Card>
 
               {/* TABLE 2: INVENTORY CURRENTS (TỒN KHO HIỆN TẠI) */}
-              <Card className="border-slate-200 shadow-sm bg-white flex flex-col gap-0 pb-0">
+              <Card className="border-slate-200 min-h-[300px] shadow-sm bg-white flex flex-col gap-0 pb-0">
                 <CardHeader className="border-b border-slate-100 py-4 flex flex-row items-center justify-between shrink-0">
                   <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pb-2">
                     <Database className="w-5 h-5 text-indigo-600" />
@@ -475,68 +493,73 @@ export default function AccountantReceiptDetailPage() {
                     {totalInventory} {t("Locations")}
                   </Badge>
                 </CardHeader>
-                <CardContent className="p-0 flex-1">
-                  <Table>
-                    <TableHeader className="bg-white">
-                      <TableRow>
-                        <TableHead className="pl-6 w-[35%]">
-                          {t("Material")}
-                        </TableHead>
-                        <TableHead className="w-[20%]">
-                          {t("Bin Location")}
-                        </TableHead>
-                        <TableHead className="w-[25%]">
-                          {t("Batch Code")}
-                        </TableHead>
-                        <TableHead className="w-[20%] pr-6 text-right">
-                          {t("Current Quantity")}
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedInventory.length === 0 ? (
+                <CardContent className="p-0 flex-1 flex flex-col">
+                  <div className="[&>div]:max-h-[300px] [&>div]:min-h-[300px] [&>div]:overflow-y-auto">
+                    <Table>
+                      <TableHeader className="bg-white">
                         <TableRow>
-                          <TableCell
-                            colSpan={4}
-                            className="h-24 text-center text-slate-500"
-                          >
-                            {t("No inventory updates.")}
-                          </TableCell>
+                          <TableHead className="pl-6 w-[35%]">
+                            {t("Material")}
+                          </TableHead>
+                          <TableHead className="w-[20%]">
+                            {t("Bin Location")}
+                          </TableHead>
+                          <TableHead className="w-[25%]">
+                            {t("Batch Code")}
+                          </TableHead>
+                          <TableHead className="w-[20%] pr-6 text-right">
+                            {t("Current Quantity")}
+                          </TableHead>
                         </TableRow>
-                      ) : (
-                        paginatedInventory.map((inv, idx) => (
-                          <TableRow key={idx} className="hover:bg-slate-50/50">
-                            <TableCell className="pl-6 py-3">
-                              <div className="flex items-center gap-2">
-                                <FileBox className="w-4 h-4 text-slate-400" />
-                                <span className="text-sm font-semibold text-slate-800">
-                                  {inv.materialName}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                className="font-normal text-slate-600 bg-slate-100"
-                              >
-                                {inv.binCode}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <span className="text-xs font-mono text-slate-500">
-                                {inv.batchCode}
-                              </span>
-                            </TableCell>
-                            <TableCell className="pr-6 text-right">
-                              <span className="text-sm font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
-                                {inv.quantityOnHand}
-                              </span>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedInventory.length === 0 ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={4}
+                              className="h-24 text-center text-slate-500"
+                            >
+                              {t("No inventory updates.")}
                             </TableCell>
                           </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
+                        ) : (
+                          paginatedInventory.map((inv, idx) => (
+                            <TableRow
+                              key={idx}
+                              className="hover:bg-slate-50/50"
+                            >
+                              <TableCell className="pl-6 py-3">
+                                <div className="flex items-center gap-2">
+                                  <FileBox className="w-4 h-4 text-slate-400" />
+                                  <span className="text-sm font-semibold text-slate-800">
+                                    {inv.materialName}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className="font-normal text-slate-600 bg-slate-100"
+                                >
+                                  {inv.binCode}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-xs font-mono text-slate-500">
+                                  {inv.batchCode}
+                                </span>
+                              </TableCell>
+                              <TableCell className="pr-6 text-right">
+                                <span className="text-sm font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
+                                  {inv.quantityOnHand}
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
                   {/* Pagination Inventory */}
                   {totalInventoryPages > 1 && (
                     <div className="px-6 py-2 flex items-center justify-between border-t border-slate-100 bg-slate-50 rounded-b-xl">

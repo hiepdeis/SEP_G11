@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/api";
+import axiosClient from "@/lib/axios-client";
 
 export interface InventoryRow {
   id: number;
@@ -33,11 +33,15 @@ export interface UpsertInventoryPayload {
 }
 
 export function getInventoryByMaterial(materialId: number) {
-  return apiGet<InventoryGroup[]>(`/admin/materials/${materialId}/inventory`);
+  return axiosClient
+    .get<InventoryGroup[]>(`/admin/materials/${materialId}/inventory`)
+    .then((res) => res.data);
 }
 
 export function createInventory(materialId: number, payload: UpsertInventoryPayload) {
-  return apiPost<InventoryRow>(`/admin/materials/${materialId}/inventory`, payload);
+  return axiosClient
+    .post<InventoryRow>(`/admin/materials/${materialId}/inventory`, payload)
+    .then((res) => res.data);
 }
 
 export function updateInventory(
@@ -45,12 +49,16 @@ export function updateInventory(
   inventoryId: number,
   payload: UpsertInventoryPayload
 ) {
-  return apiPut<InventoryRow>(
-    `/admin/materials/${materialId}/inventory/${inventoryId}`,
-    payload
-  );
+  return axiosClient
+    .put<InventoryRow>(
+      `/admin/materials/${materialId}/inventory/${inventoryId}`,
+      payload
+    )
+    .then((res) => res.data);
 }
 
 export function removeInventory(materialId: number, inventoryId: number) {
-  return apiDelete<void>(`/admin/materials/${materialId}/inventory/${inventoryId}`);
+  return axiosClient
+    .delete<void>(`/admin/materials/${materialId}/inventory/${inventoryId}`)
+    .then((res) => res.data);
 }

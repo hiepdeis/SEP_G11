@@ -189,6 +189,8 @@ export interface AccountantReceiptDetailDto {
   receiptCode: string;
   status: string;
   receiptDate?: string;
+  stampedAt?: string | null;
+  stampedByName?: string | null;
   purchaseOrder?: PurchaseOrderDto;
   qcCheck?: QCCheckDto;
   inventoryCurrents: AccountantInventoryCurrentDto[];
@@ -239,8 +241,8 @@ export interface AccountantReceiptCloseResultDto {
 export interface ManagerIncidentItemSummaryDto {
   materialId: number;
   materialName?: string;
-  orderedQuantity?: number;
-  actualQuantity?: number;
+  orderedQuantity: number;
+  actualQuantity: number;
   passQuantity: number;
   failQuantity: number;
   failReason?: string;
@@ -454,6 +456,7 @@ export interface GetInboundRequestItemDto {
   materialName: string;
   passQuantity?: number;
   failQuantity?: number;
+  failClaimQuantity?: number;
   quantity?: number;
   actualQuantity?: number;
   binLocationId?: number;

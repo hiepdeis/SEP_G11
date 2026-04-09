@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
+import axiosClient from "@/lib/axios-client";
 
 export type ContractMaterialDto = {
   materialId: number;
@@ -54,17 +54,17 @@ export type CreateSupplierResponse = {
 };
 
 export function getSuppliers() {
-  return apiGet<SupplierPagedResult>("/admin/master-data/suppliers");
+  return axiosClient.get<SupplierPagedResult>("/admin/master-data/suppliers").then((res) => res.data);
 }
 
 export function createSupplier(body: UpsertSupplierPayload) {
-  return apiPost<CreateSupplierResponse>("/admin/master-data/suppliers", body);
+  return axiosClient.post<CreateSupplierResponse>("/admin/master-data/suppliers", body).then((res) => res.data);
 }
 
 export function updateSupplier(id: number, body: UpsertSupplierPayload) {
-  return apiPut<void>(`/admin/master-data/suppliers/${id}`, body);
+  return axiosClient.put<void>(`/admin/master-data/suppliers/${id}`, body).then((res) => res.data);
 }
 
 export function deleteSupplier(id: number) {
-  return apiDelete<void>(`/admin/master-data/suppliers/${id}`);
+  return axiosClient.delete<void>(`/admin/master-data/suppliers/${id}`).then((res) => res.data);
 }

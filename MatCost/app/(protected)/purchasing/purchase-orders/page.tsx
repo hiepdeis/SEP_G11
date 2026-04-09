@@ -61,6 +61,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { formatPascalCase } from "@/lib/format-pascal-case";
+import { formatCurrency } from "@/lib/format-currency";
+import { formatDateTime } from "@/lib/format-date-time";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -81,7 +83,7 @@ export default function PurchasingDashboardPage() {
   const [loadingId, setLoadingId] = useState<number | null>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("PendingApproval");
+  const [filterStatus, setFilterStatus] = useState<string>("AdminApproved");
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
     to: Date | undefined;
@@ -134,7 +136,7 @@ export default function PurchasingDashboardPage() {
   const handleTabChange = (tab: "PO" | "PR") => {
     setActiveTab(tab);
     setSearchTerm("");
-    setFilterStatus("PendingApproval");
+    setFilterStatus("AdminApproved");
     setCurrentPage(1);
     setSortConfig(null);
   };
@@ -285,27 +287,7 @@ export default function PurchasingDashboardPage() {
   };
 
   // Formatters
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
 
-    let safeDateString = dateString;
-
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-  const formatCurrency = (val?: number | null) =>
-    val != null
-      ? val.toLocaleString("vi-VN", { style: "currency", currency: "VND" })
-      : "0 ₫";
   const formatPlus = (num: number) => (num > 999 ? "999+" : num);
 
   const poDraftCount = orders.filter(
@@ -467,14 +449,6 @@ export default function PurchasingDashboardPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <>
-                            <SelectItem value="PendingApproval">
-                              <Badge
-                                variant="outline"
-                                className="bg-yellow-50 text-yellow-700 border-yellow-200"
-                              >
-                                {t("Pending Approval")}
-                              </Badge>
-                            </SelectItem>
                             <SelectItem value="AdminApproved">
                               <Badge
                                 variant="outline"
@@ -492,6 +466,14 @@ export default function PurchasingDashboardPage() {
                                 className="bg-rose-50 text-rose-700 border-rose-200"
                               >
                                 {t("Rejected")}
+                              </Badge>
+                            </SelectItem>
+                            <SelectItem value="PendingApproval">
+                              <Badge
+                                variant="outline"
+                                className="bg-yellow-50 text-yellow-700 border-yellow-200"
+                              >
+                                {t("Pending Approval")}
                               </Badge>
                             </SelectItem>
                             <SelectItem value="SentToSupplier">
@@ -789,7 +771,7 @@ export default function PurchasingDashboardPage() {
                                   </div>
                                   <span className="text-xs text-slate-400 flex items-center gap-1">
                                     <CalendarDays className="w-3 h-3" />{" "}
-                                    {formatDate(item.createdAt)}
+                                    {formatDateTime(item.createdAt)}
                                   </span>
                                 </div>
                               </TableCell>
@@ -966,7 +948,7 @@ export default function PurchasingDashboardPage() {
                                   </div>
                                   <span className="text-xs text-slate-400 flex items-center gap-1 mt-1">
                                     <CalendarDays className="w-3 h-3" />{" "}
-                                    {formatDate(item.createdAt)}
+                                    {formatDateTime(item.createdAt)}
                                   </span>
                                 </div>
                               </TableCell>

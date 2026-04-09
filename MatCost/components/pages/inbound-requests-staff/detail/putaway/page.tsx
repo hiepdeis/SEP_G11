@@ -82,7 +82,7 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
   const itemsPerPage = 3;
 
   const [binPages, setBinPages] = useState<{ [key: number]: number }>({});
-  const binsPerPage = 5;
+  const binsPerPage = 3;
 
   const [binLocations, setBinLocations] = useState<any[]>([]);
 
@@ -664,7 +664,10 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                                                     )}
                                                   />
                                                 </SelectTrigger>
-                                                <SelectContent className="max-h-[200px]">
+                                                <SelectContent
+                                                  showSearch
+                                                  className="max-h-[200px]"
+                                                >
                                                   {binLocations.map(
                                                     (location) => (
                                                       <SelectItem

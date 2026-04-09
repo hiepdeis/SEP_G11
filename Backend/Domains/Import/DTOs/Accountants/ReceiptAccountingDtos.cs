@@ -20,6 +20,8 @@ namespace Backend.Domains.Import.DTOs.Accountants
         public string ReceiptCode { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public DateTime? ReceiptDate { get; set; }
+        public DateTime? StampedAt { get; set; }
+        public string? StampedByName { get; set; }
         public PurchaseOrderDto? PurchaseOrder { get; set; }
         public QCCheckDto? QCCheck { get; set; }
         public List<AccountantInventoryCurrentDto> InventoryCurrents { get; set; } = new();
