@@ -65,7 +65,6 @@ import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { formatDateTime } from "@/lib/format-date-time";
 
-
 export default function PendingDeliveriesPage({
   role = "staff",
 }: {
@@ -205,8 +204,6 @@ export default function PendingDeliveriesPage({
       router.push(`/${rolePath}/pending-pos/create?poId=${id}`);
     }
   };
-
-
 
   const todayStart = startOfDay(new Date());
 

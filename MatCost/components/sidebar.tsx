@@ -220,11 +220,6 @@ export function Sidebar() {
     },
     { label: t("sidebar.admin_users"), icon: Users, href: "/admin/users" },
     {
-      label: t("sidebar.admin_materials"),
-      icon: Package,
-      href: "/admin/materials",
-    },
-    {
       label: t("sidebar.admin_master_data"),
       icon: Database,
       href: "/admin/master-data",

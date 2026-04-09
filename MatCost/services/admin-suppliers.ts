@@ -57,6 +57,10 @@ export function getSuppliers() {
   return axiosClient.get<SupplierPagedResult>("/admin/master-data/suppliers").then((res) => res.data);
 }
 
+export function getSupplierById(id: number) {
+  return axiosClient.get<SupplierDto>(`/admin/master-data/suppliers/${id}`).then((res) => res.data);
+}
+
 export function createSupplier(body: UpsertSupplierPayload) {
   return axiosClient.post<CreateSupplierResponse>("/admin/master-data/suppliers", body).then((res) => res.data);
 }

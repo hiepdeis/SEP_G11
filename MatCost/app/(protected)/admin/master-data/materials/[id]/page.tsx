@@ -190,7 +190,11 @@ export default function MaterialDetailPage({
   };
 
   const deleteInv = async (invId: number) => {
-    if (!window.confirm(t("Are you sure you want to delete this inventory position?")))
+    if (
+      !window.confirm(
+        t("Are you sure you want to delete this inventory position?"),
+      )
+    )
       return;
     try {
       await removeInventory(materialId, invId);
@@ -238,7 +242,7 @@ export default function MaterialDetailPage({
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-start gap-4">
                 <button
-                  onClick={() => router.push("/admin/materials")}
+                  onClick={() => router.back()}
                   className="mt-1 p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
                 >
                   <ArrowLeft className="w-5 h-5" />
@@ -329,19 +333,25 @@ export default function MaterialDetailPage({
                   </h3>
                   <div className="space-y-4 relative z-10">
                     <div className="flex justify-between items-end">
-                      <span className="text-xs opacity-70">{t("On Hand")}:</span>
+                      <span className="text-xs opacity-70">
+                        {t("On Hand")}:
+                      </span>
                       <span className="text-2xl font-black">
                         {stats.onHand.toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between items-end">
-                      <span className="text-xs opacity-70">{t("Allocated")}:</span>
+                      <span className="text-xs opacity-70">
+                        {t("Allocated")}:
+                      </span>
                       <span className="text-lg font-bold text-blue-200">
                         {stats.allocated.toLocaleString()}
                       </span>
                     </div>
                     <div className="pt-4 border-t border-blue-500 flex justify-between items-end">
-                      <span className="text-sm font-bold">{t("Available")}:</span>
+                      <span className="text-sm font-bold">
+                        {t("Available")}:
+                      </span>
                       <span className="text-3xl font-black">
                         {stats.total.toLocaleString()}
                       </span>
@@ -373,7 +383,9 @@ export default function MaterialDetailPage({
                       <div className="py-12 text-center">
                         <Package className="w-12 h-12 text-gray-200 mx-auto mb-3" />
                         <p className="text-gray-400 text-sm">
-                          {t("No inventory information available at any warehouse")}
+                          {t(
+                            "No inventory information available at any warehouse",
+                          )}
                         </p>
                       </div>
                     ) : (
@@ -415,7 +427,9 @@ export default function MaterialDetailPage({
                                       <span
                                         className={`text-[10px] px-2 py-0.5 border rounded-full font-medium ${typeBadgeCls[row.binType] || "bg-gray-100"}`}
                                       >
-                                        {t(typeLabel[row.binType] || row.binType)}
+                                        {t(
+                                          typeLabel[row.binType] || row.binType,
+                                        )}
                                       </span>
                                     </div>
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
