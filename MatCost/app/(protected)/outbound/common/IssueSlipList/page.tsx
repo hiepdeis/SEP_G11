@@ -24,7 +24,7 @@ interface IssueSlipListProps {
   role: UserRole;
 }
 
-export default function CommonIssueSlipList({ role }: IssueSlipListProps) {
+export default function CommonIssueSlipList() {
   const { t } = useTranslation(); // Thêm dòng này
   const router = useRouter();
 
@@ -42,10 +42,11 @@ export default function CommonIssueSlipList({ role }: IssueSlipListProps) {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(5);
-
-  const rolename = sessionStorage.getItem("role");
+  const role = sessionStorage.getItem("role");
+  
   
   useEffect(() => {
+    const role = sessionStorage.getItem("role");
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -65,10 +66,12 @@ export default function CommonIssueSlipList({ role }: IssueSlipListProps) {
   }, [searchTerm, filterStatus, datePreset, fromDate, toDate, itemsPerPage, sortConfig]);
 
   const navigateToDetail = (issueId: number) => {
+    const role = sessionStorage.getItem("role");
+    
     if(role === "accountant"){
       router.push(`/accountant/outbound/issueSlip/checkInventory/${issueId}`);
     } else {
-      router.push(`/${role}/outbound/issueSlip/issueSlipDetail/${issueId}`); 
+      router.push(`/outbound/common/IssueSlipDetail/${issueId}`); 
     }
   };
 
@@ -172,14 +175,14 @@ export default function CommonIssueSlipList({ role }: IssueSlipListProps) {
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title={`${t("Outbound Management")} (${role.toUpperCase()})`} />
+        <Header title={`${t("Outbound Management")} (${role?.toUpperCase()})`} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div className="flex flex-col gap-1">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("Issue Slips")}</h1>
             <p className="text-sm text-slate-500">{t("Manage all material release requests and outbound slips.")}</p>
           </div>
-          {(rolename === "Construction" || rolename === "Admin") && (
+          {(role === "Construction" || role === "Admin") && (
             <Button
               className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
               onClick={() =>

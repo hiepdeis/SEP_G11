@@ -12,6 +12,11 @@ import {
   ChevronLeft,
   ChevronDown,
   ClipboardCheck,
+  Users,
+  Database,
+  Bell,
+  LayoutDashboard,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -205,6 +210,30 @@ export function Sidebar() {
           href: "/manager/reports/import-export",
         },
       ],
+    },
+  ];
+
+  const adminNavItems = [
+    {
+      label: t("sidebar.admin_dashboard"),
+      icon: LayoutDashboard,
+      href: "/admin",
+    },
+    { label: t("sidebar.admin_users"), icon: Users, href: "/admin/users" },
+    {
+      label: t("sidebar.admin_materials"),
+      icon: Package,
+      href: "/admin/materials",
+    },
+    {
+      label: t("sidebar.admin_master_data"),
+      icon: Database,
+      href: "/admin/master-data",
+    },
+    {
+      label: t("sidebar.admin_notifications"),
+      icon: Bell,
+      href: "/admin/notifications",
     },
   ];
 
@@ -581,6 +610,89 @@ export function Sidebar() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <a
+            href="/security/2fa"
+            className={`
+              relative flex gap-3 px-3 py-3 rounded-xl transition-all duration-300 group overflow-hidden w-full
+              ${
+                pathname.includes("/security/2fa")
+                  ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm"
+              }
+              ${isExpanded ? "justify-start" : "justify-center"}
+            `}
+          >
+            <ShieldCheck
+              className={`
+                h-5 w-5 flex-shrink-0 transition-all duration-300
+                ${
+                  pathname.includes("/security/2fa")
+                    ? "text-blue-600 scale-110"
+                    : "text-slate-400 group-hover:text-slate-600 group-hover:scale-110"
+                }
+              `}
+            />
+            {isExpanded && (
+              <span className="text-sm font-medium whitespace-nowrap">
+                Bảo mật 2FA
+              </span>
+            )}
+            {pathname.includes("/security/2fa") && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
+            )}
+          </a>
+
+          {/* Admin Section */}
+          {userDecode?.role === "Admin" && (
+            <div className="pt-4 mt-4 border-t border-slate-100">
+              {isExpanded && (
+                <p className="px-3 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider animate-in fade-in duration-500">
+                  System
+                </p>
+              )}
+              <div className="space-y-1">
+                {adminNavItems.map((item, i) => {
+                  const Icon = item.icon;
+                  const isActive = pathname === item.href;
+                  return (
+                    <a
+                      key={i}
+                      href={item.href}
+                      className={`
+                        relative flex gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 group overflow-hidden
+                        ${
+                          isActive
+                            ? "bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-100"
+                            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                        }
+                        ${isExpanded ? "justify-start" : "justify-center"}
+                      `}
+                    >
+                      {isActive && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-indigo-600 rounded-r-full" />
+                      )}
+                      <Icon
+                        className={`
+                          h-4.5 w-4.5 flex-shrink-0 transition-all duration-300
+                          ${
+                            isActive
+                              ? "text-indigo-600 scale-110"
+                              : "text-slate-400 group-hover:text-slate-600"
+                          }
+                        `}
+                      />
+                      {isExpanded && (
+                        <span className="text-sm font-medium whitespace-nowrap">
+                          {item.label}
+                        </span>
+                      )}
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </nav>
 
         {/* User Section - Synced with Dashboard Style */}
@@ -853,6 +965,31 @@ export function Sidebar() {
                   </div>
                 )}
               </div>
+
+              <a
+                href="/security/2fa"
+                onClick={() => setIsMobileOpen(false)}
+                className={`
+                  flex items-center gap-4 px-4 py-3.5 rounded-xl w-full transition-all duration-200 group relative
+                  ${
+                    pathname.includes("/security/2fa")
+                      ? "bg-blue-50 text-blue-700 font-semibold shadow-sm"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }
+                `}
+              >
+                {pathname.includes("/security/2fa") && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-blue-600 rounded-r-full"></div>
+                )}
+                <ShieldCheck
+                  className={`h-5 w-5 flex-shrink-0 transition-colors ${
+                    pathname.includes("/security/2fa")
+                      ? "text-blue-600"
+                      : "text-slate-400 group-hover:text-slate-600"
+                  }`}
+                />
+                <span className="text-base flex-1 text-left">Bảo mật 2FA</span>
+              </a>
             </nav>
 
             <div className="border-t border-slate-100 p-4 bg-slate-50/50">
@@ -879,6 +1016,41 @@ export function Sidebar() {
                 }
               />
             </div>
+
+            {/* Admin Mobile Section */}
+            {userDecode?.role === "Admin" && (
+              <div className="pt-4 mt-4 border-t border-slate-100">
+                <p className="px-4 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  System
+                </p>
+                <div className="space-y-1 px-2">
+                  {adminNavItems.map((item, i) => {
+                    const Icon = item.icon;
+                    const isActive = pathname.startsWith(item.href);
+                    return (
+                      <a
+                        key={i}
+                        href={item.href}
+                        onClick={() => setIsMobileOpen(false)}
+                        className={`
+                          flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200
+                          ${
+                            isActive
+                              ? "bg-indigo-50 text-indigo-700 font-semibold shadow-sm"
+                              : "text-slate-600 hover:bg-slate-50"
+                          }
+                        `}
+                      >
+                        <Icon
+                          className={`h-5 w-5 ${isActive ? "text-indigo-600" : "text-slate-400"}`}
+                        />
+                        <span className="text-base">{item.label}</span>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </aside>
         </>
       )}

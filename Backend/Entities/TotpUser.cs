@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Entities
 {
-    [Table("totp_user")]
+    [Table("totp_users")]
     [Index("UserId", Name = "UQ__TotpUser__UserId", IsUnique = true)]
     public partial class TotpUser
     {
@@ -36,5 +36,7 @@ namespace Backend.Entities
 
         [ForeignKey("UserId")]
         public virtual User User { get; set; } = null!;
+
+        public DateTime? SetupAt { get; set; }
     }
 }

@@ -27,6 +27,41 @@ namespace Backend.Domains.auth.Controllers
             _authService = authService;
         }
 
+
+        private async Task<User?> GetCurrentUserAsync()
+        {
+            var refreshToken = Request.Cookies["refreshToken"];
+            if (string.IsNullOrEmpty(refreshToken)) return null;
+            return await _authService.GetUserByRefreshTokenAsync(refreshToken);
+        }
+
+        /// <summary>
+        /// API MỚI: FE gọi hàm này đầu tiên khi vào trang Cài đặt 
+        /// để biết nên hiện nút "Tạo mới", "Tiếp tục tạo" hay "Đã bật"
+        /// </summary>
+        [HttpGet("status")]
+        public async Task<IActionResult> GetStatus()
+        {
+            var userFromDb = await GetCurrentUserAsync();
+            if (userFromDb == null) return Unauthorized();
+
+            var totpRecord = await _context.TotpUsers
+                .FirstOrDefaultAsync(x => x.UserId == userFromDb.UserId);
+
+            if (totpRecord == null)
+            {
+                return Ok(new { isEnabled = false, isPending = false, message = "Chưa thiết lập 2FA." });
+            }
+
+            return Ok(new
+            {
+                isEnabled = totpRecord.IsEnabled,
+                isPending = !totpRecord.IsEnabled, // Có record nhưng IsEnabled = false nghĩa là đang dở dang
+                setupAt = totpRecord.SetupAt,
+                verifiedAt = totpRecord.VerifiedAt
+            });
+        }
+
         /// <summary>
         /// API 1: Khởi tạo quá trình cài đặt 2FA
         /// Phương thức: POST /api/TwoFactorAuth/setup
@@ -34,19 +69,12 @@ namespace Backend.Domains.auth.Controllers
         [HttpPost("setup")]
         public async Task<IActionResult> Setup2FA()
         {
-            var refreshToken = Request.Cookies["refreshToken"];
-            if (string.IsNullOrEmpty(refreshToken))
-            {
-                return Unauthorized();
-            }
+            var userFromDb = await GetCurrentUserAsync();
 
-            var userFromDb = await _authService.GetUserByRefreshTokenAsync(refreshToken);
-            if (userFromDb == null)
-            {
-                return Unauthorized();
-            }
+            if (userFromDb == null) return Unauthorized();
 
-            var totpRecord = userFromDb.TotpUser;
+            var totpRecord = await _context.TotpUsers
+                            .FirstOrDefaultAsync(x => x.UserId == userFromDb.UserId);
 
             if (totpRecord != null && totpRecord.IsEnabled)
             {
@@ -64,14 +92,16 @@ namespace Backend.Domains.auth.Controllers
                     UserId = userFromDb.UserId,
                     SecretKey = secretKeyString,
                     IsEnabled = false,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    SetupAt = DateTime.UtcNow
                 };
                 _context.TotpUsers.Add(totpRecord);
             }
             else
             {
-                totpRecord.SecretKey = secretKeyString; // Cấp lại mã mới nếu họ request lại
-                totpRecord.CreatedAt = DateTime.UtcNow;
+                totpRecord.SecretKey = secretKeyString;
+                totpRecord.SetupAt = DateTime.UtcNow;
+                totpRecord.FailedAttempts = 0;
             }
 
             await _context.SaveChangesAsync();
@@ -93,17 +123,8 @@ namespace Backend.Domains.auth.Controllers
         [HttpPost("verify-setup")]
         public async Task<IActionResult> VerifySetup([FromBody] VerifySetupRequestDto request)
         {
-            var refreshToken = Request.Cookies["refreshToken"];
-            if (string.IsNullOrEmpty(refreshToken))
-            {
-                return Unauthorized();
-            }
-
-            var userFromDb = await _authService.GetUserByRefreshTokenAsync(refreshToken);
-            if (userFromDb == null)
-            {
-                return Unauthorized();
-            }
+            var userFromDb = await GetCurrentUserAsync();
+            if (userFromDb == null) return Unauthorized();
 
             var totpRecord = await _context.TotpUsers.FirstOrDefaultAsync(t => t.UserId == userFromDb.UserId);
 
@@ -144,9 +165,63 @@ namespace Backend.Domains.auth.Controllers
             }
         }
 
+
+        /// <summary>
+        /// API 3: Xác thực mã OTP cho các tác vụ quan trọng (Ký duyệt, Đăng nhập...)
+        /// Phương thức: POST /api/TwoFactor/verify-action
+        /// </summary>
+        [HttpPost("verify-action")]
+        public async Task<IActionResult> VerifyAction([FromBody] VerifySetupRequestDto request)
+        {
+            var userFromDb = await GetCurrentUserAsync();
+            if (userFromDb == null) return Unauthorized();
+
+            var totpRecord = await _context.TotpUsers.FirstOrDefaultAsync(t => t.UserId == userFromDb.UserId);
+
+            // Kiểm tra xem user đã thực sự bật 2FA chưa. Nếu chưa bật mà đòi xác thực thì chặn ngay.
+            if (totpRecord == null || !totpRecord.IsEnabled)
+            {
+                return BadRequest(new { message = "Tài khoản chưa bật tính năng xác thực 2 lớp." });
+            }
+
+            try
+            {
+                var secretBytes = Base32Encoding.ToBytes(totpRecord.SecretKey);
+                var totp = new Totp(secretBytes);
+
+                // Kiểm tra mã OTP
+                bool isValid = totp.VerifyTotp(request.OtpCode, out long timeWindowUsed, window: null);
+
+                if (isValid)
+                {
+                    // (Tuỳ chọn) Nếu trước đó họ nhập sai nhiều lần, giờ nhập đúng thì reset bộ đếm về 0
+                    if (totpRecord.FailedAttempts > 0)
+                    {
+                        totpRecord.FailedAttempts = 0;
+                        await _context.SaveChangesAsync();
+                    }
+
+                    // Trả về true để Frontend biết mà gọi tiếp API duyệt phiếu
+                    return Ok(new { success = true, message = "Xác thực OTP thành công!" });
+                }
+                else
+                {
+                    // (Tuỳ chọn nâng cao) Tăng biến đếm số lần nhập sai lên 1 để chống brute-force
+                    totpRecord.FailedAttempts += 1;
+                    await _context.SaveChangesAsync();
+
+                    return BadRequest(new { message = "Mã OTP không chính xác hoặc đã hết hạn." });
+                }
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Lỗi hệ thống khi kiểm tra mã OTP." });
+            }
+        }
+
+
         public class VerifySetupRequestDto
         {
-            public int UserId { get; set; }
             public string OtpCode { get; set; } = null!;
         }
     }
