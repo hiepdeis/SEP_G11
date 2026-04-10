@@ -87,7 +87,9 @@ export default function ProjectsPage() {
     
     try {
       setIsSaving(true);
-      await projectService.update(editingProject.projectId, {
+      await projectService.save({
+        projectId: editingProject.projectId,
+        code: editingProject.code,
         name: editingProject.name,
         startDate: editingProject.startDate,
         endDate: editingProject.endDate,
