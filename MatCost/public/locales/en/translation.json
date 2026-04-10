@@ -1196,5 +1196,6 @@
   "Select a Category": "Select a Category",
   "MatCost Management System": "MatCost Management System",
   "Materials": "Materials",
-  "e.g., Admin": "e.g., Admin"
+  "e.g., Admin": "e.g., Admin",
+  "Delete Failed, Item is already used in other modules": "Delete Failed, Item is already used in other modules"
 }

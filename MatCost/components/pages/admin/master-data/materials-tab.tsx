@@ -212,7 +212,9 @@ export function MaterialsTab() {
           setItems((prev) => prev.filter((i) => i._id !== id));
           toast.success(t("Delete Successful"));
         } catch (error) {
-          toast.error(t("Delete Failed"));
+          toast.error(
+            t("Delete Failed, Item is already used in other modules"),
+          );
         } finally {
           setDeletingId(null);
         }
