@@ -48,6 +48,8 @@ interface ReceiveItemInput {
   passQuantity: number;
   failQuantity: number;
   failReason: string;
+  unit: string;
+  isDecimalUnit: boolean;
 }
 
 export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
@@ -110,6 +112,8 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
               ),
               failQuantity: 0,
               failReason: "",
+              unit: i.unit || "",
+              isDecimalUnit: i.isDecimalUnit || false,
             }),
           );
           setItems(mappedItems);
@@ -495,7 +499,8 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
 
                             <TableCell className="text-center pt-5 flex align-center justify-center">
                               <span className="font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
-                                {formatQuantity(item.orderedQuantity)}
+                                {formatQuantity(item.orderedQuantity)}{" "}
+                                {item.unit}
                               </span>
                             </TableCell>
 
@@ -516,7 +521,9 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                                   ) {
                                     val = val.replace(/^0+/, "") || "0";
                                   }
-                                  if (val.includes(".")) {
+                                  if (!item.isDecimalUnit) {
+                                    val = val.replace(/\./g, "");
+                                  } else if (val.includes(".")) {
                                     const parts = val.split(".");
                                     val = parts[0] + "." + parts[1].slice(0, 3);
                                   }
@@ -547,7 +554,9 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                                   ) {
                                     val = val.replace(/^0+/, "") || "0";
                                   }
-                                  if (val.includes(".")) {
+                                  if (!item.isDecimalUnit) {
+                                    val = val.replace(/\./g, "");
+                                  } else if (val.includes(".")) {
                                     const parts = val.split(".");
                                     val = parts[0] + "." + parts[1].slice(0, 3);
                                   }

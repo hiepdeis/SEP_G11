@@ -16,6 +16,8 @@ interface ReceiptItem {
   passQuantity: number;
   failQuantity: number;
   failReason: string;
+  unit: string;
+  isDecimalUnit: boolean;
 }
 
 interface Order {
