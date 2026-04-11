@@ -54,6 +54,8 @@ namespace Backend.Domains.Import.DTOs.Purchasing
         public int MaterialId { get; set; }
         public string MaterialCode { get; set; } = string.Empty;
         public string MaterialName { get; set; } = string.Empty;
+        public string? Unit { get; set; }
+        public bool? IsDecimalUnit { get; set; }
         public decimal OrderedQuantity { get; set; }
         public decimal? UnitPrice { get; set; }
         public decimal? LineTotal { get; set; }
