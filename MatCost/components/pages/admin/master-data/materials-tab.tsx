@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -97,10 +98,12 @@ export function MaterialsTab() {
               unit: item.unit ?? "",
               massPerUnit: item.massPerUnit ?? null,
               minStockLevel: item.minStockLevel ?? null,
+              maxStockLevel: item.maxStockLevel ?? null,
               categoryId: item.categoryId ?? null,
               unitPrice: item.unitPrice ?? null,
               technicalStandard: item.technicalStandard ?? "",
               specification: item.specification ?? "",
+              isDecimalUnit: item.isDecimalUnit ?? false,
             })),
           );
           setLoading(false);
@@ -138,6 +141,7 @@ export function MaterialsTab() {
     setEditing({
       categoryId: categories[0]?.categoryId || null,
       unit: MATERIAL_UNIT_OPTIONS[0].value,
+      isDecimalUnit: false,
     });
     setModalOpen(true);
   };
@@ -155,22 +159,36 @@ export function MaterialsTab() {
 
   const save = async () => {
     if (!editing) return;
-    const normalized = canonicalizeMaterialUnit(editing.unit ?? "");
-    if (!editing.code || !editing.name || !normalized) {
-      toast.error(t("Please enter code, name and a valid unit"));
+    const unit = editing.unit?.trim() || "";
+    if (!editing.code || !editing.name || !unit) {
+      toast.error(t("Please enter code, name and unit"));
+      return;
+    }
+    if (!editing.massPerUnit) {
+      toast.error(t("Please enter mass per unit"));
+      return;
+    }
+    if (!editing.minStockLevel) {
+      toast.error(t("Please enter min stock level"));
+      return;
+    }
+    if (!editing.unitPrice) {
+      toast.error(t("Please enter unit price"));
       return;
     }
 
     const payload = {
       code: editing.code.toUpperCase(),
       name: editing.name,
-      unit: normalized,
+      unit: unit,
       massPerUnit: editing.massPerUnit ?? null,
       minStockLevel: editing.minStockLevel ?? null,
+      maxStockLevel: editing.maxStockLevel ?? null,
       categoryId: editing.categoryId ?? null,
       unitPrice: editing.unitPrice ?? null,
       technicalStandard: editing.technicalStandard ?? "",
       specification: editing.specification ?? "",
+      isDecimalUnit: editing.isDecimalUnit ?? false,
     };
 
     try {
@@ -229,7 +247,7 @@ export function MaterialsTab() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex-none flex flex-wrap items-center gap-3 sticky top-0 z-10 bg-slate-50 py-2">
+      <div className="flex-none flex flex-wrap items-center gap-3 sticky top-0 z-10 py-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
@@ -244,7 +262,7 @@ export function MaterialsTab() {
         </div>
 
         <Select value={catFilter} onValueChange={setCatFilter}>
-          <SelectTrigger className="w-[180px] bg-white">
+          <SelectTrigger className="w-[180px] bg-white border-slate-300">
             <SelectValue placeholder={t("All categories")} />
           </SelectTrigger>
           <SelectContent>
@@ -267,7 +285,6 @@ export function MaterialsTab() {
           <Table>
             <TableHeader className="sticky top-0 z-20 bg-gray-50 shadow-sm outline outline-1 outline-gray-200">
               <TableRow className="bg-gray-50 border-none">
-                <TableHead className="sticky top-0 z-20 bg-gray-50 w-10"></TableHead>
                 <TableHead className="sticky top-0 z-20 bg-gray-50 px-5 text-[10px] text-gray-500 uppercase tracking-wider">
                   {t("Code")}
                 </TableHead>
@@ -301,9 +318,6 @@ export function MaterialsTab() {
               ) : (
                 paginated.map((item) => (
                   <TableRow key={item._id} className="hover:bg-gray-50/50">
-                    <TableCell className="px-5 py-3">
-                      <Package className="w-4 h-4 text-gray-400" />
-                    </TableCell>
                     <TableCell className="px-5 py-3 text-sm">
                       <Badge
                         variant="outline"
@@ -409,185 +423,216 @@ export function MaterialsTab() {
 
       <Dialog open={modalOpen} onOpenChange={(val) => !val && closeModal()}>
         {editing && (
-          <DialogContent className="sm:max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-bold text-gray-900">
+          <DialogContent className="sm:max-w-xl p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950">
+            <DialogHeader className="px-6 py-4 border-b border-gray-100 dark:border-slate-800">
+              <DialogTitle className="font-bold text-gray-900 dark:text-slate-100">
                 {editing._id ? t("Edit Material") : t("Add New Material")}
               </DialogTitle>
             </DialogHeader>
 
-            <div className="flex-grow overflow-y-auto px-1 py-4">
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold text-gray-500 uppercase">
-                      {t("Material Code")} *
-                    </Label>
-                    <Input
-                      value={editing.code || ""}
-                      onChange={(e) =>
-                        setEditing((prev) => ({
-                          ...prev,
-                          code: e.target.value.toUpperCase(),
-                        }))
-                      }
-                      placeholder="EX: MAT001"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold text-gray-500 uppercase">
-                      {t("Category")} *
-                    </Label>
-                    <Select
-                      value={
-                        editing.categoryId ? String(editing.categoryId) : ""
-                      }
-                      onValueChange={(val) =>
-                        setEditing((prev) => ({
-                          ...prev,
-                          categoryId: Number(val),
-                        }))
-                      }
-                    >
-                      <SelectTrigger className="w-full border border-slate-300">
-                        <SelectValue placeholder={t("Select...")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((c) => (
-                          <SelectItem
-                            key={c.categoryId}
-                            value={String(c.categoryId)}
-                          >
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
+            <div className="p-6 space-y-5">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold text-gray-500 uppercase">
-                    {t("Material Name")} *
+                  <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    {t("Material Code")} *
                   </Label>
                   <Input
-                    value={editing.name || ""}
+                    value={editing.code || ""}
                     onChange={(e) =>
                       setEditing((prev) => ({
-                        ...prev,
-                        name: e.target.value,
+                        ...prev!,
+                        code: e.target.value.toUpperCase(),
                       }))
                     }
-                    placeholder={t("Enter material name")}
+                    placeholder="EX: MAT001"
+                    className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    {t("Category")} *
+                  </Label>
+                  <Select
+                    value={editing.categoryId ? String(editing.categoryId) : ""}
+                    onValueChange={(val) =>
+                      setEditing((prev) => ({
+                        ...prev!,
+                        categoryId: Number(val),
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800 w-full">
+                      <SelectValue placeholder={t("Select...")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((c) => (
+                        <SelectItem
+                          key={c.categoryId}
+                          value={String(c.categoryId)}
+                        >
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold text-gray-500 uppercase">
-                      {t("Unit")} *
-                    </Label>
-                    <Select
-                      value={editing.unit || ""}
-                      onValueChange={(val) =>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  {t("Material Name")} *
+                </Label>
+                <Input
+                  value={editing.name || ""}
+                  onChange={(e) =>
+                    setEditing((prev) => ({
+                      ...prev!,
+                      name: e.target.value,
+                    }))
+                  }
+                  placeholder={t("Enter material name")}
+                  className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2 col-span-1">
+                  <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    {t("Unit")} *
+                  </Label>
+                  <Input
+                    value={editing.unit || ""}
+                    onChange={(e) =>
+                      setEditing((prev) => ({
+                        ...prev!,
+                        unit: e.target.value,
+                      }))
+                    }
+                    placeholder="EX: kg, cái..."
+                    className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
+                  />
+                  <div className="flex items-center space-x-2 pt-1">
+                    <Checkbox
+                      id="isDecimalUnitTab"
+                      checked={editing.isDecimalUnit || false}
+                      onCheckedChange={(val) =>
                         setEditing((prev) => ({
-                          ...prev,
-                          unit: val,
+                          ...prev!,
+                          isDecimalUnit: !!val,
                         }))
                       }
+                    />
+                    <Label
+                      htmlFor="isDecimalUnitTab"
+                      className="text-[10px] font-bold text-gray-400 uppercase cursor-pointer"
                     >
-                      <SelectTrigger className="w-full border border-slate-300">
-                        <SelectValue placeholder={t("Select...")} />
-                      </SelectTrigger>
-                      <SelectContent showSearch>
-                        {MATERIAL_UNIT_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>
-                            {o.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold text-gray-500 uppercase">
-                      {t("Mass/Unit")} *
+                      {t("Decimal Unit")}
                     </Label>
-                    <QuantityInput
-                      value={editing.massPerUnit}
-                      onValueChange={(val) =>
-                        setEditing((prev) => ({ ...prev!, massPerUnit: val }))
-                      }
-                      placeholder={t("Enter mass...")}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold text-gray-500 uppercase">
-                      {t("Min Stock")} *
-                    </Label>
-                    <QuantityInput
-                      value={editing.minStockLevel}
-                      onValueChange={(val) =>
-                        setEditing((prev) => ({ ...prev!, minStockLevel: val }))
-                      }
-                      maxLength={12}
-                    />
                   </div>
                 </div>
-
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold text-gray-500 uppercase">
-                    {t("Price (VND)")} *
+                  <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    {t("Mass/Unit")} *
+                  </Label>
+                  <QuantityInput
+                    value={editing.massPerUnit}
+                    onValueChange={(val) =>
+                      setEditing((prev) => ({ ...prev!, massPerUnit: val }))
+                    }
+                    placeholder={t("Enter mass...")}
+                    className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    {t("Price")} *
                   </Label>
                   <CurrencyInput
                     value={editing.unitPrice}
                     onValueChange={(val) =>
                       setEditing((prev) => ({ ...prev!, unitPrice: val }))
                     }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-gray-500 uppercase">
-                    {t("Technical Standard")}
-                  </Label>
-                  <Input
-                    value={editing.technicalStandard || ""}
-                    onChange={(e) =>
-                      setEditing((prev) => ({
-                        ...prev,
-                        technicalStandard: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-gray-500 uppercase">
-                    {t("Specification")}
-                  </Label>
-                  <Textarea
-                    value={editing.specification || ""}
-                    onChange={(e) =>
-                      setEditing((prev) => ({
-                        ...prev,
-                        specification: e.target.value,
-                      }))
-                    }
-                    rows={3}
-                    className="resize-none border border-slate-300"
+                    className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
                   />
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    {t("Min Stock")} *
+                  </Label>
+                  <QuantityInput
+                    value={editing.minStockLevel}
+                    onValueChange={(val) =>
+                      setEditing((prev) => ({ ...prev!, minStockLevel: val }))
+                    }
+                    precision={editing.isDecimalUnit ? 3 : 0}
+                    className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    {t("Max Stock")}
+                  </Label>
+                  <QuantityInput
+                    value={editing.maxStockLevel}
+                    onValueChange={(val) =>
+                      setEditing((prev) => ({ ...prev!, maxStockLevel: val }))
+                    }
+                    precision={editing.isDecimalUnit ? 3 : 0}
+                    className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  {t("Technical Standard")}
+                </Label>
+                <Input
+                  value={editing.technicalStandard || ""}
+                  onChange={(e) =>
+                    setEditing((prev) => ({
+                      ...prev!,
+                      technicalStandard: e.target.value,
+                    }))
+                  }
+                  className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  {t("Specification")}
+                </Label>
+                <Textarea
+                  value={editing.specification || ""}
+                  onChange={(e) =>
+                    setEditing((prev) => ({
+                      ...prev!,
+                      specification: e.target.value,
+                    }))
+                  }
+                  rows={2}
+                  className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800 resize-none"
+                />
+              </div>
             </div>
 
-            <DialogFooter className="gap-2 border-t pt-4">
-              <Button variant="outline" onClick={closeModal} disabled={saving}>
+            <DialogFooter className="px-6 py-4 bg-gray-50 dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800">
+              <Button
+                variant="ghost"
+                onClick={closeModal}
+                disabled={saving}
+                className="font-medium text-gray-500"
+              >
                 {t("Cancel")}
               </Button>
               <Button
                 onClick={save}
                 disabled={saving}
-                className="bg-indigo-600 hover:bg-indigo-700"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-all shadow-lg shadow-indigo-100 dark:shadow-none"
               >
                 {saving ? t("Saving...") : t("Save")}
               </Button>

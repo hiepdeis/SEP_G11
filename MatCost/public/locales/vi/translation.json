@@ -1199,5 +1199,6 @@
   "MatCost Management System": "Hệ thống quản lý MatCost",
   "Materials": "Vật liệu",
   "e.g., Admin": "VD: Quản trị viên",
-  "Delete Failed, Item is already used in other modules": "Xóa thất bại, Vật tư đã được sử dụng trong các module khác"
+  "Delete Failed, Item is already used in other modules": "Xóa thất bại, Vật tư đã được sử dụng trong các module khác",
+  "Check for Stock to be Decimal": "Tích chọn nếu tồn kho là số thập phân"
 }

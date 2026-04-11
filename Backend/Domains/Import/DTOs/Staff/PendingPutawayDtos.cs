@@ -8,6 +8,8 @@ namespace Backend.Domains.Import.DTOs.Staff
         public string SupplierName { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
+        public int WarehouseId { get; set; }
+        public string WarehouseName { get; set; } = string.Empty;
         public List<PendingPutawayItemDto> Items { get; set; } = new();
     }
 

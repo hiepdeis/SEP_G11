@@ -235,7 +235,7 @@ export function ProjectsTab() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex-none flex flex-wrap items-center gap-3 sticky top-0 z-10 bg-slate-50 py-2">
+      <div className="flex-none flex flex-wrap items-center gap-3 sticky top-0 z-10 py-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
@@ -383,7 +383,7 @@ export function ProjectsTab() {
 
       <Dialog open={modalOpen} onOpenChange={(val) => !val && closeModal()}>
         {editing && (
-          <DialogContent className="sm:max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+          <DialogContent className="sm:max-w-lg overflow-hidden flex flex-col max-h-[90vh] bg-white">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold text-gray-900">
                 {editing._id ? t("Edit Project") : t("Add New Project")}

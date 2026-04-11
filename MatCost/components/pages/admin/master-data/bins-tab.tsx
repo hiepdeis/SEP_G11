@@ -191,7 +191,7 @@ export function BinsTab() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex-none flex flex-wrap items-center gap-3 sticky top-0 z-10 bg-slate-50 py-2">
+      <div className="flex-none flex flex-wrap items-center gap-3 sticky top-0 z-10 py-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input

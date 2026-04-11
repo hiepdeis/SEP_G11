@@ -1,7 +1,14 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { Search, Plus, Edit2, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Edit2,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -163,7 +170,7 @@ export function CategoriesTab() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex-none flex flex-wrap items-center gap-3 sticky top-0 z-10 bg-slate-50 py-2">
+      <div className="flex-none flex flex-wrap items-center gap-3 sticky top-0 z-10 py-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
@@ -173,7 +180,7 @@ export function CategoriesTab() {
               setPage(1);
             }}
             placeholder={t("Search...")}
-            className="pl-10 m-2 bg-white"
+            className="pl-10 bg-white m-2"
           />
         </div>
         <Button onClick={openAdd} className="bg-indigo-600 hover:bg-indigo-700">
@@ -284,7 +291,7 @@ export function CategoriesTab() {
 
       <Dialog open={modalOpen} onOpenChange={(val) => !val && closeModal()}>
         {editing && (
-          <DialogContent className="sm:max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+          <DialogContent className="sm:max-w-lg overflow-hidden flex flex-col max-h-[90vh] bg-white">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold text-gray-900">
                 {editing._id ? t("Edit") : t("Add New")}
@@ -293,11 +300,12 @@ export function CategoriesTab() {
 
             <div className="flex-grow overflow-y-auto px-1 py-4">
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>{t("Code")} *</Label>
-                    <input
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-all"
+                    <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      {t("Code")} *
+                    </Label>
+                    <Input
                       value={editing.code || ""}
                       onChange={(e) =>
                         setEditing((prev) => ({
@@ -305,12 +313,14 @@ export function CategoriesTab() {
                           code: e.target.value.toUpperCase(),
                         }))
                       }
+                      placeholder={t("e.g. CAT01")}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>{t("Name")} *</Label>
-                    <input
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-all"
+                    <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      {t("Name")} *
+                    </Label>
+                    <Input
                       value={editing.name || ""}
                       onChange={(e) =>
                         setEditing((prev) => ({
@@ -318,12 +328,16 @@ export function CategoriesTab() {
                           name: e.target.value,
                         }))
                       }
+                      placeholder={t("Category Name")}
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>{t("Description")}</Label>
+                  <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    {t("Description")}
+                  </Label>
                   <Textarea
+                    className="border-slate-300"
                     value={editing.description || ""}
                     onChange={(e) =>
                       setEditing((prev) => ({

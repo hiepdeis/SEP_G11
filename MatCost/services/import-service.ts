@@ -782,6 +782,8 @@ export interface PendingPutawayReceiptDto {
   supplierName: string;
   status: string;
   createdAt: string;
+  warehouseId: number;
+  warehouseName: string;
   items: PendingPutawayItemDto[];
 }
 

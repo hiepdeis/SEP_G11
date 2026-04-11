@@ -59,8 +59,10 @@ export interface Material extends BaseItem {
   unit: string;
   massPerUnit: number | null;
   minStockLevel: number | null;
+  maxStockLevel: number | null;
   categoryId: number | null;
   unitPrice: number | null;
   technicalStandard: string;
   specification: string;
+  isDecimalUnit: boolean;
 }

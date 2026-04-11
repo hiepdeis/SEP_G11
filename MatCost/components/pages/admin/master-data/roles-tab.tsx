@@ -1,7 +1,14 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { Search, Plus, Edit2, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Edit2,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -66,7 +73,10 @@ export function RolesTab() {
   }, [t]);
 
   const filtered = useMemo(
-    () => items.filter((i) => i.roleName.toLowerCase().includes(search.toLowerCase())),
+    () =>
+      items.filter((i) =>
+        i.roleName.toLowerCase().includes(search.toLowerCase()),
+      ),
     [items, search],
   );
 
@@ -145,7 +155,7 @@ export function RolesTab() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex-none flex flex-wrap items-center gap-3 sticky top-0 z-10 bg-slate-50 py-2">
+      <div className="flex-none flex flex-wrap items-center gap-3 sticky top-0 z-10 py-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
@@ -169,7 +179,7 @@ export function RolesTab() {
             <TableHeader className="sticky top-0 z-20 bg-gray-50 shadow-sm outline outline-1 outline-gray-200">
               <TableRow className="bg-gray-50 border-none">
                 <TableHead className="sticky top-0 z-20 bg-gray-50 px-5 text-[10px] text-gray-500 uppercase tracking-wider">
-                  {t("Role ID")}
+                  {t("ID")}
                 </TableHead>
                 <TableHead className="sticky top-0 z-20 bg-gray-50 px-5 text-[10px] text-gray-500 uppercase tracking-wider">
                   {t("Role Name")}
@@ -190,14 +200,14 @@ export function RolesTab() {
                   </TableCell>
                 </TableRow>
               ) : (
-                paginated.map((item) => (
+                paginated.map((item, idx) => (
                   <TableRow key={item._id} className="hover:bg-gray-50/50">
                     <TableCell className="px-5 py-3 text-sm">
                       <Badge
                         variant="outline"
                         className="text-gray-500 bg-gray-50 font-mono"
                       >
-                        #{item._id}
+                        #{idx + 1}
                       </Badge>
                     </TableCell>
                     <TableCell className="px-5 py-3 text-sm">

@@ -45,6 +45,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PutawayExcelHandler } from "@/components/ui/custom/putaway-xlxs";
+import { formatQuantity } from "@/lib/format-quantity";
 
 interface PutawayBinInput {
   id: string;
@@ -396,7 +397,10 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                   {t("Inventory Putaway")}
                 </h1>
                 <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
-                  {receipt.supplierName || t("Warehouse")}
+                  {receipt.warehouseName || t("Warehouse")}
+                </Badge>
+                <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
+                  {receipt.supplierName || t("Supplier")}
                 </Badge>
               </div>
             </div>
@@ -435,7 +439,7 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                     item.binAllocations,
                   );
                   const isQtyMatched =
-                    Math.abs(totalAllocated - item.passQuantity) < 0.0001;
+                    Math.abs(totalAllocated - item.passQuantity) < 0.001;
 
                   return (
                     <Card
@@ -682,16 +686,21 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                                                   showSearch
                                                   className="max-h-[200px]"
                                                 >
-                                                  {binLocations.map(
-                                                    (location) => (
+                                                  {binLocations
+                                                    .filter(
+                                                      (bin) =>
+                                                        bin.warehouse
+                                                          .warehouseId ===
+                                                        receipt.warehouseId,
+                                                    )
+                                                    .map((location) => (
                                                       <SelectItem
                                                         key={location.binId}
                                                         value={location.binId.toString()}
                                                       >
                                                         {location.code}
                                                       </SelectItem>
-                                                    ),
-                                                  )}
+                                                    ))}
                                                 </SelectContent>
                                               </Select>
                                             </div>
@@ -832,10 +841,10 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                                         : "text-rose-600"
                                     }
                                   >
-                                    {totalAllocated}
+                                    {formatQuantity(totalAllocated)}
                                   </span>
                                   <span className="text-slate-400 font-medium text-sm">
-                                    / {item.passQuantity}
+                                    / {formatQuantity(item.passQuantity)}
                                   </span>
                                 </div>
                               </div>

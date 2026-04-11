@@ -1,26 +1,24 @@
-﻿namespace Backend.Domains.Admin.Dtos
+namespace Backend.Domains.Admin.Dtos
 {
     public class MaterialListItemDto
     {
-        // ===== Material info =====
         public int MaterialId { get; set; }
         public string Code { get; set; } = null!;
         public string Name { get; set; } = null!;
         public string Unit { get; set; } = null!;
         public decimal? MassPerUnit { get; set; }
         public decimal? MinStockLevel { get; set; }
+        public decimal? MaxStockLevel { get; set; }
         public int? CategoryId { get; set; }
         public string? CategoryName { get; set; }
         public decimal? UnitPrice { get; set; }
         public string? TechnicalStandard { get; set; }
         public string? Specification { get; set; }
-
+        public bool IsDecimalUnit { get; set; }
         public decimal TotalOnHand { get; set; }
         public decimal TotalAllocated { get; set; }
         public decimal Available => TotalOnHand - TotalAllocated;
         public bool IsLowStock => MinStockLevel.HasValue && Available <= MinStockLevel.Value;
-
-        // ===== Inventory group info =====
         public int? WarehouseId { get; set; }
         public string? WarehouseName { get; set; }
         public List<MaterialInventoryItemDto> Rows { get; set; } = new();
@@ -34,12 +32,13 @@
         public string Unit { get; set; } = null!;
         public decimal? MassPerUnit { get; set; }
         public decimal? MinStockLevel { get; set; }
+        public decimal? MaxStockLevel { get; set; }
         public int? CategoryId { get; set; }
         public string? CategoryName { get; set; }
         public decimal? UnitPrice { get; set; }
         public string? TechnicalStandard { get; set; }
         public string? Specification { get; set; }
-
+        public bool IsDecimalUnit { get; set; }
         public decimal TotalOnHand { get; set; }
         public decimal TotalAllocated { get; set; }
         public decimal Available { get; set; }
@@ -52,10 +51,12 @@
         public string Unit { get; set; } = null!;
         public decimal? MassPerUnit { get; set; }
         public decimal? MinStockLevel { get; set; }
+        public decimal? MaxStockLevel { get; set; }
         public int? CategoryId { get; set; }
         public decimal? UnitPrice { get; set; }
         public string? TechnicalStandard { get; set; }
         public string? Specification { get; set; }
+        public bool IsDecimalUnit { get; set; }
     }
 
     public sealed class UpdateMaterialRequest
@@ -65,10 +66,12 @@
         public string Unit { get; set; } = null!;
         public decimal? MassPerUnit { get; set; }
         public decimal? MinStockLevel { get; set; }
+        public decimal? MaxStockLevel { get; set; }
         public int? CategoryId { get; set; }
         public decimal? UnitPrice { get; set; }
         public string? TechnicalStandard { get; set; }
         public string? Specification { get; set; }
+        public bool IsDecimalUnit { get; set; }
     }
 
     public sealed class GetMaterialsQuery

@@ -56,6 +56,7 @@ import {
 } from "@/components/ui/dialog";
 import { ImageGallery } from "@/components/ui/custom/image-gallery";
 import { formatDateTime } from "@/lib/format-date-time";
+import { formatQuantity } from "@/lib/format-quantity";
 
 export default function ManagerIncidentDetailPage() {
   const { t } = useTranslation();
@@ -579,9 +580,11 @@ export default function ManagerIncidentDetailPage() {
 
                               <TableCell className="text-center align-top pt-4">
                                 <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-rose-200 shadow-sm">
-                                  {item.failQuantityQuantity +
-                                    item.failQuantityQuality +
-                                    item.failQuantityDamage}
+                                  {formatQuantity(
+                                    item.failQuantityQuantity +
+                                      item.failQuantityQuality +
+                                      item.failQuantityDamage,
+                                  )}
                                 </Badge>
                               </TableCell>
 

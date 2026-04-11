@@ -377,5 +377,61 @@ namespace Backend.Domains.Admin.Controllers
 
             return Ok(new { message = "Project deleted successfully." });
         }
+
+        
+        // =========================================================
+        // SUPPLIER CONTRACT
+        // =========================================================
+
+        [HttpGet("supplier-contracts")]
+        public async Task<IActionResult> GetSupplierContracts([FromQuery] MasterDataQueryDto query, CancellationToken ct)
+        {
+            var result = await _service.GetSupplierContractsAsync(query, ct);
+            return Ok(result);
+        }
+
+        [HttpGet("supplier-contracts/{id:int}")]
+        public async Task<IActionResult> GetSupplierContractById(int id, CancellationToken ct)
+        {
+            var result = await _service.GetSupplierContractByIdAsync(id, ct);
+            if (result == null)
+                return NotFound(new { message = "Supplier contract not found." });
+
+            return Ok(result);
+        }
+
+        [HttpPost("supplier-contracts")]
+        public async Task<IActionResult> CreateSupplierContract([FromBody] UpsertSupplierContractDto request, CancellationToken ct)
+        {
+            var id = await _service.CreateSupplierContractAsync(request, ct);
+            return Ok(new { message = "Supplier contract created successfully.", id });
+        }
+
+        [HttpPut("supplier-contracts/{id:int}")]
+        public async Task<IActionResult> UpdateSupplierContract(int id, [FromBody] UpsertSupplierContractDto request, CancellationToken ct)
+        {
+            var ok = await _service.UpdateSupplierContractAsync(id, request, ct);
+            if (!ok)
+                return NotFound(new { message = "Supplier contract not found." });
+
+            return Ok(new { message = "Supplier contract updated successfully." });
+        }
+
+        [HttpDelete("supplier-contracts/{id:int}")]
+        public async Task<IActionResult> DeleteSupplierContract(int id, CancellationToken ct)
+        {
+            var ok = await _service.DeleteSupplierContractAsync(id, ct);
+            if (!ok)
+                return NotFound(new { message = "Supplier contract not found." });
+
+            return Ok(new { message = "Supplier contract deleted successfully." });
+        }
+
+        [HttpGet("supplier-contracts/supplier/{supplierId:int}")]
+        public async Task<IActionResult> GetSupplierContractsBySupplierId(int supplierId, CancellationToken ct)
+        {
+            var result = await _service.GetSupplierContractsBySupplierIdAsync(supplierId, ct);
+            return Ok(result);
+        }
     }
 }

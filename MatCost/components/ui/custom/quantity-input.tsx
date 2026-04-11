@@ -43,9 +43,11 @@ export function QuantityInput({
     
     // Pattern to filter numeric chars + dot
     let sanitized = raw.replace(/[^\d.]/g, "");
-    
+
     // Enforce precision
-    if (sanitized.includes(".")) {
+    if (precision === 0) {
+      sanitized = sanitized.replace(".", "");
+    } else if (sanitized.includes(".")) {
       const [int, dec] = sanitized.split(".");
       sanitized = `${int}.${dec.slice(0, precision)}`;
     }

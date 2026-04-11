@@ -700,6 +700,7 @@ namespace Backend.Domains.Import.Services
                     .ThenInclude(o => o!.Supplier)
                 .Include(r => r.ReceiptDetails)
                     .ThenInclude(rd => rd.Material)
+                .Include(r => r.Warehouse)
                 .Include(r => r.QCChecks)
                     .ThenInclude(q => q.QCCheckDetails)
                 .Where(r => r.Status == "QCPassed" || r.Status == "ReadyForPutaway")
@@ -753,6 +754,8 @@ namespace Backend.Domains.Import.Services
                     SupplierName = receipt.PurchaseOrder?.Supplier?.Name ?? string.Empty,
                     CreatedAt = receipt.ReceiptDate ?? receipt.ApprovedAt ?? receipt.ConfirmedAt ?? DateTime.MinValue,
                     Status = receipt.Status ?? string.Empty,
+                    WarehouseId = receipt.WarehouseId ?? 0,
+                    WarehouseName = receipt.Warehouse?.Name ?? string.Empty,
                     Items = items
                 });
             }
@@ -767,6 +770,7 @@ namespace Backend.Domains.Import.Services
                     .ThenInclude(o => o!.Supplier)
                 .Include(r => r.ReceiptDetails)
                     .ThenInclude(rd => rd.Material)
+                .Include(r => r.Warehouse)
                 .Include(r => r.QCChecks)
                     .ThenInclude(q => q.QCCheckDetails)
                 .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
@@ -820,6 +824,8 @@ namespace Backend.Domains.Import.Services
                 PurchaseOrderCode = receipt.PurchaseOrder?.PurchaseOrderCode ?? string.Empty,
                 SupplierName = receipt.PurchaseOrder?.Supplier?.Name ?? string.Empty,
                 Status = receipt.Status ?? string.Empty,
+                WarehouseId = receipt.WarehouseId ?? 0,
+                WarehouseName = receipt.Warehouse?.Name ?? string.Empty,
                 Items = items
             };
         }

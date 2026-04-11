@@ -208,7 +208,7 @@ namespace Backend.Domains.Import.Services
             return null;
         }
 
-        private static string? CalculatePriority(decimal currentQuantity, int minStockLevel)
+        private static string? CalculatePriority(decimal currentQuantity, decimal minStockLevel)
         {
             if (minStockLevel <= 0)
                 return null;

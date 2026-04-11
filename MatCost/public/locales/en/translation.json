@@ -1197,5 +1197,6 @@
   "MatCost Management System": "MatCost Management System",
   "Materials": "Materials",
   "e.g., Admin": "e.g., Admin",
-  "Delete Failed, Item is already used in other modules": "Delete Failed, Item is already used in other modules"
+  "Delete Failed, Item is already used in other modules": "Delete Failed, Item is already used in other modules",
+  "Check for Stock to be Decimal": "Check for Stock to be Decimal"
 }

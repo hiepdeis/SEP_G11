@@ -200,4 +200,40 @@ namespace Backend.Domains.Admin.Dtos
         public decimal OrderedQuantity { get; set; }
         public decimal? TotalAmount { get; set; }
     }
+
+    // =========================
+    // SUPPLIER CONTRACT
+    // =========================
+
+    public sealed class SupplierContractDto
+    {
+        public long ContractId { get; set; }
+        public string ContractCode { get; set; } = null!;
+        public string? ContractNumber { get; set; }
+        public int SupplierId { get; set; }
+        public string? SupplierName { get; set; }
+        public DateTime EffectiveFrom { get; set; }
+        public DateTime? EffectiveTo { get; set; }
+        public int? LeadTimeDays { get; set; }
+        public string? PaymentTerms { get; set; }
+        public string? DeliveryTerms { get; set; }
+        public string Status { get; set; } = null!;
+        public bool IsActive { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    public sealed class UpsertSupplierContractDto
+    {
+        public string ContractCode { get; set; } = null!;
+        public string? ContractNumber { get; set; }
+        public int SupplierId { get; set; }
+        public DateTime EffectiveFrom { get; set; }
+        public DateTime? EffectiveTo { get; set; }
+        public int? LeadTimeDays { get; set; }
+        public string? PaymentTerms { get; set; }
+        public string? DeliveryTerms { get; set; }
+        public string Status { get; set; } = null!;
+        public bool IsActive { get; set; }
+        public string? Notes { get; set; }
+    }
 }
