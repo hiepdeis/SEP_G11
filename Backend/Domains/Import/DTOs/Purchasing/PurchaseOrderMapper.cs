@@ -52,6 +52,8 @@ namespace Backend.Domains.Import.DTOs.Purchasing
                     MaterialId = i.MaterialId,
                     MaterialCode = i.Material?.Code ?? string.Empty,
                     MaterialName = i.Material?.Name ?? string.Empty,
+                    Unit = i.Material?.Unit,
+                    IsDecimalUnit = i.Material?.IsDecimalUnit,
                     OrderedQuantity = i.OrderedQuantity,
                     UnitPrice = i.UnitPrice,
                     LineTotal = i.LineTotal
