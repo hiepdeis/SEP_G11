@@ -105,7 +105,9 @@ namespace Backend.Domains.Import.Controllers.Managers
                 ConfirmedAt = alert.ConfirmedAt,
                 ConfirmedBy = alert.ConfirmedBy,
                 ConfirmedByName = GetUserName(userNames, alert.ConfirmedBy),
-                Notes = alert.Notes
+                Notes = alert.Notes,
+                Unit = alert.Material?.Unit,
+                IsDecimalUnit = alert.Material?.IsDecimalUnit ?? false
             };
         }
 
