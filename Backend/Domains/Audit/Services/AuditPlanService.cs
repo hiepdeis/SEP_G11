@@ -53,6 +53,36 @@ namespace Backend.Domains.Audit.Services
         private static DateTime? ToUtc(DateTime? dt) => dt.HasValue ? DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc) : null;
         private static DateTime ToUtc(DateTime dt) => DateTime.SpecifyKind(dt, DateTimeKind.Utc);
 
+        private async Task ValidateBinsAreNotAssignedAsync(List<int> binIds, int? excludeStockTakeId, CancellationToken ct)
+        {
+            if (binIds == null || binIds.Count == 0) return;
+
+            var conflicts = await _db.StockTakeBinLocations
+                .AsNoTracking()
+                .Include(x => x.StockTake)
+                .Include(x => x.BinLocation)
+                .Where(x => binIds.Contains(x.BinId) &&
+                            x.StockTake.Status != "Completed" &&
+                            (excludeStockTakeId == null || x.StockTakeId != excludeStockTakeId))
+                .Select(x => new { x.BinLocation.Code, x.StockTake.Title })
+                .ToListAsync(ct);
+
+            if (conflicts.Any())
+            {
+                var firstConflict = conflicts.First();
+                if (conflicts.Count == 1)
+                {
+                    throw new ArgumentException($"Bin {firstConflict.Code} đã thuộc trong đợt kiểm kê đang hoạt động '{firstConflict.Title}'.");
+                }
+                else
+                {
+                    var binCodes = string.Join(", ", conflicts.Select(c => c.Code).Distinct().Take(3));
+                    if (conflicts.Select(c => c.Code).Distinct().Count() > 3) binCodes += "...";
+                    throw new ArgumentException($"Các Bin ({binCodes}) đang thuộc các đợt kiểm kê chưa hoàn tất khác.");
+                }
+            }
+        }
+
         public async Task<AuditPlanResponse> GetByIdAsync(int id, CancellationToken ct)
         {
             var st = await _db.StockTakes
@@ -113,6 +143,9 @@ namespace Backend.Domains.Audit.Services
                 if (invalidBins.Any())
                     throw new ArgumentException($"Các BinLocationId không tồn tại hoặc không thuộc warehouse: {string.Join(", ", invalidBins)}");
             }
+
+            // 2.1) Validate Bin chưa có trong audit active khác
+            await ValidateBinsAreNotAssignedAsync(binLocationIds, null, ct);
 
             // 3) Validate date/time theo SRS
             var now = DateTime.UtcNow;
@@ -206,6 +239,9 @@ namespace Backend.Domains.Audit.Services
                 if (invalidBins.Any())
                     throw new ArgumentException($"Các BinLocationId không tồn tại hoặc không thuộc warehouse: {string.Join(", ", invalidBins)}");
             }
+
+            // 2.1) Validate Bin chưa có trong audit active khác (trừ chính nó)
+            await ValidateBinsAreNotAssignedAsync(newBinIds, id, ct);
 
             // 3) Validate date/time
             var now = DateTime.UtcNow;
