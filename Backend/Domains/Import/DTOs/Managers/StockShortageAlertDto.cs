@@ -9,7 +9,7 @@ namespace Backend.Domains.Import.DTOs.Managers
         public int? WarehouseId { get; set; }
         public string WarehouseName { get; set; } = string.Empty;
         public decimal CurrentQuantity { get; set; }
-        public int? MinStockLevel { get; set; }
+        public decimal? MinStockLevel { get; set; }
         public decimal? SuggestedQuantity { get; set; }
         public string Status { get; set; } = string.Empty;
         public string? Priority { get; set; }

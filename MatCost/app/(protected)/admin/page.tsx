@@ -15,6 +15,16 @@ import { toast } from "sonner";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
 import { useTranslation } from "react-i18next";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 // --- TYPES ---
 type LowStockMaterial = {
@@ -59,10 +69,10 @@ type DashboardResponse = {
 };
 
 // --- CONSTANTS ---
-const statusStyle: Record<string, string> = {
-  done: "bg-green-100 text-green-700",
-  pending: "bg-amber-100 text-amber-700",
-  reject: "bg-red-100 text-red-600",
+const statusColor: Record<string, string> = {
+  done: "bg-emerald-50 text-emerald-700 border-emerald-100",
+  pending: "bg-amber-50 text-amber-700 border-amber-100",
+  reject: "bg-red-50 text-red-700 border-red-100",
 };
 
 // --- UTILS ---
@@ -167,245 +177,285 @@ export default function DashboardPage() {
         
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900">
-                {t("Dashboard")}
-              </h1>
-              <p className="text-sm text-gray-500 mt-0.5">
-                {t("Warehouse overview")} —{" "}
-                {new Date().toLocaleDateString(i18n.language === "vi" ? "vi-VN" : "en-US", {
-                  weekday: "long",
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                })}
-              </p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  {t("System Overview")}
+                </p>
+                <h1 className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                  {t("Welcome Back")}!
+                </h1>
+              </div>
+              <div className="flex items-center gap-3 px-4 py-2 bg-white dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                <Clock className="w-4 h-4 text-indigo-500" />
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                  {new Date().toLocaleDateString(i18n.language === "vi" ? "vi-VN" : "en-US", {
+                    weekday: "long",
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })}
+                </span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mb-3">
-                  <Package className="w-5 h-5 text-blue-600" />
-                </div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {summary.totalMaterials}
-                </p>
-                <p className="text-sm text-gray-500 mt-0.5">{t("Total Materials")}</p>
-              </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
+              <Card className="border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group">
+                <CardContent className="p-6">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Package className="w-6 h-6 text-indigo-600" />
+                  </div>
+                  <p className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                    {summary.totalMaterials}
+                  </p>
+                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-1">
+                    {t("Total Materials")}
+                  </p>
+                </CardContent>
+              </Card>
 
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center mb-3">
+              <Card className="border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group">
+                <CardContent className="p-6">
+                  <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <AlertTriangle className="w-6 h-6 text-red-500" />
+                  </div>
+                  <p className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                    {summary.lowStockCount}
+                  </p>
+                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-1">
+                    {t("Low stock")}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group">
+                <CardContent className="p-6">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <ArrowDownToLine className="w-6 h-6 text-emerald-600" />
+                  </div>
+                  <p className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                    {summary.todayReceipts}
+                  </p>
+                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-1">
+                    {t("Today's Receipts")}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group">
+                <CardContent className="p-6">
+                  <div className="w-12 h-12 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <ArrowUpFromLine className="w-6 h-6 text-violet-600" />
+                  </div>
+                  <p className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                    {summary.todayIssues}
+                  </p>
+                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-1">
+                    {t("Today's Issues")}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden mt-8">
+              <CardHeader className="px-6 py-4 border-b border-slate-50 dark:border-slate-900 flex flex-row items-center justify-between space-y-0">
+                <div className="flex items-center gap-3">
                   <AlertTriangle className="w-5 h-5 text-red-500" />
+                  <div>
+                    <CardTitle className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                      {t("Low Stock Alarm")}
+                    </CardTitle>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                      {summary.lowStockCount} {t("materials require attention")}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {summary.lowStockCount}
-                </p>
-                <p className="text-sm text-gray-500 mt-0.5">{t("Low stock")}</p>
-              </div>
-
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center mb-3">
-                  <ArrowDownToLine className="w-5 h-5 text-emerald-600" />
-                </div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {summary.todayReceipts}
-                </p>
-                <p className="text-sm text-gray-500 mt-0.5">{t("Today's Receipts")}</p>
-              </div>
-
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center mb-3">
-                  <ArrowUpFromLine className="w-5 h-5 text-violet-600" />
-                </div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {summary.todayIssues}
-                </p>
-                <p className="text-sm text-gray-500 mt-0.5">{t("Today's Issues")}</p>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mt-6">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-red-500" />
-                  <span className="font-semibold text-gray-900">
-                    {t("Low Stock Alarm")}
-                  </span>
-                  <span className="bg-red-100 text-red-600 text-xs px-2 py-0.5 rounded-full">
-                    {summary.lowStockCount} {t("materials")}
-                  </span>
-                </div>
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => router.push("/admin/materials")}
-                  className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
+                  className="rounded-full text-xs font-bold transition-all text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
                 >
-                  {t("View all")} <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
+                  {t("View all")} <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                </Button>
+              </CardHeader>
 
-              <div className="divide-y divide-gray-50">
-                {lowStockMaterials.map((m) => {
-                  const pct = stockPct(m.quantityOnHand, m.minStockLevel);
-                  const { bar, badge, label } = urgencyColor(pct);
+              <CardContent className="p-0">
+                <div className="divide-y divide-slate-50 dark:divide-slate-900">
+                  {lowStockMaterials.slice(0, 5).map((m) => {
+                    const pct = stockPct(m.quantityOnHand, m.minStockLevel);
+                    const { bar, badge, label } = urgencyColor(pct);
 
-                  return (
-                    <div
-                      key={`${m.materialId}-${m.warehouseName}`}
-                      className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                        <Package className="w-4 h-4 text-gray-400" />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium text-gray-900 truncate">
-                            {m.name}
-                          </span>
-                          <span className="text-xs text-gray-400">{m.code}</span>
-                          <span
-                            className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${badge}`}
-                          >
-                            {t(label)}
-                          </span>
+                    return (
+                      <div
+                        key={`${m.materialId}-${m.warehouseName}`}
+                        className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-center shrink-0">
+                          <Package className="w-5 h-5 text-slate-400" />
                         </div>
 
-                        <div className="flex items-center gap-3 mt-1.5">
-                          <div className="flex-1 bg-gray-100 rounded-full h-1.5 max-w-[120px]">
-                            <div
-                              className={`h-1.5 rounded-full ${bar}`}
-                              style={{ width: `${Math.min(pct, 100)}%` }}
-                            />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+                              {m.name}
+                            </span>
+                            <Badge variant="outline" className="text-[9px] font-medium border-slate-200 dark:border-slate-800 text-slate-400 uppercase tracking-tighter h-5">
+                              {m.code}
+                            </Badge>
+                            <span
+                              className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${badge}`}
+                            >
+                              {t(label)}
+                            </span>
                           </div>
-                          <span className="text-xs text-gray-500 whitespace-nowrap">
-                            {m.quantityOnHand} / {m.minStockLevel} {m.unit}
-                          </span>
+
+                          <div className="flex items-center gap-4">
+                            <div className="flex-1 bg-slate-100 dark:bg-slate-900 rounded-full h-1.5 max-w-[200px]">
+                              <div
+                                className={`h-1.5 rounded-full ${bar}`}
+                                style={{ width: `${Math.min(pct, 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap">
+                              {m.quantityOnHand} / {m.minStockLevel} <span className="text-slate-400 font-medium ml-1">{m.unit}</span>
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-right hidden sm:block px-4 py-1 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                            {t("Warehouse")}
+                          </p>
+                          <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            {m.warehouseName}
+                          </p>
                         </div>
                       </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
 
-                      <span className="text-xs text-gray-400 shrink-0 hidden sm:block">
-                        {m.warehouseName}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <ArrowDownToLine className="w-4 h-4 text-emerald-600" />
-                    <span className="font-semibold text-gray-900">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+              <Card className="border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden bg-white dark:bg-slate-950">
+                <CardHeader className="px-6 py-4 border-b border-slate-50 dark:border-slate-900 flex flex-row items-center justify-between space-y-0">
+                  <div className="flex items-center gap-3">
+                    <ArrowDownToLine className="w-5 h-5 text-emerald-600" />
+                    <CardTitle className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">
                       {t("Recent Receipts")}
-                    </span>
+                    </CardTitle>
                   </div>
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => router.push("/admin/purchase-orders")}
-                    className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
+                    className="rounded-full text-xs font-bold transition-all text-indigo-600 hover:text-indigo-700"
                   >
-                    {t("View all")} <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                    {t("View all")} <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                  </Button>
+                </CardHeader>
 
-                <div className="divide-y divide-gray-50">
-                  {recentReceipts.map((r) => {
-                    const dt = formatDateTime(r.date, i18n.language === "vi" ? "vi-VN" : "en-US");
-                    const statusKey = r.statusKey || mapStatusKey(r.status);
+                <CardContent className="p-0">
+                  <div className="divide-y divide-slate-50 dark:divide-slate-900">
+                    {recentReceipts.map((r) => {
+                      const dt = formatDateTime(r.date, i18n.language === "vi" ? "vi-VN" : "en-US");
+                      const statusKey = r.statusKey || mapStatusKey(r.status);
 
-                    return (
-                      <div
-                        key={r.id}
-                        className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-blue-600">
-                              {r.id}
-                            </span>
-                            <span
-                              className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${statusStyle[statusKey]}`}
-                            >
-                              {t(r.status)}
-                            </span>
+                      return (
+                        <div
+                          key={r.id}
+                          className="flex items-center justify-between gap-4 px-6 py-4 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                                {r.id}
+                              </span>
+                              <Badge variant="outline" className={`text-[9px] font-bold uppercase border-none shadow-none ${statusColor[statusKey]}`}>
+                                {t(r.status)}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-slate-500 font-medium truncate">
+                              {r.supplier || r.warehouseName || t("Location Not Specified")}
+                            </p>
                           </div>
-                          <p className="text-xs text-gray-500 truncate mt-0.5">
-                            {r.supplier || r.warehouseName || "-"}
-                          </p>
-                        </div>
 
-                        <div className="text-right shrink-0">
-                          <p className="text-[10px] text-gray-400 flex items-center gap-1 justify-end font-medium">
-                            <Clock className="w-3 h-3" />
-                            {dt.time}
-                          </p>
-                          <p className="text-[10px] text-gray-400 font-medium">
-                            {dt.date}
-                          </p>
+                          <div className="text-right shrink-0 bg-slate-50 dark:bg-slate-900/50 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                            <p className="text-[10px] text-slate-400 flex items-center gap-1 justify-end font-black uppercase tracking-tighter">
+                              <Clock className="w-3 h-3" />
+                              {dt.time}
+                            </p>
+                            <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold">
+                              {dt.date}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <ArrowUpFromLine className="w-4 h-4 text-violet-600" />
-                    <span className="font-semibold text-gray-900">
-                      {t("Recent Issues")}
-                    </span>
+                      );
+                    })}
                   </div>
-                  <button
+                </CardContent>
+              </Card>
+
+              <Card className="border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden bg-white dark:bg-slate-950">
+                <CardHeader className="px-6 py-4 border-b border-slate-50 dark:border-slate-900 flex flex-row items-center justify-between space-y-0">
+                  <div className="flex items-center gap-3">
+                    <ArrowUpFromLine className="w-5 h-5 text-violet-600" />
+                    <CardTitle className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                      {t("Recent Issues")}
+                    </CardTitle>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => router.push("/admin/outbound/issueSlip")}
-                    className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
+                    className="rounded-full text-xs font-bold transition-all text-indigo-600 hover:text-indigo-700"
                   >
-                    {t("View all")} <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                    {t("View all")} <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                  </Button>
+                </CardHeader>
 
-                <div className="divide-y divide-gray-50">
-                  {recentIssues.map((s) => {
-                    const dt = formatDateTime(s.date, i18n.language === "vi" ? "vi-VN" : "en-US");
-                    const statusKey = s.statusKey || mapStatusKey(s.status);
+                <CardContent className="p-0">
+                  <div className="divide-y divide-slate-50 dark:divide-slate-900">
+                    {recentIssues.map((s) => {
+                      const dt = formatDateTime(s.date, i18n.language === "vi" ? "vi-VN" : "en-US");
+                      const statusKey = s.statusKey || mapStatusKey(s.status);
 
-                    return (
-                      <div
-                        key={s.id}
-                        className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-violet-600">
-                              {s.id}
-                            </span>
-                            <span
-                              className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${statusStyle[statusKey]}`}
-                            >
-                              {t(s.status)}
-                            </span>
+                      return (
+                        <div
+                          key={s.id}
+                          className="flex items-center justify-between gap-4 px-6 py-4 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                                {s.id}
+                              </span>
+                              <Badge variant="outline" className={`text-[9px] font-bold uppercase border-none shadow-none ${statusColor[statusKey]}`}>
+                                {t(s.status)}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-slate-500 font-medium truncate">
+                              {s.project || t("Project Not Specified")}
+                            </p>
                           </div>
-                          <p className="text-xs text-gray-500 truncate mt-0.5">
-                            {s.project}
-                          </p>
-                        </div>
 
-                        <div className="text-right shrink-0">
-                          <p className="text-[10px] text-gray-400 flex items-center gap-1 justify-end font-medium">
-                            <Clock className="w-3 h-3" />
-                            {dt.time}
-                          </p>
-                          <p className="text-[10px] text-gray-400 font-medium">
-                            {dt.date}
-                          </p>
+                          <div className="text-right shrink-0 bg-slate-50 dark:bg-slate-900/50 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                            <p className="text-[10px] text-slate-400 flex items-center gap-1 justify-end font-black uppercase tracking-tighter">
+                              <Clock className="w-3 h-3" />
+                              {dt.time}
+                            </p>
+                            <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold">
+                              {dt.date}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>

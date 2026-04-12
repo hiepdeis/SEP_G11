@@ -45,6 +45,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PutawayExcelHandler } from "@/components/ui/custom/putaway-xlxs";
+import { formatQuantity } from "@/lib/format-quantity";
 
 interface PutawayBinInput {
   id: string;
@@ -63,6 +64,8 @@ interface PutawayItemInput {
     expiryDate: string;
     certificateImage: string | null;
   };
+  unit: string;
+  isDecimalUnit: boolean;
   binAllocations: PutawayBinInput[];
 }
 
@@ -112,6 +115,8 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
             materialCode: item.materialCode,
             materialName: item.materialName || `Item #${item.materialId}`,
             passQuantity: item.quantityToPutaway,
+            unit: item.unit || "Unit",
+            isDecimalUnit: item.isDecimalUnit || false,
             batch: {
               batchCode: "",
               mfgDate: "",
@@ -218,16 +223,25 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
     });
   };
 
+  //update
   const handleBinChange = (
     itemIndex: number,
     binIndex: number,
     field: keyof PutawayBinInput,
-    value: number | "",
+    value: any,
   ) => {
     const newItems = [...putawayItems];
+    const item = newItems[itemIndex];
+
+    let finalValue = value;
+    if (field === "quantity" && value !== "") {
+      const precision = item.isDecimalUnit ? 3 : 0;
+      finalValue = Number(Number(value).toFixed(precision));
+    }
+
     newItems[itemIndex].binAllocations[binIndex] = {
       ...newItems[itemIndex].binAllocations[binIndex],
-      [field]: value,
+      [field]: finalValue,
     };
     setPutawayItems(newItems);
   };
@@ -293,9 +307,9 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
       }
 
       const totalAllocated = calculateAllocatedQty(item.binAllocations);
-      if (totalAllocated !== item.passQuantity) {
+      if (Math.abs(totalAllocated - item.passQuantity) > 0.0001) {
         return toast.error(
-          `${t("Total allocated quantity for")} ${item.materialName} ${t("must equal actual quantity")} (${item.passQuantity}).`,
+          `${t("Total allocated quantity for")} ${item.materialName} ${t("must equal actual quantity")} (${item.passQuantity} ${item.unit}).`,
         );
       }
     }
@@ -383,7 +397,10 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                   {t("Inventory Putaway")}
                 </h1>
                 <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
-                  {receipt.supplierName || t("Warehouse")}
+                  {receipt.warehouseName || t("Warehouse")}
+                </Badge>
+                <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
+                  {receipt.supplierName || t("Supplier")}
                 </Badge>
               </div>
             </div>
@@ -421,7 +438,8 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                   const totalAllocated = calculateAllocatedQty(
                     item.binAllocations,
                   );
-                  const isQtyMatched = totalAllocated === item.passQuantity;
+                  const isQtyMatched =
+                    Math.abs(totalAllocated - item.passQuantity) < 0.001;
 
                   return (
                     <Card
@@ -432,7 +450,7 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                         <div>
                           <CardTitle className="text-base font-bold flex items-center gap-2 text-indigo-800">
                             <Package className="w-5 h-5 text-indigo-600" />
-                            {item.materialName}
+                            {item.materialName} ({item.unit})
                           </CardTitle>
                           <p className="text-xs text-slate-500 font-mono mt-1 ml-7">
                             {item.materialCode}
@@ -446,7 +464,7 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                             variant="outline"
                             className="bg-white border-indigo-200 text-indigo-700 px-3 py-1 text-sm"
                           >
-                            {item.passQuantity}
+                            {item.passQuantity} {item.unit}
                           </Badge>
                         </div>
                       </CardHeader>
@@ -668,30 +686,45 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                                                   showSearch
                                                   className="max-h-[200px]"
                                                 >
-                                                  {binLocations.map(
-                                                    (location) => (
+                                                  {binLocations
+                                                    .filter(
+                                                      (bin) =>
+                                                        bin.warehouse
+                                                          .warehouseId ===
+                                                        receipt.warehouseId,
+                                                    )
+                                                    .map((location) => (
                                                       <SelectItem
                                                         key={location.binId}
                                                         value={location.binId.toString()}
                                                       >
                                                         {location.code}
                                                       </SelectItem>
-                                                    ),
-                                                  )}
+                                                    ))}
                                                 </SelectContent>
                                               </Select>
                                             </div>
 
                                             <div className="flex-1 space-y-1">
                                               <label className="text-[10px] uppercase text-slate-500 font-semibold ml-1">
-                                                {t("Quantity")}{" "}
+                                                {t("Quantity")}
                                                 <span className="text-red-500">
+                                                  {" "}
                                                   *
                                                 </span>
                                               </label>
                                               <Input
                                                 type="number"
-                                                min="1"
+                                                min={
+                                                  item.isDecimalUnit
+                                                    ? "0.001"
+                                                    : "1"
+                                                }
+                                                step={
+                                                  item.isDecimalUnit
+                                                    ? "0.001"
+                                                    : "1"
+                                                }
                                                 placeholder="Quantity..."
                                                 className="h-9 focus-visible:ring-indigo-500 bg-white"
                                                 value={bin.quantity}
@@ -702,11 +735,9 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                                                     "quantity",
                                                     e.target.value === ""
                                                       ? ""
-                                                      : Number(
-                                                          e.target.value
-                                                            .replace(/-/g, "")
-                                                            .slice(0, 12),
-                                                        ),
+                                                      : e.target.value
+                                                          .replace(/-/g, "")
+                                                          .slice(0, 12),
                                                   )
                                                 }
                                               />
@@ -810,10 +841,10 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                                         : "text-rose-600"
                                     }
                                   >
-                                    {totalAllocated}
+                                    {formatQuantity(totalAllocated)}
                                   </span>
                                   <span className="text-slate-400 font-medium text-sm">
-                                    / {item.passQuantity}
+                                    / {formatQuantity(item.passQuantity)}
                                   </span>
                                 </div>
                               </div>

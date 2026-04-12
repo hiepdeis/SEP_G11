@@ -1,4 +1,4 @@
-﻿namespace Backend.Domains.Admin.Dtos
+namespace Backend.Domains.Admin.Dtos
 {
     public sealed class MasterDataQueryDto
     {
@@ -152,6 +152,8 @@
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public decimal? Budget { get; set; }
+        public decimal? BudgetUsed { get; set; }
+        public decimal? OverBudgetAllowance { get; set; }
         public string? Status { get; set; }
         public List<MasterDataContractDto> Contracts { get; set; } = new();
     }
@@ -163,6 +165,8 @@
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public decimal? Budget { get; set; }
+        public decimal? BudgetUsed { get; set; }
+        public decimal? OverBudgetAllowance { get; set; }
         public string? Status { get; set; }
     }
 
@@ -195,5 +199,41 @@
         public string? Unit { get; set; }
         public decimal OrderedQuantity { get; set; }
         public decimal? TotalAmount { get; set; }
+    }
+
+    // =========================
+    // SUPPLIER CONTRACT
+    // =========================
+
+    public sealed class SupplierContractDto
+    {
+        public long ContractId { get; set; }
+        public string ContractCode { get; set; } = null!;
+        public string? ContractNumber { get; set; }
+        public int SupplierId { get; set; }
+        public string? SupplierName { get; set; }
+        public DateTime EffectiveFrom { get; set; }
+        public DateTime? EffectiveTo { get; set; }
+        public int? LeadTimeDays { get; set; }
+        public string? PaymentTerms { get; set; }
+        public string? DeliveryTerms { get; set; }
+        public string Status { get; set; } = null!;
+        public bool IsActive { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    public sealed class UpsertSupplierContractDto
+    {
+        public string ContractCode { get; set; } = null!;
+        public string? ContractNumber { get; set; }
+        public int SupplierId { get; set; }
+        public DateTime EffectiveFrom { get; set; }
+        public DateTime? EffectiveTo { get; set; }
+        public int? LeadTimeDays { get; set; }
+        public string? PaymentTerms { get; set; }
+        public string? DeliveryTerms { get; set; }
+        public string Status { get; set; } = null!;
+        public bool IsActive { get; set; }
+        public string? Notes { get; set; }
     }
 }

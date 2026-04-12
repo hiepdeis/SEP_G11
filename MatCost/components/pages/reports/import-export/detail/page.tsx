@@ -23,6 +23,8 @@ import { Badge } from "@/components/ui/badge";
 import { staffReceiptsApi } from "@/services/import-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { formatDateTime } from "@/lib/format-date-time";
+
 import {
   Dialog,
   DialogContent,
@@ -141,25 +143,7 @@ export default function WarehouseCardDetailPage() {
     if (id) fetchDetail();
   }, [id, t, router]);
 
-  const formatDateTime = (dateString?: string | null) => {
-    if (!dateString) return t("N/A");
-    let safeDateString = dateString;
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return t("N/A");
-    return new Date(dateString).toLocaleDateString("vi-VN");
-  };
 
   if (isLoading) {
     return (
@@ -297,7 +281,7 @@ export default function WarehouseCardDetailPage() {
                         {t("Manufactured Date")}
                       </span>
                       <p className="text-sm font-medium text-slate-800">
-                        {formatDate(cardDetail.batch.mfgDate)}
+                        {formatDateTime(cardDetail.batch.mfgDate)}
                       </p>
                     </div>
                     <div className="space-y-1">
@@ -305,7 +289,7 @@ export default function WarehouseCardDetailPage() {
                         {t("Expiry Date")}
                       </span>
                       <p className="text-sm font-medium text-slate-800">
-                        {formatDate(cardDetail.batch.expiryDate)}
+                        {formatDateTime(cardDetail.batch.expiryDate)}
                       </p>
                     </div>
                   </div>

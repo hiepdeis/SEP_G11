@@ -63,6 +63,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { formatDateTime } from "@/lib/format-date-time";
 
 export default function PendingDeliveriesPage({
   role = "staff",
@@ -202,15 +203,6 @@ export default function PendingDeliveriesPage({
     } else {
       router.push(`/${rolePath}/pending-pos/create?poId=${id}`);
     }
-  };
-
-  const formatDateTime = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-    let safeDateString = dateString;
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-    return format(new Date(safeDateString), "dd/MM/yyyy HH:mm");
   };
 
   const todayStart = startOfDay(new Date());

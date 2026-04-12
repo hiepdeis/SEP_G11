@@ -3,19 +3,21 @@
 import { useState, useMemo, useEffect } from "react";
 import {
   Search,
-  Filter,
   ArrowUpDown,
-  Trash2,
-  Plus,
   Edit2,
-  X,
   ChevronLeft,
   ChevronRight,
-  UserPlus,
   ShieldCheck,
   UserCog,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   getRoles,
   getUsers,
@@ -27,6 +29,24 @@ import {
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
 import { useTranslation } from "react-i18next";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface UserItem {
   userId: number;
@@ -57,9 +77,6 @@ const emptyForm: Omit<UserItem, "userId"> = {
   phoneNumber: "",
   status: true,
 };
-
-const inputCls =
-  "w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50/50 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all text-sm font-medium text-gray-900";
 
 export default function UsersPage() {
   const { t } = useTranslation();
@@ -172,7 +189,9 @@ export default function UsersPage() {
   };
 
   if (loading)
-    return <div className="p-10 text-center text-gray-500">{t("Loading...")}</div>;
+    return (
+      <div className="p-10 text-center text-gray-500">{t("Loading...")}</div>
+    );
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
@@ -194,156 +213,191 @@ export default function UsersPage() {
 
             <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-3 mt-6">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
+                <Input
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
                     setPage(1);
                   }}
                   placeholder={t("Search by name, username, email...")}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  className="pl-10 h-10 rounded-xl"
                 />
               </div>
               <div className="flex gap-2">
-                <select
+                <Select
                   value={filterStatus}
-                  onChange={(e) => {
-                    setFilterStatus(e.target.value);
+                  onValueChange={(val) => {
+                    setFilterStatus(val);
                     setPage(1);
                   }}
-                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none bg-white font-medium"
                 >
-                  <option value="all">{t("All status")}</option>
-                  <option value="active">{t("Active")}</option>
-                  <option value="inactive">{t("Inactive")}</option>
-                </select>
-                <select
+                  <SelectTrigger className="w-[140px] h-10 rounded-xl">
+                    <SelectValue placeholder={t("All status")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("All status")}</SelectItem>
+                    <SelectItem value="active">{t("Active")}</SelectItem>
+                    <SelectItem value="inactive">{t("Inactive")}</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select
                   value={filterRole}
-                  onChange={(e) => {
-                    setFilterRole(e.target.value);
+                  onValueChange={(val) => {
+                    setFilterRole(val);
                     setPage(1);
                   }}
-                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none bg-white font-medium"
                 >
-                  <option value="all">{t("All roles")}</option>
-                  {getVisibleRoles(roles).map((r) => (
-                    <option key={r.roleId} value={r.roleId}>
-                      {r.roleName}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-[160px] h-10 rounded-xl">
+                    <SelectValue placeholder={t("All roles")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("All roles")}</SelectItem>
+                    {getVisibleRoles(roles).map((r) => (
+                      <SelectItem key={r.roleId} value={String(r.roleId)}>
+                        {r.roleName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mt-6">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-gray-50/50 border-b border-gray-100">
-                    <tr className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">
-                      <th
-                        className="px-6 py-4 cursor-pointer hover:text-blue-600 transition-colors"
+              <Table>
+                <TableHeader className="bg-gray-50/50">
+                  <TableRow>
+                    <TableHead className="px-6 py-4">
+                      <Button
+                        variant="ghost"
+                        className="p-0 hover:bg-transparent text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-indigo-600"
                         onClick={() => toggleSort("fullName")}
                       >
-                        <span className="flex items-center gap-1.5">
-                          {t("Full Name")} <ArrowUpDown className="w-3 h-3" />
-                        </span>
-                      </th>
-                      <th
-                        className="px-6 py-4 cursor-pointer hover:text-blue-600 transition-colors"
+                        {t("Full Name")}{" "}
+                        <ArrowUpDown className="ml-1.5 w-3 h-3" />
+                      </Button>
+                    </TableHead>
+                    <TableHead className="px-6 py-4">
+                      <Button
+                        variant="ghost"
+                        className="p-0 hover:bg-transparent text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-indigo-600"
                         onClick={() => toggleSort("username")}
                       >
-                        <span className="flex items-center gap-1.5">
-                          {t("Username")} <ArrowUpDown className="w-3 h-3" />
-                        </span>
-                      </th>
-                      <th className="px-6 py-4">{t("Contact")}</th>
-                      <th className="px-6 py-4">{t("Role")}</th>
-                      <th className="px-6 py-4">{t("Status")}</th>
-                      <th className="px-6 py-4 text-center">{t("Actions")}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {paginated.map((u) => (
-                      <tr
-                        key={u.userId}
-                        className="hover:bg-gray-50/50 transition-colors group"
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-lg shadow-blue-100">
-                              {u.fullName.charAt(0)}
-                            </div>
-                            <span className="text-sm font-bold text-gray-900">
-                              {u.fullName}
-                            </span>
+                        {t("Username")}{" "}
+                        <ArrowUpDown className="ml-1.5 w-3 h-3" />
+                      </Button>
+                    </TableHead>
+                    <TableHead className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-widest">
+                      {t("Contact")}
+                    </TableHead>
+                    <TableHead className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-widest">
+                      {t("Role")}
+                    </TableHead>
+                    <TableHead className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-widest">
+                      {t("Status")}
+                    </TableHead>
+                    <TableHead className="px-6 py-4 text-center text-[10px] text-gray-500 uppercase font-bold tracking-widest">
+                      {t("Actions")}
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginated.map((u) => (
+                    <TableRow
+                      key={u.userId}
+                      className="hover:bg-gray-50/50 transition-colors group"
+                    >
+                      <TableCell className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-lg shadow-indigo-100">
+                            {u.fullName.charAt(0)}
                           </div>
-                        </td>
-                        <td className="px-6 py-4 text-xs font-mono text-gray-500">
-                          {u.username}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-xs text-gray-900 font-medium">
-                            {u.email}
-                          </div>
-                          <div className="text-[10px] text-gray-400 font-medium">
-                            {u.phoneNumber || "—"}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-100 text-blue-700 text-[10px] font-bold uppercase tracking-wider">
-                            <ShieldCheck className="w-3 h-3" />{" "}
-                            {getRoleName(u.roleId, roles)}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${u.status ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"}`}
-                          >
-                            <span
-                              className={`w-1 h-1 rounded-full ${u.status ? "bg-emerald-500" : "bg-gray-400"}`}
-                            />
-                            {u.status ? t("Active") : t("Suspended")}
+                          <span className="text-sm font-bold text-gray-900">
+                            {u.fullName}
                           </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex justify-center gap-1">
-                            <button
-                              onClick={() => openEdit(u)}
-                              className="p-2 rounded-xl hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-all"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-6 py-4 text-xs font-mono text-gray-500">
+                        {u.username}
+                      </TableCell>
+                      <TableCell className="px-6 py-4">
+                        <div className="text-xs text-gray-900 font-medium">
+                          {u.email}
+                        </div>
+                        <div className="text-[10px] text-gray-400 font-medium">
+                          {u.phoneNumber || "—"}
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-6 py-4">
+                        <Badge
+                          variant="secondary"
+                          className="bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100"
+                        >
+                          <ShieldCheck className="w-3 h-3 mr-1" />
+                          {getRoleName(u.roleId, roles)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-6 py-4">
+                        <Badge
+                          variant={u.status ? "default" : "secondary"}
+                          className={`text-[10px] font-bold uppercase tracking-wider ${
+                            u.status
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100"
+                              : "bg-gray-100 text-gray-500 border-gray-200"
+                          }`}
+                        >
+                          <span
+                            className={`w-1 h-1 rounded-full mr-1.5 ${
+                              u.status ? "bg-emerald-500" : "bg-gray-400"
+                            }`}
+                          />
+                          {u.status ? t("Active") : t("Suspended")}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-6 py-4">
+                        <div className="flex justify-center">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEdit(u)}
+                            className="h-8 w-8 rounded-xl text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 transition-all"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
               <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex justify-between items-center text-xs font-medium text-gray-500">
                 <span>
                   {t("Showing")} {Math.min(filtered.length, perPage)} /{" "}
                   {filtered.length} {t("users")}
                 </span>
-                <div className="flex gap-1">
-                  <button
+                <div className="flex gap-1 items-center">
+                  <Button
+                    variant="outline"
+                    size="icon"
                     disabled={page === 1}
                     onClick={() => setPage(page - 1)}
-                    className="p-1.5 rounded-lg border border-gray-200 hover:bg-white disabled:opacity-30"
+                    className="h-8 w-8 rounded-lg"
                   >
                     <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <div className="flex items-center px-4 font-bold text-gray-900">
+                  </Button>
+                  <div className="flex items-center px-4 font-bold text-gray-900 border border-transparent">
                     {page} / {totalPages}
                   </div>
-                  <button
+                  <Button
+                    variant="outline"
+                    size="icon"
                     disabled={page >= totalPages}
                     onClick={() => setPage(page + 1)}
-                    className="p-1.5 rounded-lg border border-gray-200 hover:bg-white disabled:opacity-30"
+                    className="h-8 w-8 rounded-lg"
                   >
                     <ChevronRight className="w-4 h-4" />
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -351,130 +405,115 @@ export default function UsersPage() {
         </div>
       </main>
 
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200">
-            <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center">
-                  <UserCog className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 text-lg">
-                    {t("Edit User")}
-                  </h3>
-                  <p className="text-xs text-gray-500 font-medium tracking-wide">
-                    {t("Update permissions and personal information")}
-                  </p>
-                </div>
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden border-0 shadow-lg bg-white">
+          <DialogHeader className="px-8 py-6 border-b border-gray-100 bg-gray-50/50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center">
+                <UserCog className="w-6 h-6" />
               </div>
-              <button
-                onClick={() => setModalOpen(false)}
-                className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
+              <div>
+                <DialogTitle className="font-bold text-gray-900 text-lg">
+                  {t("Edit User")}
+                </DialogTitle>
+                <p className="text-xs text-gray-500 font-medium tracking-wide">
+                  {t("Update system access permissions and status")}
+                </p>
+              </div>
             </div>
-            <div className="p-8 space-y-5">
-              <div className="space-y-1.5">
+          </DialogHeader>
+
+          <div className="p-8 space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
-                  {t("Full Name")} *
+                  {t("Full Name")}
                 </label>
-                <input
-                  value={form.fullName}
-                  onChange={(e) =>
-                    setForm({ ...form, fullName: e.target.value })
+                <p className="px-1 text-sm font-semibold text-gray-900">
+                  {form.fullName}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
+                  {t("Username")}
+                </label>
+                <p className="px-1 text-sm font-mono text-gray-500">
+                  {form.username}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
+                {t("Email")}
+              </label>
+              <p className="px-1 text-sm font-medium text-gray-600">
+                {form.email}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6 pt-2 border-t border-gray-50">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest ml-1">
+                  {t("Role")}
+                </label>
+                <Select
+                  value={String(form.roleId)}
+                  onValueChange={(val) =>
+                    setForm({ ...form, roleId: Number(val) })
                   }
-                  className={inputCls}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
-                    {t("Username")}
-                  </label>
-                  <input
-                    value={form.username}
-                    disabled
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-100 text-gray-400 text-sm font-bold cursor-not-allowed"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
-                    {t("Phone")}
-                  </label>
-                  <input
-                    value={form.phoneNumber}
-                    onChange={(e) =>
-                      setForm({ ...form, phoneNumber: e.target.value })
-                    }
-                    className={inputCls}
-                  />
-                </div>
+                >
+                  <SelectTrigger className="h-10 rounded-xl">
+                    <SelectValue placeholder={t("Select a role")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roles.map((r) => (
+                      <SelectItem key={r.roleId} value={String(r.roleId)}>
+                        {r.roleName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
-                  {t("Email")}
+                <label className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest ml-1">
+                  {t("Status")}
                 </label>
-                <input
-                  value={form.email}
-                  disabled
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-100 text-gray-400 text-sm font-bold cursor-not-allowed"
-                />
+                <Select
+                  value={form.status ? "true" : "false"}
+                  onValueChange={(val) =>
+                    setForm({ ...form, status: val === "true" })
+                  }
+                >
+                  <SelectTrigger className="h-10 rounded-xl">
+                    <SelectValue placeholder={t("Select status")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">{t("Active")}</SelectItem>
+                    <SelectItem value="false">{t("Suspended")}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
-                    {t("Role")}
-                  </label>
-                  <select
-                    value={form.roleId}
-                    onChange={(e) =>
-                      setForm({ ...form, roleId: Number(e.target.value) })
-                    }
-                    className={inputCls}
-                  >
-                    {roles.map((r) => (
-                      <option key={r.roleId} value={r.roleId}>
-                        {r.roleName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
-                    {t("Status")}
-                  </label>
-                  <select
-                    value={form.status ? "true" : "false"}
-                    onChange={(e) =>
-                      setForm({ ...form, status: e.target.value === "true" })
-                    }
-                    className={inputCls}
-                  >
-                    <option value="true">{t("Active")}</option>
-                    <option value="false">{t("Suspended")}</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div className="px-8 py-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
-              <button
-                onClick={() => setModalOpen(false)}
-                className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                {t("Cancel")}
-              </button>
-              <button
-                onClick={save}
-                className="px-8 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-xl shadow-blue-200 hover:bg-blue-700 hover:-translate-y-0.5 transition-all"
-              >
-                {t("Save Changes")}
-              </button>
             </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="px-8 py-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-3 sm:justify-end">
+            <Button
+              variant="ghost"
+              onClick={() => setModalOpen(false)}
+              className="px-6 h-10 font-bold text-gray-500 hover:text-gray-700"
+            >
+              {t("Cancel")}
+            </Button>
+            <Button
+              onClick={save}
+              className="px-8 h-10 bg-indigo-600 text-white rounded-xl font-bold shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all"
+            >
+              {t("Save Changes")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -22,12 +22,14 @@ import { Badge } from "@/components/ui/badge";
 import { staffReceiptsApi } from "@/services/import-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { formatDateTime } from "@/lib/format-date-time";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
 
 interface ViewItemDetail {
   materialId: number;
@@ -152,10 +154,7 @@ export default function ReceiptDetailPage({
     if (id) fetchDetails();
   }, [id, t]);
 
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return t("N/A");
-    return new Date(dateString).toLocaleDateString("vi-VN");
-  };
+
 
   if (isLoading) {
     return (
@@ -256,7 +255,7 @@ export default function ReceiptDetailPage({
                                 {t("Manufactured Date")}
                               </span>
                               <p className="text-sm font-medium text-slate-800">
-                                {formatDate(item.batch.mfgDate)}
+                                {formatDateTime(item.batch.mfgDate)}
                               </p>
                             </div>
                             <div className="space-y-1">
@@ -264,7 +263,7 @@ export default function ReceiptDetailPage({
                                 {t("Expiry Date")}
                               </span>
                               <p className="text-sm font-medium text-slate-800">
-                                {formatDate(item.batch.expiryDate)}
+                                {formatDateTime(item.batch.expiryDate)}
                               </p>
                             </div>
                           </div>

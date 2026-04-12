@@ -62,6 +62,7 @@ namespace Backend.Domains.Import.Services
                                     SupplierName = rd.Supplier != null ? rd.Supplier.Name : "",
                                     SupplierId = rd.SupplierId,
                                     LineTotal = rd.Quantity * (rd.UnitPrice ?? 0),
+                                    PassQuantity = rd.QCCheckDetails.Sum(q => q.PassQuantity),
                                 }).ToList()
                             }).ToListAsync();
             return receipts;
@@ -124,7 +125,10 @@ namespace Backend.Domains.Import.Services
                     MaterialCode = rd.Material != null ? rd.Material.Code : "",
                     MaterialName = rd.Material != null ? rd.Material.Name : "",
                     PassQuantity = rd.QCCheckDetails.Sum(q => q.PassQuantity),
+                    // Fail nay la fail tong = Actual - Pass 
                     FailQuantity = rd.QCCheckDetails.Sum(q => q.FailQuantity),
+                    // Fail Claim Quantity là số lượng được claim = |Ordered - Pass| => Lấy cái này
+                    FailClaimQuantity = rd.QCCheckDetails.Sum(q => q.FailQuantityQuantity) ?? 0,
                     Quantity = rd.Quantity,
                     ActualQuantity = rd.ActualQuantity,
                     UnitPrice = rd.UnitPrice,
@@ -136,7 +140,8 @@ namespace Backend.Domains.Import.Services
                     BatchId = rd.Batch != null ? rd.Batch.BatchId : null,
                     BatchCode = rd.Batch?.BatchCode,
                     MfgDate = rd.Batch?.MfgDate,
-                    Unit = rd.Material?.Unit
+                    Unit = rd.Material?.Unit,
+                    IsDecimalUnit = rd.Material?.IsDecimalUnit
                 }).ToList()
             };
         }
@@ -682,8 +687,10 @@ namespace Backend.Domains.Import.Services
                 {
                     MaterialId = i.MaterialId,
                     MaterialName = i.Material?.Name ?? string.Empty,
+                    MaterialCode = i.Material?.Code ?? string.Empty,
                     OrderedQuantity = i.SupplementaryQuantity,
-                    Unit = i.Material?.Unit ?? string.Empty
+                    Unit = i.Material?.Unit ?? string.Empty,
+                    IsDecimalUnit = i.Material?.IsDecimalUnit ?? false
                 }).ToList()
             };
         }
@@ -695,6 +702,7 @@ namespace Backend.Domains.Import.Services
                     .ThenInclude(o => o!.Supplier)
                 .Include(r => r.ReceiptDetails)
                     .ThenInclude(rd => rd.Material)
+                .Include(r => r.Warehouse)
                 .Include(r => r.QCChecks)
                     .ThenInclude(q => q.QCCheckDetails)
                 .Where(r => r.Status == "QCPassed" || r.Status == "ReadyForPutaway")
@@ -729,7 +737,9 @@ namespace Backend.Domains.Import.Services
                             MaterialId = d.MaterialId,
                             MaterialName = d.Material?.Name ?? string.Empty,
                             QuantityToPutaway = passQty,
-                            Note = note
+                            Note = note,
+                            Unit = d.Material?.Unit ?? string.Empty,
+                            IsDecimalUnit = d.Material?.IsDecimalUnit ?? false
                         };
                     })
                     .Where(i => i.QuantityToPutaway > 0)
@@ -746,6 +756,8 @@ namespace Backend.Domains.Import.Services
                     SupplierName = receipt.PurchaseOrder?.Supplier?.Name ?? string.Empty,
                     CreatedAt = receipt.ReceiptDate ?? receipt.ApprovedAt ?? receipt.ConfirmedAt ?? DateTime.MinValue,
                     Status = receipt.Status ?? string.Empty,
+                    WarehouseId = receipt.WarehouseId ?? 0,
+                    WarehouseName = receipt.Warehouse?.Name ?? string.Empty,
                     Items = items
                 });
             }
@@ -760,6 +772,7 @@ namespace Backend.Domains.Import.Services
                     .ThenInclude(o => o!.Supplier)
                 .Include(r => r.ReceiptDetails)
                     .ThenInclude(rd => rd.Material)
+                .Include(r => r.Warehouse)
                 .Include(r => r.QCChecks)
                     .ThenInclude(q => q.QCCheckDetails)
                 .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
@@ -795,7 +808,9 @@ namespace Backend.Domains.Import.Services
                         MaterialCode = d.Material?.Code ?? string.Empty,
                         MaterialName = d.Material?.Name ?? string.Empty,
                         QuantityToPutaway = passQty,
-                        Note = note
+                        Note = note,
+                        Unit = d.Material?.Unit ?? string.Empty,
+                        IsDecimalUnit = d.Material?.IsDecimalUnit ?? false
                     };
                 })
                 .Where(i => i.QuantityToPutaway > 0)
@@ -811,6 +826,8 @@ namespace Backend.Domains.Import.Services
                 PurchaseOrderCode = receipt.PurchaseOrder?.PurchaseOrderCode ?? string.Empty,
                 SupplierName = receipt.PurchaseOrder?.Supplier?.Name ?? string.Empty,
                 Status = receipt.Status ?? string.Empty,
+                WarehouseId = receipt.WarehouseId ?? 0,
+                WarehouseName = receipt.Warehouse?.Name ?? string.Empty,
                 Items = items
             };
         }

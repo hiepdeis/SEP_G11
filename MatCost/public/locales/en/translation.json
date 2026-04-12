@@ -1186,5 +1186,17 @@
   "Cold Storage": "Cold Storage",
   "Expected Available": "Expected Available",
   "After subtracting allocation": "After subtracting allocation",
-  "e.g. LOT-2024-001": "e.g. LOT-2024-001"
+  "e.g. LOT-2024-001": "e.g. LOT-2024-001",
+  "Failed to load roles list": "Failed to load roles list",
+  "Failed to load material categories": "Failed to load material categories",
+  "Loading categories...": "Loading categories...",
+  "This contract has no materials.": "This contract has no materials.",
+  "Global values and reference settings": "Global values and reference settings",
+  "Internal Administrative Control": "Internal Administrative Control",
+  "Select a Category": "Select a Category",
+  "MatCost Management System": "MatCost Management System",
+  "Materials": "Materials",
+  "e.g., Admin": "e.g., Admin",
+  "Delete Failed, Item is already used in other modules": "Delete Failed, Item is already used in other modules",
+  "Check for Stock to be Decimal": "Check for Stock to be Decimal"
 }

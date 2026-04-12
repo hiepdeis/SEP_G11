@@ -224,7 +224,7 @@ export default function CreatePurchaseRequestPage() {
               : undefined,
             items: items.map((i) => ({
               materialId: Number(i.materialId),
-              quantity: Number(i.quantity),
+              quantity: Number(Number(i.quantity).toFixed(3)),
               notes: i.notes,
             })),
           };

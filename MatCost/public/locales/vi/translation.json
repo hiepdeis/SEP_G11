@@ -304,7 +304,6 @@
   "Language": "Ngôn ngữ",
   "Sign out": "Đăng xuất",
   "sidebar": {
-
     "dashboard": "Bảng điều khiển",
     "inventory": "Kho hàng",
     "import_materials": "Nhập kho",
@@ -1188,5 +1187,17 @@
   "Cold Storage": "Kho lạnh",
   "Expected Available": "Khả dụng dự kiến",
   "After subtracting allocation": "Sau khi trừ phân bổ",
-  "e.g. LOT-2024-001": "VD: LOT-2024-001"
+  "e.g. LOT-2024-001": "VD: LOT-2024-001",
+  "Failed to load roles list": "Không tải được danh sách vai trò",
+  "Failed to load material categories": "Không tải được danh mục vật tư",
+  "Loading categories...": "Đang tải danh mục...",
+  "This contract has no materials.": "Hợp đồng này chưa có vật liệu.",
+  "Global values and reference settings": "Các giá trị và thiết lập tham chiếu hệ thống",
+  "Internal Administrative Control": "Quản trị nội bộ",
+  "Select a Category": "Chọn một danh mục",
+  "MatCost Management System": "Hệ thống quản lý MatCost",
+  "Materials": "Vật liệu",
+  "e.g., Admin": "VD: Quản trị viên",
+  "Delete Failed, Item is already used in other modules": "Xóa thất bại, Vật tư đã được sử dụng trong các module khác",
+  "Check for Stock to be Decimal": "Tích chọn nếu tồn kho là số thập phân"
 }

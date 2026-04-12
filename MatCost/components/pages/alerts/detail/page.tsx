@@ -35,6 +35,7 @@ import {
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { showConfirmToast } from "@/hooks/confirm-toast";
+import { formatDateTime } from "@/lib/format-date-time";
 
 export default function AlertDetailPage({ role = "manager" }) {
   const params = useParams();
@@ -99,7 +100,7 @@ export default function AlertDetailPage({ role = "manager" }) {
         setIsConfirming(true);
         try {
           await managerStockShortageAlertApi.confirmAlert(id, {
-            adjustedQuantity: Number(adjustedQuantity),
+            adjustedQuantity: Number(Number(adjustedQuantity).toFixed(3)),
             notes: notes.trim() || undefined,
           });
 
@@ -116,24 +117,6 @@ export default function AlertDetailPage({ role = "manager" }) {
           setIsConfirming(false);
         }
       },
-    });
-  };
-
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-
-    let safeDateString = dateString;
-
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
     });
   };
 
@@ -304,7 +287,7 @@ export default function AlertDetailPage({ role = "manager" }) {
                     </span>
                     <div className="flex items-center gap-2 text-slate-700 text-sm">
                       <CalendarDays className="w-4 h-4 text-slate-400" />
-                      {formatDate(alert.createdAt)}
+                      {formatDateTime(alert.createdAt)}
                     </div>
                   </div>
                 </CardContent>
@@ -406,7 +389,7 @@ export default function AlertDetailPage({ role = "manager" }) {
                         {t("Confirmed By")}: Manager {alert.confirmedByName}
                       </span>
                       <span className="text-xs font-medium text-slate-500">
-                        {t("Confirmed At")}: {formatDate(alert.confirmedAt)}
+                        {t("Confirmed At")}: {formatDateTime(alert.confirmedAt)}
                       </span>
                     </div>
                   )}

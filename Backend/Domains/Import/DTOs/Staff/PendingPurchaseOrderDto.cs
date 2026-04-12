@@ -19,7 +19,9 @@ namespace Backend.Domains.Import.DTOs.Staff
     {
         public int MaterialId { get; set; }
         public string MaterialName { get; set; } = string.Empty;
+        public string MaterialCode { get; set; } = string.Empty;
         public decimal OrderedQuantity { get; set; }
         public string Unit { get; set; } = string.Empty;
+        public bool IsDecimalUnit { get; set; }
     }
 }

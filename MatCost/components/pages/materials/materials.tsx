@@ -57,6 +57,7 @@ import {
   CreateMaterialDto,
 } from "@/services/materials-service";
 import { Header } from "@/components/ui/custom/header";
+import { formatCurrency } from "@/lib/format-currency";
 
 export default function ManagerMaterialManagement() {
   const [activeTab, setActiveTab] = useState<"materials" | "categories">(
@@ -179,14 +180,6 @@ export default function ManagerMaterialManagement() {
     } finally {
       setIsUpdating(false);
     }
-  };
-
-  const formatCurrency = (val: number | null | undefined) => {
-    if (val === null || val === undefined) return "-";
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(val);
   };
 
   return (

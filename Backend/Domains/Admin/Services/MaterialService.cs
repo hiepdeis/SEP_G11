@@ -1,7 +1,6 @@
-﻿using Backend.Data;
+using Backend.Data;
 using Backend.Domains.Admin.Dtos;
 using Backend.Domains.Admin.Interface;
-using Backend.Domains.Admin.Support;
 using Backend.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -31,11 +30,13 @@ namespace Backend.Domains.Admin.Services
                     m.Unit,
                     m.MassPerUnit,
                     m.MinStockLevel,
+                    m.MaxStockLevel,
                     m.CategoryId,
                     CategoryName = c != null ? c.Name : null,
                     m.UnitPrice,
                     m.TechnicalStandard,
-                    m.Specification
+                    m.Specification,
+                    m.IsDecimalUnit
                 };
 
             if (!string.IsNullOrWhiteSpace(query.Search))
@@ -81,11 +82,13 @@ namespace Backend.Domains.Admin.Services
                     Unit = x.Unit,
                     MassPerUnit = x.MassPerUnit,
                     MinStockLevel = x.MinStockLevel,
+                    MaxStockLevel = x.MaxStockLevel,
                     CategoryId = x.CategoryId,
                     CategoryName = x.CategoryName,
                     UnitPrice = x.UnitPrice,
                     TechnicalStandard = x.TechnicalStandard,
                     Specification = x.Specification,
+                    IsDecimalUnit = x.IsDecimalUnit,
                     TotalOnHand = stock?.TotalOnHand ?? 0,
                     TotalAllocated = stock?.TotalAllocated ?? 0
                 };
@@ -116,11 +119,13 @@ namespace Backend.Domains.Admin.Services
                     m.Unit,
                     m.MassPerUnit,
                     m.MinStockLevel,
+                    m.MaxStockLevel,
                     m.CategoryId,
                     CategoryName = c != null ? c.Name : null,
                     m.UnitPrice,
                     m.TechnicalStandard,
-                    m.Specification
+                    m.Specification,
+                    m.IsDecimalUnit
                 }
             ).FirstOrDefaultAsync(ct);
 
@@ -145,11 +150,13 @@ namespace Backend.Domains.Admin.Services
                 Unit = item.Unit,
                 MassPerUnit = item.MassPerUnit,
                 MinStockLevel = item.MinStockLevel,
+                MaxStockLevel = item.MaxStockLevel,
                 CategoryId = item.CategoryId,
                 CategoryName = item.CategoryName,
                 UnitPrice = item.UnitPrice,
                 TechnicalStandard = item.TechnicalStandard,
                 Specification = item.Specification,
+                IsDecimalUnit = item.IsDecimalUnit,
                 TotalOnHand = stock?.TotalOnHand ?? 0,
                 TotalAllocated = stock?.TotalAllocated ?? 0,
                 Available = (stock?.TotalOnHand ?? 0) - (stock?.TotalAllocated ?? 0)
@@ -163,7 +170,9 @@ namespace Backend.Domains.Admin.Services
                 request.Name,
                 request.Unit,
                 request.MinStockLevel,
+                request.MaxStockLevel,
                 request.CategoryId,
+                request.IsDecimalUnit,
                 ct,
                 null);
 
@@ -173,11 +182,13 @@ namespace Backend.Domains.Admin.Services
                 Name = request.Name.Trim(),
                 Unit = normalizedUnit,
                 MassPerUnit = request.MassPerUnit,
-                MinStockLevel = (int?)request.MinStockLevel,
+                MinStockLevel = request.MinStockLevel,
+                MaxStockLevel = request.MaxStockLevel,
                 CategoryId = request.CategoryId,
                 UnitPrice = request.UnitPrice,
                 TechnicalStandard = request.TechnicalStandard?.Trim(),
-                Specification = request.Specification?.Trim()
+                Specification = request.Specification?.Trim(),
+                IsDecimalUnit = request.IsDecimalUnit
             };
 
             _db.Materials.Add(entity);
@@ -195,7 +206,9 @@ namespace Backend.Domains.Admin.Services
                 request.Name,
                 request.Unit,
                 request.MinStockLevel,
+                request.MaxStockLevel,
                 request.CategoryId,
+                request.IsDecimalUnit,
                 ct,
                 materialId);
 
@@ -203,11 +216,13 @@ namespace Backend.Domains.Admin.Services
             entity.Name = request.Name.Trim();
             entity.Unit = normalizedUnit;
             entity.MassPerUnit = request.MassPerUnit;
-            entity.MinStockLevel = (int?)request.MinStockLevel;
+            entity.MinStockLevel = request.MinStockLevel;
+            entity.MaxStockLevel = request.MaxStockLevel;
             entity.CategoryId = request.CategoryId;
             entity.UnitPrice = request.UnitPrice;
             entity.TechnicalStandard = request.TechnicalStandard?.Trim();
             entity.Specification = request.Specification?.Trim();
+            entity.IsDecimalUnit = request.IsDecimalUnit;
 
             await _db.SaveChangesAsync(ct);
             return true;
@@ -219,7 +234,7 @@ namespace Backend.Domains.Admin.Services
                 .FirstOrDefaultAsync(x => x.MaterialId == materialId, ct);
 
             if (entity == null)
-                return (false, "Material not found.");
+                return (false, "Vật tư không tồn tại.");
 
             var inventoryRows = await _db.InventoryCurrents
                 .Where(x => x.MaterialId == materialId)
@@ -356,31 +371,40 @@ namespace Backend.Domains.Admin.Services
             string name,
             string unit,
             decimal? minStockLevel,
+            decimal? maxStockLevel,
             int? categoryId,
+            bool isDecimalUnit,
             CancellationToken ct,
             int? ignoreMaterialId)
         {
             if (string.IsNullOrWhiteSpace(code))
-                throw new ArgumentException("Material code is required.");
+                throw new ArgumentException("Mã vật tư không được để trống.");
 
-            if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("Tên vật tư là bắt buộc.");
-
-            if (!MaterialUnitCatalog.TryNormalize(unit, out var normalizedUnit))
-                throw new ArgumentException("Đơn vị tính không hợp lệ. Vui lòng chọn đơn vị có sẵn.");
+            var normalizedUnit = unit.Trim();
 
             if (minStockLevel.HasValue)
             {
                 if (minStockLevel.Value < 0)
                     throw new ArgumentException("Tồn tối thiểu không được âm.");
 
-                if (!IsWholeNumber(minStockLevel.Value))
+                if (!isDecimalUnit && !IsWholeNumber(minStockLevel.Value))
                 {
-                    if (MaterialUnitCatalog.RequiresWholeQuantity(normalizedUnit))
-                        throw new ArgumentException($"Đơn vị tính '{normalizedUnit}' chỉ chấp nhận tồn tối thiểu là số nguyên.");
-
-                    throw new ArgumentException("Tồn tối thiểu hiện chỉ hỗ trợ số nguyên.");
+                    throw new ArgumentException("Tồn tối thiểu hiện chỉ hỗ trợ số nguyên (vui lòng chọn Đơn vị là số thập phân nếu cần).");
                 }
+            }
+
+            if (maxStockLevel.HasValue)
+            {
+                if (maxStockLevel.Value < 0)
+                    throw new ArgumentException("Tồn tối đa không được âm.");
+
+                if (!isDecimalUnit && !IsWholeNumber(maxStockLevel.Value))
+                {
+                    throw new ArgumentException("Tồn tối đa hiện chỉ hỗ trợ số nguyên (vui lòng chọn Đơn vị là số thập phân nếu cần).");
+                }
+
+                if (minStockLevel.HasValue && minStockLevel.Value > maxStockLevel.Value)
+                    throw new ArgumentException("Tồn tối thiểu không được lớn hơn tồn tối đa.");
             }
 
             var normalizedCode = code.Trim().ToUpper();
@@ -395,7 +419,7 @@ namespace Backend.Domains.Admin.Services
             {
                 var categoryExists = await _db.MaterialCategories.AnyAsync(x => x.CategoryId == categoryId.Value, ct);
                 if (!categoryExists)
-                    throw new ArgumentException("CategoryId không tồn tại.");
+                    throw new ArgumentException("Nhóm vật tư không tồn tại.");
             }
 
             return normalizedUnit;
@@ -416,15 +440,13 @@ namespace Backend.Domains.Admin.Services
                 .Select(x => new
                 {
                     x.MaterialId,
-                    x.Unit
+                    x.Unit,
+                    x.IsDecimalUnit
                 })
                 .FirstOrDefaultAsync(ct);
 
             if (material == null)
                 throw new ArgumentException("Material không tồn tại.");
-
-            if (!MaterialUnitCatalog.TryNormalize(material.Unit, out var normalizedUnit))
-                throw new ArgumentException("Đơn vị tính của vật tư không hợp lệ.");
 
             var warehouseExists = await _db.Warehouses.AnyAsync(x => x.WarehouseId == warehouseId, ct);
             if (!warehouseExists)
@@ -445,24 +467,24 @@ namespace Backend.Domains.Admin.Services
                 .FirstOrDefaultAsync(x => x.BatchId == batchId, ct);
 
             if (batch == null)
-                throw new ArgumentException("Batch không tồn tại.");
+                throw new ArgumentException("Lô không tồn tại.");
 
             if (batch.MaterialId != materialId)
-                throw new ArgumentException("Batch không thuộc vật tư này.");
+                throw new ArgumentException("Lô không thuộc vật tư này.");
 
             if (quantityOnHand < 0)
-                throw new ArgumentException("QuantityOnHand không được âm.");
+                throw new ArgumentException("Số lượng tồn kho không được âm.");
 
             if (quantityAllocated < 0)
-                throw new ArgumentException("QuantityAllocated không được âm.");
+                throw new ArgumentException("Số lượng phân bổ không được âm.");
 
-            if (MaterialUnitCatalog.RequiresWholeQuantity(normalizedUnit))
+            if (!material.IsDecimalUnit)
             {
                 if (!IsWholeNumber(quantityOnHand))
-                    throw new ArgumentException($"Đơn vị tính '{normalizedUnit}' chỉ chấp nhận tồn kho là số nguyên.");
+                    throw new ArgumentException($"Đơn vị tính '{material.Unit}' của vật tư này chỉ chấp nhận tồn kho là số nguyên.");
 
                 if (!IsWholeNumber(quantityAllocated))
-                    throw new ArgumentException($"Đơn vị tính '{normalizedUnit}' chỉ chấp nhận số lượng phân bổ là số nguyên.");
+                    throw new ArgumentException($"Đơn vị tính '{material.Unit}' của vật tư này chỉ chấp nhận số lượng phân bổ là số nguyên.");
             }
 
             if (quantityAllocated > quantityOnHand)
@@ -483,16 +505,16 @@ namespace Backend.Domains.Admin.Services
                     .FirstOrDefaultAsync(x => x.BatchId == batchId.Value, ct);
 
                 if (batchById == null)
-                    throw new ArgumentException("Batch không tồn tại.");
+                    throw new ArgumentException("Lô không tồn tại.");
 
                 if (batchById.MaterialId != materialId)
-                    throw new ArgumentException("Batch không thuộc vật tư này.");
+                    throw new ArgumentException("Lô không thuộc vật tư này.");
 
                 return batchById.BatchId;
             }
 
             if (string.IsNullOrWhiteSpace(batchCode))
-                throw new ArgumentException("BatchId hoặc BatchCode là bắt buộc.");
+                throw new ArgumentException("Thông tin Lô là bắt buộc.");
 
             var normalized = batchCode.Trim().ToUpper();
 

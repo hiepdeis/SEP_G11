@@ -12,6 +12,8 @@ import {
   Info,
   CalendarDays,
   ClipboardList,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
@@ -31,6 +33,9 @@ import {
 } from "@/services/import-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { formatQuantity } from "@/lib/format-quantity";
+import { formatDateTime } from "@/lib/format-date-time";
+
 import { showConfirmToast } from "@/hooks/confirm-toast";
 import { QCReceiptExcelHandler } from "@/components/ui/custom/qc-check-xlxs";
 
@@ -43,6 +48,8 @@ interface ReceiveItemInput {
   passQuantity: number;
   failQuantity: number;
   failReason: string;
+  unit: string;
+  isDecimalUnit: boolean;
 }
 
 export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
@@ -58,6 +65,8 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
   const [items, setItems] = useState<ReceiveItemInput[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     if (!poIdParam && !supIdParam) {
@@ -95,10 +104,16 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
               materialName: i.materialName,
               orderedQuantity:
                 i.orderedQuantity || i.supplementaryQuantity || 0,
-              actualQuantity: i.orderedQuantity || i.supplementaryQuantity || 0,
-              passQuantity: i.orderedQuantity || i.supplementaryQuantity || 0,
+              actualQuantity: Number(
+                formatQuantity(i.orderedQuantity || i.supplementaryQuantity),
+              ),
+              passQuantity: Number(
+                formatQuantity(i.orderedQuantity || i.supplementaryQuantity),
+              ),
               failQuantity: 0,
               failReason: "",
+              unit: i.unit || "",
+              isDecimalUnit: i.isDecimalUnit || false,
             }),
           );
           setItems(mappedItems);
@@ -116,6 +131,12 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
 
     fetchOrderDetails();
   }, [poIdParam, supIdParam, router, t]);
+
+  const totalPages = Math.ceil(items.length / itemsPerPage) || 1;
+  const paginatedItems = items.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
 
   const handleActualChange = (id: number, val: string) => {
     const num = Math.max(0, Number(val) || 0);
@@ -204,10 +225,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
               const isFailed =
                 i.failQuantity > 0 || i.actualQuantity < i.orderedQuantity;
 
-              const targetQuantity = Math.min(
-                i.actualQuantity,
-                i.orderedQuantity,
-              );
+              const targetQuantity = i.actualQuantity;
               const failQty = Math.max(0, targetQuantity - i.passQuantity);
 
               return {
@@ -229,16 +247,24 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
             payload.purchaseOrderId = Number(poIdParam);
           }
 
+          // console.log("payload", payload);
+
           // console.log(
           //   "failquantity",
           //   payload.items.map((i) => i.failQuantity),
+          // );
+          // console.log(
           //   "result",
           //   payload.items.map((i) => i.result),
+          // );
+          // console.log(
           //   "hasFullPassForOrderedQty",
           //   payload.items.map(
           //     (i) => i.passQuantity + 0.0001 >= i.orderedQuantity,
           //   ),
           // );
+
+          // TODO: Uncomment when ready to submit
 
           const res =
             await staffReceiptsApi.receiveGoodsFromPurchaseOrder(payload);
@@ -287,24 +313,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
 
   const handleExcelImport = (updatedItems: ReceiveItemInput[]) => {
     setItems(updatedItems);
-  };
-
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-
-    let safeDateString = dateString;
-
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    setCurrentPage(1);
   };
 
   if (isLoading || !order) {
@@ -389,8 +398,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                       {t("Expected Delivery")}
                     </span>
                     <div className="flex items-center gap-2 text-slate-800 font-medium">
-                      <CalendarDays className="w-4 h-4 text-slate-400" />
-                      {formatDate(order.expectedDeliveryDate)}
+                      {formatDateTime(order.expectedDeliveryDate)}
                     </div>
                   </div>
                   <div className="space-y-1 pt-4 border-t border-slate-100">
@@ -431,7 +439,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
 
             {/* BẢNG ĐẾM HÀNG VÀ QC (CỘT PHẢI) */}
             <div className="lg:col-span-3">
-              <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] flex flex-col gap-0">
+              <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] flex flex-col gap-0 pb-0">
                 <CardHeader className="border-b border-slate-100 pb-4">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pt-2">
@@ -463,7 +471,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                             {t("Pass")} *
                           </TableHead>
                           <TableHead className="w-[10%] text-center">
-                            {t("Fail")}
+                            {t("Total Claim Fail")}
                           </TableHead>
                           <TableHead className="w-[25%] pr-6">
                             {t("Fail Reason")}
@@ -471,7 +479,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {items.map((item) => (
+                        {paginatedItems.map((item) => (
                           <TableRow
                             key={item.materialId}
                             className="hover:bg-slate-50/50 transition-colors"
@@ -491,7 +499,8 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
 
                             <TableCell className="text-center pt-5 flex align-center justify-center">
                               <span className="font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
-                                {item.orderedQuantity.toLocaleString("vi-VN")}
+                                {formatQuantity(item.orderedQuantity)}{" "}
+                                {item.unit}
                               </span>
                             </TableCell>
 
@@ -502,14 +511,28 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                                 min="0"
                                 className="w-full text-center focus-visible:ring-indigo-600 font-semibold"
                                 value={item.actualQuantity}
-                                onChange={(e) =>
+                                onChange={(e) => {
+                                  let val = e.target.value;
+                                  val = val.replace(/-/g, "");
+                                  if (
+                                    val.length > 1 &&
+                                    val.startsWith("0") &&
+                                    val[1] !== "."
+                                  ) {
+                                    val = val.replace(/^0+/, "") || "0";
+                                  }
+                                  if (!item.isDecimalUnit) {
+                                    val = val.replace(/\./g, "");
+                                  } else if (val.includes(".")) {
+                                    const parts = val.split(".");
+                                    val = parts[0] + "." + parts[1].slice(0, 3);
+                                  }
+                                  e.target.value = val.slice(0, 12);
                                   handleActualChange(
                                     item.materialId,
-                                    e.target.value
-                                      .replace(/-/g, "")
-                                      .slice(0, 12),
-                                  )
-                                }
+                                    e.target.value,
+                                  );
+                                }}
                               />
                             </TableCell>
 
@@ -521,14 +544,28 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                                 max={item.actualQuantity}
                                 className="w-full text-center focus-visible:ring-emerald-500 font-semibold text-emerald-700"
                                 value={item.passQuantity}
-                                onChange={(e) =>
+                                onChange={(e) => {
+                                  let val = e.target.value;
+                                  val = val.replace(/-/g, "");
+                                  if (
+                                    val.length > 1 &&
+                                    val.startsWith("0") &&
+                                    val[1] !== "."
+                                  ) {
+                                    val = val.replace(/^0+/, "") || "0";
+                                  }
+                                  if (!item.isDecimalUnit) {
+                                    val = val.replace(/\./g, "");
+                                  } else if (val.includes(".")) {
+                                    const parts = val.split(".");
+                                    val = parts[0] + "." + parts[1].slice(0, 3);
+                                  }
+                                  e.target.value = val.slice(0, 12);
                                   handlePassChange(
                                     item.materialId,
-                                    e.target.value
-                                      .replace(/-/g, "")
-                                      .slice(0, 12),
-                                  )
-                                }
+                                    e.target.value,
+                                  );
+                                }}
                               />
                             </TableCell>
 
@@ -541,7 +578,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                                     : "text-slate-400"
                                 }`}
                               >
-                                {item.failQuantity.toFixed(3)}
+                                {formatQuantity(item.failQuantity)}
                               </span>
                             </TableCell>
 
@@ -574,6 +611,38 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                     </Table>
                   </div>
                 </CardContent>
+
+                {items.length > itemsPerPage && (
+                  <div className="flex items-center justify-between px-6 py-4 bg-slate-50/50 border-t border-slate-100 text-xs text-slate-500">
+                    <span className="font-medium">
+                      {t("Showing")} {paginatedItems.length} {t("of")}{" "}
+                      {items.length} {t("items")}
+                    </span>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage((p) => p - 1)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      <span className="font-semibold text-slate-900 min-w-8 text-center">
+                        {currentPage} / {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage >= totalPages}
+                        onClick={() => setCurrentPage((p) => p + 1)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </Card>
             </div>
           </div>

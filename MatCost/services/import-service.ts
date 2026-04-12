@@ -456,6 +456,7 @@ export interface GetInboundRequestItemDto {
   materialName: string;
   passQuantity?: number;
   failQuantity?: number;
+  failClaimQuantity?: number;
   quantity?: number;
   actualQuantity?: number;
   binLocationId?: number;
@@ -467,6 +468,7 @@ export interface GetInboundRequestItemDto {
   supplierName: string;
   unitPrice?: number;
   unit?: string;
+  isDecimalUnit?: boolean;
   lineTotal?: number;
 }
 
@@ -501,6 +503,7 @@ export interface PendingPurchaseOrderItemDto {
   materialName: string;
   orderedQuantity: number;
   unit: string;
+  isDecimalUnit: boolean;
 }
 
 export interface PendingPurchaseOrderDto {
@@ -780,6 +783,8 @@ export interface PendingPutawayReceiptDto {
   supplierName: string;
   status: string;
   createdAt: string;
+  warehouseId: number;
+  warehouseName: string;
   items: PendingPutawayItemDto[];
 }
 
@@ -789,6 +794,8 @@ export interface PendingPutawayItemDto {
   materialName: string;
   quantityToPutaway: number;
   note?: string | null;
+  unit: string;
+  isDecimalUnit: boolean;
 }
 
 // ==========================================

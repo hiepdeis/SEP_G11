@@ -1,4 +1,4 @@
-﻿using Backend.Data;
+using Backend.Data;
 using Backend.Domains.Admin.Dtos;
 using Backend.Domains.Admin.Interface;
 
@@ -1220,6 +1220,8 @@ namespace Backend.Domains.Admin.Services
                          StartDate = x.StartDate,
                          EndDate = x.EndDate,
                          Budget = x.Budget,
+                         BudgetUsed = x.BudgetUsed,
+                         OverBudgetAllowance = x.OverBudgetAllowance,
                          Status = x.Status
                      }),
                     query.Page,
@@ -1253,6 +1255,8 @@ namespace Backend.Domains.Admin.Services
                     StartDate = x.StartDate,
                     EndDate = x.EndDate,
                     Budget = x.Budget,
+                    BudgetUsed = x.BudgetUsed,
+                    OverBudgetAllowance = x.OverBudgetAllowance,
                     Status = x.Status
                 })
                 .FirstOrDefaultAsync(ct);
@@ -1301,6 +1305,8 @@ namespace Backend.Domains.Admin.Services
                 StartDate = request.StartDate,
                 EndDate = request.EndDate,
                 Budget = request.Budget,
+                BudgetUsed = request.BudgetUsed,
+                OverBudgetAllowance = request.OverBudgetAllowance,
                 Status = status
             };
 
@@ -1342,6 +1348,8 @@ namespace Backend.Domains.Admin.Services
             entity.StartDate = request.StartDate;
             entity.EndDate = request.EndDate;
             entity.Budget = request.Budget;
+            entity.BudgetUsed = request.BudgetUsed;
+            entity.OverBudgetAllowance = request.OverBudgetAllowance;
             entity.Status = status;
 
             await _db.SaveChangesAsync(ct);
@@ -1379,6 +1387,185 @@ namespace Backend.Domains.Admin.Services
             await _db.SaveChangesAsync(ct);
 
             return true;
+        }
+
+        // =========================================================
+        // SUPPLIER CONTRACT
+        // =========================================================
+
+        public async Task<MasterDataPagedResult<SupplierContractDto>> GetSupplierContractsAsync(
+            MasterDataQueryDto query,
+            CancellationToken ct)
+        {
+            var normalizedStatus = Normalize(query.Status);
+
+            var queryable = _db.SupplierContracts
+                .AsNoTracking()
+                .Include(contract => contract.Supplier)
+                .Select(contract => new SupplierContractDto
+                {
+                    ContractId = contract.ContractId,
+                    ContractCode = contract.ContractCode,
+                    ContractNumber = contract.ContractNumber,
+                    EffectiveFrom = contract.EffectiveFrom,
+                    EffectiveTo = contract.EffectiveTo,
+                    LeadTimeDays = contract.LeadTimeDays,
+                    PaymentTerms = contract.PaymentTerms,
+                    DeliveryTerms = contract.DeliveryTerms,
+                    Status = contract.Status,
+                    IsActive = contract.IsActive,
+                    Notes = contract.Notes,
+                    SupplierId = contract.SupplierId,
+                    SupplierName = contract.Supplier.Name
+                });
+
+            if (!string.IsNullOrEmpty(normalizedStatus))
+            {
+                queryable = queryable.Where(x => x.Status.ToLower() == normalizedStatus);
+            }
+
+            var totalItems = await queryable.CountAsync(ct);
+            var items = await ApplyPaging(queryable, query.Page, query.PageSize)
+                .ToListAsync(ct);
+
+            return ToPagedResult(items, query.Page, query.PageSize, totalItems);
+        }
+
+        public async Task<SupplierContractDto?> GetSupplierContractByIdAsync(int id, CancellationToken ct)
+        {
+            return await _db.SupplierContracts
+                .AsNoTracking()
+                .Include(contract => contract.Supplier)
+                .Select(contract => new SupplierContractDto
+                {
+                    ContractId = contract.ContractId,
+                    ContractCode = contract.ContractCode,
+                    ContractNumber = contract.ContractNumber,
+                    EffectiveFrom = contract.EffectiveFrom,
+                    EffectiveTo = contract.EffectiveTo,
+                    LeadTimeDays = contract.LeadTimeDays,
+                    PaymentTerms = contract.PaymentTerms,
+                    DeliveryTerms = contract.DeliveryTerms,
+                    Status = contract.Status,
+                    IsActive = contract.IsActive,
+                    Notes = contract.Notes,
+                    SupplierId = contract.SupplierId,
+                    SupplierName = contract.Supplier.Name
+                })
+                .FirstOrDefaultAsync(x => x.ContractId == id, ct);
+        }
+
+        public async Task<int> CreateSupplierContractAsync(UpsertSupplierContractDto request, CancellationToken ct)
+        {
+            var code = Normalize(request.ContractCode).ToUpper();
+            var number = Normalize(request.ContractNumber);
+            var status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : Normalize(request.Status);
+
+            if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Code is required.");
+            if (request.SupplierId <= 0) throw new ArgumentException("Supplier is required.");
+            
+            if (request.EffectiveTo?.Date < DateTime.Now.Date)
+                throw new ArgumentException("EffectiveTo must be greater than or equal to today.");
+
+            if (request.EffectiveFrom.Date > request.EffectiveTo?.Date)
+                throw new ArgumentException("EffectiveFrom must be less than or equal to EffectiveTo.");
+
+            var codeExists = await _db.SupplierContracts.AnyAsync(x => x.ContractCode.ToLower() == code.ToLower(), ct);
+            if (codeExists) throw new ArgumentException("Contract code already exists.");
+
+            var entity = new SupplierContract
+            {
+                ContractCode = code,
+                ContractNumber = number,
+                EffectiveFrom = request.EffectiveFrom,
+                EffectiveTo = request.EffectiveTo,
+                LeadTimeDays = request.LeadTimeDays,
+                PaymentTerms = request.PaymentTerms,
+                DeliveryTerms = request.DeliveryTerms,
+                Status = status,
+                IsActive = request.IsActive,
+                Notes = request.Notes,
+                SupplierId = request.SupplierId
+            };
+
+            _db.SupplierContracts.Add(entity);
+            await _db.SaveChangesAsync(ct);
+
+            return (int)entity.ContractId;
+        }
+
+        public async Task<bool> UpdateSupplierContractAsync(int id, UpsertSupplierContractDto request, CancellationToken ct)
+        {
+            var entity = await _db.SupplierContracts.FirstOrDefaultAsync(x => x.ContractId == id, ct);
+            if (entity == null) return false;
+
+            var code = Normalize(request.ContractCode).ToUpper();
+            var number = Normalize(request.ContractNumber);
+            var status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : Normalize(request.Status);
+
+            if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Code is required.");
+            if (request.SupplierId <= 0) throw new ArgumentException("Supplier is required.");
+
+            if (request.EffectiveTo?.Date < DateTime.Now.Date)
+                throw new ArgumentException("EffectiveTo must be greater than or equal to today.");
+
+            if (request.EffectiveFrom.Date > request.EffectiveTo?.Date)
+                throw new ArgumentException("EffectiveFrom must be less than or equal to EffectiveTo.");
+
+            var codeExists = await _db.SupplierContracts.AnyAsync(x => x.ContractCode.ToLower() == code.ToLower() && x.ContractId != id, ct);
+            if (codeExists) throw new ArgumentException("Contract code already exists.");
+
+            entity.ContractCode = code;
+            entity.ContractNumber = number;
+            entity.EffectiveFrom = request.EffectiveFrom;
+            entity.EffectiveTo = request.EffectiveTo;
+            entity.LeadTimeDays = request.LeadTimeDays;
+            entity.PaymentTerms = request.PaymentTerms;
+            entity.DeliveryTerms = request.DeliveryTerms;
+            entity.Status = status;
+            entity.IsActive = request.IsActive;
+            entity.Notes = request.Notes;
+            entity.SupplierId = request.SupplierId;
+
+            await _db.SaveChangesAsync(ct);
+
+            return true;
+        }
+
+        public async Task<bool> DeleteSupplierContractAsync(int id, CancellationToken ct)
+        {
+            var entity = await _db.SupplierContracts.FirstOrDefaultAsync(x => x.ContractId == id, ct);
+            if (entity == null) return false;
+
+            _db.SupplierContracts.Remove(entity);
+            await _db.SaveChangesAsync(ct);
+
+            return true;
+        }
+
+        public async Task<List<SupplierContractDto>> GetSupplierContractsBySupplierIdAsync(int supplierId, CancellationToken ct)
+        {
+            return await _db.SupplierContracts
+                .AsNoTracking()
+                .Include(contract => contract.Supplier)
+                .Where(contract => contract.SupplierId == supplierId)
+                .Select(contract => new SupplierContractDto
+                {
+                    ContractId = contract.ContractId,
+                    ContractCode = contract.ContractCode,
+                    ContractNumber = contract.ContractNumber,
+                    EffectiveFrom = contract.EffectiveFrom,
+                    EffectiveTo = contract.EffectiveTo,
+                    LeadTimeDays = contract.LeadTimeDays,
+                    PaymentTerms = contract.PaymentTerms,
+                    DeliveryTerms = contract.DeliveryTerms,
+                    Status = contract.Status,
+                    IsActive = contract.IsActive,
+                    Notes = contract.Notes,
+                    SupplierId = contract.SupplierId,
+                    SupplierName = contract.Supplier.Name
+                })
+                .ToListAsync(ct);
         }
     }
 }

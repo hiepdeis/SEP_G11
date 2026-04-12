@@ -45,9 +45,10 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { showConfirmToast } from "@/hooks/confirm-toast";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { DateTimePicker } from "@/components/ui/custom/date-time-picker";
 import { formatPascalCase } from "@/lib/format-pascal-case";
+import { formatCurrency } from "@/lib/format-currency";
+import { formatDateTime } from "@/lib/format-date-time";
 import {
   Dialog,
   DialogContent,
@@ -192,25 +193,7 @@ export default function PurchaseOrderDetailPage() {
     }
   };
 
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-    let safeDateString = dateString;
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
-  const formatCurrency = (val?: number | null) => {
-    if (val == null) return "0 ₫";
-    return val.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
-  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -321,7 +304,7 @@ export default function PurchaseOrderDetailPage() {
                   className="px-3 py-1.5 text-sm font-medium bg-emerald-50 text-emerald-700 border-emerald-200"
                 >
                   <CalendarDays className="w-4 h-4 mr-2" />
-                  {t("Expected")}: {formatDate(order.expectedDeliveryDate)}
+                  {t("Expected")}: {formatDateTime(order.expectedDeliveryDate)}
                 </Badge>
               )}
 
@@ -389,7 +372,7 @@ export default function PurchaseOrderDetailPage() {
                         {t("Draft Created")}
                       </p>
                       <p className="text-[11px] text-slate-400 mt-0.5">
-                        {formatDate(order.createdAt)}
+                        {formatDateTime(order.createdAt)}
                       </p>
                       <p className="text-[11px] text-slate-400 mt-0.5">
                         {order.createdByName}
@@ -422,7 +405,7 @@ export default function PurchaseOrderDetailPage() {
                       {order.accountantApprovedAt || isAccountantRejected ? (
                         <>
                           <p className="text-[11px] text-slate-400 mt-0.5">
-                            {formatDate(order.accountantApprovedAt)}
+                            {formatDateTime(order.accountantApprovedAt)}
                           </p>
                         </>
                       ) : (
@@ -459,7 +442,7 @@ export default function PurchaseOrderDetailPage() {
                       {order.adminApprovedAt || isAdminRejected ? (
                         <>
                           <p className="text-[11px] text-slate-400 mt-0.5">
-                            {formatDate(order.adminApprovedAt)}
+                            {formatDateTime(order.adminApprovedAt)}
                           </p>
                         </>
                       ) : (
@@ -489,7 +472,7 @@ export default function PurchaseOrderDetailPage() {
                       </p>
                       {order.sentToSupplierAt ? (
                         <p className="text-[11px] text-emerald-600 mt-0.5 font-medium">
-                          {formatDate(order.sentToSupplierAt)}
+                          {formatDateTime(order.sentToSupplierAt)}
                         </p>
                       ) : (
                         <p className="text-xs text-slate-400 italic mt-0.5">
@@ -593,7 +576,7 @@ export default function PurchaseOrderDetailPage() {
                       </span>
                       <div className="flex items-center gap-2 text-emerald-600 font-medium">
                         <CalendarDays className="w-4 h-4 text-emerald-500" />
-                        {formatDate(order.expectedDeliveryDate)}
+                        {formatDateTime(order.expectedDeliveryDate)}
                       </div>
                     </div>
                   )}

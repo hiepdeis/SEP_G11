@@ -22,7 +22,8 @@ public class StockShortageAlert
     [Column(TypeName = "decimal(18, 4)")]
     public decimal CurrentQuantity { get; set; }
 
-    public int? MinStockLevel { get; set; }
+    [Column(TypeName = "decimal(18, 4)")]
+    public decimal? MinStockLevel { get; set; }
 
     [Column(TypeName = "decimal(18, 4)")]
     public decimal? SuggestedQuantity { get; set; }

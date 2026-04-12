@@ -55,6 +55,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ImageGallery } from "@/components/ui/custom/image-gallery";
+import { formatDateTime } from "@/lib/format-date-time";
+import { formatQuantity } from "@/lib/format-quantity";
 
 export default function ManagerIncidentDetailPage() {
   const { t } = useTranslation();
@@ -92,7 +94,16 @@ export default function ManagerIncidentDetailPage() {
       setIsLoading(true);
       try {
         const res = await managerIncidentApi.getIncidentDetail(id);
-        setIncident(res.data);
+        const data = res.data;
+        // Filter out items with no failed items
+        const filteredIncident = {
+          ...data,
+          items: data.items.filter(
+            (item: any) =>
+              (item.passQuantity ?? 0) < (item.orderedQuantity ?? 0),
+          ),
+        };
+        setIncident(filteredIncident);
 
         try {
           const suppRes = await managerIncidentApi.getSupplementaryReceipt(id);
@@ -174,24 +185,6 @@ export default function ManagerIncidentDetailPage() {
     } finally {
       setIsRejecting(false);
     }
-  };
-
-  const formatDateTime = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-
-    let safeDateString = dateString;
-
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
   if (isLoading || !incident) {
@@ -587,9 +580,11 @@ export default function ManagerIncidentDetailPage() {
 
                               <TableCell className="text-center align-top pt-4">
                                 <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-rose-200 shadow-sm">
-                                  {item.failQuantityQuantity +
-                                    item.failQuantityQuality +
-                                    item.failQuantityDamage}
+                                  {formatQuantity(
+                                    item.failQuantityQuantity +
+                                      item.failQuantityQuality +
+                                      item.failQuantityDamage,
+                                  )}
                                 </Badge>
                               </TableCell>
 

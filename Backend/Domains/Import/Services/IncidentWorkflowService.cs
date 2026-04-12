@@ -78,6 +78,8 @@ namespace Backend.Domains.Import.Services
             // STEP 1: load incident with QC details
             var incident = await _context.IncidentReports
                 .Include(i => i.Receipt)
+                    .ThenInclude(r => r.ReceiptDetails)
+                        .ThenInclude(rd => rd.Material)
                 .Include(i => i.IncidentReportDetails)
                     .ThenInclude(d => d.EvidenceImages)
                 .Include(i => i.QCCheck)
@@ -607,24 +609,40 @@ namespace Backend.Domains.Import.Services
                         .Distinct()
                         .ToList());
 
-            var details = incident.QCCheck?.QCCheckDetails ?? new List<QCCheckDetail>();
+            var qcDetails = incident.QCCheck?.QCCheckDetails ?? new List<QCCheckDetail>();
+            var qcByReceiptDetailId = qcDetails
+                .GroupBy(d => d.ReceiptDetailId)
+                .ToDictionary(g => g.Key, g => g.First());
 
-            return details.Select(d => new ManagerIncidentItemSummaryDto
+            var receiptDetails = incident.Receipt?.ReceiptDetails?.ToList()
+                ?? qcDetails
+                    .Where(d => d.ReceiptDetail != null)
+                    .Select(d => d.ReceiptDetail!)
+                    .GroupBy(rd => rd.DetailId)
+                    .Select(g => g.First())
+                    .ToList();
+
+            return receiptDetails.Select(rd =>
             {
-                MaterialId = d.ReceiptDetail.MaterialId,
-                MaterialName = d.ReceiptDetail.Material?.Name,
-                OrderedQuantity = d.ReceiptDetail.Quantity,
-                ActualQuantity = d.ReceiptDetail.ActualQuantity,
-                PassQuantity = d.PassQuantity,
-                FailQuantity = d.FailQuantity,
-                FailReason = d.FailReason,
-                // Include breakdown columns
-                FailQuantityQuantity = d.FailQuantityQuantity,
-                FailQuantityQuality = d.FailQuantityQuality,
-                FailQuantityDamage = d.FailQuantityDamage,
-                EvidenceImages = evidenceByMaterial.TryGetValue(d.ReceiptDetail.MaterialId, out var images)
+                qcByReceiptDetailId.TryGetValue(rd.DetailId, out var qcd);
+
+                return new ManagerIncidentItemSummaryDto
+                {
+                    MaterialId = rd.MaterialId,
+                    MaterialName = rd.Material?.Name,
+                    OrderedQuantity = rd.Quantity,
+                    ActualQuantity = rd.ActualQuantity,
+                    PassQuantity = qcd?.PassQuantity ?? 0,
+                    FailQuantity = qcd?.FailQuantity ?? 0,
+                    FailReason = qcd?.FailReason,
+                    // Include breakdown columns
+                    FailQuantityQuantity = qcd?.FailQuantityQuantity,
+                    FailQuantityQuality = qcd?.FailQuantityQuality,
+                    FailQuantityDamage = qcd?.FailQuantityDamage,
+                    EvidenceImages = evidenceByMaterial.TryGetValue(rd.MaterialId, out var images)
                     ? images
                     : new List<string>()
+                };
             }).ToList();
         }
 
