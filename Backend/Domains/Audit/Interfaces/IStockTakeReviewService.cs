@@ -66,5 +66,34 @@ namespace Backend.Domains.Audit.Interfaces
             int managerId,
             CompleteAuditRequest request,
             CancellationToken ct);
+
+        // ===== NEW WORKFLOW METHODS =====
+        
+        /// <summary>Accountant reviews after staff finish: Approve (all matched) or ForwardToManager (has discrepancies)</summary>
+        Task<(bool success, string message)> AccountantReviewAsync(
+            int stockTakeId,
+            int userId,
+            string action,
+            CancellationToken ct);
+
+        /// <summary>Accountant approves Manager's resolution → complete + update inventory</summary>
+        Task<(bool success, string message)> AccountantApproveResolveAsync(
+            int stockTakeId,
+            int userId,
+            CancellationToken ct);
+
+        /// <summary>Accountant rejects Manager's resolution → escalate to Admin</summary>
+        Task<(bool success, string message)> AccountantRejectResolveAsync(
+            int stockTakeId,
+            int userId,
+            string? notes,
+            CancellationToken ct);
+
+        /// <summary>Admin issues penalty + signs → complete + update inventory</summary>
+        Task<(bool success, string message)> AdminFinalizeAsync(
+            int stockTakeId,
+            int userId,
+            AdminFinalizeRequest request,
+            CancellationToken ct);
     }
 }

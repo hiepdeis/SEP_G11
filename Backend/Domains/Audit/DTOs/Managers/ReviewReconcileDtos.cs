@@ -280,3 +280,19 @@ public sealed class RecountCandidateDto
     public DateTime? AssignedAt { get; set; }
     public DateTime? RemovedAt { get; set; }
 }
+
+public sealed class AccountantReviewRequest
+{
+    /// <summary>"Approve" (all matched) or "ForwardToManager" (has discrepancies)</summary>
+    public string Action { get; set; } = null!;
+    public string? Notes { get; set; }
+}
+
+public sealed class AdminFinalizeRequest
+{
+    public string PenaltyReason { get; set; } = null!;
+    public decimal PenaltyAmount { get; set; }
+    public string? PenaltyNotes { get; set; }
+    public int TargetManagerUserId { get; set; }
+    public string? AuditNotes { get; set; }
+}

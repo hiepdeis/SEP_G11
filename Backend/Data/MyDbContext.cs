@@ -1,4 +1,4 @@
-﻿using Backend.Entities;
+using Backend.Entities;
 using Microsoft.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -55,6 +55,8 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<Role> Roles { get; set; }
     public virtual DbSet<StockTakeLock> StockTakeLocks { get; set; }
+
+    public virtual DbSet<AuditPenalty> AuditPenalties { get; set; }
 
     public virtual DbSet<StockTake> StockTakes { get; set; }
 
@@ -634,12 +636,11 @@ public partial class MyDbContext : DbContext
                 .HasFilter("[BinId] IS NOT NULL");
             entity.HasIndex(e => e.IsActive, "IX_StockTakeLocks_IsActive");
 
-            entity.ToTable("StockTakeLocks");
-
-            entity.HasCheckConstraint("CK_StockTakeLocks_ScopeType", "[ScopeType] IN ('Warehouse', 'Bin')");
-            entity.HasCheckConstraint(
-                "CK_StockTakeLocks_BinRequired",
-                "([ScopeType]='Warehouse' AND [BinId] IS NULL) OR ([ScopeType]='Bin' AND [BinId] IS NOT NULL)");
+            entity.ToTable("StockTakeLocks", t =>
+            {
+                t.HasCheckConstraint("CK_StockTakeLocks_ScopeType", "[ScopeType] IN ('Warehouse', 'Bin')");
+                t.HasCheckConstraint("CK_StockTakeLocks_BinRequired", "([ScopeType]='Warehouse' AND [BinId] IS NULL) OR ([ScopeType]='Bin' AND [BinId] IS NOT NULL)");
+            });
         });
         modelBuilder.Entity<StockTake>(entity =>
         {
@@ -659,7 +660,7 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.PlannedEndDate).HasPrecision(0);
             entity.Property(e => e.PlannedStartDate).HasPrecision(0);
             entity.Property(e => e.Status)
-                .HasMaxLength(20)
+                .HasMaxLength(30)
                 .IsUnicode(false);
             entity.Property(e => e.Title).HasMaxLength(200);
             entity.Property(e => e.WarehouseId).HasColumnName("WarehouseID");
@@ -735,6 +736,29 @@ public partial class MyDbContext : DbContext
             entity.HasOne(d => d.StockTake).WithMany(p => p.StockTakeDetails)
                 .HasForeignKey(d => d.StockTakeId)
                 .HasConstraintName("FK__StockTake__Stock__17036CC0");
+        });
+
+        modelBuilder.Entity<AuditPenalty>(entity =>
+        {
+            entity.HasKey(e => e.PenaltyId);
+
+            entity.HasOne(d => d.StockTake)
+                .WithMany(p => p.AuditPenalties)
+                .HasForeignKey(d => d.StockTakeId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_AuditPenalties_StockTakes");
+
+            entity.HasOne(d => d.IssuedByUser)
+                .WithMany(p => p.IssuedAuditPenalties)
+                .HasForeignKey(d => d.IssuedByUserId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_AuditPenalties_IssuedBy_Users");
+
+            entity.HasOne(d => d.TargetUser)
+                .WithMany(p => p.ReceivedAuditPenalties)
+                .HasForeignKey(d => d.TargetUserId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_AuditPenalties_Target_Users");
         });
 
         modelBuilder.Entity<StockTakeSignature>(entity =>
@@ -1411,23 +1435,6 @@ public partial class MyDbContext : DbContext
                 .HasConstraintName("FK_IncidentEvidenceImages_IncidentReportDetails");
         });
 
-        modelBuilder.Entity<IncidentEvidenceImage>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK_IncidentEvidenceImages");
-
-            entity.Property(e => e.IncidentReportDetailId).HasColumnName("IncidentReportDetailID");
-            entity.Property(e => e.UploadedAt)
-                .HasColumnType("datetime")
-                .HasDefaultValueSql("(getdate())");
-
-            entity.HasIndex(e => e.IncidentReportDetailId, "IX_IncidentEvidenceImages_IncidentReportDetailID");
-
-            entity.HasOne(d => d.IncidentReportDetail)
-                .WithMany(p => p.EvidenceImages)
-                .HasForeignKey(d => d.IncidentReportDetailId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("FK_IncidentEvidenceImages_IncidentReportDetails");
-        });
         modelBuilder.Entity<IssueSlipApproval>(entity =>
         {
             entity.HasKey(e => e.Id);

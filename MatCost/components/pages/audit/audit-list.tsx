@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
-import { Plus, Search, Lock, Unlock, ArrowRight, ClipboardList, Users, Loader2, FileText, ChevronLeft, ChevronRight, CheckCircle2, ArrowUp, ArrowDown, ArrowUpDown, CalendarDays, Delete, Calendar as CalendarIcon, AlertCircle } from "lucide-react";
+import { Plus, Search, Lock, Unlock, ArrowRight, ClipboardList, Users, Loader2, FileText, ChevronLeft, ChevronRight, CheckCircle2, ArrowUp, ArrowDown, ArrowUpDown, CalendarDays, Delete, Calendar as CalendarIcon, AlertCircle, Calculator, FileSignature, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -169,8 +169,12 @@ export default function SharedAuditList({ role }: AuditListProps) {
 
   const getStatusBadge = (status: string) => {
     const s = status?.toLowerCase() || "";
-    if (s === "locked" || s === "inprogress") return <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-100 gap-1 border-blue-200"><Lock className="w-3 h-3" /> {t("In Progress (Locked)")}</Badge>;
+    if (s === "locked" || s === "inprogress") return <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-100 gap-1 border-blue-200"><Lock className="w-3 h-3" /> {t("In Progress")}</Badge>;
     if (s === "completed") return <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 gap-1 border-emerald-200"><CheckCircle2 className="w-3 h-3" /> {t("Completed")}</Badge>;
+    if (s === "pendingaccountantreview") return <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-100 gap-1 border-amber-200"><Calculator className="w-3 h-3" /> {t("Pending Accountant")}</Badge>;
+    if (s === "pendingmanagerreview") return <Badge className="bg-orange-50 text-orange-700 hover:bg-orange-100 gap-1 border-orange-200"><AlertCircle className="w-3 h-3" /> {t("Pending Manager")}</Badge>;
+    if (s === "pendingaccountantapproval") return <Badge className="bg-violet-50 text-violet-700 hover:bg-violet-100 gap-1 border-violet-200"><FileSignature className="w-3 h-3" /> {t("Pending Approval")}</Badge>;
+    if (s === "pendingadminreview") return <Badge className="bg-red-50 text-red-700 hover:bg-red-100 gap-1 border-red-200"><ShieldAlert className="w-3 h-3" /> {t("Pending Admin")}</Badge>;
     if (s === "readyforreview") return <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-100 gap-1 border-amber-200"><AlertCircle className="w-3 h-3" /> {t("Ready For Review")}</Badge>;
     if (s === "assigned") return <Badge className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 gap-1 border-indigo-200"><Users className="w-3 h-3" /> {t("Assigned")}</Badge>;
     return <Badge variant="outline" className="text-slate-500 gap-1 bg-slate-50"><Unlock className="w-3 h-3" /> {t("Planned")}</Badge>;
@@ -262,7 +266,10 @@ export default function SharedAuditList({ role }: AuditListProps) {
                       <SelectItem value="Planned">{t("Planned")}</SelectItem>
                       <SelectItem value="Assigned">{t("Assigned")}</SelectItem>
                       <SelectItem value="InProgress">{t("In Progress")}</SelectItem>
-                      <SelectItem value="ReadyForReview">{t("Ready For Review")}</SelectItem>
+                      <SelectItem value="PendingAccountantReview">{t("Pending Accountant")}</SelectItem>
+                      <SelectItem value="PendingManagerReview">{t("Pending Manager")}</SelectItem>
+                      <SelectItem value="PendingAccountantApproval">{t("Pending Approval")}</SelectItem>
+                      <SelectItem value="PendingAdminReview">{t("Pending Admin")}</SelectItem>
                       <SelectItem value="Completed">{t("Completed")}</SelectItem>
                     </SelectContent>
                   </Select>

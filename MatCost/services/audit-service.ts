@@ -10,8 +10,9 @@ export interface CountItemDto { materialId: number; binId: number; batchId: numb
 export interface MaterialBatchDto { materialId: number; materialName: string; batchId: number; batchCode: string; }
 export interface UpsertCountRequest { materialId: number; binCode: string; batchCode: string; countQty: number; reason?: string; }
 export interface AuditMetricsDto { totalItems: number; countedItems: number; matchedItems: number; discrepancyItems: number; countingProgress: number; }
-export interface VarianceItemDto { id: number; materialName: string; binCode: string; batchCode: string; systemQty: number; countQty: number; variance: number; discrepancyStatus: string; resolutionAction?: string; }
-export interface StockTakeReviewDetailDto { stockTakeId: number; title: string; status: string; metrics: AuditMetricsDto; }
+export interface VarianceItemDto { id: number; materialName: string; binCode: string; batchCode: string; systemQty: number; countQty: number; variance: number; discrepancyStatus: string; resolutionAction?: string; countRound?: number; }
+export interface StockTakeReviewDetailDto { stockTakeId: number; title: string; status: string; warehouseId: number; warehouseName: string; notes?: string; metrics: AuditMetricsDto; signatures?: SignatureInfoDto[]; timeline?: any; teamMembers?: any; }
+export interface SignatureInfoDto { userId: number; fullName: string; role: string; signedAt: string; notes?: string; }
 export interface RecountCandidateDto { userId: number; fullName: string; isActive: boolean; assignedAt: string; removedAt?: string; }
 
 export const auditService = {
@@ -55,7 +56,7 @@ export const auditService = {
     return response.data;
   },
 
-  // --- CẬP NHẬT API CHO NHÂN VIÊN THEO CODE MỚI ---
+  // --- STAFF COUNTING APIs ---
   getCountedItems: async (stockTakeId: number, skip: number = 0, take: number = 200) => {
     const response = await axiosClient.get<MaterialBatchDto[]>(`/staff/audits/${stockTakeId}/counted-items`, { params: { skip, take } });
     return response.data;
@@ -81,7 +82,7 @@ export const auditService = {
     return response.data;
   },
 
-  // --- API MANAGER & KẾ TOÁN ---
+  // --- REVIEW APIs ---
   getReviewDetail: async (stockTakeId: number) => {
     const response = await axiosClient.get<StockTakeReviewDetailDto>(`/manager/audits/${stockTakeId}/review-detail`);
     return response.data;
@@ -101,7 +102,7 @@ export const auditService = {
     return response.data;
   },
   
-  // API TÍNH NĂNG MỚI: Triệu tập đếm lại
+  // RECOUNT TEAM MANAGEMENT
   getRecountCandidates: async (stockTakeId: number) => {
     const response = await axiosClient.get<{items: RecountCandidateDto[]}>(`/manager/audits/${stockTakeId}/recount-candidates`);
     return response.data.items;
@@ -124,7 +125,39 @@ export const auditService = {
     return response.data;
   },
 
-  // API TÍNH NĂNG MỚI: Xuất PDF
+  // ===== NEW WORKFLOW APIs =====
+  
+  /** Accountant reviews: action = "Approve" | "ForwardToManager" */
+  accountantReview: async (stockTakeId: number, action: string) => {
+    const response = await axiosClient.post(`/accountants/audits/${stockTakeId}/review`, { action });
+    return response.data;
+  },
+
+  /** Accountant approves Manager's resolution → complete + update inventory */
+  accountantApproveResolve: async (stockTakeId: number) => {
+    const response = await axiosClient.post(`/accountants/audits/${stockTakeId}/approve-resolve`);
+    return response.data;
+  },
+
+  /** Accountant rejects Manager's resolution → escalate to Admin */
+  accountantRejectResolve: async (stockTakeId: number, notes: string = "") => {
+    const response = await axiosClient.post(`/accountants/audits/${stockTakeId}/reject-resolve`, { notes });
+    return response.data;
+  },
+
+  /** Admin issues penalty + signs → complete + update inventory */
+  adminFinalize: async (stockTakeId: number, data: {
+    penaltyReason: string;
+    penaltyAmount: number;
+    penaltyNotes?: string;
+    targetManagerUserId: number;
+    auditNotes?: string;
+  }) => {
+    const response = await axiosClient.post(`/admin/audits/${stockTakeId}/finalize`, data);
+    return response.data;
+  },
+
+  // PDF EXPORT
   exportPdf: async (stockTakeId: number) => {
     const response = await axiosClient.get(`/audits/${stockTakeId}/report/pdf`, { responseType: 'blob' });
     return response.data;
