@@ -13,11 +13,10 @@ import { auditService, CreateAuditPlanRequest } from "@/services/audit-service";
 import { warehouseApi, WarehouseListItemDto } from "@/services/warehouse-service";
 import axiosClient from "@/lib/axios-client";
 import { toast } from "sonner";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { format, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { DateTimePicker } from "@/components/ui/custom/date-time-picker";
 
 interface BinDto { binId: number; code: string; }
 
@@ -87,11 +86,11 @@ export default function CreateAuditPage() {
     if (!formData.title || !formData.warehouseId || !formData.plannedStartDate || !formData.plannedEndDate) return toast.error(t("Please fill in all required fields."));
     if (!formData.binLocationIds || formData.binLocationIds.length === 0) return toast.error(t("Please select at least 1 Bin to audit."));
 
-    const validationTomorrow = new Date(); validationTomorrow.setDate(validationTomorrow.getDate() + 1); validationTomorrow.setHours(0, 0, 0, 0);
-    const startDate = new Date(formData.plannedStartDate); startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(formData.plannedEndDate); endDate.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const startDate = new Date(formData.plannedStartDate);
+    const endDate = new Date(formData.plannedEndDate);
 
-    if (startDate < validationTomorrow) return toast.error(t("Audit plan must start from tomorrow at the earliest."));
+    if (startDate < now) return toast.error(t("Planned start date must be in the future."));
     if (endDate <= startDate) return toast.error(t("End date must be after start date."));
 
     try {
@@ -157,17 +156,19 @@ export default function CreateAuditPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
                     <div className="space-y-2 flex flex-col">
                       <label className="text-sm font-medium text-slate-700">{t("Planned Start Date *")}</label>
-                      <Popover>
-                        <PopoverTrigger asChild><Button variant="outline" className={cn("w-full justify-start text-left font-normal h-10 bg-slate-50 border-slate-200", !formData.plannedStartDate && "text-slate-500")}><CalendarDays className="mr-2 h-4 w-4" />{formData.plannedStartDate ? format(new Date(formData.plannedStartDate), "dd/MM/yyyy") : <span>{t("Pick a date")}</span>}</Button></PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={formData.plannedStartDate ? new Date(formData.plannedStartDate) : undefined} onSelect={(date) => { setFormData({...formData, plannedStartDate: date ? format(date, "yyyy-MM-dd") : ""}); if (date && formData.plannedEndDate && date >= new Date(formData.plannedEndDate)) { setFormData(prev => ({...prev, plannedEndDate: ""})); } }} initialFocus disabled={(date) => date < tomorrow} /></PopoverContent>
-                      </Popover>
+                      <DateTimePicker 
+                        value={formData.plannedStartDate ? new Date(formData.plannedStartDate) : undefined} 
+                        onChange={(date) => setFormData({...formData, plannedStartDate: date ? date.toISOString() : ""})} 
+                        disablePastDates 
+                      />
                     </div>
                     <div className="space-y-2 flex flex-col">
                       <label className="text-sm font-medium text-slate-700">{t("Planned End Date *")}</label>
-                      <Popover>
-                        <PopoverTrigger asChild><Button variant="outline" className={cn("w-full justify-start text-left font-normal h-10 bg-slate-50 border-slate-200", !formData.plannedEndDate && "text-slate-500")}><CalendarDays className="mr-2 h-4 w-4" />{formData.plannedEndDate ? format(new Date(formData.plannedEndDate), "dd/MM/yyyy") : <span>{t("Pick a date")}</span>}</Button></PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={formData.plannedEndDate ? new Date(formData.plannedEndDate) : undefined} onSelect={(date) => setFormData({...formData, plannedEndDate: date ? format(date, "yyyy-MM-dd") : ""})} initialFocus disabled={(date) => formData.plannedStartDate ? date <= new Date(formData.plannedStartDate) : date <= tomorrow} /></PopoverContent>
-                      </Popover>
+                      <DateTimePicker 
+                        value={formData.plannedEndDate ? new Date(formData.plannedEndDate) : undefined} 
+                        onChange={(date) => setFormData({...formData, plannedEndDate: date ? date.toISOString() : ""})} 
+                        minDate={formData.plannedStartDate ? new Date(formData.plannedStartDate) : undefined} 
+                      />
                     </div>
                   </div>
                 </div>

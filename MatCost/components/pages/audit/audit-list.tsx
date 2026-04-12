@@ -20,6 +20,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { endOfDay, format, isWithinInterval, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { DateTimePicker } from "@/components/ui/custom/date-time-picker";
 import { Pencil, Trash2, Save, LayoutGrid, CheckSquare, Warehouse as WarehouseIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -87,8 +88,8 @@ export default function SharedAuditList({ role }: AuditListProps) {
         title: fullDetails.title,
         warehouseId: fullDetails.warehouseId,
         binLocationIds: fullDetails.binLocationIds || [],
-        plannedStartDate: fullDetails.plannedStartDate ? format(new Date(fullDetails.plannedStartDate), "yyyy-MM-dd") : "",
-        plannedEndDate: fullDetails.plannedEndDate ? format(new Date(fullDetails.plannedEndDate), "yyyy-MM-dd") : ""
+        plannedStartDate: fullDetails.plannedStartDate || "",
+        plannedEndDate: fullDetails.plannedEndDate || ""
       });
       
       // Fetch warehouses if not already loaded
@@ -137,6 +138,13 @@ export default function SharedAuditList({ role }: AuditListProps) {
 
     try {
       setIsSubmitting(true);
+      const now = new Date();
+      if (selectedAudit.status === "Planned" && new Date(editFormData.plannedStartDate) < now) {
+        return toast.error(t("Planned start date must be in the future."));
+      }
+      if (new Date(editFormData.plannedEndDate) <= new Date(editFormData.plannedStartDate)) {
+        return toast.error(t("End date must be after start date."));
+      }
       await auditService.updatePlan(selectedAudit.stockTakeId, editFormData);
       toast.success(t("Audit plan updated successfully!"));
       setIsEditModalOpen(false);
@@ -184,9 +192,9 @@ export default function SharedAuditList({ role }: AuditListProps) {
       if (!item.plannedStartDate) matchesDate = false;
       else {
         const itemDate = new Date(item.plannedStartDate);
-        const fromDate = dateRange.from ? startOfDay(dateRange.from) : new Date(2000, 0, 1);
-        const toDate = dateRange.to ? endOfDay(dateRange.to) : new Date(2100, 0, 1);
-        matchesDate = isWithinInterval(itemDate, { start: fromDate, end: toDate });
+        const fromDate = dateRange.from ? dateRange.from : new Date(2000, 0, 1);
+        const toDate = dateRange.to ? dateRange.to : new Date(2100, 0, 1);
+        matchesDate = itemDate >= fromDate && itemDate <= toDate;
       }
     }
     return matchesStatus && matchesSearch && matchesDate;
@@ -260,23 +268,18 @@ export default function SharedAuditList({ role }: AuditListProps) {
                   </Select>
 
                   <div className="flex items-center gap-2">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("justify-start text-left font-normal h-9 bg-white shadow-sm", !dateRange.from && "text-slate-500")}>
-                          <CalendarDays className="mr-2 h-4 w-4" />{dateRange.from ? format(dateRange.from, "dd/MM/yyyy") : <span>{t("From Date")}</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={dateRange.from} onSelect={(date) => setDateRange((prev) => ({ ...prev, from: date }))} initialFocus /></PopoverContent>
-                    </Popover>
+                    <DateTimePicker 
+                      value={dateRange.from} 
+                      onChange={(date) => setDateRange((prev) => ({ ...prev, from: date }))} 
+                      placeholder={t("From Date")}
+                    />
                     <span className="text-slate-400">-</span>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("justify-start text-left font-normal h-9 bg-white shadow-sm", !dateRange.to && "text-slate-500")}>
-                          <CalendarDays className="mr-2 h-4 w-4" />{dateRange.to ? format(dateRange.to, "dd/MM/yyyy") : <span>{t("To Date")}</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={dateRange.to} onSelect={(date) => setDateRange((prev) => ({ ...prev, to: date }))} initialFocus disabled={(date) => dateRange.from ? date < dateRange.from : false} /></PopoverContent>
-                    </Popover>
+                    <DateTimePicker 
+                      value={dateRange.to} 
+                      onChange={(date) => setDateRange((prev) => ({ ...prev, to: date }))} 
+                      minDate={dateRange.from}
+                      placeholder={t("To Date")}
+                    />
                     {(dateRange.from || dateRange.to) && (
                       <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-500 px-2" onClick={() => setDateRange({ from: undefined, to: undefined })}><Delete className="h-4 w-4" /></Button>
                     )}
@@ -313,7 +316,7 @@ export default function SharedAuditList({ role }: AuditListProps) {
                         <TableRow key={audit.stockTakeId} className="group hover:bg-slate-50/50 transition-colors">
                           <TableCell className="pl-6"><div className="flex flex-col"><span className="font-semibold text-slate-700 truncate" title={audit.title}>{audit.title}</span><span className="text-xs text-slate-400">ID: AUD-{audit.stockTakeId}</span></div></TableCell>
                           <TableCell><span className="text-sm text-slate-600 block truncate" title={audit.warehouseName}>{audit.warehouseName || `${t("Warehouse")} #${audit.warehouseId}`}</span></TableCell>
-                          <TableCell><span className="text-sm text-slate-500 flex items-center gap-1.5 whitespace-nowrap"><CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" />{audit.plannedStartDate ? new Date(audit.plannedStartDate).toLocaleDateString("vi-VN") : t("N/A")}</span></TableCell>
+                          <TableCell><span className="text-sm text-slate-500 flex items-center gap-1.5 whitespace-nowrap"><CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" />{audit.plannedStartDate ? format(new Date(audit.plannedStartDate), "HH:mm dd/MM/yyyy") : t("N/A")}</span></TableCell>
                           <TableCell>{getStatusBadge(audit.status)}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -441,17 +444,19 @@ export default function SharedAuditList({ role }: AuditListProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">{t("Start Date *")}</Label>
-                    <Popover>
-                      <PopoverTrigger asChild><Button variant="outline" className="w-full justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{editFormData.plannedStartDate ? format(new Date(editFormData.plannedStartDate), "dd/MM/yyyy") : t("Pick a date")}</Button></PopoverTrigger>
-                      <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={editFormData.plannedStartDate ? new Date(editFormData.plannedStartDate) : undefined} onSelect={(date) => setEditFormData({...editFormData, plannedStartDate: date ? format(date, "yyyy-MM-dd") : ""})} initialFocus /></PopoverContent>
-                    </Popover>
+                    <DateTimePicker 
+                      value={editFormData.plannedStartDate ? new Date(editFormData.plannedStartDate) : undefined} 
+                      onChange={(date) => setEditFormData({...editFormData, plannedStartDate: date ? date.toISOString() : ""})} 
+                      disablePastDates 
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">{t("End Date *")}</Label>
-                    <Popover>
-                      <PopoverTrigger asChild><Button variant="outline" className="w-full justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{editFormData.plannedEndDate ? format(new Date(editFormData.plannedEndDate), "dd/MM/yyyy") : t("Pick a date")}</Button></PopoverTrigger>
-                      <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={editFormData.plannedEndDate ? new Date(editFormData.plannedEndDate) : undefined} onSelect={(date) => setEditFormData({...editFormData, plannedEndDate: date ? format(date, "yyyy-MM-dd") : ""})} initialFocus disabled={(date) => editFormData.plannedStartDate ? date < new Date(editFormData.plannedStartDate) : false} /></PopoverContent>
-                    </Popover>
+                    <DateTimePicker 
+                      value={editFormData.plannedEndDate ? new Date(editFormData.plannedEndDate) : undefined} 
+                      onChange={(date) => setEditFormData({...editFormData, plannedEndDate: date ? date.toISOString() : ""})} 
+                      minDate={editFormData.plannedStartDate ? new Date(editFormData.plannedStartDate) : undefined} 
+                    />
                   </div>
                 </div>
               </div>

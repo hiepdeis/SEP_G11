@@ -50,6 +50,9 @@ namespace Backend.Domains.Audit.Services
             }
         }
 
+        private static DateTime? ToUtc(DateTime? dt) => dt.HasValue ? DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc) : null;
+        private static DateTime ToUtc(DateTime dt) => DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+
         public async Task<AuditPlanResponse> GetByIdAsync(int id, CancellationToken ct)
         {
             var st = await _db.StockTakes
@@ -66,10 +69,10 @@ namespace Backend.Domains.Audit.Services
                 WarehouseId = st.WarehouseId,
                 BinLocationIds = st.StockTakeBinLocations.Select(x => x.BinId).ToList(),
                 Title = st.Title ?? "",
-                PlannedStartDate = st.PlannedStartDate ?? DateTime.MinValue,
-                PlannedEndDate = st.PlannedEndDate ?? DateTime.MinValue,
+                PlannedStartDate = ToUtc(st.PlannedStartDate ?? DateTime.MinValue),
+                PlannedEndDate = ToUtc(st.PlannedEndDate ?? DateTime.MinValue),
                 Status = st.Status ?? "Planned",
-                CreatedAt = st.CreatedAt,
+                CreatedAt = ToUtc(st.CreatedAt),
                 CreatedBy = st.CreatedBy,
                 Notes = st.Notes
             };
@@ -114,7 +117,7 @@ namespace Backend.Domains.Audit.Services
             // 3) Validate date/time theo SRS
             var now = DateTime.UtcNow;
 
-            if (request.PlannedStartDate < now)
+            if (request.PlannedStartDate < now.AddMinutes(-1)) // Allow a small buffer for network lag
                 throw new ArgumentException("PlannedStartDate phải là thời điểm hiện tại hoặc tương lai.");
 
             if (request.PlannedEndDate <= request.PlannedStartDate)
@@ -155,10 +158,10 @@ namespace Backend.Domains.Audit.Services
                 WarehouseId = entity.WarehouseId,
                 BinLocationIds = binLocationIds,
                 Title = entity.Title ?? "",
-                PlannedStartDate = entity.PlannedStartDate ?? request.PlannedStartDate,
-                PlannedEndDate = entity.PlannedEndDate ?? request.PlannedEndDate,
+                PlannedStartDate = ToUtc(entity.PlannedStartDate ?? request.PlannedStartDate),
+                PlannedEndDate = ToUtc(entity.PlannedEndDate ?? request.PlannedEndDate),
                 Status = entity.Status ?? "Planned",
-                CreatedAt = entity.CreatedAt,
+                CreatedAt = ToUtc(entity.CreatedAt),
                 CreatedBy = entity.CreatedBy,
                 Notes = entity.Notes
             };
@@ -205,8 +208,10 @@ namespace Backend.Domains.Audit.Services
             }
 
             // 3) Validate date/time
-            // Lưu ý: Có thể cho phép sửa PlannedStartDate nếu chưa bắt đầu, hoặc chỉ cho phép sửa nếu status là Planned
-            // Ở đây theo yêu cầu chung: Planned hoặc Assigned
+            var now = DateTime.UtcNow;
+            if (st.Status == "Planned" && request.PlannedStartDate < now.AddMinutes(-1))
+                throw new ArgumentException("PlannedStartDate phải là thời điểm hiện tại hoặc tương lai.");
+
             if (request.PlannedEndDate <= request.PlannedStartDate)
                 throw new ArgumentException("PlannedEndDate phải lớn hơn PlannedStartDate.");
 
@@ -246,10 +251,10 @@ namespace Backend.Domains.Audit.Services
                 WarehouseId = st.WarehouseId,
                 BinLocationIds = newBinIds,
                 Title = st.Title ?? "",
-                PlannedStartDate = st.PlannedStartDate ?? request.PlannedStartDate,
-                PlannedEndDate = st.PlannedEndDate ?? request.PlannedEndDate,
+                PlannedStartDate = ToUtc(st.PlannedStartDate ?? request.PlannedStartDate),
+                PlannedEndDate = ToUtc(st.PlannedEndDate ?? request.PlannedEndDate),
                 Status = st.Status ?? "Planned",
-                CreatedAt = st.CreatedAt,
+                CreatedAt = ToUtc(st.CreatedAt),
                 CreatedBy = st.CreatedBy,
                 Notes = st.Notes
             };

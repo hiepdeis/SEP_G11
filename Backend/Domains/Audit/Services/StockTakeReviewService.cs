@@ -143,6 +143,9 @@ namespace Backend.Domains.Audit.Services
 
             return activeLocks.Count;
         }
+        private static DateTime? ToUtc(DateTime? dt) => dt.HasValue ? DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc) : null;
+        private static DateTime ToUtc(DateTime dt) => DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+
         public async Task<(List<AuditListItemDto> items, int total)> GetAllAuditsAsync(
             int skip,
             int take,
@@ -235,11 +238,11 @@ namespace Backend.Domains.Audit.Services
                     Status = st.Status,
                     WarehouseId = st.WarehouseId,
                     WarehouseName = st.Warehouse?.Name,
-                    CreatedAt = st.CreatedAt,
+                    CreatedAt = ToUtc(st.CreatedAt),
                     CreatedByName = st.CreatedByNavigation?.FullName,
-                    PlannedStartDate = st.PlannedStartDate,
-                    PlannedEndDate = st.PlannedEndDate,
-                    CompletedAt = st.CompletedAt,
+                    PlannedStartDate = ToUtc(st.PlannedStartDate),
+                    PlannedEndDate = ToUtc(st.PlannedEndDate),
+                    CompletedAt = ToUtc(st.CompletedAt),
                     TotalItems = totalItems,
                     CountedItems = countedItems,
                     CountingProgress = Math.Round(countingProgress, 2),
@@ -365,7 +368,7 @@ namespace Backend.Domains.Audit.Services
             if (skip < 0) skip = 0;
 
             var query = BuildVarianceQuery(stockTakeId, resolved);
-            var variances = await query
+            var data = await query
                 .Include(x => x.Material)
                 .Include(x => x.Bin)
                 .Include(x => x.Batch)
@@ -375,32 +378,33 @@ namespace Backend.Domains.Audit.Services
                 .OrderByDescending(x => x.Id)
                 .Skip(skip)
                 .Take(take)
-                .Select(d => new VarianceItemDto
-                {
-                    Id = d.Id,
-                    MaterialId = d.MaterialId,
-                    MaterialName = d.Material.Name,
-                    BinId = d.BinId ?? 0,
-                    BinCode = d.Bin != null ? d.Bin.Code : null,
-                    BatchId = d.BatchId,
-                    BatchCode = d.Batch != null ? d.Batch.BatchCode : null,
-                    SystemQty = d.SystemQty,
-                    CountQty = d.CountQty,
-                    Variance = d.Variance,
-                    DiscrepancyStatus = d.DiscrepancyStatus,
-                    CountRound = d.CountRound,
-                    CountedBy = d.CountedBy,
-                    CountedByName = d.CountedByNavigation != null ? d.CountedByNavigation.FullName : null,
-                    CountedAt = d.CountedAt,
-                    Reason = d.Reason,
-                    ResolutionAction = d.ResolutionAction,
-                    AdjustmentReasonId = d.AdjustmentReasonId,
-                    AdjustmentReasonName = d.AdjustmentReason != null ? d.AdjustmentReason.Name : null,
-                    ResolvedBy = d.ResolvedBy,
-                    ResolvedByName = d.ResolvedByNavigation != null ? d.ResolvedByNavigation.FullName : null,
-                    ResolvedAt = d.ResolvedAt
-                })
                 .ToListAsync(ct);
+
+            var variances = data.Select(d => new VarianceItemDto
+            {
+                Id = d.Id,
+                MaterialId = d.MaterialId,
+                MaterialName = d.Material.Name,
+                BinId = d.BinId ?? 0,
+                BinCode = d.Bin != null ? d.Bin.Code : null,
+                BatchId = d.BatchId,
+                BatchCode = d.Batch != null ? d.Batch.BatchCode : null,
+                SystemQty = d.SystemQty,
+                CountQty = d.CountQty,
+                Variance = d.Variance,
+                DiscrepancyStatus = d.DiscrepancyStatus,
+                CountRound = d.CountRound,
+                CountedBy = d.CountedBy,
+                CountedByName = d.CountedByNavigation != null ? d.CountedByNavigation.FullName : null,
+                CountedAt = ToUtc(d.CountedAt),
+                Reason = d.Reason,
+                ResolutionAction = d.ResolutionAction,
+                AdjustmentReasonId = d.AdjustmentReasonId,
+                AdjustmentReasonName = d.AdjustmentReason != null ? d.AdjustmentReason.Name : null,
+                ResolvedBy = d.ResolvedBy,
+                ResolvedByName = d.ResolvedByNavigation != null ? d.ResolvedByNavigation.FullName : null,
+                ResolvedAt = ToUtc(d.ResolvedAt)
+            }).ToList();
 
             var unresolvedCount = await BuildUnresolvedVarianceQuery(stockTakeId).CountAsync(ct);
             var totalCount = await query.CountAsync(ct);
@@ -422,7 +426,7 @@ namespace Backend.Domains.Audit.Services
 
             var query = BuildVarianceQuery(stockTakeId, resolved);
 
-            var variances = await query
+            var data = await query
                 .Include(x => x.Material)
                 .Include(x => x.Bin)
                 .Include(x => x.Batch)
@@ -430,31 +434,32 @@ namespace Backend.Domains.Audit.Services
                 .Include(x => x.ResolvedByNavigation)
                 .Include(x => x.AdjustmentReason)
                 .OrderByDescending(x => x.Id)
-                .Select(d => new VarianceItemDto
-                {
-                    Id = d.Id,
-                    MaterialId = d.MaterialId,
-                    MaterialName = d.Material.Name,
-                    BinId = d.BinId ?? 0,
-                    BinCode = d.Bin != null ? d.Bin.Code : null,
-                    BatchId = d.BatchId,
-                    BatchCode = d.Batch != null ? d.Batch.BatchCode : null,
-                    SystemQty = d.SystemQty,
-                    CountQty = d.CountQty,
-                    Variance = d.Variance,
-                    DiscrepancyStatus = d.DiscrepancyStatus,
-                    CountedBy = d.CountedBy,
-                    CountedByName = d.CountedByNavigation != null ? d.CountedByNavigation.FullName : null,
-                    CountedAt = d.CountedAt,
-                    Reason = d.Reason,
-                    ResolutionAction = d.ResolutionAction,
-                    AdjustmentReasonId = d.AdjustmentReasonId,
-                    AdjustmentReasonName = d.AdjustmentReason != null ? d.AdjustmentReason.Name : null,
-                    ResolvedBy = d.ResolvedBy,
-                    ResolvedByName = d.ResolvedByNavigation != null ? d.ResolvedByNavigation.FullName : null,
-                    ResolvedAt = d.ResolvedAt
-                })
                 .ToListAsync(ct);
+
+            var variances = data.Select(d => new VarianceItemDto
+            {
+                Id = d.Id,
+                MaterialId = d.MaterialId,
+                MaterialName = d.Material.Name,
+                BinId = d.BinId ?? 0,
+                BinCode = d.Bin != null ? d.Bin.Code : null,
+                BatchId = d.BatchId,
+                BatchCode = d.Batch != null ? d.Batch.BatchCode : null,
+                SystemQty = d.SystemQty,
+                CountQty = d.CountQty,
+                Variance = d.Variance,
+                DiscrepancyStatus = d.DiscrepancyStatus,
+                CountedBy = d.CountedBy,
+                CountedByName = d.CountedByNavigation != null ? d.CountedByNavigation.FullName : null,
+                CountedAt = ToUtc(d.CountedAt),
+                Reason = d.Reason,
+                ResolutionAction = d.ResolutionAction,
+                AdjustmentReasonId = d.AdjustmentReasonId,
+                AdjustmentReasonName = d.AdjustmentReason != null ? d.AdjustmentReason.Name : null,
+                ResolvedBy = d.ResolvedBy,
+                ResolvedByName = d.ResolvedByNavigation != null ? d.ResolvedByNavigation.FullName : null,
+                ResolvedAt = ToUtc(d.ResolvedAt)
+            }).ToList();
 
             var unresolvedCount = await BuildUnresolvedVarianceQuery(stockTakeId).CountAsync(ct);
             var totalCount = await query.CountAsync(ct);
@@ -504,14 +509,14 @@ namespace Backend.Domains.Audit.Services
                 CountRound = detail.CountRound,
                 CountedBy = detail.CountedBy,
                 CountedByName = detail.CountedByNavigation != null ? detail.CountedByNavigation.FullName : null,
-                CountedAt = detail.CountedAt,
+                CountedAt = ToUtc(detail.CountedAt),
                 Reason = detail.Reason,
                 ResolutionAction = detail.ResolutionAction,
                 AdjustmentReasonId = detail.AdjustmentReasonId,
                 AdjustmentReasonName = detail.AdjustmentReason != null ? detail.AdjustmentReason.Name : null,
                 ResolvedBy = detail.ResolvedBy,
                 ResolvedByName = detail.ResolvedByNavigation != null ? detail.ResolvedByNavigation.FullName : null,
-                ResolvedAt = detail.ResolvedAt
+                ResolvedAt = ToUtc(detail.ResolvedAt)
             };
         }
 
@@ -715,7 +720,7 @@ namespace Backend.Domains.Audit.Services
                     UserId = s.UserId,
                     FullName = s.User.FullName,
                     Role = s.Role,
-                    SignedAt = s.SignedAt,
+                    SignedAt = ToUtc(s.SignedAt),
                     Notes = s.SignatureData
                 })
                 .ToListAsync(ct);
@@ -730,8 +735,8 @@ namespace Backend.Domains.Audit.Services
                     UserId = tm.UserId,
                     FullName = tm.User.FullName,
                     Email = tm.User.Email,
-                    AssignedAt = tm.AssignedAt,
-                    CompletedAt = tm.MemberCompletedAt,
+                    AssignedAt = ToUtc(tm.AssignedAt),
+                    CompletedAt = ToUtc(tm.MemberCompletedAt),
                     IsActive = tm.IsActive
                 })
                 .OrderBy(x => x.FullName)
@@ -854,12 +859,12 @@ namespace Backend.Domains.Audit.Services
             // Build timeline
             var timeline = new AuditTimelineDto
             {
-                CreatedAt = st.CreatedAt,
+                CreatedAt = ToUtc(st.CreatedAt),
                 CreatedByName = st.CreatedByNavigation?.FullName,
-                CheckDate = st.CheckDate,
-                LockedAt = latestLock?.LockedAt,
+                CheckDate = ToUtc(st.CheckDate),
+                LockedAt = ToUtc(latestLock?.LockedAt),
                 LockedByName = lockedByName,
-                CompletedAt = st.CompletedAt,
+                CompletedAt = ToUtc(st.CompletedAt),
                 CompletedByName = completedByName
             };
 
@@ -870,8 +875,8 @@ namespace Backend.Domains.Audit.Services
                 Status = st.Status,
                 WarehouseId = st.WarehouseId,
                 WarehouseName = warehouse?.Name,
-                PlannedStartDate = st.PlannedStartDate,
-                PlannedEndDate = st.PlannedEndDate,
+                PlannedStartDate = ToUtc(st.PlannedStartDate),
+                PlannedEndDate = ToUtc(st.PlannedEndDate),
                 Notes = st.Notes,
 
                 // Comprehensive data
