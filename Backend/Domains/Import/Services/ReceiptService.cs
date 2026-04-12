@@ -2287,6 +2287,7 @@ namespace Backend.Domains.Import.Services
                     ReceiptCode = i.Receipt.ReceiptCode,
                     WarehouseName = i.Receipt.Warehouse != null ? i.Receipt.Warehouse.Name : null,
                     CreatedAt = i.CreatedAt,
+                    CreatedBy = i.CreatedBy,
                     CreatedByName = i.CreatedByNavigation.FullName ?? i.CreatedByNavigation.Email,
                     Description = i.Description,
                     Status = i.Status,

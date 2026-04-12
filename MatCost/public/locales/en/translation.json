@@ -333,7 +333,7 @@
       "material_request": "Material Request",
       "import_request": "Import Request",
       "inventory_issue": "Inventory Issue List",
-      "import_export": "Import/Export Report",
+      "import_export": "Import/Export Reports",
       "purchase_requests": "Purchase Requests",
       "purchase_orders": "Purchase Orders",
       "incident_reports": "Incident Reports",
@@ -1198,5 +1198,8 @@
   "Materials": "Materials",
   "e.g., Admin": "e.g., Admin",
   "Delete Failed, Item is already used in other modules": "Delete Failed, Item is already used in other modules",
-  "Check for Stock to be Decimal": "Check for Stock to be Decimal"
+  "Check for Stock to be Decimal": "Check for Stock to be Decimal",
+  "Open/Processing": "Open/Processing",
+  "Search Code or Creator...": "Search Code or Creator...",
+  "Creator": "Creator"
 }

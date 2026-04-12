@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   History,
+  Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -156,8 +157,6 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
       setIsRejecting(false);
     }
   };
-
-
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -596,8 +595,13 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                               key={index}
                               className="hover:bg-slate-50/50 transition-colors"
                             >
-                              <TableCell className="pl-6 font-semibold text-slate-800">
-                                {item.materialName}
+                              <TableCell className="pl-6 text-slate-800">
+                                <CardTitle className="text-md font-bold flex items-center gap-2 text-slate-800">
+                                  {item.materialName}
+                                </CardTitle>
+                                <p className="text-xs text-slate-500 font-mono mt-1">
+                                  {order.items[index].materialCode}
+                                </p>
                               </TableCell>
                               <TableCell className="text-right text-slate-500">
                                 {formatCurrency(item.quotationPrice)}

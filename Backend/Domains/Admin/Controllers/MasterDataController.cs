@@ -615,5 +615,81 @@ namespace Backend.Domains.Admin.Controllers
             var result = await _service.GetSupplierContractsBySupplierIdAsync(supplierId, ct);
             return Ok(result);
         }
+
+        // =========================================================
+        // SUPPLIER QUOTATIONS
+        // =========================================================
+
+        [HttpGet("supplier-quotations")]
+        public async Task<IActionResult> GetSupplierQuotations([FromQuery] MasterDataQueryDto query, CancellationToken ct)
+        {
+            var result = await _service.GetSupplierQuotationsAsync(query, ct);
+            return Ok(result);
+        }
+
+        [HttpGet("supplier-quotations/{id:int}")]
+        public async Task<IActionResult> GetSupplierQuotationById(int id, CancellationToken ct)
+        {
+            var result = await _service.GetSupplierQuotationByIdAsync(id, ct);
+            if (result == null)
+                return NotFound(new { message = "Supplier quotation not found." });
+
+            return Ok(result);
+        }
+
+        [HttpPost("supplier-quotations")]
+        public async Task<IActionResult> CreateSupplierQuotation([FromBody] UpsertSupplierQuotationDto request, CancellationToken ct)
+        {
+            try
+            {
+                var id = await _service.CreateSupplierQuotationAsync(request, ct);
+                return Ok(new { message = "Supplier quotation created successfully.", id });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPut("supplier-quotations/{id:int}")]
+        public async Task<IActionResult> UpdateSupplierQuotation(int id, [FromBody] UpsertSupplierQuotationDto request, CancellationToken ct)
+        {
+            try
+            {
+                var ok = await _service.UpdateSupplierQuotationAsync(id, request, ct);
+                if (!ok)
+                    return NotFound(new { message = "Supplier quotation not found." });
+
+                return Ok(new { message = "Supplier quotation updated successfully." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpDelete("supplier-quotations/{id:int}")]
+        public async Task<IActionResult> DeleteSupplierQuotation(int id, CancellationToken ct)
+        {
+            try
+            {
+                var ok = await _service.DeleteSupplierQuotationAsync(id, ct);
+                if (!ok)
+                    return NotFound(new { message = "Supplier quotation not found." });
+
+                return Ok(new { message = "Supplier quotation deleted successfully." });
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpGet("supplier-quotations/supplier/{supplierId:int}")]
+        public async Task<IActionResult> GetSupplierQuotationsBySupplierId(int supplierId, CancellationToken ct)
+        {
+            var result = await _service.GetSupplierQuotationsBySupplierIdAsync(supplierId, ct);
+            return Ok(result);
+        }
     }
 }

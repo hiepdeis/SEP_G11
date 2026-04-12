@@ -106,6 +106,8 @@ export interface StockShortageAlertDto {
   confirmedBy?: number;
   confirmedByName?: number;
   notes?: string;
+  unit?: string;
+  isDecimalUnit?: boolean;
 }
 
 export interface ConfirmStockShortageAlertDto {
@@ -718,6 +720,7 @@ export interface IncidentReportSummaryDto {
   receiptCode?: string | null;
   warehouseName?: string | null;
   createdAt: string;
+  createdBy: number;
   createdByName?: string | null;
   description: string;
   status: string;

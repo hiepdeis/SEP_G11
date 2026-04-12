@@ -15,6 +15,9 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  DollarSign,
+  Package,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -71,6 +74,14 @@ import {
   type UpsertSupplierContractDto,
 } from "@/services/admin-supplier-contract";
 import { formatDateTime } from "@/lib/format-date-time";
+import {
+  adminSupplierQuotationService,
+  type SupplierQuotation,
+  type UpsertSupplierQuotation,
+} from "@/services/admin-supplier-quotation";
+import { getMaterials, type MaterialItem } from "@/services/admin-materials";
+import { CurrencyInput } from "@/components/ui/custom/currency-input";
+import { DateTimePicker } from "@/components/ui/custom/date-time-picker";
 
 export function ContractsExpandedContent({
   contracts,
@@ -220,15 +231,25 @@ export default function SupplierDetailPage({
 
   const [supplier, setSupplier] = useState<SupplierDto | null>(null);
   const [contracts, setContracts] = useState<SupplierContractDto[]>([]);
+  const [quotations, setQuotations] = useState<SupplierQuotation[]>([]);
+  const [materials, setMaterials] = useState<MaterialItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<SupplierItem> | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Collapsible state
+  const [contractsOpen, setContractsOpen] = useState(true);
+  const [quotationsOpen, setQuotationsOpen] = useState(true);
+
   // Contract pagination state
   const [cPage, setCPage] = useState(0);
   const cPageSize = 2;
+
+  // Quotation pagination state
+  const [qPage, setQPage] = useState(0);
+  const qPageSize = 4;
 
   // Contract creation state
   const [cModalOpen, setCModalOpen] = useState(false);
@@ -248,6 +269,20 @@ export default function SupplierDetailPage({
     notes: "",
   });
 
+  // Quotation creation state
+  const [qModalOpen, setQModalOpen] = useState(false);
+  const [creatingQ, setCreatingQ] = useState(false);
+  const [editingQId, setEditingQId] = useState<number | null>(null);
+  const [qForm, setQForm] = useState<UpsertSupplierQuotation>({
+    supplierId: supplierId,
+    materialId: 0,
+    price: 0,
+    currency: "VND",
+    validFrom: new Date().toISOString().split("T")[0],
+    validTo: "",
+    isActive: true,
+  });
+
   useEffect(() => {
     if (isNaN(supplierId)) {
       toast.error(t("Invalid Supplier ID"));
@@ -258,10 +293,19 @@ export default function SupplierDetailPage({
     const loadData = async () => {
       try {
         setLoading(true);
-        const data = await getSupplierById(supplierId);
-        const contractsList = await getSupplierContractBySupplierId(supplierId);
+        const [data, contractsList, quotationsList, materialsRes] =
+          await Promise.all([
+            getSupplierById(supplierId),
+            getSupplierContractBySupplierId(supplierId),
+            adminSupplierQuotationService.getSupplierQuotationBySupplierId(
+              supplierId,
+            ),
+            getMaterials({ page: 1, pageSize: 500 }),
+          ]);
         setSupplier(data);
         setContracts(contractsList);
+        setQuotations(Array.isArray(quotationsList) ? quotationsList : []);
+        setMaterials(materialsRes.items || []);
       } catch (error) {
         console.error("Failed to load supplier detail:", error);
         toast.error(t("Failed to load supplier details"));
@@ -359,8 +403,20 @@ export default function SupplierDetailPage({
   };
 
   const handleSaveContract = async () => {
-    if (!cForm.contractCode || !cForm.effectiveFrom) {
-      toast.error(t("Contract code and start date are required"));
+    if (!cForm.contractCode) {
+      toast.error(t("Contract code is required"));
+      return;
+    }
+    if (!cForm.effectiveFrom) {
+      toast.error(t("Effective from is required"));
+      return;
+    }
+    if (!cForm.effectiveTo) {
+      toast.error(t("Effective to is required"));
+      return;
+    }
+    if (cForm.effectiveTo < cForm.effectiveFrom) {
+      toast.error(t("Effective to must be greater than effective from"));
       return;
     }
 
@@ -384,9 +440,11 @@ export default function SupplierDetailPage({
         await getSupplierContractBySupplierId(supplierId);
       setContracts(updatedContractsList);
       setCModalOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Save contract error:", error);
-      toast.error(t("Failed to save contract"));
+      toast.error(
+        error?.response?.data?.message || t("Failed to save contract"),
+      );
     } finally {
       setCreatingC(false);
     }
@@ -404,6 +462,106 @@ export default function SupplierDetailPage({
           setContracts(updated);
         } catch (error) {
           toast.error(t("Failed to delete contract"));
+        }
+      },
+    });
+  };
+
+  // ========= QUOTATION HANDLERS =========
+  const openAddQuotation = () => {
+    setQForm({
+      supplierId,
+      materialId: 0,
+      price: 0,
+      currency: "VND",
+      validFrom: new Date().toISOString().split("T")[0],
+      validTo: "",
+      isActive: true,
+    });
+    setEditingQId(null);
+    setQModalOpen(true);
+  };
+
+  const openEditQuotation = (q: SupplierQuotation) => {
+    setQForm({
+      supplierId: q.supplierId,
+      materialId: q.materialId,
+      price: q.price,
+      currency: q.currency || "VND",
+      validFrom: q.validFrom ? q.validFrom.split("T")[0] : "",
+      validTo: q.validTo ? q.validTo.split("T")[0] : "",
+      isActive: q.isActive,
+    });
+    setEditingQId(q.quoteId);
+    setQModalOpen(true);
+  };
+
+  const handleSaveQuotation = async () => {
+    if (!qForm.materialId) {
+      toast.error(t("Material is required"));
+      return;
+    }
+    const submitPrice = qForm.price ?? 0;
+    if (submitPrice <= 0) {
+      toast.error(t("Price must be greater than 0"));
+      return;
+    }
+    if (!qForm.validFrom) {
+      toast.error(t("Valid from is required"));
+      return;
+    }
+    if (!qForm.validTo) {
+      toast.error(t("Valid to is required"));
+      return;
+    }
+    if (qForm.validTo < qForm.validFrom) {
+      toast.error(t("Valid to must be greater than valid from"));
+      return;
+    }
+    const payload = { ...qForm, price: submitPrice };
+
+    try {
+      setCreatingQ(true);
+      if (editingQId) {
+        await adminSupplierQuotationService.updateSupplierQuotation(
+          editingQId,
+          payload,
+        );
+        toast.success(t("Quotation updated successfully"));
+      } else {
+        await adminSupplierQuotationService.createSupplierQuotation(payload);
+        toast.success(t("Quotation created successfully"));
+      }
+      const updated =
+        await adminSupplierQuotationService.getSupplierQuotationBySupplierId(
+          supplierId,
+        );
+      setQuotations(Array.isArray(updated) ? updated : []);
+      setQModalOpen(false);
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.message || t("Failed to save quotation"),
+      );
+    } finally {
+      setCreatingQ(false);
+    }
+  };
+
+  const handleDeleteQuotation = async (id: number) => {
+    showConfirmToast({
+      title: t("Delete Quotation"),
+      description: t("Are you sure you want to delete this quotation?"),
+      onConfirm: async () => {
+        try {
+          await adminSupplierQuotationService.deleteSupplierQuotation(id);
+          toast.success(t("Quotation deleted successfully"));
+          const updated =
+            await adminSupplierQuotationService.getSupplierQuotationBySupplierId(
+              supplierId,
+            );
+          setQuotations(Array.isArray(updated) ? updated : []);
+        } catch (error) {
+          toast.error(t("Failed to delete quotation"));
         }
       },
     });
@@ -493,7 +651,7 @@ export default function SupplierDetailPage({
                   variant="outline"
                   onClick={remove}
                   disabled={deleting}
-                  className="flex items-center gap-2 px-4 py-2 border-red-200 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl font-bold transition-all shadow-sm"
+                  className="flex items-center gap-2 px-4 py-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 rounded-xl font-bold transition-all shadow-sm"
                 >
                   <Trash2 className="w-4 h-4" />{" "}
                   {deleting ? t("Deleting...") : t("Delete")}
@@ -545,74 +703,232 @@ export default function SupplierDetailPage({
                 </Card>
               </div>
 
-              {/* RIGHT: CONTRACTS LIST */}
-              <div className="lg:col-span-2">
-                <Card className="border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden bg-white dark:bg-slate-950 gap-0 pb-0">
-                  <CardHeader className="px-6 py-4 border-b border-slate-50 dark:border-slate-900 dark:bg-slate-900/50">
+              {/* RIGHT: CONTRACTS & QUOTATIONS */}
+              <div className="lg:col-span-2 space-y-4">
+                {/* CONTRACTS - Collapsible */}
+                <Card className="border-slate-100 shadow-sm overflow-hidden bg-white gap-0 pb-0 pt-4">
+                  <CardHeader
+                    className="px-6 py-4 border-b border-slate-50 cursor-pointer select-none"
+                    onClick={() => setContractsOpen((v) => !v)}
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <ClipboardList className="w-5 h-5 text-indigo-600" />
                         <div>
-                          <CardTitle className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-                            {t("Active Agreements")}
+                          <CardTitle className="text-lg font-black text-slate-900 tracking-tight">
+                            {t("Contracts")}
                           </CardTitle>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                            {t("Contracts & Materials")}
+                            {contracts.length} {t("records")}
                           </p>
                         </div>
                       </div>
-                      <Button
-                        onClick={openAddContract}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-100 dark:shadow-none"
-                      >
-                        <Plus className="w-3.5 h-3.5 mr-2" />{" "}
-                        {t("New Contract")}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openAddContract();
+                          }}
+                          size="sm"
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm"
+                        >
+                          <Plus className="w-3.5 h-3.5 mr-1.5" /> {t("New")}
+                        </Button>
+                        <ChevronDown
+                          className={`w-5 h-5 text-slate-400 transition-transform duration-200 ${contractsOpen ? "rotate-0" : "-rotate-90"}`}
+                        />
+                      </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="p-4">
-                    <ContractsExpandedContent
-                      contracts={
-                        contracts?.slice(
-                          cPage * cPageSize,
-                          (cPage + 1) * cPageSize,
-                        ) || []
-                      }
-                      onEdit={openEditContract}
-                      onDelete={handleDeleteContract}
-                      emptyMessage={t("This supplier has no active contracts.")}
-                    />
-
-                    {contracts && contracts.length > cPageSize && (
-                      <div className="mt-4 flex items-center justify-between px-2 py-2 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                          {t("Page")} {cPage + 1} /{" "}
-                          {Math.ceil(contracts.length / cPageSize)}
+                  {contractsOpen && (
+                    <CardContent className="p-4">
+                      <ContractsExpandedContent
+                        contracts={
+                          contracts?.slice(
+                            cPage * cPageSize,
+                            (cPage + 1) * cPageSize,
+                          ) || []
+                        }
+                        onEdit={openEditContract}
+                        onDelete={handleDeleteContract}
+                        emptyMessage={t(
+                          "This supplier has no active contracts.",
+                        )}
+                      />
+                      {contracts && contracts.length > cPageSize && (
+                        <div className="mt-4 flex items-center justify-between px-2 py-2 bg-slate-50 rounded-xl border border-slate-100">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            {t("Page")} {cPage + 1} /{" "}
+                            {Math.ceil(contracts.length / cPageSize)}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              disabled={cPage === 0}
+                              onClick={() => setCPage((p) => p - 1)}
+                              className="h-8 w-8 rounded-full"
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              disabled={
+                                cPage >=
+                                Math.ceil(contracts.length / cPageSize) - 1
+                              }
+                              onClick={() => setCPage((p) => p + 1)}
+                              className="h-8 w-8 rounded-full"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            disabled={cPage === 0}
-                            onClick={() => setCPage((p) => p - 1)}
-                            className="h-8 w-8 rounded-full"
-                          >
-                            <ChevronLeft className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            disabled={
-                              cPage >=
-                              Math.ceil(contracts.length / cPageSize) - 1
-                            }
-                            onClick={() => setCPage((p) => p + 1)}
-                            className="h-8 w-8 rounded-full"
-                          >
-                            <ChevronRight className="w-4 h-4" />
-                          </Button>
+                      )}
+                    </CardContent>
+                  )}
+                </Card>
+
+                {/* QUOTATIONS - Collapsible */}
+                <Card className="border-slate-100 shadow-sm overflow-hidden bg-white gap-0 pb-0 pt-4">
+                  <CardHeader
+                    className="px-6 py-4 border-b border-slate-50 cursor-pointer select-none"
+                    onClick={() => setQuotationsOpen((v) => !v)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <DollarSign className="w-5 h-5 text-emerald-600" />
+                        <div>
+                          <CardTitle className="text-lg font-black text-slate-900 tracking-tight">
+                            {t("Quotations")}
+                          </CardTitle>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                            {quotations.length} {t("records")}
+                          </p>
                         </div>
                       </div>
-                    )}
-                  </CardContent>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openAddQuotation();
+                          }}
+                          size="sm"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm"
+                        >
+                          <Plus className="w-3.5 h-3.5 mr-1.5" /> {t("New")}
+                        </Button>
+                        <ChevronDown
+                          className={`w-5 h-5 text-slate-400 transition-transform duration-200 ${quotationsOpen ? "rotate-0" : "-rotate-90"}`}
+                        />
+                      </div>
+                    </div>
+                  </CardHeader>
+                  {quotationsOpen && (
+                    <CardContent className="p-4">
+                      {quotations.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
+                          {t("No quotations found for this supplier.")}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {quotations
+                            .slice(qPage * qPageSize, (qPage + 1) * qPageSize)
+                            .map((q) => (
+                              <div
+                                key={q.quoteId}
+                                className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 transition-colors"
+                              >
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                  <div className="p-2 rounded-lg bg-emerald-50">
+                                    <Package className="w-4 h-4 text-emerald-600" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-bold text-slate-800 truncate">
+                                      {q.materialName}
+                                    </p>
+                                    <p className="text-[11px] text-slate-400 font-mono">
+                                      {q.materialCode}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-sm font-black text-emerald-700">
+                                    {q.price.toLocaleString("vi-VN")}{" "}
+                                    <span className="text-[10px] font-medium text-slate-400">
+                                      {q.currency}
+                                    </span>
+                                  </p>
+                                  <p className="text-[10px] text-slate-400">
+                                    {q.validFrom
+                                      ? formatDateTime(q.validFrom)
+                                      : "—"}{" "}
+                                    →{" "}
+                                    {q.validTo
+                                      ? formatDateTime(q.validTo)
+                                      : "∞"}
+                                  </p>
+                                </div>
+                                <Badge
+                                  variant={q.isActive ? "default" : "secondary"}
+                                  className={`text-[10px] shrink-0 ${q.isActive ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-500 border-slate-200"}`}
+                                >
+                                  {q.isActive ? t("Active") : t("Inactive")}
+                                </Badge>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    onClick={() => openEditQuotation(q)}
+                                    className="h-7 w-7 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full"
+                                  >
+                                    <Edit2 className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    onClick={() =>
+                                      handleDeleteQuotation(q.quoteId)
+                                    }
+                                    className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                      {quotations.length > qPageSize && (
+                        <div className="mt-4 flex items-center justify-between px-2 py-2 bg-slate-50 rounded-xl border border-slate-100">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            {t("Page")} {qPage + 1} /{" "}
+                            {Math.ceil(quotations.length / qPageSize)}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              disabled={qPage === 0}
+                              onClick={() => setQPage((p) => p - 1)}
+                              className="h-8 w-8 rounded-full"
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              disabled={
+                                qPage >=
+                                Math.ceil(quotations.length / qPageSize) - 1
+                              }
+                              onClick={() => setQPage((p) => p + 1)}
+                              className="h-8 w-8 rounded-full"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  )}
                 </Card>
               </div>
             </div>
@@ -724,7 +1040,7 @@ export default function SupplierDetailPage({
       >
         <DialogContent className="sm:max-w-2xl p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950">
           <DialogHeader className="px-6 py-4 border-b border-gray-100 dark:border-slate-800">
-            <DialogTitle className="font-bold text-gray-900 dark:text-slate-100">
+            <DialogTitle className="font-bold text-gray-900 dark:text-slate-100 py-4">
               {editingCId ? t("Edit Contract") : t("Register New Contract")}
             </DialogTitle>
           </DialogHeader>
@@ -764,26 +1080,41 @@ export default function SupplierDetailPage({
                 <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                   {t("Effective From")} *
                 </Label>
-                <Input
-                  type="date"
-                  value={cForm.effectiveFrom}
-                  onChange={(e) =>
-                    setCForm({ ...cForm, effectiveFrom: e.target.value })
+                <DateTimePicker
+                  value={
+                    cForm.effectiveFrom
+                      ? new Date(cForm.effectiveFrom)
+                      : undefined
                   }
-                  className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
+                  onChange={(date) =>
+                    setCForm({
+                      ...cForm,
+                      effectiveFrom: date ? date.toISOString() : "",
+                    })
+                  }
+                  placeholder={t("Pick date")}
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                  {t("Expiry Date")}
+                  {t("Effective To")} *
                 </Label>
-                <Input
-                  type="date"
-                  value={cForm.effectiveTo || ""}
-                  onChange={(e) =>
-                    setCForm({ ...cForm, effectiveTo: e.target.value })
+                <DateTimePicker
+                  value={
+                    cForm.effectiveTo ? new Date(cForm.effectiveTo) : undefined
                   }
-                  className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
+                  onChange={(date) =>
+                    setCForm({
+                      ...cForm,
+                      effectiveTo: date ? date.toISOString() : "",
+                    })
+                  }
+                  placeholder={t("Pick date")}
+                  minDate={
+                    cForm.effectiveFrom
+                      ? new Date(cForm.effectiveFrom)
+                      : undefined
+                  }
                 />
               </div>
             </div>
@@ -888,6 +1219,151 @@ export default function SupplierDetailPage({
                 : editingCId
                   ? t("Save Changes")
                   : t("Create Contract")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* QUOTATION DIALOG */}
+      <Dialog
+        open={qModalOpen}
+        onOpenChange={(val) => !val && setQModalOpen(false)}
+      >
+        <DialogContent className="sm:max-w-lg p-0 overflow-hidden border-none shadow-2xl bg-white">
+          <DialogHeader className="px-6 py-4 border-b border-gray-100">
+            <DialogTitle className="font-bold text-gray-900 py-4">
+              {editingQId ? t("Edit Quotation") : t("New Quotation")}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                {t("Material")} *
+              </Label>
+              <Select
+                value={qForm.materialId ? String(qForm.materialId) : ""}
+                onValueChange={(val) =>
+                  setQForm({ ...qForm, materialId: parseInt(val) })
+                }
+              >
+                <SelectTrigger className="bg-gray-50 border-gray-200 w-full">
+                  <SelectValue placeholder={t("Select material")} />
+                </SelectTrigger>
+                <SelectContent showSearch className="max-h-60">
+                  {materials.map((m) => (
+                    <SelectItem key={m.materialId} value={String(m.materialId)}>
+                      <span className="font-mono text-xs mr-2">{m.code}</span>
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  {t("Price")} *
+                </Label>
+                <CurrencyInput
+                  value={qForm.price}
+                  onValueChange={(val) =>
+                    setQForm({ ...qForm, price: val as number })
+                  }
+                  className="bg-gray-50 border-gray-200"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  {t("Currency")} *
+                </Label>
+                <Select
+                  value={qForm.currency}
+                  onValueChange={(val) => setQForm({ ...qForm, currency: val })}
+                >
+                  <SelectTrigger className="bg-gray-50 border-gray-200 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="VND">VND</SelectItem>
+                    {/* <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="EUR">EUR</SelectItem> */}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  {t("Valid From")} *
+                </Label>
+                <DateTimePicker
+                  value={
+                    qForm.validFrom ? new Date(qForm.validFrom) : undefined
+                  }
+                  onChange={(date) =>
+                    setQForm({
+                      ...qForm,
+                      validFrom: date ? date.toISOString() : "",
+                    })
+                  }
+                  placeholder={t("Pick date")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  {t("Valid To")} *
+                </Label>
+                <DateTimePicker
+                  value={qForm.validTo ? new Date(qForm.validTo) : undefined}
+                  onChange={(date) =>
+                    setQForm({
+                      ...qForm,
+                      validTo: date ? date.toISOString() : "",
+                    })
+                  }
+                  placeholder={t("Pick date")}
+                  minDate={
+                    qForm.validFrom ? new Date(qForm.validFrom) : undefined
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-1">
+              <Checkbox
+                checked={qForm.isActive}
+                onCheckedChange={(val) =>
+                  setQForm({ ...qForm, isActive: !!val })
+                }
+              />
+              <Label className="text-sm font-medium text-slate-700 cursor-pointer">
+                {t("Active")}
+              </Label>
+            </div>
+          </div>
+
+          <DialogFooter className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+            <Button
+              variant="ghost"
+              onClick={() => setQModalOpen(false)}
+              disabled={creatingQ}
+              className="font-medium text-gray-500"
+            >
+              {t("Cancel")}
+            </Button>
+            <Button
+              onClick={handleSaveQuotation}
+              disabled={creatingQ}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-100 transition-all"
+            >
+              {creatingQ
+                ? t("Saving...")
+                : editingQId
+                  ? t("Save Changes")
+                  : t("Create Quotation")}
             </Button>
           </DialogFooter>
         </DialogContent>

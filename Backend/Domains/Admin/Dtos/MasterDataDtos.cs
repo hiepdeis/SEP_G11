@@ -236,4 +236,34 @@ namespace Backend.Domains.Admin.Dtos
         public bool IsActive { get; set; }
         public string? Notes { get; set; }
     }
+
+    // =========================
+    // SUPPLIER QUOTATION
+    // =========================
+
+    public sealed class SupplierQuotationDto
+    {
+        public int QuoteId { get; set; }
+        public int SupplierId { get; set; }
+        public string? SupplierName { get; set; }
+        public int MaterialId { get; set; }
+        public string? MaterialCode { get; set; }
+        public string? MaterialName { get; set; }
+        public decimal Price { get; set; }
+        public string? Currency { get; set; }
+        public DateTime? ValidFrom { get; set; }
+        public DateTime? ValidTo { get; set; }
+        public bool? IsActive { get; set; }
+    }
+
+    public sealed class UpsertSupplierQuotationDto
+    {
+        public int SupplierId { get; set; }
+        public int MaterialId { get; set; }
+        public decimal Price { get; set; }
+        public string? Currency { get; set; }
+        public DateTime? ValidFrom { get; set; }
+        public DateTime? ValidTo { get; set; }
+        public bool? IsActive { get; set; } = true;
+    }
 }

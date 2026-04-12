@@ -558,42 +558,46 @@ export default function StaffIncidentPage({
                 )}
               </div>
             </div>
-
-            {!isHistoryView ? (
-              <Button
-                className="bg-red-600 hover:bg-red-700 text-white min-w-[150px] shadow-sm"
-                onClick={handleSubmitIncident}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            {role !== "view-only" && (
+              <>
+                {!isHistoryView ? (
+                  <Button
+                    className="bg-red-600 hover:bg-red-700 text-white min-w-[150px] shadow-sm"
+                    onClick={handleSubmitIncident}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <FileWarning className="w-4 h-4 mr-2" />
+                    )}
+                    {t("Submit Report")}
+                  </Button>
+                ) : isHistoryView &&
+                  historicalIncidentData?.status === "Open" ? (
+                  <div className="flex flex-col gap-2 items-end">
+                    <Button
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md min-w-[200px]"
+                      onClick={handleSubmitToManager}
+                      disabled={isSubmittingToManager}
+                    >
+                      {isSubmittingToManager ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <Send className="w-4 h-4 mr-2" />
+                      )}
+                      {t("Submit for Manager Review")}
+                    </Button>
+                    <span className="text-xs text-slate-500 italic">
+                      {t(
+                        "Note: The incident report will be sent to the manager for review and approval.",
+                      )}
+                    </span>
+                  </div>
                 ) : (
-                  <FileWarning className="w-4 h-4 mr-2" />
+                  <></>
                 )}
-                {t("Submit Report")}
-              </Button>
-            ) : isHistoryView && historicalIncidentData?.status === "Open" ? (
-              <div className="flex flex-col gap-2 items-end">
-                <Button
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md min-w-[200px]"
-                  onClick={handleSubmitToManager}
-                  disabled={isSubmittingToManager}
-                >
-                  {isSubmittingToManager ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Send className="w-4 h-4 mr-2" />
-                  )}
-                  {t("Submit for Manager Review")}
-                </Button>
-                <span className="text-xs text-slate-500 italic">
-                  {t(
-                    "Note: The incident report will be sent to the manager for review and approval.",
-                  )}
-                </span>
-              </div>
-            ) : (
-              <></>
+              </>
             )}
           </div>
 

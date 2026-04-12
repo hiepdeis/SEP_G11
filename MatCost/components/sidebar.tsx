@@ -140,6 +140,10 @@ export function Sidebar() {
           label: t("sidebar.tabs.import_export"),
           href: "/staff/reports/import-export",
         },
+        {
+          label: t("sidebar.tabs.incident_reports"),
+          href: "/staff/reports/incident",
+        },
       ],
     },
     {
@@ -152,6 +156,10 @@ export function Sidebar() {
           label: t("sidebar.tabs.import_export"),
           href: "/manager/reports/import-export",
         },
+        {
+          label: t("sidebar.tabs.incident_reports"),
+          href: "/manager/reports/incident",
+        },
       ],
     },
     {
@@ -162,6 +170,10 @@ export function Sidebar() {
         {
           label: t("sidebar.tabs.import_export"),
           href: "/admin/reports/import-export",
+        },
+        {
+          label: t("sidebar.tabs.incident_reports"),
+          href: "/admin/reports/incident",
         },
       ],
     },
