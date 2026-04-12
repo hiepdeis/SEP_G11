@@ -75,5 +75,10 @@ namespace Backend.Domains.Projects.Services
             await _db.SaveChangesAsync(ct);
             return (true, "Xóa dự án thành công.");
         }
+
+        public Task<(bool success, string message)> UpdateProjectAsync(int id, UpdateProjectRequest request, CancellationToken ct)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

@@ -11,13 +11,20 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { auditService, AuditListItemDto } from "@/services/audit-service";
+import { auditService, AuditListItemDto, UpdateAuditPlanRequest } from "@/services/audit-service";
+import { warehouseApi, WarehouseListItemDto } from "@/services/warehouse-service";
+import axiosClient from "@/lib/axios-client";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { endOfDay, format, isWithinInterval, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { Pencil, Trash2, Save, LayoutGrid, CheckSquare, Warehouse as WarehouseIcon } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type UserRole = "admin" | "manager" | "accountant" | "staff";
 
@@ -36,14 +43,29 @@ export default function SharedAuditList({ role }: AuditListProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(5);
 
+  // Edit/Delete States
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedAudit, setSelectedAudit] = useState<AuditListItemDto | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [editFormData, setEditFormData] = useState<UpdateAuditPlanRequest>({
+    title: "", warehouseId: 0, binLocationIds: [], plannedStartDate: "", plannedEndDate: ""
+  });
+  const [warehouses, setWarehouses] = useState<WarehouseListItemDto[]>([]);
+  const [bins, setBins] = useState<{ binId: number; code: string }[]>([]);
+  const [isLoadingBins, setIsLoadingBins] = useState(false);
+  const [selectAllBins, setSelectAllBins] = useState(false);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const data = await auditService.getAll();
+      setAudits(data);
+    } catch (error) { console.error("Failed to load audits:", error); } finally { setLoading(false); }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const data = await auditService.getAll();
-        setAudits(data);
-      } catch (error) { console.error("Failed to load audits:", error); } finally { setLoading(false); }
-    };
     fetchData();
   }, []);
 
@@ -55,6 +77,86 @@ export default function SharedAuditList({ role }: AuditListProps) {
     if (action === "assign-team") router.push(`/${role}/audit/assign-team/${auditId}`);
     else if (action === "manual-count") router.push(`/${role}/audit/manual-count/${auditId}`);
     else if (action === "detail") router.push(`/${role}/audit/detail/${auditId}`);
+  };
+
+  const handleEditClick = async (audit: AuditListItemDto) => {
+    setSelectedAudit(audit);
+    try {
+      const fullDetails = await auditService.getPlanById(audit.stockTakeId);
+      setEditFormData({
+        title: fullDetails.title,
+        warehouseId: fullDetails.warehouseId,
+        binLocationIds: fullDetails.binLocationIds || [],
+        plannedStartDate: fullDetails.plannedStartDate ? format(new Date(fullDetails.plannedStartDate), "yyyy-MM-dd") : "",
+        plannedEndDate: fullDetails.plannedEndDate ? format(new Date(fullDetails.plannedEndDate), "yyyy-MM-dd") : ""
+      });
+      
+      // Fetch warehouses if not already loaded
+      if (warehouses.length === 0) {
+        const whRes = await warehouseApi.getAll();
+        setWarehouses(whRes.data);
+      }
+      
+      setIsEditModalOpen(true);
+    } catch (error) {
+      toast.error(t("Failed to load audit details."));
+    }
+  };
+
+  const handleDeleteClick = (audit: AuditListItemDto) => {
+    setSelectedAudit(audit);
+    setIsDeleteModalOpen(true);
+  };
+
+  useEffect(() => {
+    const fetchBins = async () => {
+      if (editFormData.warehouseId <= 0 || !isEditModalOpen) return;
+      try {
+        setIsLoadingBins(true);
+        const response = await axiosClient.get(`/admin/master-data/bin-locations`);
+        const allBins = response.data.items || response.data || [];
+        const filteredBins = allBins.filter((b: any) => b.warehouseId === editFormData.warehouseId);
+        setBins(filteredBins);
+        setSelectAllBins(filteredBins.length > 0 && 
+          filteredBins.every((b: any) => editFormData.binLocationIds?.includes(b.binId)));
+      } catch (error) {
+        console.error("Failed to load bins", error);
+      } finally { setIsLoadingBins(false); }
+    };
+    fetchBins();
+  }, [editFormData.warehouseId, isEditModalOpen]);
+
+  const handleUpdate = async () => {
+    if (!selectedAudit) return;
+    if (!editFormData.title || !editFormData.warehouseId || !editFormData.plannedStartDate || !editFormData.plannedEndDate) {
+      return toast.error(t("Please fill in all required fields."));
+    }
+    if (!editFormData.binLocationIds || editFormData.binLocationIds.length === 0) {
+      return toast.error(t("Please select at least 1 Bin to audit."));
+    }
+
+    try {
+      setIsSubmitting(true);
+      await auditService.updatePlan(selectedAudit.stockTakeId, editFormData);
+      toast.success(t("Audit plan updated successfully!"));
+      setIsEditModalOpen(false);
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || t("Error updating Audit Plan."));
+    } finally { setIsSubmitting(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedAudit) return;
+    try {
+      setIsSubmitting(true);
+      await auditService.deletePlan(selectedAudit.stockTakeId);
+      toast.success(t("Audit plan deleted successfully!"));
+      setIsDeleteModalOpen(false);
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || t("Error deleting Audit Plan."));
+    } finally { setIsSubmitting(false); }
   };
 
   const getStatusBadge = (status: string) => {
@@ -220,14 +322,24 @@ export default function SharedAuditList({ role }: AuditListProps) {
                             </div>
                           </TableCell>
                           <TableCell className="text-right pr-6">
-                            {role === "manager" && (
-                              <div className="flex justify-end gap-2">
-                                {(audit.status === "Planned" || audit.status === "PLAN") && (<Button size="sm" variant="outline" className="shadow-sm border-indigo-200 text-indigo-600" onClick={() => navigateTo("assign-team", audit.stockTakeId.toString())}><Users className="w-3.5 h-3.5 mr-1.5" /> {t("Assign")}</Button>)}
-                                <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm" onClick={() => navigateTo("detail", audit.stockTakeId.toString())}>{t("Detail")}</Button>
-                              </div>
-                            )}
-                            {role === "staff" && (audit.status === "InProgress") && (<Button size="sm" variant="outline" className="shadow-sm border-indigo-200 text-indigo-600" onClick={() => navigateTo("manual-count", audit.stockTakeId.toString())}>{t("Count")} <ArrowRight className="w-3.5 h-3.5 ml-1" /></Button>)}
-                            {role === "accountant" && (<Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm" onClick={() => navigateTo("detail", audit.stockTakeId.toString())}>{t("View Report")}</Button>)}
+                            <div className="flex justify-end gap-2">
+                              {/* New Update/Delete buttons for Accountant and Admin */}
+                              {(role === "accountant" || role === "admin") && (audit.status === "Planned" || audit.status === "PLAN" || audit.status === "Assigned") && (
+                                <>
+                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50" onClick={() => handleEditClick(audit)}><Pencil className="w-4 h-4" /></Button>
+                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteClick(audit)}><Trash2 className="w-4 h-4" /></Button>
+                                </>
+                              )}
+                              
+                              {role === "manager" && (
+                                <div className="flex justify-end gap-2">
+                                  {(audit.status === "Planned" || audit.status === "PLAN") && (<Button size="sm" variant="outline" className="shadow-sm border-indigo-200 text-indigo-600" onClick={() => navigateTo("assign-team", audit.stockTakeId.toString())}><Users className="w-3.5 h-3.5 mr-1.5" /> {t("Assign")}</Button>)}
+                                  <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm" onClick={() => navigateTo("detail", audit.stockTakeId.toString())}>{t("Detail")}</Button>
+                                </div>
+                              )}
+                              {role === "staff" && (audit.status === "InProgress") && (<Button size="sm" variant="outline" className="shadow-sm border-indigo-200 text-indigo-600" onClick={() => navigateTo("manual-count", audit.stockTakeId.toString())}>{t("Count")} <ArrowRight className="w-3.5 h-3.5 ml-1" /></Button>)}
+                              {role === "accountant" && (<Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm" onClick={() => navigateTo("detail", audit.stockTakeId.toString())}>{t("View Report")}</Button>)}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -265,6 +377,106 @@ export default function SharedAuditList({ role }: AuditListProps) {
             </CardContent>
           </Card>
         </div>
+
+        {/* Update Audit Modal */}
+        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+            <DialogHeader className="p-6 pb-2">
+              <DialogTitle className="text-xl flex items-center gap-2"><Pencil className="w-5 h-5 text-indigo-600" /> {t("Edit Audit Plan")}</DialogTitle>
+              <DialogDescription>{t("Update the configuration for this audit session.")}</DialogDescription>
+            </DialogHeader>
+            
+            <ScrollArea className="flex-grow p-6 pt-2">
+              <div className="space-y-6 pb-4">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">{t("Audit Title *")}</Label>
+                      <Input value={editFormData.title} onChange={(e) => setEditFormData({...editFormData, title: e.target.value})} className="h-10" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">{t("Target Warehouse *")}</Label>
+                      <Select value={editFormData.warehouseId.toString()} onValueChange={(val) => setEditFormData({...editFormData, warehouseId: parseInt(val)})}>
+                        <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                        <SelectContent>{warehouses.map(wh => (<SelectItem key={wh.warehouseId} value={wh.warehouseId.toString()}>{wh.name}</SelectItem>))}</SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2"><LayoutGrid className="w-4 h-4" /> {t("Bin Locations")}</Label>
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      const allIds = selectAllBins ? [] : bins.map(b => b.binId);
+                      setEditFormData({...editFormData, binLocationIds: allIds});
+                      setSelectAllBins(!selectAllBins);
+                    }} className="h-8 text-xs text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
+                      {selectAllBins ? t("Deselect All") : t("Select All")}
+                    </Button>
+                  </div>
+                  <div className="border border-slate-200 rounded-lg p-3 bg-slate-50/50">
+                    {isLoadingBins ? (
+                      <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-indigo-600" /></div>
+                    ) : bins.length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {bins.map((bin) => (
+                          <div key={bin.binId} className="flex items-center space-x-2 bg-white border border-slate-100 p-2 rounded hover:border-indigo-200 transition-colors">
+                            <Checkbox id={`bin-${bin.binId}`} checked={editFormData.binLocationIds?.includes(bin.binId)} onCheckedChange={(checked) => {
+                              const current = editFormData.binLocationIds || [];
+                              const next = checked ? [...current, bin.binId] : current.filter(id => id !== bin.binId);
+                              setEditFormData({...editFormData, binLocationIds: next});
+                              setSelectAllBins(next.length === bins.length);
+                            }} />
+                            <Label htmlFor={`bin-${bin.binId}`} className="text-xs font-medium cursor-pointer truncate">{bin.code}</Label>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 text-xs text-slate-400">{t("No bins available.")}</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">{t("Start Date *")}</Label>
+                    <Popover>
+                      <PopoverTrigger asChild><Button variant="outline" className="w-full justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{editFormData.plannedStartDate ? format(new Date(editFormData.plannedStartDate), "dd/MM/yyyy") : t("Pick a date")}</Button></PopoverTrigger>
+                      <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={editFormData.plannedStartDate ? new Date(editFormData.plannedStartDate) : undefined} onSelect={(date) => setEditFormData({...editFormData, plannedStartDate: date ? format(date, "yyyy-MM-dd") : ""})} initialFocus /></PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">{t("End Date *")}</Label>
+                    <Popover>
+                      <PopoverTrigger asChild><Button variant="outline" className="w-full justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{editFormData.plannedEndDate ? format(new Date(editFormData.plannedEndDate), "dd/MM/yyyy") : t("Pick a date")}</Button></PopoverTrigger>
+                      <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={editFormData.plannedEndDate ? new Date(editFormData.plannedEndDate) : undefined} onSelect={(date) => setEditFormData({...editFormData, plannedEndDate: date ? format(date, "yyyy-MM-dd") : ""})} initialFocus disabled={(date) => editFormData.plannedStartDate ? date < new Date(editFormData.plannedStartDate) : false} /></PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+
+            <DialogFooter className="p-6 bg-slate-50 border-t border-slate-200">
+              <Button variant="outline" onClick={() => setIsEditModalOpen(false)} disabled={isSubmitting}>{t("Cancel")}</Button>
+              <Button onClick={handleUpdate} disabled={isSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[120px] shadow-sm">{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />} {t("Save Changes")}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Modal */}
+        <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle className="text-red-600 flex items-center gap-2"><Trash2 className="w-5 h-5" /> {t("Delete Audit Plan")}</DialogTitle>
+              <DialogDescription className="py-2">{t("Are you sure you want to delete")} <span className="font-bold">"{selectedAudit?.title}"</span>? {t("This action cannot be undone.")}</DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0 pt-4">
+              <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)} disabled={isSubmitting}>{t("Cancel")}</Button>
+              <Button variant="destructive" onClick={handleDelete} disabled={isSubmitting} className="bg-red-600 hover:bg-red-700 shadow-sm">{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />} {t("Delete Plan")}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

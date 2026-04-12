@@ -1,6 +1,7 @@
 import axiosClient from "@/lib/axios-client";
 
 export interface CreateAuditPlanRequest { title: string; warehouseId: number; binLocationIds?: number[]; plannedStartDate: string; plannedEndDate: string; notes?: string; }
+export interface UpdateAuditPlanRequest { title: string; warehouseId: number; binLocationIds?: number[]; plannedStartDate: string; plannedEndDate: string; }
 export interface AuditListItemDto { stockTakeId: number; title: string; status: string; warehouseId: number; warehouseName: string; plannedStartDate: string; plannedEndDate: string; countingProgress: number; }
 export interface EligibleStaffDto { userId: number; fullName: string; email: string; }
 export interface AssignedMemberDto { userId: number; fullName: string; roleInTeam?: string; assignedAt: string; }
@@ -17,6 +18,19 @@ export const auditService = {
   createPlan: async (data: CreateAuditPlanRequest) => {
     const payload = { ...data, binLocationIds: data.binLocationIds || [] };
     const response = await axiosClient.post("/accountants/audits/plans", payload);
+    return response.data;
+  },
+  updatePlan: async (id: number, data: UpdateAuditPlanRequest) => {
+    const payload = { ...data, binLocationIds: data.binLocationIds || [] };
+    const response = await axiosClient.put(`/accountants/audits/plans/${id}`, payload);
+    return response.data;
+  },
+  deletePlan: async (id: number) => {
+    const response = await axiosClient.delete(`/accountants/audits/plans/${id}`);
+    return response.data;
+  },
+  getPlanById: async (id: number) => {
+    const response = await axiosClient.get(`/accountants/audits/plans/${id}`);
     return response.data;
   },
   getAll: async () => {
