@@ -88,7 +88,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
       toast.error(
         error.response?.data?.message || t("Purchase order not found"),
       );
-      router.push("/accountant/purchase-orders");
+      router.push(`/${role}/purchase-orders`);
     } finally {
       setIsLoading(false);
     }
@@ -407,6 +407,22 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
             </CardContent>
           </Card>
 
+          {(isAccountantRejected || isAdminRejected) && (
+            <Card className="border-rose-200 shadow-sm bg-rose-50 p-0">
+              <CardContent className="p-5 flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-rose-700 font-semibold mb-1">
+                  <AlertCircle className="w-5 h-5" />
+                  {t("Current Status: Rejected")}
+                </div>
+                <p className="text-sm text-slate-700">
+                  {t(
+                    "This PO has been rejected. Waiting for Purchasing to create a new revision.",
+                  )}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div className="lg:col-span-1 space-y-6">
               <Card className="border-slate-200 shadow-sm bg-white gap-0">
@@ -478,7 +494,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                         .map((rev) => (
                           <div
                             key={rev.poId}
-                            className="flex flex-col border-l-2 border-rose-200 pl-3 relative pb-4 last:pb-0" // Thêm pb-4 để cách các item ra cho đẹp
+                            className="flex flex-col border-l-2 border-rose-200 pl-3 relative pb-4 last:pb-0 mb-0"
                           >
                             <div className="absolute w-2 h-2 bg-rose-500 rounded-full -left-[5px] top-1.5" />
                             <div className="flex items-center justify-between">
@@ -505,23 +521,6 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                     </CardContent>
                   </Card>
                 )}
-
-              {/* Nếu phiên bản HIỆN TẠI đang bị Reject, hiển thị thông báo */}
-              {(isAccountantRejected || isAdminRejected) && (
-                <Card className="border-rose-200 shadow-sm bg-rose-50 p-0">
-                  <CardContent className="p-5 flex flex-col gap-2">
-                    <div className="flex items-center gap-2 text-rose-700 font-semibold mb-1">
-                      <AlertCircle className="w-5 h-5" />
-                      {t("Current Status: Rejected")}
-                    </div>
-                    <p className="text-sm text-slate-700">
-                      {t(
-                        "This PO has been rejected. Waiting for Purchasing to create a new revision.",
-                      )}
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
             </div>
 
             {/* BẢNG SO SÁNH GIÁ (CỘT PHẢI) */}

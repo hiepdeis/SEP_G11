@@ -1664,7 +1664,7 @@ namespace Backend.Domains.Admin.Services
             if (!materialExists)
                 throw new ArgumentException("Material not found.");
 
-            if (request.ValidFrom.HasValue || request.ValidTo.HasValue)
+            if (!request.ValidFrom.HasValue || !request.ValidTo.HasValue)
                 throw new ArgumentException("Valid From and Valid To must be provided together.");
 
             if (request.ValidFrom.HasValue && request.ValidTo.HasValue && request.ValidTo.Value.Date <= request.ValidFrom.Value.Date)

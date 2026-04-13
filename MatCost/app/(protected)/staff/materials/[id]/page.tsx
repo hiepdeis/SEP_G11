@@ -2,10 +2,10 @@
 
 import MaterialManagementDetailPage from "@/components/pages/materials/detail/page";
 
-export default function AdminMaterialManagementDetailPage() {
+export default function StaffMaterialManagementDetailPage() {
   return (
     <>
-      <MaterialManagementDetailPage />
+      <MaterialManagementDetailPage role="staff" viewOnly={true} />
     </>
   );
 }

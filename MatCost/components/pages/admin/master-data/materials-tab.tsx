@@ -64,7 +64,13 @@ import {
 import { formatCurrency } from "@/lib/format-currency";
 import { Material } from "@/lib/master-data-types";
 
-export function MaterialsTab() {
+export function MaterialsTab({
+  viewOnly = false,
+  role = "admin",
+}: {
+  viewOnly?: boolean;
+  role?: string;
+}) {
   const { t } = useTranslation();
   const router = useRouter();
   const [items, setItems] = useState<Material[]>([]);
@@ -275,9 +281,14 @@ export function MaterialsTab() {
           </SelectContent>
         </Select>
 
-        <Button onClick={openAdd} className="bg-indigo-600 hover:bg-indigo-700">
-          <Plus className="w-4 h-4 mr-2" /> {t("Add New")}
-        </Button>
+        {!viewOnly && (
+          <Button
+            onClick={openAdd}
+            className="bg-indigo-600 hover:bg-indigo-700"
+          >
+            <Plus className="w-4 h-4 mr-2" /> {t("Add New")}
+          </Button>
+        )}
       </div>
 
       <div className="flex-grow flex flex-col bg-white rounded-xl border border-gray-100 overflow-hidden min-h-0">
@@ -327,16 +338,7 @@ export function MaterialsTab() {
                       </Badge>
                     </TableCell>
                     <TableCell className="px-5 py-3 text-sm">
-                      <span
-                        className="font-medium hover:text-indigo-600 cursor-pointer"
-                        onClick={() =>
-                          router.push(
-                            `/admin/master-data/materials/${item.materialId}`,
-                          )
-                        }
-                      >
-                        {item.name}
-                      </span>
+                      {item.name}
                     </TableCell>
                     <TableCell className="px-5 py-3 text-sm">
                       <Badge className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-100 shadow-none font-bold">
@@ -360,32 +362,40 @@ export function MaterialsTab() {
                           variant="ghost"
                           size="icon"
                           onClick={() =>
-                            router.push(
-                              `/admin/master-data/materials/${item.materialId}`,
-                            )
+                            role === "admin"
+                              ? router.push(
+                                  `/admin/master-data/materials/${item.materialId}`,
+                                )
+                              : router.push(
+                                  `/${role}/materials/${item.materialId}`,
+                                )
                           }
                           className="h-8 w-8 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEdit(item)}
-                          disabled={deletingId === item._id}
-                          className="h-8 w-8 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => remove(item._id)}
-                          disabled={deletingId === item._id}
-                          className="h-8 w-8 text-gray-500 hover:text-red-600 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {!viewOnly && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEdit(item)}
+                              disabled={deletingId === item._id}
+                              className="h-8 w-8 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => remove(item._id)}
+                              disabled={deletingId === item._id}
+                              className="h-8 w-8 text-gray-500 hover:text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

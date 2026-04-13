@@ -1,4 +1,4 @@
-﻿using Backend.Domains.Admin.Dtos;
+using Backend.Domains.Admin.Dtos;
 using Backend.Domains.Admin.Interface;
 using Backend.Domains.Admin.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -27,16 +27,30 @@ namespace Backend.Domains.Admin.Controllers
         [HttpGet]
         public async Task<IActionResult> GetUsers([FromQuery] GetUsersQuery query, CancellationToken ct)
         {
-            var result = await _svc.GetUsersAsync(query, ct);
-            return Ok(result);
+            try
+            {
+                var result = await _svc.GetUsersAsync(query, ct);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id, CancellationToken ct)
         {
-            var user = await _svc.GetByIdAsync(id, ct);
-            if (user == null) return NotFound(new { message = "User không tồn tại." });
-            return Ok(user);
+            try
+            {
+                var user = await _svc.GetByIdAsync(id, ct);
+                if (user == null) return NotFound(new { message = "User không tồn tại." });
+                return Ok(user);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
 
@@ -91,16 +105,30 @@ namespace Backend.Domains.Admin.Controllers
         [HttpGet("roles")]
         public async Task<IActionResult> GetRoles(CancellationToken ct)
         {
-            var roles = await _svc.GetRolesAsync(ct);
-            return Ok(roles);
+            try
+            {
+                var roles = await _svc.GetRolesAsync(ct);
+                return Ok(roles);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPut("roles/{roleId:int}")]
         public async Task<IActionResult> UpdateRole(int roleId, UpdateRoleRequest request, CancellationToken ct)
         {
-            var ok = await _svc.UpdateRoleAsync(roleId, request, GetCurrentUserId(), ct);
-            if (!ok) return NotFound();
-            return NoContent();
+            try
+            {
+                var ok = await _svc.UpdateRoleAsync(roleId, request, GetCurrentUserId(), ct);
+                if (!ok) return NotFound();
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
         [HttpDelete("roles/{roleId:int}")]
         public async Task<IActionResult> DeleteRole(int roleId, CancellationToken ct)
@@ -120,8 +148,15 @@ namespace Backend.Domains.Admin.Controllers
         [HttpPost("roles")]
         public async Task<IActionResult> CreateRole(CreateRoleRequest request, CancellationToken ct)
         {
-            var result = await _svc.CreateRoleAsync(request, GetCurrentUserId(), ct);
-            return Ok(result);
+            try
+            {
+                var result = await _svc.CreateRoleAsync(request, GetCurrentUserId(), ct);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
     }
