@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
-import { ArrowLeft, Send, Check, Search, Save, Loader2, PenLine, AlertTriangle, RefreshCcw, Filter, MapPin, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Send, Check, Search, Save, Loader2, PenLine, AlertTriangle, RefreshCcw, Filter, MapPin, CheckCircle2, Eraser, FileSignature } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { auditService, CountItemDto, MaterialBatchDto } from "@/services/audit-service";
 import { toast } from "sonner";
 import { showConfirmToast } from "@/hooks/confirm-toast";
 import { useTranslation } from "react-i18next";
+import ReactSignatureCanvas from "react-signature-canvas";
 
 export default function StaffCountingPage() {
   const { t } = useTranslation();
@@ -32,6 +33,12 @@ export default function StaffCountingPage() {
   const [tempCount, setTempCount] = useState("");
   const [tempBin, setTempBin] = useState("");
   const [savingItem, setSavingItem] = useState(false);
+  
+  // Signature Signature
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+  const [isSigned, setIsSigned] = useState(false);
+  const [isSubmittingFinal, setIsSubmittingFinal] = useState(false);
+  const sigCanvas = useRef<ReactSignatureCanvas>(null);
 
   const loadTasks = async () => {
     try {
@@ -47,7 +54,12 @@ export default function StaffCountingPage() {
         setRecountTasks(recountData);
         if (recountData.length > 0 && activeTab === "normal") setActiveTab("recount");
     } catch (error: any) {
-        setAccessDenied(true);
+        const status = error.response?.status;
+        if (status === 401 || status === 403) {
+            setAccessDenied(true); 
+        } else {
+            toast.error(t("Error loading tasks. Please try again."));
+        }
     } finally { setLoading(false); }
   };
 
@@ -81,18 +93,38 @@ export default function StaffCountingPage() {
 
   const handleCompleteAudit = () => {
     if (recountTasks.length > 0) return toast.error(t("You must complete all recount tasks before submitting!"));
-    showConfirmToast({
-       title: t("Confirm completion?"),
-       description: t("After submitting, you cannot edit the counted data."),
-       confirmLabel: t("Submit Results"),
-       onConfirm: async () => {
-          try {
-             await auditService.finishWork(stockTakeId);
-             toast.success(t("Audit results submitted!"));
-             router.push('/staff/audit');
-          } catch (error: any) { toast.error(error.response?.data?.message || t("Error submitting results.")); }
-       }
-    });
+    setIsSignatureModalOpen(true);
+  };
+
+  const handleSignatureEnd = () => {
+    if (sigCanvas.current && !sigCanvas.current.isEmpty()) setIsSigned(true);
+  };
+
+  const clearSignature = () => {
+    if (sigCanvas.current) {
+      sigCanvas.current.clear();
+      setIsSigned(false);
+    }
+  };
+
+  const handleConfirmFullSubmit = async () => {
+    if (!isSigned || !sigCanvas.current || sigCanvas.current.isEmpty()) {
+       return toast.error(t("Please provide your signature before submitting"));
+    }
+
+    try {
+      setIsSubmittingFinal(true);
+      const signatureData = sigCanvas.current.toDataURL(); // Base64 signature
+      
+      await auditService.signOff(stockTakeId, signatureData);
+      
+      toast.success(t("Audit results submitted and signed successfully!"));
+      router.push('/staff/audit');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || t("Error submitting results."));
+    } finally {
+      setIsSubmittingFinal(false);
+    }
   };
 
   const totalTasks = uncountedTasks.length + countedTasks.length;
@@ -206,6 +238,54 @@ export default function StaffCountingPage() {
                 </div>
               </div>
               <DialogFooter><Button variant="outline" onClick={() => setEditingItem(null)}>{t("Cancel")}</Button><Button onClick={saveCount} disabled={savingItem} className="bg-indigo-600 text-white hover:bg-indigo-700">{savingItem ? <Loader2 className="animate-spin w-4 h-4" /> : <Save className="w-4 h-4 mr-2"/>} {t("Save")}</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* SIGNATURE MODAL */}
+        <Dialog open={isSignatureModalOpen} onOpenChange={(o) => { if (!isSubmittingFinal) setIsSignatureModalOpen(o); }}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-indigo-700">
+                <FileSignature className="w-5 h-5" /> {t("Sign Audit Record")}
+              </DialogTitle>
+              <DialogDescription>
+                {t("All staff members must sign to finalize the count. Your signature confirms the data entered above is accurate.")}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="py-6 flex flex-col items-center">
+              <div className="border-2 border-dashed border-slate-200 rounded-lg p-1 bg-white w-full">
+                <ReactSignatureCanvas
+                  ref={sigCanvas}
+                  penColor="navy"
+                  onEnd={handleSignatureEnd}
+                  canvasProps={{
+                    className: "w-full h-48 rounded-md cursor-crosshair",
+                    style: { width: '100%' }
+                  }}
+                />
+              </div>
+              <div className="flex w-full justify-between items-center mt-3">
+                <span className="text-xs text-slate-400 italic">{t("Sign inside the area above")}</span>
+                <Button variant="ghost" size="sm" onClick={clearSignature} className="text-slate-500 hover:text-rose-600 h-8 px-2 transition-colors">
+                  <Eraser className="w-3.5 h-3.5 mr-1.5" /> {t("Clear")}
+                </Button>
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setIsSignatureModalOpen(false)} disabled={isSubmittingFinal}>
+                {t("Cancel")}
+              </Button>
+              <Button 
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 shadow-md"
+                onClick={handleConfirmFullSubmit}
+                disabled={!isSigned || isSubmittingFinal}
+              >
+                {isSubmittingFinal ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                {t("Submit & Return to List")}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </main>

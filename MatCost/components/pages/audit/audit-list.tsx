@@ -241,7 +241,7 @@ export default function SharedAuditList({ role }: AuditListProps) {
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("Audit Sessions")}</h1>
               <p className="text-sm text-slate-500">{t("Manage stocktaking plans and reconciliation.")}</p>
             </div>
-            {role === "accountant" && (
+            {(role === "accountant" || role === "admin") && (
               <Button onClick={() => navigateTo("create")} className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md">
                 <Plus className="w-4 h-4 mr-2" /> {t("New Audit Plan")}
               </Button>
@@ -348,7 +348,7 @@ export default function SharedAuditList({ role }: AuditListProps) {
                                 </div>
                               )}
                               {role === "staff" && (audit.status === "InProgress") && (<Button size="sm" variant="outline" className="shadow-sm border-indigo-200 text-indigo-600" onClick={() => navigateTo("manual-count", audit.stockTakeId.toString())}>{t("Count")} <ArrowRight className="w-3.5 h-3.5 ml-1" /></Button>)}
-                              {role === "accountant" && (<Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm" onClick={() => navigateTo("detail", audit.stockTakeId.toString())}>{t("View Report")}</Button>)}
+                              {(role === "accountant" || role === "admin") && (<Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm" onClick={() => navigateTo("detail", audit.stockTakeId.toString())}>{t("View Report")}</Button>)}
                             </div>
                           </TableCell>
                         </TableRow>

@@ -74,12 +74,14 @@ namespace Backend.Domains.Audit.Interfaces
             int stockTakeId,
             int userId,
             string action,
+            string? signatureData,
             CancellationToken ct);
 
         /// <summary>Accountant approves Manager's resolution → complete + update inventory</summary>
         Task<(bool success, string message)> AccountantApproveResolveAsync(
             int stockTakeId,
             int userId,
+            string? signatureData,
             CancellationToken ct);
 
         /// <summary>Accountant rejects Manager's resolution → escalate to Admin</summary>

@@ -26,7 +26,7 @@ namespace Backend.Domains.Audit.Controllers.Accountants
             CancellationToken ct)
         {
             var userId = User.GetRequiredUserId();
-            var result = await _reviewService.AccountantReviewAsync(stockTakeId, userId, request.Action, ct);
+            var result = await _reviewService.AccountantReviewAsync(stockTakeId, userId, request.Action, request.SignatureData, ct);
             if (!result.success) return BadRequest(new { message = result.message });
             return Ok(new { message = result.message });
         }
@@ -35,10 +35,11 @@ namespace Backend.Domains.Audit.Controllers.Accountants
         [HttpPost("{stockTakeId:int}/approve-resolve")]
         public async Task<IActionResult> ApproveResolve(
             [FromRoute] int stockTakeId,
+            [FromBody] ApproveResolveRequest request,
             CancellationToken ct)
         {
             var userId = User.GetRequiredUserId();
-            var result = await _reviewService.AccountantApproveResolveAsync(stockTakeId, userId, ct);
+            var result = await _reviewService.AccountantApproveResolveAsync(stockTakeId, userId, request?.SignatureData, ct);
             if (!result.success) return BadRequest(new { message = result.message });
             return Ok(new { message = result.message });
         }

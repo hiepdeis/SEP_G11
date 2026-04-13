@@ -52,6 +52,8 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   const [resolveAction, setResolveAction] = useState("");
   const [candidates, setCandidates] = useState<RecountCandidateDto[]>([]);
   const [showCandidates, setShowCandidates] = useState(false);
+  const [managerInfo, setManagerInfo] = useState<{ id: number; name: string } | null>(null);
+  const [prevIsAdminFinalizing, setPrevIsAdminFinalizing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(5);
 
@@ -71,24 +73,83 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
     } catch (error) { console.error(error); } finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchData(); }, [stockTakeId]);
+  useEffect(() => { 
+    if (role === "staff") {
+      router.push("/staff/audit");
+      return;
+    }
+    fetchData(); 
+  }, [stockTakeId, role]);
+
+  useEffect(() => {
+    if (isAdminFinalizing && !prevIsAdminFinalizing && detailData) {
+      // 1. Find Manager from signatures
+      const managerSig = detailData.signatures?.find(s => s.role === "Manager");
+      if (managerSig) {
+        setManagerInfo({ id: managerSig.userId, name: managerSig.fullName || `User #${managerSig.userId}` });
+        setTargetManagerId(managerSig.userId.toString());
+      }
+
+      // 2. Calculate Penalty Amount
+      const total = variances.reduce((acc, v) => {
+        const missing = (v.systemQty || 0) - (v.countQty || 0);
+        if (missing > 0) {
+          return acc + (missing * (v.unitPrice || 0));
+        }
+        return acc;
+      }, 0);
+      setPenaltyAmount(total.toString());
+    } else if (!isAdminFinalizing && prevIsAdminFinalizing) {
+       handleClearSignature();
+       // Clear values when closing if you want, or leave them. 
+       // User usually wants them cleared on close to re-init next time.
+       setPenaltyReason("");
+       setPenaltyAmount("0");
+       setTargetManagerId("");
+       setManagerInfo(null);
+    }
+    setPrevIsAdminFinalizing(isAdminFinalizing);
+  }, [isAdminFinalizing, prevIsAdminFinalizing, detailData, variances, t]);
+
   useEffect(() => { setCurrentPage(1); }, [itemsPerPage]);
 
   // === MANAGER ACTIONS ===
   const canResolve = role === "manager" && status === "pendingmanagerreview";
 
+  const handleClearSignature = () => {
+    sigCanvas.current?.clear();
+    setIsSigned(false);
+  };
+
+  const onSignatureEnd = () => {
+    if (sigCanvas.current) {
+      setIsSigned(!sigCanvas.current.isEmpty());
+    }
+  };
+
   const handleConfirmResolve = async () => {
     if (!resolveItem || !resolveAction) return toast.error(t("Select Resolution Action"));
+    
+    // Check if this is the final unresolved item to require signature
+    const isFinalItem = (detailData?.varianceSummary?.unresolvedVariances || 0) <= 1;
+    let sigData: string | undefined = undefined;
+
+    if (isFinalItem && resolveAction !== "RequestRecount") {
+      if (!isSigned) return toast.error(t("Please sign to finalize the resolution process"));
+      sigData = sigCanvas.current?.toDataURL();
+    }
+
     try {
       setIsSubmitting(true);
       if (resolveAction === "RequestRecount") {
          await auditService.requestRecount(stockTakeId, resolveItem.id, 1, "Manager recount request");
          toast.success(t("Recount request sent to staff!"));
       } else {
-         await auditService.resolveVariance(stockTakeId, resolveItem.id, resolveAction, 1); 
+         await auditService.resolveVariance(stockTakeId, resolveItem.id, resolveAction, 1, sigData); 
          toast.success(t("Variance resolved successfully!"));
       }
       await fetchData(); 
+      handleClearSignature();
       setResolveItem(null);
     } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); }
   };
@@ -104,12 +165,14 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
 
   // === ACCOUNTANT ACTIONS ===
   const handleAccountantApprove = async () => {
+    if (!isSigned) return toast.error(t("Please sign before completing"));
+    const sigData = sigCanvas.current?.toDataURL();
     try {
       setIsSubmitting(true);
-      await auditService.accountantReview(stockTakeId, "Approve");
+      await auditService.accountantReview(stockTakeId, "Approve", sigData);
       toast.success(t("Audit completed! All items matched."));
       router.push(`/${role}/audit`);
-    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); setIsAccountantApproving(false); }
+    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); setIsAccountantApproving(false); handleClearSignature(); }
   };
 
   const handleAccountantForward = async () => {
@@ -122,12 +185,14 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   };
 
   const handleAccountantApproveResolve = async () => {
+    if (!isSigned) return toast.error(t("Please sign before approving"));
+    const sigData = sigCanvas.current?.toDataURL();
     try {
       setIsSubmitting(true);
-      await auditService.accountantApproveResolve(stockTakeId);
+      await auditService.accountantApproveResolve(stockTakeId, sigData);
       toast.success(t("Resolution approved! Inventory updated."));
       router.push(`/${role}/audit`);
-    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); setIsAccountantApprovingResolve(false); }
+    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); setIsAccountantApprovingResolve(false); handleClearSignature(); }
   };
 
   const handleAccountantRejectResolve = async () => {
@@ -142,6 +207,10 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   // === ADMIN ACTIONS ===
   const handleAdminFinalize = async () => {
     if (!penaltyReason || !penaltyAmount || !targetManagerId) return toast.error(t("Please fill all penalty fields"));
+    if (!isSigned) return toast.error(t("Please sign before completing"));
+    
+    const sigData = sigCanvas.current?.toDataURL();
+
     try {
       setIsSubmitting(true);
       await auditService.adminFinalize(stockTakeId, {
@@ -150,10 +219,11 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
         penaltyNotes: penaltyNotes || undefined,
         targetManagerUserId: Number(targetManagerId),
         auditNotes: "Admin finalized with penalty",
+        signatureData: sigData
       });
       toast.success(t("Penalty issued and audit completed!"));
       router.push(`/${role}/audit`);
-    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); setIsAdminFinalizing(false); }
+    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); setIsAdminFinalizing(false); handleClearSignature(); }
   };
 
   // === OTHER ACTIONS ===
@@ -326,8 +396,8 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
               <Card className="border-slate-200 shadow-sm gap-0 bg-white">
                 <CardHeader className="border-b border-slate-100 py-4"><CardTitle className="text-base font-semibold text-slate-800">{t("Audit Information")}</CardTitle></CardHeader>
                 
-                {/* ACCOUNTANT: Lock & Start (Assigned status) */}
-                {role === "accountant" && detailData.status === "Assigned" && (
+                {/* ACCOUNTANT/ADMIN: Lock & Start (Assigned status) */}
+                {(role === "accountant" || role === "admin") && detailData.status === "Assigned" && (
                   <Card className="border-blue-200 shadow-sm bg-blue-50/30 gap-0 border-x-0 border-t-0 rounded-none">
                     <CardHeader className="border-b border-blue-100 pt-4 pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2 text-blue-800"><Lock className="w-5 h-5" /> {t("Start Audit")}</CardTitle></CardHeader>
                     <CardContent className="pt-6 space-y-4">
@@ -337,8 +407,8 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                   </Card>
                 )}
 
-                {/* ACCOUNTANT: Review after staff finished (PendingAccountantReview) */}
-                {role === "accountant" && status === "pendingaccountantreview" && (
+                {/* ACCOUNTANT/ADMIN: Review after staff finished (PendingAccountantReview) */}
+                {(role === "accountant" || role === "admin") && status === "pendingaccountantreview" && (
                   <Card className="border-amber-200 shadow-sm bg-amber-50/30 gap-0 border-x-0 border-t-0 rounded-none">
                     <CardHeader className="border-b border-amber-100 pt-4 pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2 text-amber-800"><Calculator className="w-5 h-5" /> {t("Accountant Review")}</CardTitle></CardHeader>
                     <CardContent className="pt-6 space-y-4">
@@ -348,7 +418,14 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                           <DialogTrigger asChild><Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm h-11" disabled={isSubmitting}><CheckCircle className="w-5 h-5 mr-2" /> {t("All Matched — Sign & Complete")}</Button></DialogTrigger>
                           <DialogContent className="sm:max-w-[400px]">
                             <DialogHeader><DialogTitle className="text-emerald-700">{t("Confirm Completion")}</DialogTitle><DialogDescription>{t("All items matched. Sign to complete this audit.")}</DialogDescription></DialogHeader>
-                            <DialogFooter className="gap-2 mt-4"><Button variant="outline" onClick={() => setIsAccountantApproving(false)}>{t("Cancel")}</Button><Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleAccountantApprove} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Check className="w-4 h-4 mr-2"/>} {t("Complete Audit")}</Button></DialogFooter>
+                            <div className="space-y-3 py-4">
+                              <label className="text-xs font-semibold text-slate-500 uppercase">{t("Accountant Signature")}</label>
+                              <div className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-inner">
+                                <ReactSignatureCanvas ref={sigCanvas} penColor="navy" canvasProps={{ className: "w-full h-40" }} onEnd={onSignatureEnd} />
+                              </div>
+                              <Button variant="ghost" size="sm" onClick={handleClearSignature} className="text-slate-500 text-xs flex items-center gap-1"><Eraser className="w-3 h-3" /> {t("Clear")}</Button>
+                            </div>
+                            <DialogFooter className="gap-2 mt-4"><Button variant="outline" onClick={() => { setIsAccountantApproving(false); handleClearSignature(); }}>{t("Cancel")}</Button><Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleAccountantApprove} disabled={isSubmitting || !isSigned}>{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Check className="w-4 h-4 mr-2"/>} {t("Sign & Complete")}</Button></DialogFooter>
                           </DialogContent>
                         </Dialog>
                       ) : (
@@ -375,8 +452,8 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                   </Card>
                 )}
 
-                {/* ACCOUNTANT: Approve/Reject Manager's resolution (PendingAccountantApproval) */}
-                {role === "accountant" && status === "pendingaccountantapproval" && (
+                {/* ACCOUNTANT/ADMIN: Approve/Reject Manager's resolution (PendingAccountantApproval) */}
+                {(role === "accountant" || role === "admin") && status === "pendingaccountantapproval" && (
                   <Card className="border-violet-200 shadow-sm bg-violet-50/30 gap-0 border-x-0 border-t-0 rounded-none">
                     <CardHeader className="border-b border-violet-100 pt-4 pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2 text-violet-800"><FileSignature className="w-5 h-5" /> {t("Review Manager's Resolution")}</CardTitle></CardHeader>
                     <CardContent className="pt-6 space-y-4">
@@ -386,7 +463,14 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                           <DialogTrigger asChild><Button className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm" disabled={isSubmitting}><Check className="w-4 h-4 mr-2" /> {t("Approve")}</Button></DialogTrigger>
                           <DialogContent className="sm:max-w-[400px]">
                             <DialogHeader><DialogTitle className="text-emerald-700">{t("Approve Resolution")}</DialogTitle><DialogDescription>{t("Approve to update inventory and complete audit.")}</DialogDescription></DialogHeader>
-                            <DialogFooter className="gap-2 mt-4"><Button variant="outline" onClick={() => setIsAccountantApprovingResolve(false)}>{t("Cancel")}</Button><Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleAccountantApproveResolve} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Check className="w-4 h-4 mr-2"/>} {t("Approve & Complete")}</Button></DialogFooter>
+                            <div className="space-y-3 py-4">
+                                <label className="text-xs font-semibold text-slate-500 uppercase">{t("Accountant Signature")}</label>
+                                <div className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-inner">
+                                  <ReactSignatureCanvas ref={sigCanvas} penColor="navy" canvasProps={{ className: "w-full h-40" }} onEnd={onSignatureEnd} />
+                                </div>
+                                <Button variant="ghost" size="sm" onClick={handleClearSignature} className="text-slate-500 text-xs flex items-center gap-1"><Eraser className="w-3 h-3" /> {t("Clear")}</Button>
+                            </div>
+                            <DialogFooter className="gap-2 mt-4"><Button variant="outline" onClick={() => { setIsAccountantApprovingResolve(false); handleClearSignature(); }}>{t("Cancel")}</Button><Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleAccountantApproveResolve} disabled={isSubmitting || !isSigned}>{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Check className="w-4 h-4 mr-2"/>} {t("Approve & Complete")}</Button></DialogFooter>
                           </DialogContent>
                         </Dialog>
                         <Dialog open={isAccountantRejecting} onOpenChange={setIsAccountantRejecting}>
@@ -412,13 +496,25 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                         <DialogTrigger asChild><Button className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold shadow-sm h-11" disabled={isSubmitting}><Gavel className="w-5 h-5 mr-2" /> {t("Issue Penalty & Complete")}</Button></DialogTrigger>
                         <DialogContent className="sm:max-w-[500px]">
                           <DialogHeader><DialogTitle className="text-red-700 flex items-center gap-2"><Gavel className="w-5 h-5" /> {t("Issue Penalty")}</DialogTitle><DialogDescription>{t("Fill in penalty details for the responsible Manager.")}</DialogDescription></DialogHeader>
-                          <div className="py-4 space-y-4">
-                            <div><label className="text-sm font-semibold text-slate-700">{t("Manager User ID")} <span className="text-red-500">*</span></label><Input type="number" placeholder="User ID" value={targetManagerId} onChange={(e) => setTargetManagerId(e.target.value)} className="mt-1" /></div>
+                          <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto px-1">
+                            <div>
+                                <label className="text-sm font-semibold text-slate-700">{t("Responsible Manager")}</label>
+                                <Input value={managerInfo?.name || t("Not identified")} disabled className="mt-1 bg-slate-100 border-slate-200 cursor-not-allowed opacity-80" />
+                                <input type="hidden" value={targetManagerId} />
+                            </div>
                             <div><label className="text-sm font-semibold text-slate-700">{t("Penalty Reason")} <span className="text-red-500">*</span></label><Input placeholder={t("Reason for penalty...")} value={penaltyReason} onChange={(e) => setPenaltyReason(e.target.value)} className="mt-1" /></div>
-                            <div><label className="text-sm font-semibold text-slate-700">{t("Penalty Amount (VNĐ)")} <span className="text-red-500">*</span></label><Input type="number" placeholder="0" value={penaltyAmount} onChange={(e) => setPenaltyAmount(e.target.value)} className="mt-1" /></div>
+                            <div><label className="text-sm font-semibold text-slate-700">{t("Auto-Calculated Penalty Amount (VNĐ)")} <span className="text-red-500">*</span></label><Input type="number" placeholder="0" value={penaltyAmount} disabled className="mt-1 bg-slate-100 border-slate-200 font-bold text-red-600 cursor-not-allowed opacity-80" /></div>
                             <div><label className="text-sm font-semibold text-slate-700">{t("Notes")}</label><Textarea placeholder={t("Additional notes...")} value={penaltyNotes} onChange={(e) => setPenaltyNotes(e.target.value)} className="mt-1 min-h-[80px]" /></div>
+                            
+                            <div className="space-y-3 pt-2">
+                                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Admin Digital Signature")} <span className="text-red-500">*</span></label>
+                                <div className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-inner">
+                                  <ReactSignatureCanvas ref={sigCanvas} penColor="black" canvasProps={{ className: "w-full h-32" }} onEnd={onSignatureEnd} />
+                                </div>
+                                <Button variant="ghost" size="sm" onClick={handleClearSignature} className="text-slate-500 text-xs flex items-center gap-1 h-7"><Eraser className="w-3 h-3" /> {t("Clear")}</Button>
+                            </div>
                           </div>
-                          <DialogFooter className="gap-2"><Button variant="outline" onClick={() => setIsAdminFinalizing(false)}>{t("Cancel")}</Button><Button className="bg-red-600 hover:bg-red-700 text-white" onClick={handleAdminFinalize} disabled={isSubmitting || !penaltyReason || !penaltyAmount || !targetManagerId}>{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Gavel className="w-4 h-4 mr-2"/>} {t("Issue Penalty & Complete")}</Button></DialogFooter>
+                          <DialogFooter className="gap-2 pt-4"><Button variant="outline" onClick={() => setIsAdminFinalizing(false)}>{t("Cancel")}</Button><Button className="bg-red-600 hover:bg-red-700 text-white" onClick={handleAdminFinalize} disabled={isSubmitting || !penaltyReason || !penaltyAmount || !targetManagerId || !isSigned}>{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Gavel className="w-4 h-4 mr-2"/>} {t("Sign & Complete")}</Button></DialogFooter>
                         </DialogContent>
                       </Dialog>
                     </CardContent>
@@ -471,9 +567,19 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                    <SelectItem value="AdjustSystem">{t("Adjust System (Update Inventory)")}</SelectItem>
                    <SelectItem value="Investigate">{t("Investigate (Keep pending)")}</SelectItem>
                    <SelectItem value="Accept">{t("Accept (Ignore variance)")}</SelectItem>
+                   <SelectItem value="RequestRecount">{t("Request Recount (Staff redo)")}</SelectItem>
                  </SelectContent>
                </Select>
             </div>
+            {((detailData?.varianceSummary?.unresolvedVariances || 0) <= 1 && resolveAction !== "" && resolveAction !== "RequestRecount") && (
+               <div className="space-y-3 pt-2">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Manager Digital Signature (Final Step)")}</label>
+                  <div className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-inner">
+                    <ReactSignatureCanvas ref={sigCanvas} penColor="maroon" canvasProps={{ className: "w-full h-32" }} onEnd={onSignatureEnd} />
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={handleClearSignature} className="text-slate-500 text-xs flex items-center gap-1 h-7"><Eraser className="w-3 h-3" /> {t("Clear")}</Button>
+               </div>
+            )}
           </div>
           <DialogFooter>
             <DialogClose asChild><Button variant="outline">{t("Cancel")}</Button></DialogClose>

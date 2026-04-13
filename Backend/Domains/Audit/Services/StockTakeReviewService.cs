@@ -217,7 +217,7 @@ namespace Backend.Domains.Audit.Services
                     .AsNoTracking()
                     .CountAsync(x =>
                         x.StockTakeId == st.StockTakeId &&
-                        x.DiscrepancyStatus == "Discrepancy", ct);
+                        (x.DiscrepancyStatus == "Discrepancy" || x.DiscrepancyStatus == "Recounted"), ct);
 
                 var unresolvedVarianceCount = await BuildUnresolvedVarianceQuery(st.StockTakeId)
                     .CountAsync(ct);
@@ -403,7 +403,8 @@ namespace Backend.Domains.Audit.Services
                 AdjustmentReasonName = d.AdjustmentReason != null ? d.AdjustmentReason.Name : null,
                 ResolvedBy = d.ResolvedBy,
                 ResolvedByName = d.ResolvedByNavigation != null ? d.ResolvedByNavigation.FullName : null,
-                ResolvedAt = ToUtc(d.ResolvedAt)
+                ResolvedAt = ToUtc(d.ResolvedAt),
+                UnitPrice = d.Material.UnitPrice ?? 0m
             }).ToList();
 
             var unresolvedCount = await BuildUnresolvedVarianceQuery(stockTakeId).CountAsync(ct);
@@ -458,7 +459,8 @@ namespace Backend.Domains.Audit.Services
                 AdjustmentReasonName = d.AdjustmentReason != null ? d.AdjustmentReason.Name : null,
                 ResolvedBy = d.ResolvedBy,
                 ResolvedByName = d.ResolvedByNavigation != null ? d.ResolvedByNavigation.FullName : null,
-                ResolvedAt = ToUtc(d.ResolvedAt)
+                ResolvedAt = ToUtc(d.ResolvedAt),
+                UnitPrice = d.Material.UnitPrice ?? 0m
             }).ToList();
 
             var unresolvedCount = await BuildUnresolvedVarianceQuery(stockTakeId).CountAsync(ct);
@@ -516,7 +518,8 @@ namespace Backend.Domains.Audit.Services
                 AdjustmentReasonName = detail.AdjustmentReason != null ? detail.AdjustmentReason.Name : null,
                 ResolvedBy = detail.ResolvedBy,
                 ResolvedByName = detail.ResolvedByNavigation != null ? detail.ResolvedByNavigation.FullName : null,
-                ResolvedAt = ToUtc(detail.ResolvedAt)
+                ResolvedAt = ToUtc(detail.ResolvedAt),
+                UnitPrice = detail.Material.UnitPrice ?? 0m
             };
         }
 
@@ -593,6 +596,12 @@ namespace Backend.Domains.Audit.Services
 
                 if (remainingUnresolved == 0)
                 {
+                    // Last item resolved -> save Manager signature if provided
+                    if (!string.IsNullOrWhiteSpace(request.SignatureData))
+                    {
+                        await AddSignatureIfNotExistsAsync(stockTakeId, resolvedByUserId, "Manager", request.SignatureData, ct);
+                    }
+
                     st.Status = "PendingAccountantApproval";
 
                     await _notificationService.QueueAuditNotificationAsync(
@@ -717,6 +726,29 @@ namespace Backend.Domains.Audit.Services
             detail.ResolvedBy = managerUserId;
             detail.ResolvedAt = DateTime.UtcNow;
 
+            // Reset audit status to "InProgress" to allow staff to work again
+            st.Status = "InProgress";
+            st.CompletedAt = null;
+
+            // Unlock any existing locks to clean up the state
+            await UnlockActiveLocksAsync(stockTakeId, managerUserId, ct);
+
+            // Reset MemberCompletedAt for ALL active members (round 2 starts)
+            var mems = await _db.StockTakeTeamMembers
+                .Where(x => x.StockTakeId == stockTakeId)
+                .ToListAsync(ct);
+
+            foreach (var m in mems)
+            {
+                m.MemberCompletedAt = null;
+            }
+
+            // Remove previous staff signatures (per user request to redo verification)
+            var oldSignatures = await _db.StockTakeSignatures
+                .Where(x => x.StockTakeId == stockTakeId)
+                .ToListAsync(ct);
+            _db.StockTakeSignatures.RemoveRange(oldSignatures);
+
             await _notificationService.QueueAuditNotificationAsync(
                 stockTakeId,
                 $"Audit #{st.StockTakeId} ({st.Title}) có yêu cầu kiểm kê lại cho vật tư #{detail.MaterialId} tại bin #{detail.BinId ?? 0}.",
@@ -802,7 +834,7 @@ namespace Backend.Domains.Audit.Services
                 .AsNoTracking()
                 .CountAsync(x =>
                     x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "Discrepancy", ct);
+                    (x.DiscrepancyStatus == "Discrepancy" || x.DiscrepancyStatus == "Recounted"), ct);
 
             // Get materials
             var totalMaterials = await scopedInventoryQuery
@@ -957,15 +989,17 @@ namespace Backend.Domains.Audit.Services
                 return (false, "Only staff can use the sign-off flow. Use the dedicated workflow actions instead.", null);
 
             // Staff sign-off: check they are assigned
-            var isAssignedStaff = await _db.StockTakeTeamMembers
-                .AsNoTracking()
-                .AnyAsync(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.UserId == userId &&
-                    (x.IsActive || x.MemberCompletedAt != null), ct);
+            var currentMember = await _db.StockTakeTeamMembers
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId && x.UserId == userId, ct);
 
-            if (!isAssignedStaff)
+            if (currentMember == null || (!currentMember.IsActive && currentMember.MemberCompletedAt == null))
                 return (false, "You are not assigned to this audit.", null);
+
+            // Auto-mark as finished if not already done (convenience for integrated flow)
+            if (currentMember.MemberCompletedAt == null)
+            {
+                currentMember.MemberCompletedAt = DateTime.UtcNow;
+            }
 
             var existingSignature = await _db.StockTakeSignatures
                 .FirstOrDefaultAsync(x =>
@@ -975,23 +1009,15 @@ namespace Backend.Domains.Audit.Services
             if (existingSignature != null)
                 return (false, "You have already signed off on this audit.", null);
 
-            var pendingMembers = await _db.StockTakeTeamMembers
-                .AsNoTracking()
-                .CountAsync(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.IsActive &&
-                    x.MemberCompletedAt == null, ct);
-
-            if (pendingMembers > 0)
-                return (false, "All active audit members must finish their work before sign-off.", null);
-
+            // Verification: All items must be counted before ANYONE can sign off
+            // (Standard procedure to ensure the record being signed is complete)
             var totalItems = await BuildScopedInventoryQuery(stockTakeId, st.WarehouseId).CountAsync(ct);
             var countedItems = await _db.StockTakeDetails
                 .AsNoTracking()
                 .CountAsync(x => x.StockTakeId == stockTakeId && x.CountQty != null, ct);
 
             if (countedItems < totalItems)
-                return (false, "All scoped inventory items must be counted before sign-off.", null);
+                return (false, "All items must be counted before signing off.", null);
 
             var hasPendingRecount = await _db.StockTakeDetails
                 .AsNoTracking()
@@ -1013,9 +1039,40 @@ namespace Backend.Domains.Audit.Services
 
             _db.StockTakeSignatures.Add(signature);
 
-            // Staff sign-off → transition to PendingAccountantReview
-            st.Status = "PendingAccountantReview";
-            await UnlockActiveLocksAsync(stockTakeId, userId, ct);
+            // Check if this is the final signature needed for transition
+            var activeStaffIds = await _db.StockTakeTeamMembers
+                .Where(x => x.StockTakeId == stockTakeId && x.IsActive)
+                .Select(x => x.UserId)
+                .ToListAsync(ct);
+
+            var signedStaffIds = await _db.StockTakeSignatures
+                .Where(x => x.StockTakeId == stockTakeId && activeStaffIds.Contains(x.UserId))
+                .Select(x => x.UserId)
+                .ToListAsync(ct);
+
+            // Include current signature (not yet in DB)
+            if (!signedStaffIds.Contains(userId)) signedStaffIds.Add(userId);
+
+            var remainingToSign = activeStaffIds.Count(id => !signedStaffIds.Contains(id));
+
+            if (remainingToSign == 0)
+            {
+                // All active staff have signed → transition to PendingAccountantReview
+                st.Status = "PendingAccountantReview";
+                await UnlockActiveLocksAsync(stockTakeId, userId, ct);
+
+                await _notificationService.QueueAuditNotificationAsync(
+                    stockTakeId,
+                    $"Đội ngũ kiểm kê đã ký xác nhận hoàn tất Audit #{st.StockTakeId} ({st.Title}). Chờ Kế toán kiểm tra.",
+                    includeCreator: true,
+                    includeTeamMembers: false,
+                    roleNames: new[] { "Accountant" },
+                    extraUserIds: null,
+                    excludeUserIds: null,
+                    ct: ct);
+            }
+
+            await _db.SaveChangesAsync(ct);
 
             var signerName = !string.IsNullOrWhiteSpace(user.FullName) ? user.FullName : user.Username;
 
@@ -1049,6 +1106,7 @@ namespace Backend.Domains.Audit.Services
             int stockTakeId,
             int userId,
             string action,
+            string? signatureData,
             CancellationToken ct)
         {
             var st = await _db.StockTakes.FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
@@ -1065,7 +1123,7 @@ namespace Backend.Domains.Audit.Services
             if (string.Equals(action, "Approve", StringComparison.OrdinalIgnoreCase))
             {
                 // All matched → sign + complete + unlock
-                await AddSignatureIfNotExistsAsync(stockTakeId, userId, "Accountant", "Accountant approved: all items matched.", ct);
+                await AddSignatureIfNotExistsAsync(stockTakeId, userId, "Accountant", signatureData, ct);
                 return await CompleteAndUpdateInventoryAsync(st, userId, "Audit completed: all items matched.", ct);
             }
             else if (string.Equals(action, "ForwardToManager", StringComparison.OrdinalIgnoreCase))
@@ -1092,6 +1150,7 @@ namespace Backend.Domains.Audit.Services
         public async Task<(bool success, string message)> AccountantApproveResolveAsync(
             int stockTakeId,
             int userId,
+            string? signatureData,
             CancellationToken ct)
         {
             var st = await _db.StockTakes.FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
@@ -1105,7 +1164,7 @@ namespace Backend.Domains.Audit.Services
             if (user == null || !string.Equals(user.Role.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase))
                 return (false, "Only Accountants can perform this action.");
 
-            await AddSignatureIfNotExistsAsync(stockTakeId, userId, "Accountant", "Accountant approved Manager's resolution.", ct);
+            await AddSignatureIfNotExistsAsync(stockTakeId, userId, "Accountant", signatureData, ct);
             return await CompleteAndUpdateInventoryAsync(st, userId, "Audit completed: Accountant approved resolution.", ct);
         }
 
@@ -1172,7 +1231,7 @@ namespace Backend.Domains.Audit.Services
             };
             _db.AuditPenalties.Add(penalty);
 
-            await AddSignatureIfNotExistsAsync(stockTakeId, userId, "Admin", "Admin issued penalty and finalized audit.", ct);
+            await AddSignatureIfNotExistsAsync(stockTakeId, userId, "Admin", request.SignatureData, ct);
 
             // Notify the manager about the penalty
             _db.Notifications.Add(new Backend.Entities.Notification
@@ -1190,25 +1249,19 @@ namespace Backend.Domains.Audit.Services
         private async Task<(bool success, string message)> CompleteAndUpdateInventoryAsync(
             StockTake st, int userId, string? notes, CancellationToken ct)
         {
-            var resolvedVariances = await _db.StockTakeDetails
+            // Select all items in the audit where system qty differs from counted qty
+            var itemsToAdjust = await _db.StockTakeDetails
                 .Where(x =>
                     x.StockTakeId == st.StockTakeId &&
-                    (x.SystemQty ?? 0m) != (x.CountQty ?? 0m) &&
-                    x.ResolutionAction != null &&
-                    x.ResolvedBy != null &&
-                    x.ResolvedAt != null)
+                    (x.SystemQty ?? 0m) != (x.CountQty ?? 0m))
                 .ToListAsync(ct);
-
-            var detailsToAdjust = resolvedVariances
-                .Where(x => NormalizeResolutionAction(x.ResolutionAction) == "AdjustSystem")
-                .ToList();
 
             var postedAt = DateTime.UtcNow;
             var postedCount = 0;
             var skippedAlreadyPostedCount = 0;
             var skippedZeroDeltaCount = 0;
 
-            foreach (var detail in detailsToAdjust)
+            foreach (var detail in itemsToAdjust)
             {
                 if (!detail.BinId.HasValue || !detail.BatchId.HasValue)
                     return (false, $"Invalid bin/batch data for variance detail {detail.Id}.");
@@ -1281,7 +1334,7 @@ namespace Backend.Domains.Audit.Services
             return (true, $"Audit completed successfully. Posted: {postedCount}, already posted: {skippedAlreadyPostedCount}, zero-delta: {skippedZeroDeltaCount}.");
         }
 
-        private async Task AddSignatureIfNotExistsAsync(int stockTakeId, int userId, string role, string? notes, CancellationToken ct)
+        private async Task AddSignatureIfNotExistsAsync(int stockTakeId, int userId, string role, string? signatureData, CancellationToken ct)
         {
             var exists = await _db.StockTakeSignatures
                 .AnyAsync(x => x.StockTakeId == stockTakeId && x.Role == role, ct);
@@ -1294,7 +1347,7 @@ namespace Backend.Domains.Audit.Services
                     UserId = userId,
                     Role = role,
                     SignedAt = DateTime.UtcNow,
-                    SignatureData = notes
+                    SignatureData = signatureData
                 });
             }
         }
