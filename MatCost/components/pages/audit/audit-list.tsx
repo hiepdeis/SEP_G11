@@ -258,19 +258,20 @@ export default function SharedAuditList({ role }: AuditListProps) {
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 w-full">
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-sm font-medium text-slate-500 hidden md:block">{t("Filters:")}</span>
                   <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="w-[160px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer"><SelectValue placeholder={t("Filter by status")} /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="All">{t("All Status")}</SelectItem>
-                      <SelectItem value="Planned">{t("Planned")}</SelectItem>
-                      <SelectItem value="Assigned">{t("Assigned")}</SelectItem>
-                      <SelectItem value="InProgress">{t("In Progress")}</SelectItem>
-                      <SelectItem value="PendingAccountantReview">{t("Pending Accountant")}</SelectItem>
-                      <SelectItem value="PendingManagerReview">{t("Pending Manager")}</SelectItem>
-                      <SelectItem value="PendingAccountantApproval">{t("Pending Approval")}</SelectItem>
-                      <SelectItem value="PendingAdminReview">{t("Pending Admin")}</SelectItem>
-                      <SelectItem value="Completed">{t("Completed")}</SelectItem>
+                    <SelectTrigger className="w-[160px] bg-white border-slate-200 shadow-sm h-10 px-4 cursor-pointer transition-colors">
+                      <SelectValue placeholder={t("Filter by status")} />
+                    </SelectTrigger>
+                    <SelectContent className="[&_[data-slot=select-viewport]]:p-0">
+                      <SelectItem value="All" className="rounded-none py-3 px-4 cursor-pointer">{t("All Status")}</SelectItem>
+                      <SelectItem value="Planned" className="rounded-none py-3 px-4 cursor-pointer">{t("Planned")}</SelectItem>
+                      <SelectItem value="Assigned" className="rounded-none py-3 px-4 cursor-pointer">{t("Assigned")}</SelectItem>
+                      <SelectItem value="InProgress" className="rounded-none py-3 px-4 cursor-pointer">{t("In Progress")}</SelectItem>
+                      <SelectItem value="PendingAccountantReview" className="rounded-none py-3 px-4 cursor-pointer">{t("Pending Accountant")}</SelectItem>
+                      <SelectItem value="PendingManagerReview" className="rounded-none py-3 px-4 cursor-pointer">{t("Pending Manager")}</SelectItem>
+                      <SelectItem value="PendingAccountantApproval" className="rounded-none py-3 px-4 cursor-pointer">{t("Pending Approval")}</SelectItem>
+                      <SelectItem value="PendingAdminReview" className="rounded-none py-3 px-4 cursor-pointer">{t("Pending Admin")}</SelectItem>
+                      <SelectItem value="Completed" className="rounded-none py-3 px-4 cursor-pointer">{t("Completed")}</SelectItem>
                     </SelectContent>
                   </Select>
 
