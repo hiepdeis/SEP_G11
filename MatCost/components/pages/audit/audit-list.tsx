@@ -380,8 +380,8 @@ export default function SharedAuditList({ role }: AuditListProps) {
                             <div className="flex justify-end gap-2">
                               {(role === "accountant" || role === "admin") && (audit.status === "Planned" || audit.status === "PLAN" || audit.status === "Assigned") && (
                                 <>
-                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50" onClick={() => handleEditClick(audit)}><Pencil className="w-4 h-4" /></Button>
-                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteClick(audit)}><Trash2 className="w-4 h-4" /></Button>
+                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50" onClick={(e) => { e.stopPropagation(); handleEditClick(audit); }}><Pencil className="w-4 h-4" /></Button>
+                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-500 hover:text-red-600 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); handleDeleteClick(audit); }}><Trash2 className="w-4 h-4" /></Button>
                                 </>
                               )}
                               
@@ -440,82 +440,117 @@ export default function SharedAuditList({ role }: AuditListProps) {
               <DialogDescription>{t("Update the configuration for this audit session.")}</DialogDescription>
             </DialogHeader>
             
-            <ScrollArea className="flex-grow p-6 pt-2">
+            <ScrollArea className="flex-grow px-6 py-0">
               <div className="space-y-6 pb-4">
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-5 rounded-lg border border-slate-200 shadow-sm transition-all focus-within:ring-1 focus-within:ring-indigo-100">
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">{t("Audit Title *")}</Label>
-                      <Input value={editFormData.title} onChange={(e) => setEditFormData({...editFormData, title: e.target.value})} className="h-10" />
+                      <Label className="text-sm font-medium text-slate-700">{t("Audit Title *")}</Label>
+                      <Input 
+                        value={editFormData.title} 
+                        onChange={(e) => setEditFormData({...editFormData, title: e.target.value})} 
+                        className="bg-white h-[44px] min-h-[44px] max-h-[44px] px-4 border-slate-200 shadow-sm transition-all focus:border-indigo-500" 
+                      />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">{t("Target Warehouse *")}</Label>
-                      <Select value={editFormData.warehouseId.toString()} onValueChange={(val) => setEditFormData({...editFormData, warehouseId: parseInt(val)})}>
-                        <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                        <SelectContent>{warehouses.map(wh => (<SelectItem key={wh.warehouseId} value={wh.warehouseId.toString()}>{wh.name}</SelectItem>))}</SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2"><LayoutGrid className="w-4 h-4" /> {t("Bin Locations")}</Label>
-                    <Button variant="ghost" size="sm" onClick={() => {
-                      const allIds = selectAllBins ? [] : bins.map(b => b.binId);
-                      setEditFormData({...editFormData, binLocationIds: allIds});
-                      setSelectAllBins(!selectAllBins);
-                    }} className="h-8 text-xs text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
-                      {selectAllBins ? t("Deselect All") : t("Select All")}
-                    </Button>
-                  </div>
-                  <div className="border border-slate-200 rounded-lg p-3 bg-slate-50/50">
-                    {isLoadingBins ? (
-                      <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-indigo-600" /></div>
-                    ) : bins.length > 0 ? (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {bins.map((bin) => (
-                          <div key={bin.binId} className="flex items-center space-x-2 bg-white border border-slate-100 p-2 rounded hover:border-indigo-200 transition-colors">
-                            <Checkbox id={`bin-${bin.binId}`} checked={editFormData.binLocationIds?.includes(bin.binId)} onCheckedChange={(checked) => {
-                              const current = editFormData.binLocationIds || [];
-                              const next = checked ? [...current, bin.binId] : current.filter(id => id !== bin.binId);
-                              setEditFormData({...editFormData, binLocationIds: next});
-                              setSelectAllBins(next.length === bins.length);
-                            }} />
-                            <Label htmlFor={`bin-${bin.binId}`} className="text-xs font-medium cursor-pointer truncate">{bin.code}</Label>
-                          </div>
-                        ))}
+                      <Label className="text-sm font-medium text-slate-700">{t("Target Warehouse *")}</Label>
+                      <div className="h-[44px] min-h-[44px] max-h-[44px]">
+                        <Select 
+                          value={editFormData.warehouseId.toString()} 
+                          onValueChange={(val) => setEditFormData({...editFormData, warehouseId: parseInt(val)})}
+                        >
+                          <SelectTrigger className="w-full bg-white hover:bg-slate-50 border-slate-200 h-[44px] min-h-[44px] max-h-[44px] px-4 shadow-sm transition-colors justify-start gap-2 [&>span]:line-clamp-1 [&>span]:flex [&>span]:items-center [&>span]:gap-2">
+                            <WarehouseIcon className="w-5 h-5 text-indigo-600 shrink-0" />
+                            <div className={cn(
+                              "flex-1 text-left font-bold text-indigo-700"
+                            )}>
+                              <SelectValue />
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent className="w-full [&_[data-slot=select-viewport]]:p-0">
+                            {warehouses.map(wh => (
+                              <SelectItem key={wh.warehouseId} value={wh.warehouseId.toString()} className="rounded-none py-3 px-4 cursor-pointer focus:bg-indigo-600 focus:text-white transition-colors font-bold">
+                                {wh.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                    ) : (
-                      <div className="text-center py-4 text-xs text-slate-400">{t("No bins available.")}</div>
-                    )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">{t("Start Date *")}</Label>
-                    <DateTimePicker 
-                      value={editFormData.plannedStartDate ? new Date(editFormData.plannedStartDate) : undefined} 
-                      onChange={(date) => setEditFormData({...editFormData, plannedStartDate: date ? date.toISOString() : ""})} 
-                      disablePastDates 
-                    />
+                  <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2"><LayoutGrid className="w-4 h-4 text-slate-400" /> {t("Bin Locations")}</Label>
+                      <Button variant="ghost" size="sm" onClick={() => {
+                        const allIds = selectAllBins ? [] : bins.map(b => b.binId);
+                        setEditFormData({...editFormData, binLocationIds: allIds});
+                        setSelectAllBins(!selectAllBins);
+                      }} className="h-8 text-xs text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-2 font-bold">
+                        {selectAllBins ? t("Deselect All") : t("Select All")}
+                      </Button>
+                    </div>
+                    <div className="bg-slate-50/50 rounded-lg p-3 border border-slate-100">
+                      {isLoadingBins ? (
+                        <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-indigo-600" /></div>
+                      ) : bins.length > 0 ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {bins.map((bin) => (
+                            <div key={bin.binId} className="flex items-center space-x-2 bg-white border border-slate-300 p-2 rounded-lg hover:border-indigo-200 transition-colors">
+                              <Checkbox id={`bin-${bin.binId}`} checked={editFormData.binLocationIds?.includes(bin.binId)} onCheckedChange={(checked) => {
+                                const current = editFormData.binLocationIds || [];
+                                const next = checked ? [...current, bin.binId] : current.filter(id => id !== bin.binId);
+                                setEditFormData({...editFormData, binLocationIds: next});
+                                setSelectAllBins(next.length === bins.length);
+                              }} />
+                              <Label htmlFor={`bin-${bin.binId}`} className="text-xs font-medium cursor-pointer truncate">{bin.code}</Label>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 text-xs text-slate-400">{t("No bins available.")}</div>
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">{t("End Date *")}</Label>
-                    <DateTimePicker 
-                      value={editFormData.plannedEndDate ? new Date(editFormData.plannedEndDate) : undefined} 
-                      onChange={(date) => setEditFormData({...editFormData, plannedEndDate: date ? date.toISOString() : ""})} 
-                      minDate={editFormData.plannedStartDate ? new Date(editFormData.plannedStartDate) : undefined} 
-                    />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-slate-700 flex items-center gap-2"><CalendarDays className="w-4 h-4 text-slate-400" /> {t("Start Date *")}</Label>
+                      <DateTimePicker 
+                        value={editFormData.plannedStartDate ? new Date(editFormData.plannedStartDate) : undefined} 
+                        onChange={(date) => setEditFormData({...editFormData, plannedStartDate: date ? date.toISOString() : ""})} 
+                        disablePastDates 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-slate-700 flex items-center gap-2"><CalendarDays className="w-4 h-4 text-slate-400" /> {t("End Date *")}</Label>
+                      <DateTimePicker 
+                        value={editFormData.plannedEndDate ? new Date(editFormData.plannedEndDate) : undefined} 
+                        onChange={(date) => setEditFormData({...editFormData, plannedEndDate: date ? date.toISOString() : ""})} 
+                        minDate={editFormData.plannedStartDate ? new Date(editFormData.plannedStartDate) : undefined} 
+                      />
+                    </div>
                   </div>
-                </div>
               </div>
             </ScrollArea>
 
-            <DialogFooter className="p-6 bg-slate-50 border-t border-slate-200">
-              <Button variant="outline" onClick={() => setIsEditModalOpen(false)} disabled={isSubmitting}>{t("Cancel")}</Button>
-              <Button onClick={handleUpdate} disabled={isSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[120px] shadow-sm">{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />} {t("Save Changes")}</Button>
+            <DialogFooter className="pb-6 px-6 pt-0 bg-white-5 flex justify-end gap-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsEditModalOpen(false)} 
+                disabled={isSubmitting}
+                className="h-11 px-6 bg-white hover:bg-slate-50 border-slate-200 text-slate-600 hover:text-indigo-600 font-bold transition-all shadow-sm active:scale-[0.98]"
+              >
+                {t("Cancel")}
+              </Button>
+              <Button 
+                onClick={handleUpdate} 
+                disabled={isSubmitting} 
+                className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[150px] h-11 font-bold shadow-md transition-all active:scale-[0.98]"
+              >
+                {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />} {t("Save Changes")}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -527,9 +562,22 @@ export default function SharedAuditList({ role }: AuditListProps) {
               <DialogTitle className="text-red-600 flex items-center gap-2"><Trash2 className="w-5 h-5" /> {t("Delete Audit Plan")}</DialogTitle>
               <DialogDescription className="py-2">{t("Are you sure you want to delete")} <span className="font-bold">"{selectedAudit?.title}"</span>? {t("This action cannot be undone.")}</DialogDescription>
             </DialogHeader>
-            <DialogFooter className="gap-2 sm:gap-0 pt-4">
-              <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)} disabled={isSubmitting}>{t("Cancel")}</Button>
-              <Button variant="destructive" onClick={handleDelete} disabled={isSubmitting} className="bg-red-600 hover:bg-red-700 shadow-sm">{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />} {t("Delete Plan")}</Button>
+            <DialogFooter className="flex justify-between items-center gap-4 pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsDeleteModalOpen(false)} 
+                disabled={isSubmitting}
+                className="h-11 px-6 bg-white hover:bg-red-50 border-slate-200 text-slate-600 hover:text-red-600 font-bold transition-all shadow-sm active:scale-[0.98]"
+              >
+                {t("Cancel")}
+              </Button>
+              <Button 
+                onClick={handleDelete} 
+                disabled={isSubmitting} 
+                className="h-11 min-w-[150px] bg-red-600 hover:bg-red-700 text-white font-bold shadow-md transition-all active:scale-[0.98]"
+              >
+                {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />} {t("Delete Plan")}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
