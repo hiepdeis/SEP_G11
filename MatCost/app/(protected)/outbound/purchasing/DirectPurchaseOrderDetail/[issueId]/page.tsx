@@ -19,7 +19,7 @@ import { useTranslation } from "react-i18next";
 
 export default function DirectPurchaseOrderDetail() {
   const params = useParams();
-  const issueId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const issueId = Array.isArray(params.issueId) ? params.issueId[0] : params.issueId;
  const { t } = useTranslation();
   const [dpoDetail, setDpoDetail] = useState<any>(null);
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -70,6 +70,7 @@ export default function DirectPurchaseOrderDetail() {
     };
 
     if (issueId) fetchData();
+    else setLoading(false);
   }, [issueId]);
 
   // Tính lại tổng tiền realtime khi gõ giá mới
