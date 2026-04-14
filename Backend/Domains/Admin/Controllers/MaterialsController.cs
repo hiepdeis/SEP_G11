@@ -1,4 +1,4 @@
-﻿using Backend.Domains.Admin.Dtos;
+using Backend.Domains.Admin.Dtos;
 using Backend.Domains.Admin.Interface;
 using Microsoft.AspNetCore.Mvc;
 
@@ -35,26 +35,40 @@ namespace Backend.Domains.Admin.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateMaterialRequest request, CancellationToken ct)
         {
-            var materialId = await _materialService.CreateAsync(request, ct);
+            try
+            {
+                var materialId = await _materialService.CreateAsync(request, ct);
 
-            return CreatedAtAction(
-                nameof(GetById),
-                new { materialId },
-                new
-                {
-                    message = "Tạo vật tư thành công.",
-                    materialId
-                });
+                return CreatedAtAction(
+                    nameof(GetById),
+                    new { materialId },
+                    new
+                    {
+                        message = "Tạo vật tư thành công.",
+                        materialId
+                    });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPut("{materialId:int}")]
         public async Task<IActionResult> Update([FromRoute] int materialId, [FromBody] UpdateMaterialRequest request, CancellationToken ct)
         {
-            var success = await _materialService.UpdateAsync(materialId, request, ct);
-            if (!success)
-                return NotFound(new { message = "Material not found." });
+            try
+            {
+                var success = await _materialService.UpdateAsync(materialId, request, ct);
+                if (!success)
+                    return NotFound(new { message = "Material not found." });
 
-            return Ok(new { message = "Cập nhật vật tư thành công." });
+                return Ok(new { message = "Cập nhật vật tư thành công." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("{materialId:int}")]
@@ -80,13 +94,20 @@ namespace Backend.Domains.Admin.Controllers
             [FromBody] CreateMaterialInventoryRequest request,
             CancellationToken ct)
         {
-            var inventoryId = await _materialService.CreateInventoryAsync(materialId, request, ct);
-
-            return Ok(new
+            try
             {
-                message = "Tạo vị trí tồn kho thành công.",
-                inventoryId
-            });
+                var inventoryId = await _materialService.CreateInventoryAsync(materialId, request, ct);
+
+                return Ok(new
+                {
+                    message = "Tạo vị trí tồn kho thành công.",
+                    inventoryId
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPut("{materialId:int}/inventory/{inventoryId:int}")]
@@ -96,11 +117,18 @@ namespace Backend.Domains.Admin.Controllers
             [FromBody] UpdateMaterialInventoryRequest request,
             CancellationToken ct)
         {
-            var success = await _materialService.UpdateInventoryAsync(materialId, inventoryId, request, ct);
-            if (!success)
-                return NotFound(new { message = "Inventory row not found." });
+            try
+            {
+                var success = await _materialService.UpdateInventoryAsync(materialId, inventoryId, request, ct);
+                if (!success)
+                    return NotFound(new { message = "Inventory row not found." });
 
-            return Ok(new { message = "Cập nhật vị trí tồn kho thành công." });
+                return Ok(new { message = "Cập nhật vị trí tồn kho thành công." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("{materialId:int}/inventory/{inventoryId:int}")]

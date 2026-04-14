@@ -13,13 +13,13 @@ import { format, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Save, Loader2, Briefcase, CalendarDays, ClipboardList, CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
-import { projectService, CreateProjectRequest } from "@/services/project-service";
+import { projectService, SaveProjectRequest } from "@/services/project-service";
 
 export default function CreateProjectPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   
-  const [formData, setFormData] = useState<CreateProjectRequest>({
+  const [formData, setFormData] = useState<SaveProjectRequest>({
     code: "",
     name: "",
     startDate: "",
@@ -60,7 +60,7 @@ export default function CreateProjectPage() {
 
     try {
       setIsLoading(true);
-      await projectService.create(formData);
+      await projectService.save(formData);
       toast.success("Tạo dự án thành công!");
       router.push("/accountant/projects");
     } catch (error: any) {

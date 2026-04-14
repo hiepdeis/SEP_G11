@@ -1,4 +1,4 @@
-﻿using Backend.Domains.Audit.DTOs.Accountants;
+using Backend.Domains.Audit.DTOs.Accountants;
 using Backend.Domains.Audit.Interfaces;
 using Backend.Extensions;
 using Microsoft.AspNetCore.Authorization;
@@ -8,7 +8,7 @@ namespace Backend.Domains.Audit.Controllers.Accountants
 {
     [ApiController]
     [Route("api/accountants/audits")]
-    [Authorize(Roles = "Accountant")]
+    [Authorize(Roles = "Accountant,Admin")]
     public class AuditPlansController : ControllerBase
     {
         private readonly IAuditPlanService _service;
@@ -35,18 +35,40 @@ namespace Backend.Domains.Audit.Controllers.Accountants
         }
 
         [HttpGet("plans/{id:int}")]
-        public IActionResult GetPlanById([FromRoute] int id)
-        {
-            return Ok(new { id });
-        }
-
-        [HttpDelete("plans/{stockTakeId:int}/bin-locations/{binId:int}")]
-        public async Task<IActionResult> DeleteBinLocation([FromRoute] int stockTakeId, [FromRoute] int binId, CancellationToken ct)
+        public async Task<IActionResult> GetPlanById([FromRoute] int id, CancellationToken ct)
         {
             try
             {
-                await _service.DeleteBinLocationAsync(stockTakeId, binId, ct);
-                return Ok(new { message = "BinLocation deleted successfully." });
+                var result = await _service.GetByIdAsync(id, ct);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        //[HttpDelete("plans/{stockTakeId:int}/bin-locations/{binId:int}")]
+        //public async Task<IActionResult> DeleteBinLocation([FromRoute] int stockTakeId, [FromRoute] int binId, CancellationToken ct)
+        //{
+        //    try
+        //    {
+        //        await _service.DeleteBinLocationAsync(stockTakeId, binId, ct);
+        //        return Ok(new { message = "BinLocation deleted successfully." });
+        //    }
+        //    catch (ArgumentException ex)
+        //    {
+        //        return BadRequest(new { message = ex.Message });
+        //    }
+        //}
+
+        [HttpPut("plans/{id:int}")]
+        public async Task<IActionResult> UpdatePlan([FromRoute] int id, [FromBody] UpdateAuditPlanRequest request, CancellationToken ct)
+        {
+            try
+            {
+                var result = await _service.UpdateAsync(id, request, ct);
+                return Ok(result);
             }
             catch (ArgumentException ex)
             {
@@ -54,13 +76,13 @@ namespace Backend.Domains.Audit.Controllers.Accountants
             }
         }
 
-        [HttpPut("plans/{stockTakeId:int}/bin-locations")]
-        public async Task<IActionResult> UpdateBinLocations([FromRoute] int stockTakeId, [FromBody] UpdateBinLocationsRequest request, CancellationToken ct)
+        [HttpDelete("plans/{id:int}")]
+        public async Task<IActionResult> DeletePlan([FromRoute] int id, CancellationToken ct)
         {
             try
             {
-                var result = await _service.UpdateBinLocationsAsync(stockTakeId, request, ct);
-                return Ok(result);
+                await _service.DeleteAsync(id, ct);
+                return NoContent();
             }
             catch (ArgumentException ex)
             {

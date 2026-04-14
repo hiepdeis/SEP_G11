@@ -1096,7 +1096,7 @@ export default function CommonIssueSlipDetail() {
                         <SelectTrigger className="bg-white">
                           <SelectValue placeholder="-- Chọn nhân viên --" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent showSearch className="w-full">
                           {pickers.map((p) => (
                             <SelectItem key={p.userId} value={p.userId.toString()}>
                               {p.fullName}
@@ -1230,7 +1230,7 @@ export default function CommonIssueSlipDetail() {
                 </DialogContent>
               </Dialog>
 
-              {/* ================= MODAL KÝ TÊN CỦA ADMIN ================= */}
+              {/*  MODAL KÝ TÊN CỦA ADMIN  */}
               <Dialog open={isAdminSigning} onOpenChange={(open) => { 
                 setIsAdminSigning(open); 
                 if (!open && sigCanvas.current) { sigCanvas.current.clear(); setIsSigned(false); } 
@@ -1281,7 +1281,7 @@ export default function CommonIssueSlipDetail() {
                 </DialogContent>
               </Dialog>
 
-              {/* ================= MODAL NHẬP OTP CỦA ADMIN ================= */}
+              {/*  MODAL NHẬP OTP CỦA ADMIN  */}
               <div id="recaptcha-container" style={{ display: "none" }} /> 
               <Dialog open={isOtpModalOpen} onOpenChange={setIsOtpModalOpen}>
                 <DialogContent className="sm:max-w-[400px]">
@@ -1338,7 +1338,7 @@ export default function CommonIssueSlipDetail() {
               </Dialog>
               </div>       
 
-              {/* ================= MODAL KÝ TÊN CỦA ACCOUNTANT (GỬI PO) ================= */}
+              {/*  MODAL KÝ TÊN CỦA ACCOUNTANT (GỬI PO)  */}
               <Dialog open={isPoSigningOpen} onOpenChange={(open) => { 
                 setIsPoSigningOpen(open); 
                 if (!open && poSigCanvas.current) { poSigCanvas.current.clear(); setIsPoSigned(false); } 
@@ -1389,7 +1389,7 @@ export default function CommonIssueSlipDetail() {
                 </DialogContent>
               </Dialog>
 
-              {/* ================= MODAL NHẬP OTP CỦA ACCOUNTANT (GỬI PO) ================= */}
+              {/*  MODAL NHẬP OTP CỦA ACCOUNTANT (GỬI PO)  */}
               <Dialog open={isPoOtpOpen} onOpenChange={setIsPoOtpOpen}>
                 <DialogContent className="w-[95vw] sm:max-w-[400px] rounded-lg">
                   <DialogHeader>

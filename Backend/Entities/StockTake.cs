@@ -1,4 +1,4 @@
-﻿
+
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -59,4 +59,7 @@ public partial class StockTake
     public virtual Warehouse Warehouse { get; set; } = null!;
     [InverseProperty(nameof(StockTakeLock.StockTake))]
     public virtual ICollection<StockTakeLock> StockTakeLocks { get; set; } = new List<StockTakeLock>();
+
+    [InverseProperty(nameof(AuditPenalty.StockTake))]
+    public virtual ICollection<AuditPenalty> AuditPenalties { get; set; } = new List<AuditPenalty>();
 }

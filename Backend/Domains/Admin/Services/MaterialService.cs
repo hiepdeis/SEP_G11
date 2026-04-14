@@ -234,7 +234,7 @@ namespace Backend.Domains.Admin.Services
                 .FirstOrDefaultAsync(x => x.MaterialId == materialId, ct);
 
             if (entity == null)
-                return (false, "Material not found.");
+                return (false, "Vật tư không tồn tại.");
 
             var inventoryRows = await _db.InventoryCurrents
                 .Where(x => x.MaterialId == materialId)
@@ -378,7 +378,7 @@ namespace Backend.Domains.Admin.Services
             int? ignoreMaterialId)
         {
             if (string.IsNullOrWhiteSpace(code))
-                throw new ArgumentException("Material code is required.");
+                throw new ArgumentException("Mã vật tư không được để trống.");
 
             var normalizedUnit = unit.Trim();
 
@@ -419,7 +419,7 @@ namespace Backend.Domains.Admin.Services
             {
                 var categoryExists = await _db.MaterialCategories.AnyAsync(x => x.CategoryId == categoryId.Value, ct);
                 if (!categoryExists)
-                    throw new ArgumentException("CategoryId không tồn tại.");
+                    throw new ArgumentException("Nhóm vật tư không tồn tại.");
             }
 
             return normalizedUnit;
@@ -467,16 +467,16 @@ namespace Backend.Domains.Admin.Services
                 .FirstOrDefaultAsync(x => x.BatchId == batchId, ct);
 
             if (batch == null)
-                throw new ArgumentException("Batch không tồn tại.");
+                throw new ArgumentException("Lô không tồn tại.");
 
             if (batch.MaterialId != materialId)
-                throw new ArgumentException("Batch không thuộc vật tư này.");
+                throw new ArgumentException("Lô không thuộc vật tư này.");
 
             if (quantityOnHand < 0)
-                throw new ArgumentException("QuantityOnHand không được âm.");
+                throw new ArgumentException("Số lượng tồn kho không được âm.");
 
             if (quantityAllocated < 0)
-                throw new ArgumentException("QuantityAllocated không được âm.");
+                throw new ArgumentException("Số lượng phân bổ không được âm.");
 
             if (!material.IsDecimalUnit)
             {
@@ -505,16 +505,16 @@ namespace Backend.Domains.Admin.Services
                     .FirstOrDefaultAsync(x => x.BatchId == batchId.Value, ct);
 
                 if (batchById == null)
-                    throw new ArgumentException("Batch không tồn tại.");
+                    throw new ArgumentException("Lô không tồn tại.");
 
                 if (batchById.MaterialId != materialId)
-                    throw new ArgumentException("Batch không thuộc vật tư này.");
+                    throw new ArgumentException("Lô không thuộc vật tư này.");
 
                 return batchById.BatchId;
             }
 
             if (string.IsNullOrWhiteSpace(batchCode))
-                throw new ArgumentException("BatchId hoặc BatchCode là bắt buộc.");
+                throw new ArgumentException("Thông tin Lô là bắt buộc.");
 
             var normalized = batchCode.Trim().ToUpper();
 

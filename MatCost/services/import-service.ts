@@ -503,6 +503,7 @@ export interface PendingPurchaseOrderItemDto {
   materialName: string;
   orderedQuantity: number;
   unit: string;
+  isDecimalUnit: boolean;
 }
 
 export interface PendingPurchaseOrderDto {

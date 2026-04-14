@@ -1,6 +1,7 @@
 using Backend.Data;
 using Backend.Domains.Projects.DTOs;
 using Backend.Domains.Projects.Interfaces;
+using Backend.Domains.Projects.Constants;
 using Backend.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,42 +34,36 @@ namespace Backend.Domains.Projects.Services
                 .ToListAsync(ct);
         }
 
-        public async Task<(bool success, string message)> CreateProjectAsync(CreateProjectRequest request, CancellationToken ct)
+        public async Task<(bool success, string message)> SaveProjectAsync(SaveProjectRequest request, CancellationToken ct)
         {
-            var exists = await _db.Projects.AnyAsync(x => x.Code == request.Code, ct);
-            if (exists) return (false, "Mã dự án (Project Code) đã tồn tại.");
+            bool isUpdate = request.ProjectId.HasValue && request.ProjectId > 0;
+            Project project;
 
-            var project = new Project
+            if (isUpdate)
             {
-                Code = request.Code,
-                Name = request.Name,
-                StartDate = request.StartDate,
-                EndDate = request.EndDate,
-                Budget = request.Budget,
+                project = await _db.Projects.FirstOrDefaultAsync(x => x.ProjectId == request.ProjectId, ct);
+                if (project == null) return (false, "Dự án không tồn tại.");
+            }
+            else
+            {
+                var exists = await _db.Projects.AnyAsync(x => x.Code == request.Code, ct);
+                if (exists) return (false, "Mã dự án (Project Code) đã tồn tại.");
 
-               // Status = string.IsNullOrWhiteSpace(request.Status) ? ProjectStatus.Active : request.Status
-
-                Status = request.Status
-            };
-
-            _db.Projects.Add(project);
-            await _db.SaveChangesAsync(ct);
-            return (true, "Tạo dự án thành công.");
-        }
-
-        public async Task<(bool success, string message)> UpdateProjectAsync(int id, UpdateProjectRequest request, CancellationToken ct)
-        {
-            var project = await _db.Projects.FirstOrDefaultAsync(x => x.ProjectId == id, ct);
-            if (project == null) return (false, "Dự án không tồn tại.");
+                project = new Project { Code = request.Code };
+                _db.Projects.Add(project);
+            }
 
             project.Name = request.Name;
             project.StartDate = request.StartDate;
             project.EndDate = request.EndDate;
             project.Budget = request.Budget;
-            project.Status = request.Status;
+
+            project.Status = isUpdate ? request.Status : ProjectStatus.Pending;
 
             await _db.SaveChangesAsync(ct);
-            return (true, "Cập nhật dự án thành công.");
+
+            string message = isUpdate ? "Cập nhật dự án thành công." : "Tạo dự án thành công.";
+            return (true, message);
         }
 
         public async Task<(bool success, string message)> DeleteProjectAsync(int id, CancellationToken ct)
@@ -79,6 +74,11 @@ namespace Backend.Domains.Projects.Services
             _db.Projects.Remove(project);
             await _db.SaveChangesAsync(ct);
             return (true, "Xóa dự án thành công.");
+        }
+
+        public Task<(bool success, string message)> UpdateProjectAsync(int id, UpdateProjectRequest request, CancellationToken ct)
+        {
+            throw new NotImplementedException();
         }
     }
 }

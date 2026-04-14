@@ -1,4 +1,4 @@
-﻿using Backend.Domains.Admin.Dtos;
+using Backend.Domains.Admin.Dtos;
 using Backend.Domains.Admin.Interface;
 using Microsoft.AspNetCore.Mvc;
 
@@ -39,28 +39,49 @@ namespace Backend.Domains.Admin.Controllers
         [HttpPost("roles")]
         public async Task<IActionResult> CreateRole([FromBody] UpsertRoleDto request, CancellationToken ct)
         {
-            var id = await _service.CreateRoleAsync(request, ct);
-            return Ok(new { message = "Role created successfully.", id });
+            try
+            {
+                var id = await _service.CreateRoleAsync(request, ct);
+                return Ok(new { message = "Role created successfully.", id });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPut("roles/{id:int}")]
         public async Task<IActionResult> UpdateRole(int id, [FromBody] UpsertRoleDto request, CancellationToken ct)
         {
-            var ok = await _service.UpdateRoleAsync(id, request, ct);
-            if (!ok)
-                return NotFound(new { message = "Role not found." });
+            try
+            {
+                var ok = await _service.UpdateRoleAsync(id, request, ct);
+                if (!ok)
+                    return NotFound(new { message = "Role not found." });
 
-            return Ok(new { message = "Role updated successfully." });
+                return Ok(new { message = "Role updated successfully." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("roles/{id:int}")]
         public async Task<IActionResult> DeleteRole(int id, CancellationToken ct)
         {
-            var ok = await _service.DeleteRoleAsync(id, ct);
-            if (!ok)
-                return NotFound(new { message = "Role not found." });
+            try
+            {
+                var ok = await _service.DeleteRoleAsync(id, ct);
+                if (!ok)
+                    return NotFound(new { message = "Role not found." });
 
-            return Ok(new { message = "Role deleted successfully." });
+                return Ok(new { message = "Role deleted successfully." });
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         // =========================================================
@@ -87,28 +108,49 @@ namespace Backend.Domains.Admin.Controllers
         [HttpPost("categories")]
         public async Task<IActionResult> CreateCategory([FromBody] UpsertMaterialCategoryDto request, CancellationToken ct)
         {
-            var id = await _service.CreateCategoryAsync(request, ct);
-            return Ok(new { message = "Category created successfully.", id });
+            try
+            {
+                var id = await _service.CreateCategoryAsync(request, ct);
+                return Ok(new { message = "Category created successfully.", id });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPut("categories/{id:int}")]
         public async Task<IActionResult> UpdateCategory(int id, [FromBody] UpsertMaterialCategoryDto request, CancellationToken ct)
         {
-            var ok = await _service.UpdateCategoryAsync(id, request, ct);
-            if (!ok)
-                return NotFound(new { message = "Category not found." });
+            try
+            {
+                var ok = await _service.UpdateCategoryAsync(id, request, ct);
+                if (!ok)
+                    return NotFound(new { message = "Category not found." });
 
-            return Ok(new { message = "Category updated successfully." });
+                return Ok(new { message = "Category updated successfully." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("categories/{id:int}")]
         public async Task<IActionResult> DeleteCategory(int id, CancellationToken ct)
         {
-            var ok = await _service.DeleteCategoryAsync(id, ct);
-            if (!ok)
-                return NotFound(new { message = "Category not found." });
+            try
+            {
+                var ok = await _service.DeleteCategoryAsync(id, ct);
+                if (!ok)
+                    return NotFound(new { message = "Category not found." });
 
-            return Ok(new { message = "Category deleted successfully." });
+                return Ok(new { message = "Category deleted successfully." });
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         // =========================================================
@@ -135,38 +177,66 @@ namespace Backend.Domains.Admin.Controllers
         [HttpPost("adjustment-reasons")]
         public async Task<IActionResult> CreateAdjustmentReason([FromBody] UpsertAdjustmentReasonDto request, CancellationToken ct)
         {
-            var id = await _service.CreateAdjustmentReasonAsync(request, ct);
-            return Ok(new { message = "Adjustment reason created successfully.", id });
+            try
+            {
+                var id = await _service.CreateAdjustmentReasonAsync(request, ct);
+                return Ok(new { message = "Adjustment reason created successfully.", id });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPut("adjustment-reasons/{id:int}")]
         public async Task<IActionResult> UpdateAdjustmentReason(int id, [FromBody] UpsertAdjustmentReasonDto request, CancellationToken ct)
         {
-            var ok = await _service.UpdateAdjustmentReasonAsync(id, request, ct);
-            if (!ok)
-                return NotFound(new { message = "Adjustment reason not found." });
+            try
+            {
+                var ok = await _service.UpdateAdjustmentReasonAsync(id, request, ct);
+                if (!ok)
+                    return NotFound(new { message = "Adjustment reason not found." });
 
-            return Ok(new { message = "Adjustment reason updated successfully." });
+                return Ok(new { message = "Adjustment reason updated successfully." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPatch("adjustment-reasons/{id:int}/status")]
         public async Task<IActionResult> UpdateAdjustmentReasonStatus(int id, [FromBody] MasterDataStatusDto request, CancellationToken ct)
         {
-            var ok = await _service.UpdateAdjustmentReasonStatusAsync(id, request, ct);
-            if (!ok)
-                return NotFound(new { message = "Adjustment reason not found." });
+            try
+            {
+                var ok = await _service.UpdateAdjustmentReasonStatusAsync(id, request, ct);
+                if (!ok)
+                    return NotFound(new { message = "Adjustment reason not found." });
 
-            return Ok(new { message = "Adjustment reason status updated successfully." });
+                return Ok(new { message = "Adjustment reason status updated successfully." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("adjustment-reasons/{id:int}")]
         public async Task<IActionResult> DeleteAdjustmentReason(int id, CancellationToken ct)
         {
-            var ok = await _service.DeleteAdjustmentReasonAsync(id, ct);
-            if (!ok)
-                return NotFound(new { message = "Adjustment reason not found." });
+            try
+            {
+                var ok = await _service.DeleteAdjustmentReasonAsync(id, ct);
+                if (!ok)
+                    return NotFound(new { message = "Adjustment reason not found." });
 
-            return Ok(new { message = "Adjustment reason deleted successfully." });
+                return Ok(new { message = "Adjustment reason deleted successfully." });
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         // =========================================================
@@ -193,28 +263,49 @@ namespace Backend.Domains.Admin.Controllers
         [HttpPost("suppliers")]
         public async Task<IActionResult> CreateSupplier([FromBody] UpsertSupplierDto request, CancellationToken ct)
         {
-            var id = await _service.CreateSupplierAsync(request, ct);
-            return Ok(new { message = "Supplier created successfully.", id });
+            try
+            {
+                var id = await _service.CreateSupplierAsync(request, ct);
+                return Ok(new { message = "Supplier created successfully.", id });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPut("suppliers/{id:int}")]
         public async Task<IActionResult> UpdateSupplier(int id, [FromBody] UpsertSupplierDto request, CancellationToken ct)
         {
-            var ok = await _service.UpdateSupplierAsync(id, request, ct);
-            if (!ok)
-                return NotFound(new { message = "Supplier not found." });
+            try
+            {
+                var ok = await _service.UpdateSupplierAsync(id, request, ct);
+                if (!ok)
+                    return NotFound(new { message = "Supplier not found." });
 
-            return Ok(new { message = "Supplier updated successfully." });
+                return Ok(new { message = "Supplier updated successfully." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("suppliers/{id:int}")]
         public async Task<IActionResult> DeleteSupplier(int id, CancellationToken ct)
         {
-            var ok = await _service.DeleteSupplierAsync(id, ct);
-            if (!ok)
-                return NotFound(new { message = "Supplier not found." });
+            try
+            {
+                var ok = await _service.DeleteSupplierAsync(id, ct);
+                if (!ok)
+                    return NotFound(new { message = "Supplier not found." });
 
-            return Ok(new { message = "Supplier deleted successfully." });
+                return Ok(new { message = "Supplier deleted successfully." });
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         // =========================================================
@@ -248,28 +339,49 @@ namespace Backend.Domains.Admin.Controllers
         [HttpPost("warehouses")]
         public async Task<IActionResult> CreateWarehouse([FromBody] UpsertWarehouseDto request, CancellationToken ct)
         {
-            var id = await _service.CreateWarehouseAsync(request, ct);
-            return Ok(new { message = "Warehouse created successfully.", id });
+            try
+            {
+                var id = await _service.CreateWarehouseAsync(request, ct);
+                return Ok(new { message = "Warehouse created successfully.", id });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPut("warehouses/{id:int}")]
         public async Task<IActionResult> UpdateWarehouse(int id, [FromBody] UpsertWarehouseDto request, CancellationToken ct)
         {
-            var ok = await _service.UpdateWarehouseAsync(id, request, ct);
-            if (!ok)
-                return NotFound(new { message = "Warehouse not found." });
+            try
+            {
+                var ok = await _service.UpdateWarehouseAsync(id, request, ct);
+                if (!ok)
+                    return NotFound(new { message = "Warehouse not found." });
 
-            return Ok(new { message = "Warehouse updated successfully." });
+                return Ok(new { message = "Warehouse updated successfully." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("warehouses/{id:int}")]
         public async Task<IActionResult> DeleteWarehouse(int id, CancellationToken ct)
         {
-            var ok = await _service.DeleteWarehouseAsync(id, ct);
-            if (!ok)
-                return NotFound(new { message = "Warehouse not found." });
+            try
+            {
+                var ok = await _service.DeleteWarehouseAsync(id, ct);
+                if (!ok)
+                    return NotFound(new { message = "Warehouse not found." });
 
-            return Ok(new { message = "Warehouse deleted successfully." });
+                return Ok(new { message = "Warehouse deleted successfully." });
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         // =========================================================
@@ -296,28 +408,49 @@ namespace Backend.Domains.Admin.Controllers
         [HttpPost("bin-locations")]
         public async Task<IActionResult> CreateBinLocation([FromBody] UpsertBinLocationDto request, CancellationToken ct)
         {
-            var id = await _service.CreateBinLocationAsync(request, ct);
-            return Ok(new { message = "Bin location created successfully.", id });
+            try
+            {
+                var id = await _service.CreateBinLocationAsync(request, ct);
+                return Ok(new { message = "Bin location created successfully.", id });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPut("bin-locations/{id:int}")]
         public async Task<IActionResult> UpdateBinLocation(int id, [FromBody] UpsertBinLocationDto request, CancellationToken ct)
         {
-            var ok = await _service.UpdateBinLocationAsync(id, request, ct);
-            if (!ok)
-                return NotFound(new { message = "Bin location not found." });
+            try
+            {
+                var ok = await _service.UpdateBinLocationAsync(id, request, ct);
+                if (!ok)
+                    return NotFound(new { message = "Bin location not found." });
 
-            return Ok(new { message = "Bin location updated successfully." });
+                return Ok(new { message = "Bin location updated successfully." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("bin-locations/{id:int}")]
         public async Task<IActionResult> DeleteBinLocation(int id, CancellationToken ct)
         {
-            var ok = await _service.DeleteBinLocationAsync(id, ct);
-            if (!ok)
-                return NotFound(new { message = "Bin location not found." });
+            try
+            {
+                var ok = await _service.DeleteBinLocationAsync(id, ct);
+                if (!ok)
+                    return NotFound(new { message = "Bin location not found." });
 
-            return Ok(new { message = "Bin location deleted successfully." });
+                return Ok(new { message = "Bin location deleted successfully." });
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         // =========================================================
@@ -344,38 +477,66 @@ namespace Backend.Domains.Admin.Controllers
         [HttpPost("projects")]
         public async Task<IActionResult> CreateProject([FromBody] UpsertProjectDto request, CancellationToken ct)
         {
-            var id = await _service.CreateProjectAsync(request, ct);
-            return Ok(new { message = "Project created successfully.", id });
+            try
+            {
+                var id = await _service.CreateProjectAsync(request, ct);
+                return Ok(new { message = "Project created successfully.", id });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPut("projects/{id:int}")]
         public async Task<IActionResult> UpdateProject(int id, [FromBody] UpsertProjectDto request, CancellationToken ct)
         {
-            var ok = await _service.UpdateProjectAsync(id, request, ct);
-            if (!ok)
-                return NotFound(new { message = "Project not found." });
+            try
+            {
+                var ok = await _service.UpdateProjectAsync(id, request, ct);
+                if (!ok)
+                    return NotFound(new { message = "Project not found." });
 
-            return Ok(new { message = "Project updated successfully." });
+                return Ok(new { message = "Project updated successfully." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPatch("projects/{id:int}/status")]
         public async Task<IActionResult> UpdateProjectStatus(int id, [FromBody] ProjectStatusUpdateDto request, CancellationToken ct)
         {
-            var ok = await _service.UpdateProjectStatusAsync(id, request, ct);
-            if (!ok)
-                return NotFound(new { message = "Project not found." });
+            try
+            {
+                var ok = await _service.UpdateProjectStatusAsync(id, request, ct);
+                if (!ok)
+                    return NotFound(new { message = "Project not found." });
 
-            return Ok(new { message = "Project status updated successfully." });
+                return Ok(new { message = "Project status updated successfully." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("projects/{id:int}")]
         public async Task<IActionResult> DeleteProject(int id, CancellationToken ct)
         {
-            var ok = await _service.DeleteProjectAsync(id, ct);
-            if (!ok)
-                return NotFound(new { message = "Project not found." });
+            try
+            {
+                var ok = await _service.DeleteProjectAsync(id, ct);
+                if (!ok)
+                    return NotFound(new { message = "Project not found." });
 
-            return Ok(new { message = "Project deleted successfully." });
+                return Ok(new { message = "Project deleted successfully." });
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         
@@ -403,28 +564,49 @@ namespace Backend.Domains.Admin.Controllers
         [HttpPost("supplier-contracts")]
         public async Task<IActionResult> CreateSupplierContract([FromBody] UpsertSupplierContractDto request, CancellationToken ct)
         {
-            var id = await _service.CreateSupplierContractAsync(request, ct);
-            return Ok(new { message = "Supplier contract created successfully.", id });
+            try
+            {
+                var id = await _service.CreateSupplierContractAsync(request, ct);
+                return Ok(new { message = "Supplier contract created successfully.", id });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPut("supplier-contracts/{id:int}")]
         public async Task<IActionResult> UpdateSupplierContract(int id, [FromBody] UpsertSupplierContractDto request, CancellationToken ct)
         {
-            var ok = await _service.UpdateSupplierContractAsync(id, request, ct);
-            if (!ok)
-                return NotFound(new { message = "Supplier contract not found." });
+            try
+            {
+                var ok = await _service.UpdateSupplierContractAsync(id, request, ct);
+                if (!ok)
+                    return NotFound(new { message = "Supplier contract not found." });
 
-            return Ok(new { message = "Supplier contract updated successfully." });
+                return Ok(new { message = "Supplier contract updated successfully." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("supplier-contracts/{id:int}")]
         public async Task<IActionResult> DeleteSupplierContract(int id, CancellationToken ct)
         {
-            var ok = await _service.DeleteSupplierContractAsync(id, ct);
-            if (!ok)
-                return NotFound(new { message = "Supplier contract not found." });
+            try
+            {
+                var ok = await _service.DeleteSupplierContractAsync(id, ct);
+                if (!ok)
+                    return NotFound(new { message = "Supplier contract not found." });
 
-            return Ok(new { message = "Supplier contract deleted successfully." });
+                return Ok(new { message = "Supplier contract deleted successfully." });
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpGet("supplier-contracts/supplier/{supplierId:int}")]

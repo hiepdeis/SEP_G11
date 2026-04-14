@@ -1,4 +1,4 @@
-﻿
+
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -106,6 +106,15 @@ public partial class User
 
     [InverseProperty("ResolvedByNavigation")]
     public virtual ICollection<IncidentReport> IncidentReportsResolved { get; set; } = new List<IncidentReport>();
+
     [InverseProperty(nameof(TotpUser.User))]
     public virtual TotpUser? TotpUser { get; set; }
+
+
+    [InverseProperty(nameof(AuditPenalty.IssuedByUser))]
+    public virtual ICollection<AuditPenalty> IssuedAuditPenalties { get; set; } = new List<AuditPenalty>();
+
+    [InverseProperty(nameof(AuditPenalty.TargetUser))]
+    public virtual ICollection<AuditPenalty> ReceivedAuditPenalties { get; set; } = new List<AuditPenalty>();
+
 }
