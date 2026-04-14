@@ -1,17 +1,23 @@
+"use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Truck, CheckCircle2, FileSignature, Eraser, Loader2, Package, MapPin } from "lucide-react";
+import { Truck, CheckCircle2, FileSignature, Eraser, Loader2, Package, MapPin, Search } from "lucide-react";
 import SignatureCanvas from 'react-signature-canvas';
 import { toast } from "sonner";
+import axiosClient from "@/lib/axios-client";
+import { projectApi, ProjectDto } from "@/services/project-services";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
-export default function IncomingShipments({ projectId }) {
+export default function IncomingShipments() {
+  const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [shipments, setShipments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   
   // States cho Modal Ký nhận
@@ -20,14 +26,32 @@ export default function IncomingShipments({ projectId }) {
   const [isSigned, setIsSigned] = useState(false);
   const sigCanvas = useRef(null);
 
+  // 0. LẤY DANH SÁCH DỰ ÁN
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const data = await projectApi.getProjects();
+        setProjects(data);
+        // Nếu chỉ có 1 dự án, tự động chọn luôn
+        if (data.length === 1) {
+          setSelectedProjectId(data[0].projectId.toString());
+        }
+      } catch (error) {
+        toast.error("Không thể tải danh sách dự án.");
+      }
+    };
+    fetchProjects();
+  }, []);
+
   // 1. LẤY DỮ LIỆU TỪ API HỢP NHẤT
-  const fetchShipments = async () => {
+  const fetchShipments = async (id: string) => {
+    if (!id) return;
     try {
       setLoading(true);
-      // Gọi API Unified mà chúng ta vừa viết ở Backend
-      const res = await axiosClient.get(`/projects/${projectId}/incoming-shipments`);
+      const res = await axiosClient.get(`/projects/${id}/incoming-shipments`);
       setShipments(res.data);
     } catch (error) {
+      console.error("Lỗi khi tải hàng đang giao:", error);
       toast.error("Không thể tải danh sách hàng đang giao.");
     } finally {
       setLoading(false);
@@ -35,8 +59,12 @@ export default function IncomingShipments({ projectId }) {
   };
 
   useEffect(() => {
-    if (projectId) fetchShipments();
-  }, [projectId]);
+    if (selectedProjectId) {
+      fetchShipments(selectedProjectId);
+    } else {
+      setShipments([]);
+    }
+  }, [selectedProjectId]);
 
   // Xóa chữ ký
   const clearSignature = () => {
@@ -76,7 +104,7 @@ export default function IncomingShipments({ projectId }) {
       toast.success("Tuyệt vời! Đã ký nhận hàng thành công.");
       setIsSignModalOpen(false);
       clearSignature();
-      fetchShipments(); // Reload lại list
+      fetchShipments(selectedProjectId); // Reload lại list
 
     } catch (error) {
       toast.error("Có lỗi xảy ra khi xác nhận.");
@@ -89,10 +117,30 @@ export default function IncomingShipments({ projectId }) {
     <div className="space-y-6">
       <Card className="border-slate-200 shadow-sm">
         <CardHeader className="bg-white border-b border-slate-100 py-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
-            <Truck className="w-5 h-5 text-indigo-600" /> Hàng Đang Giao Đến Công Trường
-          </CardTitle>
-          <p className="text-sm text-slate-500 font-normal mt-1">Danh sách vật tư từ Kho và Nhà cung cấp đang trên đường vận chuyển.</p>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                <Truck className="w-5 h-5 text-indigo-600" /> Hàng Đang Giao Đến Công Trường
+              </CardTitle>
+              <p className="text-sm text-slate-500 font-normal mt-1">Danh sách vật tư từ Kho và Nhà cung cấp đang trên đường vận chuyển.</p>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-500 whitespace-nowrap">Dự án:</span>
+              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                <SelectTrigger className="w-[250px] bg-slate-50 border-slate-200">
+                  <SelectValue placeholder="Chọn dự án để xem hàng..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((p) => (
+                    <SelectItem key={p.projectId} value={p.projectId.toString()}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         
         <CardContent className="p-0">
@@ -109,6 +157,8 @@ export default function IncomingShipments({ projectId }) {
             <TableBody>
               {loading ? (
                 <TableRow><TableCell colSpan={5} className="h-32 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-slate-400"/></TableCell></TableRow>
+              ) : !selectedProjectId ? (
+                <TableRow><TableCell colSpan={5} className="h-32 text-center text-slate-500 italic">Vui lòng chọn dự án để xem danh sách hàng đang giao.</TableCell></TableRow>
               ) : shipments.length === 0 ? (
                 <TableRow><TableCell colSpan={5} className="h-32 text-center text-slate-500">Hiện không có chuyến hàng nào đang giao.</TableCell></TableRow>
               ) : (
