@@ -1,11 +1,23 @@
-import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
+import axiosClient from "@/lib/axios-client";
 
 export type NotificationItem = {
   notiId: number;
   userId: number;
   message: string;
+  relatedEntityType?: string | null;
+  relatedEntityId?: number | null;
   isRead: boolean;
   createdAt: string;
+};
+
+export type NotificationCreateResult = {
+  sentCount: number;
+  notificationIds: number[];
+  emailRequested: boolean;
+  emailConfigured: boolean;
+  emailSentCount: number;
+  emailMissingAddressCount: number;
+  emailFailedCount: number;
 };
 
 export type NotificationPagedResult = {
@@ -25,8 +37,12 @@ export type GetNotificationsParams = {
 };
 
 export type CreateNotificationPayload = {
-  userId: number;
+  targetMode?: "single" | "all";
+  userId?: number;
   message: string;
+  relatedEntityType?: string;
+  relatedEntityId?: number;
+  sendEmail?: boolean;
 };
 
 export function getNotifications(params: GetNotificationsParams = {}) {
@@ -53,23 +69,25 @@ export function getNotifications(params: GetNotificationsParams = {}) {
   }
 
   const query = search.toString();
-  return apiGet<NotificationPagedResult>(
-    `/admin/notifications${query ? `?${query}` : ""}`
-  );
+  return axiosClient
+    .get<NotificationPagedResult>(`/admin/notifications${query ? `?${query}` : ""}`)
+    .then((res) => res.data);
 }
 
 export function createNotification(payload: CreateNotificationPayload) {
-  return apiPost<NotificationItem>("/admin/notifications", payload);
+  return axiosClient
+    .post<NotificationCreateResult>("/admin/notifications", payload)
+    .then((res) => res.data);
 }
 
-export async function createNotificationsBulk(userIds: number[], message: string) {
-  await Promise.all(userIds.map((userId) => createNotification({ userId, message })));
+export function createNotifications(payload: CreateNotificationPayload) {
+  return createNotification(payload);
 }
 
 export function markNotificationAsRead(notiId: number) {
-  return apiPatch(`/admin/notifications/${notiId}/read`, {});
+  return axiosClient.patch(`/admin/notifications/${notiId}/read`, {}).then((res) => res.data);
 }
 
 export function deleteNotificationById(notiId: number) {
-  return apiDelete(`/admin/notifications/${notiId}`);
+  return axiosClient.delete(`/admin/notifications/${notiId}`).then((res) => res.data);
 }

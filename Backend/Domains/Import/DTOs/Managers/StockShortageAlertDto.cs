@@ -9,7 +9,7 @@ namespace Backend.Domains.Import.DTOs.Managers
         public int? WarehouseId { get; set; }
         public string WarehouseName { get; set; } = string.Empty;
         public decimal CurrentQuantity { get; set; }
-        public int? MinStockLevel { get; set; }
+        public decimal? MinStockLevel { get; set; }
         public decimal? SuggestedQuantity { get; set; }
         public string Status { get; set; } = string.Empty;
         public string? Priority { get; set; }
@@ -18,6 +18,8 @@ namespace Backend.Domains.Import.DTOs.Managers
         public int? ConfirmedBy { get; set; }
         public string? ConfirmedByName { get; set; }
         public string? Notes { get; set; }
+        public string? Unit { get; set; }
+        public bool IsDecimalUnit { get; set; }
     }
 
     public class ConfirmStockShortageAlertDto

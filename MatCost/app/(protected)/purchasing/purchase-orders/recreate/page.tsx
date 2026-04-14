@@ -50,7 +50,9 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { showConfirmToast } from "@/hooks/confirm-toast";
 import { formatPascalCase } from "@/lib/format-pascal-case";
-
+import { formatCurrency } from "@/lib/format-currency";
+import { formatDateTime } from "@/lib/format-date-time";
+import { CurrencyInput } from "@/components/ui/custom/currency-input";
 interface OrderItemInput {
   id: string;
   materialId: number;
@@ -163,25 +165,6 @@ export default function RecreatePurchaseOrderPage() {
     if (field === "supplierId") {
       setGlobalSupplierId("");
     }
-  };
-
-  const formatCurrency = (val: number) => {
-    return val.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
-  };
-
-  const formatDateTime = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-    let safeDateString = dateString;
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
   const handleSubmit = () => {
@@ -402,7 +385,7 @@ export default function RecreatePurchaseOrderPage() {
                           placeholder={t("Select to apply to all items...")}
                         />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent showSearch>
                         {capableSuppliers.length > 0 ? (
                           capableSuppliers.map((s) => (
                             <SelectItem
@@ -621,7 +604,10 @@ export default function RecreatePurchaseOrderPage() {
                                   >
                                     <SelectValue placeholder={t("Select...")} />
                                   </SelectTrigger>
-                                  <SelectContent className="w-[var(--radix-select-trigger-width)]">
+                                  <SelectContent
+                                    showSearch
+                                    className="w-[var(--radix-select-trigger-width)]"
+                                  >
                                     {suppliers
                                       .filter(
                                         (s) =>
@@ -642,21 +628,19 @@ export default function RecreatePurchaseOrderPage() {
                                 </Select>
                               </TableCell>
                               <TableCell className="align-top text-right py-4 pr-6">
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  placeholder="0"
-                                  className="w-full text-right focus-visible:ring-indigo-600"
-                                  value={item.unitPrice}
-                                  onChange={(e) =>
+                                <CurrencyInput
+                                  value={
+                                    item.unitPrice ? Number(item.unitPrice) : 0
+                                  }
+                                  onValueChange={(val) =>
                                     handleItemChange(
                                       item.id,
                                       "unitPrice",
-                                      e.target.value
-                                        .replace(/-/g, "")
-                                        .slice(0, 12),
+                                      val !== null ? val.toString() : "",
                                     )
                                   }
+                                  className="w-full text-right focus-visible:ring-indigo-600"
+                                  placeholder="0"
                                 />
                               </TableCell>
                             </TableRow>

@@ -67,6 +67,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils"; // Dùng hàm helper ở bước trước
 import { useTranslation } from "react-i18next";
 import { formatPascalCase } from "@/lib/format-pascal-case";
+import { formatDateTime } from "@/lib/format-date-time";
 
 export default function AdminPurchaseManagementPage() {
   const router = useRouter();
@@ -256,25 +257,6 @@ export default function AdminPurchaseManagementPage() {
     router.push(`/admin/alerts/${alertId}`);
   };
 
-  // Formatters
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-
-    let safeDateString = dateString;
-    
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-  
   const formatPlus = (num: number) => (num > 999 ? "999+" : num);
 
   // Thống kê KPI PR
@@ -789,7 +771,7 @@ export default function AdminPurchaseManagementPage() {
                                   </div>
                                   <span className="text-xs text-slate-400 flex items-center gap-1 mt-1">
                                     <CalendarDays className="w-3 h-3" />{" "}
-                                    {formatDate(item.createdAt)}
+                                    {formatDateTime(item.createdAt)}
                                   </span>
                                 </div>
                               </TableCell>
@@ -864,7 +846,7 @@ export default function AdminPurchaseManagementPage() {
                                   </span>
                                   <span className="text-xs text-slate-400 flex items-center gap-1 mt-1">
                                     <CalendarDays className="w-3 h-3" />{" "}
-                                    {formatDate(item.createdAt)}
+                                    {formatDateTime(item.createdAt)}
                                   </span>
                                 </div>
                               </TableCell>
@@ -909,7 +891,7 @@ export default function AdminPurchaseManagementPage() {
                                 <div className="flex justify-end items-center gap-2">
                                   {item.status === "ManagerConfirmed" ? (
                                     <>
-                                    <DropdownMenu>
+                                      <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                           <Button
                                             variant="ghost"

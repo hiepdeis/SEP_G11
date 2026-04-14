@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5000/api";
+import { buildApiUrl } from "@/lib/api-config";
 
 async function parseResponse<T>(res: Response, method: string, endpoint: string): Promise<T> {
   if (!res.ok) {
@@ -28,10 +28,9 @@ async function parseResponse<T>(res: Response, method: string, endpoint: string)
 }
 
 export async function apiGet<T>(endpoint: string, token?: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetch(buildApiUrl(endpoint), {
     method: "GET",
     headers: {
-      "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     cache: "no-store",
@@ -41,7 +40,7 @@ export async function apiGet<T>(endpoint: string, token?: string): Promise<T> {
 }
 
 export async function apiPost<T>(endpoint: string, body?: unknown, token?: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetch(buildApiUrl(endpoint), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -54,7 +53,7 @@ export async function apiPost<T>(endpoint: string, body?: unknown, token?: strin
 }
 
 export async function apiPut<T>(endpoint: string, body?: unknown, token?: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetch(buildApiUrl(endpoint), {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -67,7 +66,7 @@ export async function apiPut<T>(endpoint: string, body?: unknown, token?: string
 }
 
 export async function apiPatch<T>(endpoint: string, body?: unknown, token?: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetch(buildApiUrl(endpoint), {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -80,10 +79,9 @@ export async function apiPatch<T>(endpoint: string, body?: unknown, token?: stri
 }
 
 export async function apiDelete<T = any>(endpoint: string, token?: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetch(buildApiUrl(endpoint), {
     method: "DELETE",
     headers: {
-      "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });

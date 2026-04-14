@@ -55,6 +55,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { formatDateTime } from "@/lib/format-date-time";
 
 export default function StockShortageAlertListPage() {
   const router = useRouter();
@@ -186,24 +187,6 @@ export default function StockShortageAlertListPage() {
   const handleReview = (id: number) => {
     setLoadingId(id);
     router.push(`/manager/alerts/${id}`);
-  };
-  
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-
-    let safeDateString = dateString;
-
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
   const formatPlus = (num: number) => (num > 999 ? "999+" : num);
@@ -588,7 +571,7 @@ export default function StockShortageAlertListPage() {
                               </div>
                               <span className="text-xs text-slate-400 flex items-center gap-1 mt-1">
                                 <CalendarDays className="w-3 h-3" />{" "}
-                                {formatDate(item.createdAt)}
+                                {formatDateTime(item.createdAt)}
                               </span>
                             </div>
                           </TableCell>

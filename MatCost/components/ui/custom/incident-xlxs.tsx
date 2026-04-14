@@ -20,6 +20,7 @@ interface IncidentExcelItem {
     damage: number;
   };
   notes: string;
+  isDecimalUnit: boolean;
 }
 
 interface QCData {
@@ -52,7 +53,7 @@ export function IncidentExcelHandler({
       "Material ID": item.materialId, // Khóa chính
       "Material Code": item.materialCode,
       "Material Name": item.materialName,
-      "Total Failed": item.failQuantity,
+      "Total Failed": item.orderedQuantity - item.passQuantity,
       Quantity: item.breakdown.quantity,
       "Quality *": item.breakdown.quality || 0,
       "Damage *": item.breakdown.damage || 0,
@@ -117,8 +118,12 @@ export function IncidentExcelHandler({
               ...item,
               breakdown: {
                 ...item.breakdown, // Giữ nguyên Shortage
-                quality: finalQuality,
-                damage: finalDamage,
+                quality: item.isDecimalUnit
+                  ? Number(finalQuality.toFixed(3))
+                  : Math.round(finalQuality),
+                damage: item.isDecimalUnit
+                  ? Number(finalDamage.toFixed(3))
+                  : Math.round(finalDamage),
               },
               notes: row["Detailed Notes *"]
                 ? String(row["Detailed Notes *"])

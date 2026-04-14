@@ -1,10 +1,11 @@
 import axiosClient from "@/lib/axios-client";
+import { API_BASE } from "@/lib/api-config";
 import { useRouter } from "next/navigation";
 
 export const authApi = {
   loginGoogle: () => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    const redirectUri = `${process.env.NEXT_PUBLIC_API_URL}/Auth/login-google`;
+    const redirectUri = `${API_BASE}/Auth/login-google`;
 
     const googleAuthUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
     googleAuthUrl.searchParams.append("client_id", clientId || "");

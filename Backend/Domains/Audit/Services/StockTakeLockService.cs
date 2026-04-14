@@ -8,10 +8,14 @@ namespace Backend.Domains.Audit.Services
     public class StockTakeLockService : IStockTakeLockService
     {
         private readonly MyDbContext _db;
+        private readonly IAuditNotificationService _notificationService;
 
-        public StockTakeLockService(MyDbContext db)
+        public StockTakeLockService(
+            MyDbContext db,
+            IAuditNotificationService notificationService)
         {
             _db = db;
+            _notificationService = notificationService;
         }
 
         public async Task<(bool success, string message)> LockScopeAsync(
@@ -108,7 +112,35 @@ namespace Backend.Domains.Audit.Services
                 st.CheckDate ??= DateTime.UtcNow;
             }
 
+            await _notificationService.QueueAuditNotificationAsync(
+                stockTakeId,
+                $"Audit #{st.StockTakeId} ({st.Title}) đã được khóa phạm vi và bắt đầu kiểm kê.",
+                includeCreator: true,
+                includeTeamMembers: true,
+                roleNames: new[] { "Manager" },
+                extraUserIds: null,
+                excludeUserIds: new[] { userId },
+                ct);
+
             await _db.SaveChangesAsync(ct);
+
+            // Lock System => Notify all
+            var allActiveUserIds = await _db.Users.AsNoTracking()
+                .Where(u => u.Status)
+                .Select(u => u.UserId)
+                .ToListAsync(ct);
+
+            var lockNotis = allActiveUserIds.Select(uid => new Notification
+            {
+                UserId = uid,
+                Message = $"Hệ thống vừa khóa kho/vị trí cho phiếu kiểm kê #{stockTakeId}. Vui lòng ngừng các giao dịch xuất/nhập liên quan.",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            }).ToList();
+
+            _db.Notifications.AddRange(lockNotis);
+            await _db.SaveChangesAsync(ct);
+
             return (true, "Audit scope locked successfully.");
         }
 
@@ -136,6 +168,16 @@ namespace Backend.Domains.Audit.Services
                 item.UnlockedAt = DateTime.UtcNow;
                 item.UnlockedBy = userId;
             }
+
+            await _notificationService.QueueAuditNotificationAsync(
+                stockTakeId,
+                $"Audit #{st.StockTakeId} ({st.Title}) đã được mở khóa phạm vi kiểm kê.",
+                includeCreator: true,
+                includeTeamMembers: true,
+                roleNames: new[] { "Manager" },
+                extraUserIds: null,
+                excludeUserIds: new[] { userId },
+                ct);
 
             await _db.SaveChangesAsync(ct);
             return (true, "Audit scope unlocked successfully.");

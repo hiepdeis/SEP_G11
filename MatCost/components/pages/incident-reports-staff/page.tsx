@@ -59,6 +59,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreVertical } from "lucide-react";
+import { formatDateTime } from "@/lib/format-date-time";
+
 
 interface IncidentListItem {
   id: string;
@@ -184,13 +186,12 @@ export default function IncidentReportsPage({
             date: r.createdDate || "",
             creatorName: r.createdByName || "N/A",
             warehouseName: r.warehouseName || "N/A",
-            totalQuantity: r.items.length || 0,
+            totalQuantity:
+              r.items.filter((item: any) => item.passQuantity < item.quantity)
+                .length || 0,
             status: r.status || "PendingIncident",
           }),
         );
-
-        console.log(mappedPendingReceipts);
-        console.log(mappedIncidents);
 
         const combinedList = [...mappedPendingReceipts, ...mappedIncidents];
 
@@ -308,27 +309,14 @@ export default function IncidentReportsPage({
       }
     } else if (item.type === "PendingReceipt") {
       if (isSecondaryAction) {
-        router.push(`/${inboundRoutePrefix}/${item.originalId}`);
+        router.push(`${inboundRoutePrefix}/${item.originalId}`);
       } else {
         router.push(`${incidentRoutePrefix}/${item.originalId}`);
       }
     }
   };
 
-  const formatDateTime = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-    let safeDateString = dateString;
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+
 
   const innerContent = (
     <>
@@ -683,14 +671,16 @@ export default function IncidentReportsPage({
                             }}
                             disabled={loadingId === item.originalId}
                             variant={
-                              item.status === "PendingIncident"
+                              item.status === "PendingIncident" ||
+                              item.status === "Open"
                                 ? "default"
                                 : "outline"
                             }
                             className={
-                              item.status === "PendingIncident"
-                                ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm min-w-[160px]"
-                                : "text-rose-600 border-rose-200 hover:text-rose-700 hover:bg-rose-50 min-w-[160px]"
+                              item.status === "PendingIncident" ||
+                              item.status === "Open"
+                                ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm min-w-[200px]"
+                                : "text-rose-600 border-rose-200 hover:text-rose-700 hover:bg-rose-50 min-w-[200px]"
                             }
                           >
                             {loadingId === item.originalId ? (
@@ -699,6 +689,11 @@ export default function IncidentReportsPage({
                               <>
                                 <ArrowRight className="w-4 h-4 mr-1.5" />
                                 {t("Review")}
+                              </>
+                            ) : item.status === "Open" ? (
+                              <>
+                                <ArrowRight className="w-4 h-4 mr-1.5" />
+                                {t("Send to Manager")}
                               </>
                             ) : (
                               <>

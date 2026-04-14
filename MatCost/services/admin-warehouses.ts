@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
+import axiosClient from "@/lib/axios-client";
 
 export type WarehouseDto = {
   warehouseId: number;
@@ -22,18 +22,23 @@ export type UpsertWarehousePayload = {
   address?: string;
 };
 
+export type CreateWarehouseResponse = {
+  id: number;
+  message: string;
+};
+
 export function getWarehouses() {
-  return apiGet<WarehouseResponse>("/admin/master-data/warehouses");
+  return axiosClient.get<WarehouseResponse>("/admin/master-data/warehouses").then((res) => res.data);
 }
 
 export function createWarehouse(body: UpsertWarehousePayload) {
-  return apiPost<WarehouseDto>("/admin/master-data/warehouses", body);
+  return axiosClient.post<CreateWarehouseResponse>("/admin/master-data/warehouses", body).then((res) => res.data);
 }
 
 export function updateWarehouse(id: number, body: UpsertWarehousePayload) {
-  return apiPut<void>(`/admin/master-data/warehouses/${id}`, body);
+  return axiosClient.put<void>(`/admin/master-data/warehouses/${id}`, body).then((res) => res.data);
 }
 
 export function deleteWarehouse(id: number) {
-  return apiDelete<void>(`/admin/master-data/warehouses/${id}`);
+  return axiosClient.delete<void>(`/admin/master-data/warehouses/${id}`).then((res) => res.data);
 }

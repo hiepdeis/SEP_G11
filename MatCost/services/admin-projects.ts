@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
+import axiosClient from "@/lib/axios-client";
 
 export type ProjectItem = {
   projectId: number;
@@ -7,6 +7,8 @@ export type ProjectItem = {
   startDate: string | null;
   endDate: string | null;
   budget: number | null;
+  budgetUsed: number | null;
+  overBudgetAllowance: number | null;
   status: string | null;
 };
 
@@ -24,21 +26,39 @@ export type UpsertProjectPayload = {
   startDate: string | null;
   endDate: string | null;
   budget: number | null;
+  budgetUsed: number | null;
+  overBudgetAllowance: number | null;
   status: string | null;
 };
 
+export type CreateProjectResponse = {
+  id: number;
+  message: string;
+};
+
 export function getProjects() {
-  return apiGet<ProjectPagedResult>("/admin/master-data/projects");
+  return axiosClient
+    .get<ProjectPagedResult>("/admin/master-data/projects")
+    .then((res) => res.data);
 }
 
 export function createProject(payload: UpsertProjectPayload) {
-  return apiPost<ProjectItem>("/admin/master-data/projects", payload);
+  return axiosClient
+    .post<CreateProjectResponse>("/admin/master-data/projects", payload)
+    .then((res) => res.data);
 }
 
-export function updateProject(projectId: number, payload: UpsertProjectPayload) {
-  return apiPut<ProjectItem>(`/admin/master-data/projects/${projectId}`, payload);
+export function updateProject(
+  projectId: number,
+  payload: UpsertProjectPayload,
+) {
+  return axiosClient
+    .put<ProjectItem>(`/admin/master-data/projects/${projectId}`, payload)
+    .then((res) => res.data);
 }
 
 export function deleteProject(projectId: number) {
-  return apiDelete<void>(`/admin/master-data/projects/${projectId}`);
+  return axiosClient
+    .delete<void>(`/admin/master-data/projects/${projectId}`)
+    .then((res) => res.data);
 }

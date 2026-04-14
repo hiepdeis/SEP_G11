@@ -42,6 +42,8 @@ import { toast } from "sonner";
 import { showConfirmToast } from "@/hooks/confirm-toast";
 import { useTranslation } from "react-i18next";
 import { formatPascalCase } from "@/lib/format-pascal-case";
+import { formatDateTime } from "@/lib/format-date-time";
+
 
 export default function StaffInboundDetailPage({
   role = "staff",
@@ -128,23 +130,7 @@ export default function StaffInboundDetailPage({
     });
   };
 
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
 
-    let safeDateString = dateString;
-
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   const totalTableItems = request?.items?.length || 0;
   const totalTablePages = Math.ceil(totalTableItems / tableItemsPerPage) || 1;
@@ -252,7 +238,7 @@ export default function StaffInboundDetailPage({
                           </p>
                           {request.createdDate && (
                             <p className="text-[11px] text-slate-400 mt-0.5">
-                              {formatDate(request.createdDate)}
+                              {formatDateTime(request.createdDate)}
                             </p>
                           )}
                         </div>
@@ -301,7 +287,7 @@ export default function StaffInboundDetailPage({
                           </p>
                           {request.createdDate && (
                             <p className="text-[11px] text-slate-400 mt-0.5">
-                              {formatDate(request.createdDate)}
+                              {formatDateTime(request.createdDate)}
                             </p>
                           )}
                         </div>
@@ -352,7 +338,7 @@ export default function StaffInboundDetailPage({
                           )}
                           {request.stampedAt && (
                             <p className="text-[11px] text-slate-400 mt-0.5">
-                              {formatDate(request.stampedAt)}
+                              {formatDateTime(request.stampedAt)}
                             </p>
                           )}
                         </div>
@@ -380,7 +366,7 @@ export default function StaffInboundDetailPage({
                           )}
                           {request.closedAt && (
                             <p className="text-[11px] text-slate-400 mt-0.5">
-                              {formatDate(request.closedAt)}
+                              {formatDateTime(request.closedAt)}
                             </p>
                           )}
                         </div>

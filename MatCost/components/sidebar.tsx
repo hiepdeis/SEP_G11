@@ -221,11 +221,6 @@ export function Sidebar() {
     },
     { label: t("sidebar.admin_users"), icon: Users, href: "/admin/users" },
     {
-      label: t("sidebar.admin_materials"),
-      icon: Package,
-      href: "/admin/materials",
-    },
-    {
       label: t("sidebar.admin_master_data"),
       icon: Database,
       href: "/admin/master-data",
@@ -642,6 +637,7 @@ export function Sidebar() {
               <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
             )}
           </a>
+
 
           {/* Admin Section */}
           {userDecode?.role === "Admin" && (

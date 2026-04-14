@@ -189,6 +189,8 @@ export interface AccountantReceiptDetailDto {
   receiptCode: string;
   status: string;
   receiptDate?: string;
+  stampedAt?: string | null;
+  stampedByName?: string | null;
   purchaseOrder?: PurchaseOrderDto;
   qcCheck?: QCCheckDto;
   inventoryCurrents: AccountantInventoryCurrentDto[];
@@ -239,8 +241,8 @@ export interface AccountantReceiptCloseResultDto {
 export interface ManagerIncidentItemSummaryDto {
   materialId: number;
   materialName?: string;
-  orderedQuantity?: number;
-  actualQuantity?: number;
+  orderedQuantity: number;
+  actualQuantity: number;
   passQuantity: number;
   failQuantity: number;
   failReason?: string;
@@ -454,6 +456,7 @@ export interface GetInboundRequestItemDto {
   materialName: string;
   passQuantity?: number;
   failQuantity?: number;
+  failClaimQuantity?: number;
   quantity?: number;
   actualQuantity?: number;
   binLocationId?: number;
@@ -465,6 +468,7 @@ export interface GetInboundRequestItemDto {
   supplierName: string;
   unitPrice?: number;
   unit?: string;
+  isDecimalUnit?: boolean;
   lineTotal?: number;
 }
 
@@ -778,6 +782,8 @@ export interface PendingPutawayReceiptDto {
   supplierName: string;
   status: string;
   createdAt: string;
+  warehouseId: number;
+  warehouseName: string;
   items: PendingPutawayItemDto[];
 }
 
@@ -787,6 +793,8 @@ export interface PendingPutawayItemDto {
   materialName: string;
   quantityToPutaway: number;
   note?: string | null;
+  unit: string;
+  isDecimalUnit: boolean;
 }
 
 // ==========================================
@@ -839,7 +847,7 @@ export const accountantReceiptsApi = {
 // ==========================================
 export const adminNotificationApi = {
   getUnreadNotifications: (skip: number = 0, take: number = 50) => {
-    return axiosClient.get<NotificationDto[]>("/admin/notifications", {
+    return axiosClient.get<NotificationDto[]>("/admin/notifications/unread", {
       params: { skip, take },
     });
   },

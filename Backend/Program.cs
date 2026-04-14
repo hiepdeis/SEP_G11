@@ -13,6 +13,8 @@ using Backend.Domains.user.Interface;
 using Backend.Domains.user.Service;
 using Backend.Entities;
 using Backend.Filters;
+using Backend.Options;
+using Backend.Services.Email;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -39,14 +41,17 @@ builder.Configuration
 builder.Services.AddDbContext<MyDbContext>(options =>
               options.UseSqlServer(
                   builder.Configuration.GetConnectionString("DefaultConnection")
-              //ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
+                 //ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
               ));
 // Add services to the container.
 
+builder.Services.Configure<EmailOptions>(
+    builder.Configuration.GetSection(EmailOptions.SectionName));
 
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 builder.Services.AddScoped<IAuditReportService, AuditReportService>();
+builder.Services.AddScoped<IAuditNotificationService, AuditNotificationService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -58,7 +63,8 @@ builder.Services.AddScoped<IAuditTeamService, AuditTeamService>();
 builder.Services.AddScoped<IStockTakeReviewService, StockTakeReviewService>();
 builder.Services.AddScoped<IStockTakeCountingService, StockTakeCountingService>();
 builder.Services.AddScoped<IStockTakeLockService, StockTakeLockService>();
-builder.Services.AddScoped<IStockTakeCountingService, StockTakeCountingService>();
+
+
 //  Import services
 builder.Services.AddScoped<IStockShortageAlertService, StockShortageAlertService>();
 builder.Services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
@@ -66,6 +72,7 @@ builder.Services.AddScoped<IReceiptService, ReceiptService>();
 builder.Services.AddScoped<IPurchaseRequestService, PurchaseRequestService>();
 builder.Services.AddScoped<IIncidentWorkflowService, IncidentWorkflowService>();
 builder.Services.AddScoped<ISupplierService, SupplierService>();
+
 // Configure Swagger to support file uploads
 builder.Services.AddSwaggerGen(c =>
 {
@@ -109,12 +116,14 @@ builder.Services.AddScoped<IBinLocationService, BinLocationService>();
 builder.Services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
 builder.Services.AddScoped<GoogleLoginHandler>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IReceiptService, ReceiptService>();
 builder.Services.AddScoped<IAuthorizationHandler, ActiveUserAuthorizationHandler>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<IMaterialService, MaterialService>();
 builder.Services.AddScoped<IMasterDataService, MasterDataService>();
 builder.Services.AddScoped<INotificationAdminService, NotificationAdminService>();
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -171,7 +180,12 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    // Local frontend/auth currently call the API over http://localhost:5000.
+    // Redirecting dev requests to HTTPS breaks browser preflight requests.
+    app.UseHttpsRedirection();
+}
 app.UseCors("CorsPolicy");
 app.UseAuthentication();
 app.UseAuthorization();

@@ -1,4 +1,4 @@
-﻿namespace Backend.Domains.Admin.Dtos
+namespace Backend.Domains.Admin.Dtos
 {
     public sealed class MasterDataQueryDto
     {
@@ -94,6 +94,7 @@
         public string Name { get; set; } = null!;
         public string? TaxCode { get; set; }
         public string? Address { get; set; }
+        public List<MasterDataContractDto> Contracts { get; set; } = new();
     }
 
     public sealed class UpsertSupplierDto
@@ -151,7 +152,10 @@
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public decimal? Budget { get; set; }
+        public decimal? BudgetUsed { get; set; }
+        public decimal? OverBudgetAllowance { get; set; }
         public string? Status { get; set; }
+        public List<MasterDataContractDto> Contracts { get; set; } = new();
     }
 
     public sealed class UpsertProjectDto
@@ -161,11 +165,75 @@
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public decimal? Budget { get; set; }
+        public decimal? BudgetUsed { get; set; }
+        public decimal? OverBudgetAllowance { get; set; }
         public string? Status { get; set; }
     }
 
     public sealed class ProjectStatusUpdateDto
     {
         public string Status { get; set; } = null!;
+    }
+
+    public sealed class MasterDataContractDto
+    {
+        public long ContractId { get; set; }
+        public string ContractCode { get; set; } = null!;
+        public string? ContractNumber { get; set; }
+        public DateTime EffectiveFrom { get; set; }
+        public DateTime? EffectiveTo { get; set; }
+        public string Status { get; set; } = null!;
+        public bool IsActive { get; set; }
+        public string? SupplierName { get; set; }
+        public int PurchaseOrderCount { get; set; }
+        public int MaterialCount { get; set; }
+        public decimal? TotalAmount { get; set; }
+        public List<MasterDataContractMaterialDto> Materials { get; set; } = new();
+    }
+
+    public sealed class MasterDataContractMaterialDto
+    {
+        public int MaterialId { get; set; }
+        public string Code { get; set; } = null!;
+        public string Name { get; set; } = null!;
+        public string? Unit { get; set; }
+        public decimal OrderedQuantity { get; set; }
+        public decimal? TotalAmount { get; set; }
+    }
+
+    // =========================
+    // SUPPLIER CONTRACT
+    // =========================
+
+    public sealed class SupplierContractDto
+    {
+        public long ContractId { get; set; }
+        public string ContractCode { get; set; } = null!;
+        public string? ContractNumber { get; set; }
+        public int SupplierId { get; set; }
+        public string? SupplierName { get; set; }
+        public DateTime EffectiveFrom { get; set; }
+        public DateTime? EffectiveTo { get; set; }
+        public int? LeadTimeDays { get; set; }
+        public string? PaymentTerms { get; set; }
+        public string? DeliveryTerms { get; set; }
+        public string Status { get; set; } = null!;
+        public bool IsActive { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    public sealed class UpsertSupplierContractDto
+    {
+        public string ContractCode { get; set; } = null!;
+        public string? ContractNumber { get; set; }
+        public int SupplierId { get; set; }
+        public DateTime EffectiveFrom { get; set; }
+        public DateTime? EffectiveTo { get; set; }
+        public int? LeadTimeDays { get; set; }
+        public string? PaymentTerms { get; set; }
+        public string? DeliveryTerms { get; set; }
+        public string Status { get; set; } = null!;
+        public bool IsActive { get; set; }
+        public string? Notes { get; set; }
     }
 }

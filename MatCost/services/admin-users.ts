@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPut, apiDelete, apiPost } from "@/lib/api";
+import axiosClient from "@/lib/axios-client";
 
 export type UserItem = {
   userId: number;
@@ -37,13 +37,13 @@ export type UpdateUserPayload = {
   status: boolean;
 };
 export function deleteUser(userId: number) {
-  return apiDelete(`/admin/users/${userId}`);
+  return axiosClient.delete(`/admin/users/${userId}`).then((res) => res.data);
 }
 export function updateUser(userId: number, payload: UpdateUserPayload) {
-  return apiPut(`/admin/users/${userId}`, payload);
+  return axiosClient.put(`/admin/users/${userId}`, payload).then((res) => res.data);
 }
 export function getRoles() {
-  return apiGet<RoleItem[]>("/admin/users/roles");
+  return axiosClient.get<RoleItem[]>("/admin/users/roles").then((res) => res.data);
 }
 
 export function getUsers(params: GetUsersParams = {}) {
@@ -66,25 +66,25 @@ export function getUsers(params: GetUsersParams = {}) {
   }
 
   const query = search.toString();
-  return apiGet<UserPagedResult>(`/admin/users${query ? `?${query}` : ""}`);
+  return axiosClient.get<UserPagedResult>(`/admin/users${query ? `?${query}` : ""}`).then((res) => res.data);
 }
 export function updateUserRole(userId: number, roleId: number) {
-  return apiPatch(`/admin/users/${userId}/role`, { roleId });
+  return axiosClient.patch(`/admin/users/${userId}/role`, { roleId }).then((res) => res.data);
 }
 export type UpdateRolePayload = {
   roleName: string;
 };
 
 export function updateRole(roleId: number, payload: { roleName: string }) {
-  return apiPut(`/admin/users/roles/${roleId}`, payload);
+  return axiosClient.put(`/admin/users/roles/${roleId}`, payload).then((res) => res.data);
 }
 
 export function deleteRole(roleId: number) {
-  return apiDelete(`/admin/users/roles/${roleId}`);
+  return axiosClient.delete(`/admin/users/roles/${roleId}`).then((res) => res.data);
 }
 export type CreateRolePayload = {
   roleName: string;
 };
 export function createRole(payload: CreateRolePayload) {
-  return apiPost<RoleItem>("/admin/users/roles", payload);
-}
+  return axiosClient.post<RoleItem>("/admin/users/roles", payload).then((res) => res.data);
+}

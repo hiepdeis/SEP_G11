@@ -1,4 +1,4 @@
-﻿using Backend.Data;
+using Backend.Data;
 using Backend.Domains.Admin.Dtos;
 using Backend.Domains.Admin.Interface;
 using Backend.Entities;
@@ -30,11 +30,13 @@ namespace Backend.Domains.Admin.Services
                     m.Unit,
                     m.MassPerUnit,
                     m.MinStockLevel,
+                    m.MaxStockLevel,
                     m.CategoryId,
                     CategoryName = c != null ? c.Name : null,
                     m.UnitPrice,
                     m.TechnicalStandard,
-                    m.Specification
+                    m.Specification,
+                    m.IsDecimalUnit
                 };
 
             if (!string.IsNullOrWhiteSpace(query.Search))
@@ -80,11 +82,13 @@ namespace Backend.Domains.Admin.Services
                     Unit = x.Unit,
                     MassPerUnit = x.MassPerUnit,
                     MinStockLevel = x.MinStockLevel,
+                    MaxStockLevel = x.MaxStockLevel,
                     CategoryId = x.CategoryId,
                     CategoryName = x.CategoryName,
                     UnitPrice = x.UnitPrice,
                     TechnicalStandard = x.TechnicalStandard,
                     Specification = x.Specification,
+                    IsDecimalUnit = x.IsDecimalUnit,
                     TotalOnHand = stock?.TotalOnHand ?? 0,
                     TotalAllocated = stock?.TotalAllocated ?? 0
                 };
@@ -115,11 +119,13 @@ namespace Backend.Domains.Admin.Services
                     m.Unit,
                     m.MassPerUnit,
                     m.MinStockLevel,
+                    m.MaxStockLevel,
                     m.CategoryId,
                     CategoryName = c != null ? c.Name : null,
                     m.UnitPrice,
                     m.TechnicalStandard,
-                    m.Specification
+                    m.Specification,
+                    m.IsDecimalUnit
                 }
             ).FirstOrDefaultAsync(ct);
 
@@ -144,11 +150,13 @@ namespace Backend.Domains.Admin.Services
                 Unit = item.Unit,
                 MassPerUnit = item.MassPerUnit,
                 MinStockLevel = item.MinStockLevel,
+                MaxStockLevel = item.MaxStockLevel,
                 CategoryId = item.CategoryId,
                 CategoryName = item.CategoryName,
                 UnitPrice = item.UnitPrice,
                 TechnicalStandard = item.TechnicalStandard,
                 Specification = item.Specification,
+                IsDecimalUnit = item.IsDecimalUnit,
                 TotalOnHand = stock?.TotalOnHand ?? 0,
                 TotalAllocated = stock?.TotalAllocated ?? 0,
                 Available = (stock?.TotalOnHand ?? 0) - (stock?.TotalAllocated ?? 0)
@@ -157,19 +165,30 @@ namespace Backend.Domains.Admin.Services
 
         public async Task<int> CreateAsync(CreateMaterialRequest request, CancellationToken ct)
         {
-            await ValidateMaterialRequestAsync(request.Code, request.CategoryId, ct, null);
+            var normalizedUnit = await ValidateMaterialRequestAsync(
+                request.Code,
+                request.Name,
+                request.Unit,
+                request.MinStockLevel,
+                request.MaxStockLevel,
+                request.CategoryId,
+                request.IsDecimalUnit,
+                ct,
+                null);
 
             var entity = new Material
             {
                 Code = request.Code.Trim().ToUpper(),
                 Name = request.Name.Trim(),
-                Unit = request.Unit.Trim(),
+                Unit = normalizedUnit,
                 MassPerUnit = request.MassPerUnit,
-                MinStockLevel = (int?)request.MinStockLevel,
+                MinStockLevel = request.MinStockLevel,
+                MaxStockLevel = request.MaxStockLevel,
                 CategoryId = request.CategoryId,
                 UnitPrice = request.UnitPrice,
                 TechnicalStandard = request.TechnicalStandard?.Trim(),
-                Specification = request.Specification?.Trim()
+                Specification = request.Specification?.Trim(),
+                IsDecimalUnit = request.IsDecimalUnit
             };
 
             _db.Materials.Add(entity);
@@ -182,17 +201,28 @@ namespace Backend.Domains.Admin.Services
             var entity = await _db.Materials.FirstOrDefaultAsync(x => x.MaterialId == materialId, ct);
             if (entity == null) return false;
 
-            await ValidateMaterialRequestAsync(request.Code, request.CategoryId, ct, materialId);
+            var normalizedUnit = await ValidateMaterialRequestAsync(
+                request.Code,
+                request.Name,
+                request.Unit,
+                request.MinStockLevel,
+                request.MaxStockLevel,
+                request.CategoryId,
+                request.IsDecimalUnit,
+                ct,
+                materialId);
 
             entity.Code = request.Code.Trim().ToUpper();
             entity.Name = request.Name.Trim();
-            entity.Unit = request.Unit.Trim();
+            entity.Unit = normalizedUnit;
             entity.MassPerUnit = request.MassPerUnit;
-            entity.MinStockLevel = (int?)request.MinStockLevel;
+            entity.MinStockLevel = request.MinStockLevel;
+            entity.MaxStockLevel = request.MaxStockLevel;
             entity.CategoryId = request.CategoryId;
             entity.UnitPrice = request.UnitPrice;
             entity.TechnicalStandard = request.TechnicalStandard?.Trim();
             entity.Specification = request.Specification?.Trim();
+            entity.IsDecimalUnit = request.IsDecimalUnit;
 
             await _db.SaveChangesAsync(ct);
             return true;
@@ -336,10 +366,46 @@ namespace Backend.Domains.Admin.Services
             return (true, "Xóa vị trí tồn kho thành công.");
         }
 
-        private async Task ValidateMaterialRequestAsync(string code, int? categoryId, CancellationToken ct, int? ignoreMaterialId)
+        private async Task<string> ValidateMaterialRequestAsync(
+            string code,
+            string name,
+            string unit,
+            decimal? minStockLevel,
+            decimal? maxStockLevel,
+            int? categoryId,
+            bool isDecimalUnit,
+            CancellationToken ct,
+            int? ignoreMaterialId)
         {
             if (string.IsNullOrWhiteSpace(code))
                 throw new ArgumentException("Material code is required.");
+
+            var normalizedUnit = unit.Trim();
+
+            if (minStockLevel.HasValue)
+            {
+                if (minStockLevel.Value < 0)
+                    throw new ArgumentException("Tồn tối thiểu không được âm.");
+
+                if (!isDecimalUnit && !IsWholeNumber(minStockLevel.Value))
+                {
+                    throw new ArgumentException("Tồn tối thiểu hiện chỉ hỗ trợ số nguyên (vui lòng chọn Đơn vị là số thập phân nếu cần).");
+                }
+            }
+
+            if (maxStockLevel.HasValue)
+            {
+                if (maxStockLevel.Value < 0)
+                    throw new ArgumentException("Tồn tối đa không được âm.");
+
+                if (!isDecimalUnit && !IsWholeNumber(maxStockLevel.Value))
+                {
+                    throw new ArgumentException("Tồn tối đa hiện chỉ hỗ trợ số nguyên (vui lòng chọn Đơn vị là số thập phân nếu cần).");
+                }
+
+                if (minStockLevel.HasValue && minStockLevel.Value > maxStockLevel.Value)
+                    throw new ArgumentException("Tồn tối thiểu không được lớn hơn tồn tối đa.");
+            }
 
             var normalizedCode = code.Trim().ToUpper();
 
@@ -355,6 +421,8 @@ namespace Backend.Domains.Admin.Services
                 if (!categoryExists)
                     throw new ArgumentException("CategoryId không tồn tại.");
             }
+
+            return normalizedUnit;
         }
 
         private async Task ValidateInventoryRequestAsync(
@@ -366,8 +434,18 @@ namespace Backend.Domains.Admin.Services
      decimal quantityAllocated,
      CancellationToken ct)
         {
-            var materialExists = await _db.Materials.AnyAsync(x => x.MaterialId == materialId, ct);
-            if (!materialExists)
+            var material = await _db.Materials
+                .AsNoTracking()
+                .Where(x => x.MaterialId == materialId)
+                .Select(x => new
+                {
+                    x.MaterialId,
+                    x.Unit,
+                    x.IsDecimalUnit
+                })
+                .FirstOrDefaultAsync(ct);
+
+            if (material == null)
                 throw new ArgumentException("Material không tồn tại.");
 
             var warehouseExists = await _db.Warehouses.AnyAsync(x => x.WarehouseId == warehouseId, ct);
@@ -400,9 +478,24 @@ namespace Backend.Domains.Admin.Services
             if (quantityAllocated < 0)
                 throw new ArgumentException("QuantityAllocated không được âm.");
 
+            if (!material.IsDecimalUnit)
+            {
+                if (!IsWholeNumber(quantityOnHand))
+                    throw new ArgumentException($"Đơn vị tính '{material.Unit}' của vật tư này chỉ chấp nhận tồn kho là số nguyên.");
+
+                if (!IsWholeNumber(quantityAllocated))
+                    throw new ArgumentException($"Đơn vị tính '{material.Unit}' của vật tư này chỉ chấp nhận số lượng phân bổ là số nguyên.");
+            }
+
             if (quantityAllocated > quantityOnHand)
                 throw new ArgumentException("Số lượng phân bổ không được vượt quá tồn kho.");
         }
+
+        private static bool IsWholeNumber(decimal value)
+        {
+            return value == decimal.Truncate(value);
+        }
+
         private async Task<int> ResolveBatchIdAsync(int materialId, int? batchId, string? batchCode, CancellationToken ct)
         {
             if (batchId.HasValue)

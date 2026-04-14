@@ -1,0 +1,67 @@
+Using launch settings from Backend\Properties\launchSettings.json...
+Building...
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\Users\Services\UserService.cs(150,25): warning CS8601: Possible null reference assignment. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\Users\Services\UserService.cs(151,28): warning CS8601: Possible null reference assignment. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\outbound\Dtos\CreateIssueSlipDto.cs(12,23): warning CS8618: Non-nullable property 'IssueCode' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\Admin\Services\DashboardService.cs(86,27): warning CS8602: Dereference of a possibly null reference. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\Admin\Services\MaterialService.cs(261,35): warning CS8629: Nullable value type may be null. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\auth\Services\GoogleOAuthService.cs(24,32): warning CS8604: Possible null reference argument for parameter 'value' in 'void Dictionary<string, string>.Add(string key, string value)'. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\auth\Services\GoogleOAuthService.cs(25,36): warning CS8604: Possible null reference argument for parameter 'value' in 'void Dictionary<string, string>.Add(string key, string value)'. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\auth\Services\GoogleOAuthService.cs(26,35): warning CS8604: Possible null reference argument for parameter 'value' in 'void Dictionary<string, string>.Add(string key, string value)'. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\auth\Services\AuthService.cs(108,45): warning CS8604: Possible null reference argument for parameter 'value' in 'Claim.Claim(string type, string value)'. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\auth\Business\GoogleLoginHandler.cs(45,69): warning CS8604: Possible null reference argument for parameter 'email' in 'Task<User?> IAuthService.GetUserByEmailAsync(string email)'. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\auth\Business\GoogleLoginHandler.cs(46,79): warning CS8604: Possible null reference argument for parameter 'user' in 'Task<RefreshTokenResult> IAuthService.GenerateAndSaveRefreshToken(User user)'. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\auth\Dtos\GoogleUserInfo.cs(8,23): warning CS8618: Non-nullable property 'Id' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\auth\Dtos\GoogleUserInfo.cs(11,23): warning CS8618: Non-nullable property 'Email' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\auth\Dtos\GoogleUserInfo.cs(14,23): warning CS8618: Non-nullable property 'Name' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\auth\Dtos\GoogleTokenRequest.cs(5,23): warning CS8618: Non-nullable property 'AccessToken' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\Import\Services\BinLocationService.cs(23,29): warning CS8601: Possible null reference assignment. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\Import\DTOs\Staff\GetInboundRequestListDto.cs(6,23): warning CS8618: Non-nullable property 'ReceiptCode' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\Import\DTOs\Staff\GetInboundRequestListDto.cs(8,23): warning CS8618: Non-nullable property 'WarehouseName' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Domains\Import\DTOs\Staff\GetInboundRequestListDto.cs(22,47): warning CS8618: Non-nullable property 'Items' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Data\MyDbContext.cs(615,13): warning CS0618: 'RelationalEntityTypeBuilderExtensions.HasCheckConstraint<TEntity>(EntityTypeBuilder<TEntity>, string, string?)' is obsolete: 'Configure this using ToTable(t => t.HasCheckConstraint()) instead.' [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Data\MyDbContext.cs(616,13): warning CS0618: 'RelationalEntityTypeBuilderExtensions.HasCheckConstraint<TEntity>(EntityTypeBuilder<TEntity>, string, string?)' is obsolete: 'Configure this using ToTable(t => t.HasCheckConstraint()) instead.' [C:\Users\thanh\Documents\GitHub\SEP_G11\Backend\Backend.csproj]
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (16ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (36ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+      IF EXISTS
+          (SELECT *
+           FROM [sys].[objects] o
+           WHERE [o].[type] = 'U'
+           AND [o].[is_ms_shipped] = 0
+           AND NOT EXISTS (SELECT *
+               FROM [sys].[extended_properties] AS [ep]
+               WHERE [ep].[major_id] = [o].[object_id]
+                   AND [ep].[minor_id] = 0
+                   AND [ep].[class] = 1
+                   AND [ep].[name] = N'microsoft_database_tools_support'
+          )
+      )
+      SELECT 1 ELSE SELECT 0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (7ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT CASE
+          WHEN EXISTS (
+              SELECT 1
+              FROM [Roles] AS [r]) THEN CAST(1 AS bit)
+          ELSE CAST(0 AS bit)
+      END
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (5ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT CASE
+          WHEN EXISTS (
+              SELECT 1
+              FROM [Users] AS [u]) THEN CAST(1 AS bit)
+          ELSE CAST(0 AS bit)
+      END
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5000
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Users\thanh\Documents\GitHub\SEP_G11\Backend

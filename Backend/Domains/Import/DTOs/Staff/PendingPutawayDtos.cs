@@ -8,6 +8,8 @@ namespace Backend.Domains.Import.DTOs.Staff
         public string SupplierName { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
+        public int WarehouseId { get; set; }
+        public string WarehouseName { get; set; } = string.Empty;
         public List<PendingPutawayItemDto> Items { get; set; } = new();
     }
 
@@ -18,5 +20,7 @@ namespace Backend.Domains.Import.DTOs.Staff
         public string MaterialName { get; set; } = string.Empty;
         public decimal QuantityToPutaway { get; set; }
         public string? Note { get; set; }
+        public string Unit { get; set; } = string.Empty;
+        public bool IsDecimalUnit { get; set; }
     }
 }

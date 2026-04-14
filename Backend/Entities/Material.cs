@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -28,8 +28,10 @@ public partial class Material
     [Column(TypeName = "decimal(10, 2)")]
     public decimal? MassPerUnit { get; set; }
 
-    public int? MinStockLevel { get; set; }
-    public int? MaxStockLevel { get; set; }
+    [Column(TypeName = "decimal(18, 4)")]
+    public decimal? MinStockLevel { get; set; }
+    [Column(TypeName = "decimal(18, 4)")]
+    public decimal? MaxStockLevel { get; set; }
     public int? CategoryId { get; set; }
     public decimal? UnitPrice { get; set; }
 

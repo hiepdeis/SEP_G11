@@ -4,8 +4,7 @@ import axios, {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from "axios";
-
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+import { API_BASE } from "@/lib/api-config";
 
 const REFRESH_ENDPOINT = "/Auth/me";
 
@@ -31,10 +30,7 @@ export const setAccessToken = (token: string | null) => {
 export const getAccessToken = () => accessToken;
 
 const axiosClient: AxiosInstance = axios.create({
-  baseURL: BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  baseURL: API_BASE,
   withCredentials: true, // Để gửi kèm Cookie RefreshToken
 });
 

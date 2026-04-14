@@ -54,5 +54,14 @@ namespace Backend.Domains.Admin.Interface
         Task<bool> UpdateProjectAsync(int id, UpsertProjectDto request, CancellationToken ct);
         Task<bool> UpdateProjectStatusAsync(int id, ProjectStatusUpdateDto request, CancellationToken ct);
         Task<bool> DeleteProjectAsync(int id, CancellationToken ct);
+
+        // Supplier Contracts
+        Task<MasterDataPagedResult<SupplierContractDto>> GetSupplierContractsAsync(MasterDataQueryDto query, CancellationToken ct);
+        Task<SupplierContractDto?> GetSupplierContractByIdAsync(int id, CancellationToken ct);
+        Task<int> CreateSupplierContractAsync(UpsertSupplierContractDto request, CancellationToken ct);
+        Task<bool> UpdateSupplierContractAsync(int id, UpsertSupplierContractDto request, CancellationToken ct);
+        Task<bool> DeleteSupplierContractAsync(int id, CancellationToken ct);
+        Task<List<SupplierContractDto>> GetSupplierContractsBySupplierIdAsync(int supplierId, CancellationToken ct);
+    
     }
 }

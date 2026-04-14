@@ -53,6 +53,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { formatPascalCase } from "@/lib/format-pascal-case";
+import { formatDateTime } from "@/lib/format-date-time";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -227,6 +229,8 @@ export default function InboundReceiptsPage({
       ].includes(item.status);
     } else if (filterStatus === "ReadyForPutaway") {
       matchesStatus = ["ReadyForPutaway", "QCPassed"].includes(item.status);
+    } else if (filterStatus === "PendingStamp") {
+      matchesStatus = ["ReadyForStamp"].includes(item.status);
     } else {
       matchesStatus = item.status === filterStatus;
     }
@@ -306,20 +310,7 @@ export default function InboundReceiptsPage({
     }
   };
 
-  const formatDateTime = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-    let safeDateString = dateString;
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+
 
   const innerContent = (
     <>
@@ -388,6 +379,14 @@ export default function InboundReceiptsPage({
                       className="bg-indigo-50 text-indigo-700 border-indigo-200"
                     >
                       {t("Putaway")}
+                    </Badge>
+                  </SelectItem>
+                  <SelectItem value="PendingStamp">
+                    <Badge
+                      variant="outline"
+                      className="bg-amber-50 text-amber-700 border-amber-200"
+                    >
+                      {t("Pending Stamp")}
                     </Badge>
                   </SelectItem>
                 </SelectContent>
@@ -503,9 +502,7 @@ export default function InboundReceiptsPage({
                       )}
                     </div>
                   </TableHead>
-                  <TableHead className="w-[20%]">
-                    {t("PO Reference")}
-                  </TableHead>
+                  <TableHead className="w-[20%]">{t("PO Reference")}</TableHead>
                   <TableHead
                     className="cursor-pointer transition-colors w-[15%] text-center"
                     onClick={() => handleSort("quantity")}

@@ -54,6 +54,8 @@ import {
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { formatDateTime } from "@/lib/format-date-time";
+
 
 interface Props {
   role?: "staff" | "manager";
@@ -199,23 +201,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
     0,
   );
 
-  const formatDateTime = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
 
-    let safeDateString = dateString;
-
-    if (!safeDateString.includes("Z") && !safeDateString.includes("+")) {
-      safeDateString = safeDateString.replace(" ", "T") + "Z";
-    }
-
-    return new Date(safeDateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   const handleViewDetail = (e: React.MouseEvent, item: WarehouseCardDto) => {
     e.stopPropagation();

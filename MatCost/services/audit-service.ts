@@ -116,3 +116,27 @@ export const auditService = {
     return response.data;
   }
 };
+
+export const staffNotificationApi = {
+  getUnreadNotifications: (skip: number = 0, take: number = 50) => {
+    return axiosClient.get<any[]>("/staff/notifications", {
+      params: { skip, take, unreadOnly: true }
+    });
+  },
+};
+
+export const accountantNotificationApi = {
+  getUnreadNotifications: (skip: number = 0, take: number = 50) => {
+    return axiosClient.get<any[]>("/accountant/notifications", {
+      params: { skip, take }
+    });
+  },
+};
+
+export const managerAuditNotificationApi = {
+  getUnreadNotifications: (skip: number = 0, take: number = 50) => {
+    return axiosClient.get<any[]>("/manager/audit-notifications", {
+      params: { skip, take }
+    });
+  },
+};

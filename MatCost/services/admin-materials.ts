@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/api";
+import axiosClient from "@/lib/axios-client";
 
 export type MaterialItem = {
   materialId: number;
@@ -7,11 +7,13 @@ export type MaterialItem = {
   unit: string;
   massPerUnit: number | null;
   minStockLevel: number | null;
+  maxStockLevel: number | null;
   categoryId: number | null;
   categoryName?: string;
   unitPrice: number | null;
   technicalStandard: string;
   specification: string;
+  isDecimalUnit: boolean;
 };
 
 export type MaterialPagedResult = {
@@ -35,10 +37,12 @@ export type UpsertMaterialPayload = {
   unit: string;
   massPerUnit: number | null;
   minStockLevel: number | null;
+  maxStockLevel: number | null;
   categoryId: number | null;
   unitPrice: number | null;
   technicalStandard: string;
   specification: string;
+  isDecimalUnit: boolean;
 };
 
 export function getMaterials(params: GetMaterialsParams = {}) {
@@ -49,21 +53,34 @@ export function getMaterials(params: GetMaterialsParams = {}) {
   qs.set("page", String(params.page ?? 1));
   qs.set("pageSize", String(params.pageSize ?? 10));
 
-  return apiGet<MaterialPagedResult>(`/admin/materials?${qs.toString()}`);
+  return axiosClient
+    .get<MaterialPagedResult>(`/admin/materials?${qs.toString()}`)
+    .then((res) => res.data);
 }
 
 export function getMaterialById(materialId: number) {
-  return apiGet<MaterialItem>(`/admin/materials/${materialId}`);
+  return axiosClient
+    .get<MaterialItem>(`/admin/materials/${materialId}`)
+    .then((res) => res.data);
 }
 
 export function createMaterial(payload: UpsertMaterialPayload) {
-  return apiPost<MaterialItem>(`/admin/materials`, payload);
+  return axiosClient
+    .post<MaterialItem>(`/admin/materials`, payload)
+    .then((res) => res.data);
 }
 
-export function updateMaterial(materialId: number, payload: UpsertMaterialPayload) {
-  return apiPut<MaterialItem>(`/admin/materials/${materialId}`, payload);
+export function updateMaterial(
+  materialId: number,
+  payload: UpsertMaterialPayload,
+) {
+  return axiosClient
+    .put<MaterialItem>(`/admin/materials/${materialId}`, payload)
+    .then((res) => res.data);
 }
 
 export function removeMaterial(materialId: number) {
-  return apiDelete<void>(`/admin/materials/${materialId}`);
+  return axiosClient
+    .delete<void>(`/admin/materials/${materialId}`)
+    .then((res) => res.data);
 }
