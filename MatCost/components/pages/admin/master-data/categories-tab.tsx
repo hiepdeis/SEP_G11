@@ -180,13 +180,13 @@ export function CategoriesTab({ viewOnly = false }: { viewOnly?: boolean }) {
               setPage(1);
             }}
             placeholder={t("Search...")}
-            className="pl-10 bg-white m-2"
+            className="pl-10 m-2 bg-white w-[99%]"
           />
         </div>
         {!viewOnly && (
           <Button
             onClick={openAdd}
-            className="bg-indigo-600 hover:bg-indigo-700"
+            className="bg-indigo-600 hover:bg-indigo-700 mr-2"
           >
             <Plus className="w-4 h-4 mr-2" /> {t("Add New")}
           </Button>

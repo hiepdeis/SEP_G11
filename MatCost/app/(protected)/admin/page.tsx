@@ -64,9 +64,7 @@ const statusColor: Record<string, string> = {
 // --- UTILS ---
 const mapStatusKey = (status: string) => {
   const s = status.toLowerCase();
-  if (s.includes("approved") || s.includes("done") || s.includes("completed"))
-    return "approved";
-  if (s.includes("reject") || s.includes("denied")) return "reject";
+  if (s.includes("draftpo")) return "done";
   return "pending";
 };
 
@@ -104,7 +102,7 @@ export default function DashboardPage() {
 
   const [activeTab, setActiveTab] = useState<"orders" | "requests">("orders");
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState(14); // Default to 14 days
+  const [timeRange, setTimeRange] = useState(14);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -145,12 +143,12 @@ export default function DashboardPage() {
       0,
     );
     return {
-      poCount: pendingOrders.length,
-      prCount: purchaseRequests.length,
+      poCount: pendingAdminOrders.length,
+      prCount: adminRequests.length,
       poValue: totalPOValue,
       prItems: totalPRItems,
     };
-  }, [pendingOrders, purchaseRequests]);
+  }, [pendingAdminOrders, adminRequests]);
 
   const supplierData = useMemo(() => {
     const map: Record<string, number> = {};
@@ -263,7 +261,7 @@ export default function DashboardPage() {
               {
                 label: t("Total Value"),
                 val: formatCurrency(summary.poValue),
-                color: "violet",
+                color: "slate",
                 icon: DollarSign,
                 isWide: true,
               },
@@ -558,7 +556,11 @@ export default function DashboardPage() {
                         <div
                           key={po.purchaseOrderId}
                           className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors cursor-pointer"
-                          onClick={() => router.push(`/admin/purchase-orders`)}
+                          onClick={() =>
+                            router.push(
+                              `/admin/purchase-orders/${po.purchaseOrderId}`,
+                            )
+                          }
                         >
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
@@ -596,7 +598,11 @@ export default function DashboardPage() {
                       <div
                         key={pr.requestId}
                         className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors cursor-pointer"
-                        onClick={() => router.push(`/admin/purchase-requests`)}
+                        onClick={() =>
+                          router.push(
+                            `/admin/purchase-requests/${pr.requestId}`,
+                          )
+                        }
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">

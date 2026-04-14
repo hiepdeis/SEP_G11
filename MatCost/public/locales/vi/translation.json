@@ -322,6 +322,8 @@
     "admin_profile": "Hồ sơ cá nhân",
     "materials": "Vật tư",
     "suppliers": "Nhà cung cấp",
+    "warehouses": "Kho hàng",
+    "projects": "Dự án",
     "roles": {
       "construction": "Đội thi công",
       "accountant": "Kế toán",
@@ -1249,5 +1251,20 @@
   "Edit Quotation": "Chỉnh sửa báo giá",
   "Quotations": "Báo giá",
   "Edit Info": "Chỉnh sửa thông tin",
-  "Add Stock": "Thêm tồn kho"
+  "Add Stock": "Thêm tồn kho",
+  "Welcome Back": "Chào mừng trở lại",
+  "Procurement Trend": "Xu hướng mua hàng",
+  "Project Distribution": "Phân bổ dự án",
+  "Orders vs Requests Volume": "Khối lượng đơn hàng và yêu cầu",
+  "Request focus by project": "Yêu cầu tập trung theo dự án",
+  "Top Suppliers": "Top nhà cung cấp",
+  "Spending by partner": "Chi tiêu theo đối tác",
+  "Pending Approvals": "Chờ phê duyệt",
+  "Critical Purchase Orders": "Đơn đặt hàng quan trọng",
+  "Orders": "Đơn hàng",
+  "Requests": "Yêu cầu",
+  "No pending orders": "Không có đơn hàng chờ phê duyệt",
+  "No pending requests": "Không có yêu cầu chờ phê duyệt",
+  "DraftPO": "PO nháp",
+  "Budget Used": "Ngân sách đã sử dụng"
 }

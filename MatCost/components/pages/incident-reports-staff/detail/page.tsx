@@ -278,15 +278,22 @@ export default function StaffIncidentPage({
 
     const invalidBreakdownItem = incidentItems.find((i) => {
       const failQuantityQuantity = Math.max(
-        i.orderedQuantity - i.actualQuantity,
+        Number(formatQuantity(i.orderedQuantity)) -
+          Number(formatQuantity(i.actualQuantity)),
         0,
       );
 
       const totalFail =
-        i.orderedQuantity - i.passQuantity - failQuantityQuantity;
-      const sum = i.breakdown.quality + i.breakdown.damage;
+        Number(formatQuantity(i.orderedQuantity)) -
+        Number(formatQuantity(i.passQuantity)) -
+        failQuantityQuantity;
+      const sum =
+        Number(formatQuantity(i.breakdown.quality)) +
+        Number(formatQuantity(i.breakdown.damage));
       return Math.abs(sum - totalFail) > 0.0001;
     });
+
+    // console.log(invalidBreakdownItem);
 
     if (invalidBreakdownItem) {
       return toast.error(

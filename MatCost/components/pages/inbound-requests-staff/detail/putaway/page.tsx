@@ -435,11 +435,14 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
               <div className="space-y-6">
                 {paginatedItems.map((item, idx) => {
                   const absoluteIdx = startIndex + idx;
-                  const totalAllocated = calculateAllocatedQty(
-                    item.binAllocations,
+                  const totalAllocated = Number(
+                    formatQuantity(calculateAllocatedQty(item.binAllocations)),
                   );
                   const isQtyMatched =
-                    Math.abs(totalAllocated - item.passQuantity) < 0.001;
+                    Math.abs(
+                      totalAllocated -
+                        Number(formatQuantity(item.passQuantity)),
+                    ) < 0.0001;
 
                   return (
                     <Card

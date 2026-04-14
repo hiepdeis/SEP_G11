@@ -88,7 +88,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
 
   const [activeTab, setActiveTab] = useState<"Import" | "Export">("Import");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number>(5);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
 
   const [staffList, setStaffList] = useState<UserDto[]>([]);
   const [selectedStaffId, setSelectedStaffId] = useState<string>("All");
@@ -183,7 +183,8 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
     const matchesSearch =
       item.cardCode.toLowerCase().includes(term) ||
       (item.materialCode && item.materialCode.toLowerCase().includes(term)) ||
-      (item.materialName && item.materialName.toLowerCase().includes(term));
+      (item.materialName && item.materialName.toLowerCase().includes(term)) ||
+      (item.binCode && item.binCode.toLowerCase().includes(term));
 
     // 4. Date Filter
     let matchesDate = true;
@@ -538,7 +539,9 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                   <div className="relative w-full sm:w-64">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                     <Input
-                      placeholder={t("Search Material or Card Code...")}
+                      placeholder={t(
+                        "Search Material or Card Code or Bin Code...",
+                      )}
                       className="pl-9 h-9 shadow-sm"
                       maxLength={50}
                       value={searchTerm}
@@ -666,9 +669,9 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
           </div>
 
           {/* Main List & Tabs */}
-          <Card className="border-slate-200 shadow-sm bg-slate-50 min-h-[500px] gap-0 flex flex-col pb-0 pt-2">
+          <Card className="border-slate-200 shadow-sm bg-slate-50 min-h-[700px] gap-0 flex flex-col pb-0 pt-2">
             <CardContent className="p-0 flex flex-col justify-between flex-1">
-              <div className="[&>div]:max-h-[500px] [&>div]:min-h-[500px] [&>div]:overflow-y-auto">
+              <div className="[&>div]:max-h-[700px] [&>div]:min-h-[700px] [&>div]:overflow-y-auto">
                 <Table>
                   <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                     <TableRow className="hover:bg-transparent bp-10">

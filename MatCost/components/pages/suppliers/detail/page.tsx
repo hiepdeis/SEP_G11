@@ -724,7 +724,7 @@ export default function SupplierDetailPage({
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {!viewOnly && (
+                        {(!viewOnly || role === "purchasing") && (
                           <Button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -752,8 +752,16 @@ export default function SupplierDetailPage({
                             (cPage + 1) * cPageSize,
                           ) || []
                         }
-                        onEdit={viewOnly ? undefined : openEditContract}
-                        onDelete={viewOnly ? undefined : handleDeleteContract}
+                        onEdit={
+                          !viewOnly || role === "purchasing"
+                            ? openEditContract
+                            : undefined
+                        }
+                        onDelete={
+                          !viewOnly || role === "purchasing"
+                            ? handleDeleteContract
+                            : undefined
+                        }
                         emptyMessage={t(
                           "This supplier has no active contracts.",
                         )}
@@ -810,7 +818,7 @@ export default function SupplierDetailPage({
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {(!viewOnly || role === "purchasing") && (
+                        {!viewOnly && (
                           <Button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -880,7 +888,7 @@ export default function SupplierDetailPage({
                                 >
                                   {q.isActive ? t("Active") : t("Inactive")}
                                 </Badge>
-                                {(!viewOnly || role === "purchasing") && (
+                                {!viewOnly && (
                                   <div className="flex items-center gap-1 shrink-0">
                                     <Button
                                       variant="ghost"

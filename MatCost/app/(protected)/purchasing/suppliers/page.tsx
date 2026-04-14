@@ -5,7 +5,7 @@ import { Header } from "@/components/ui/custom/header";
 import { useTranslation } from "react-i18next";
 import { SuppliersTab } from "@/components/pages/admin/master-data/suppliers-tab";
 
-export default function MaterialManagementPage() {
+export default function SupplierManagementPage() {
   const { t } = useTranslation();
 
   return (

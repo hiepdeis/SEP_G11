@@ -81,7 +81,6 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
         let orderData;
 
         if (supIdParam) {
-          // GỌI API CHO SUPPLEMENTARY NẾU CÓ supId
           const res =
             await staffReceiptsApi.getPendingSupplementaryReceiptDetail(
               Number(supIdParam),
@@ -103,7 +102,9 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
               materialCode: i.materialCode || "",
               materialName: i.materialName,
               orderedQuantity:
-                i.orderedQuantity || i.supplementaryQuantity || 0,
+                Number(formatQuantity(i.orderedQuantity)) ||
+                Number(formatQuantity(i.supplementaryQuantity)) ||
+                0,
               actualQuantity: Number(
                 formatQuantity(i.orderedQuantity || i.supplementaryQuantity),
               ),
@@ -143,16 +144,22 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
     setItems((prev) =>
       prev.map((item) => {
         if (item.materialId === id) {
-          const targetQuantity = Math.min(item.orderedQuantity, num);
+          const targetQuantity = Math.min(
+            Number(formatQuantity(item.orderedQuantity)),
+            num,
+          );
           const fail = Math.max(0, targetQuantity - num);
 
           return {
             ...item,
             actualQuantity: num,
             passQuantity: num,
-            failQuantity: fail,
+            failQuantity: Number(formatQuantity(fail)),
             failReason:
-              fail > 0 || num < item.orderedQuantity ? item.failReason : "",
+              Number(formatQuantity(fail)) > 0 ||
+              num < Number(formatQuantity(item.orderedQuantity))
+                ? item.failReason
+                : "",
           };
         }
         return item;
@@ -165,19 +172,24 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
       prev.map((item) => {
         if (item.materialId === id) {
           const pass = Math.min(
-            item.actualQuantity,
+            Number(formatQuantity(item.actualQuantity)),
             Math.max(0, Number(val) || 0),
           );
 
-          const fail = Math.max(0, item.actualQuantity - pass);
+          const fail = Math.max(
+            0,
+            Number(formatQuantity(item.actualQuantity)) - pass,
+          );
 
           const needsReason =
-            fail > 0 || item.actualQuantity < item.orderedQuantity;
+            Number(formatQuantity(fail)) > 0 ||
+            Number(formatQuantity(item.actualQuantity)) <
+              Number(formatQuantity(item.orderedQuantity));
 
           return {
             ...item,
             passQuantity: pass,
-            failQuantity: fail,
+            failQuantity: Number(formatQuantity(fail)),
             failReason: needsReason ? item.failReason : "",
           };
         }
@@ -201,7 +213,9 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
 
     const invalidReasonItem = items.find(
       (i) =>
-        (i.failQuantity > 0 || i.actualQuantity < i.orderedQuantity) &&
+        (Number(formatQuantity(i.failQuantity)) > 0 ||
+          Number(formatQuantity(i.actualQuantity)) <
+            Number(formatQuantity(i.orderedQuantity))) &&
         !i.failReason.trim(),
     );
 
@@ -223,10 +237,15 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
           const payload: any = {
             items: items.map((i) => {
               const isFailed =
-                i.failQuantity > 0 || i.actualQuantity < i.orderedQuantity;
+                Number(formatQuantity(i.failQuantity)) > 0 ||
+                Number(formatQuantity(i.actualQuantity)) <
+                  Number(formatQuantity(i.orderedQuantity));
 
-              const targetQuantity = i.actualQuantity;
-              const failQty = Math.max(0, targetQuantity - i.passQuantity);
+              const targetQuantity = Number(formatQuantity(i.actualQuantity));
+              const failQty = Math.max(
+                0,
+                targetQuantity - Number(formatQuantity(i.passQuantity)),
+              );
 
               return {
                 materialId: i.materialId,
@@ -573,7 +592,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                             <TableCell className="align-top text-center pt-6">
                               <span
                                 className={`font-bold ${
-                                  item.failQuantity > 0
+                                  Number(formatQuantity(item.failQuantity)) > 0
                                     ? "text-rose-600"
                                     : "text-slate-400"
                                 }`}
@@ -584,21 +603,24 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
 
                             {/* CỘT FAIL REASON */}
                             <TableCell className="align-top pt-4 pr-6">
-                              {item.failQuantity > 0 ||
-                              item.actualQuantity < item.orderedQuantity ? (
-                                <Input
-                                  placeholder={t(
-                                    "Reason for failed or missing items...",
-                                  )}
-                                  className="w-full focus-visible:ring-rose-500 border-rose-200 bg-rose-50/50"
-                                  value={item.failReason}
-                                  onChange={(e) =>
-                                    handleReasonChange(
-                                      item.materialId,
-                                      e.target.value,
-                                    )
-                                  }
-                                />
+                              {Number(formatQuantity(item.failQuantity)) > 0 ||
+                              Number(formatQuantity(item.actualQuantity)) <
+                                Number(formatQuantity(item.orderedQuantity)) ? (
+                                <>
+                                  <Input
+                                    placeholder={t(
+                                      "Reason for failed or missing items...",
+                                    )}
+                                    className="w-full focus-visible:ring-rose-500 border-rose-200 bg-rose-50/50"
+                                    value={item.failReason}
+                                    onChange={(e) =>
+                                      handleReasonChange(
+                                        item.materialId,
+                                        e.target.value,
+                                      )
+                                    }
+                                  />
+                                </>
                               ) : (
                                 <span className="text-slate-300 text-sm flex h-9 items-center justify-center italic bg-slate-50 rounded-md border border-dashed border-slate-200">
                                   {t("N/A")}

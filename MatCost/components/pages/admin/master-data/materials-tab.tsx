@@ -263,7 +263,7 @@ export function MaterialsTab({
               setPage(1);
             }}
             placeholder={t("Search...")}
-            className="pl-10 m-2 bg-white"
+            className="pl-10 m-2 bg-white w-[99%]"
           />
         </div>
 
@@ -284,7 +284,7 @@ export function MaterialsTab({
         {!viewOnly && (
           <Button
             onClick={openAdd}
-            className="bg-indigo-600 hover:bg-indigo-700"
+            className="bg-indigo-600 hover:bg-indigo-700 mr-2"
           >
             <Plus className="w-4 h-4 mr-2" /> {t("Add New")}
           </Button>

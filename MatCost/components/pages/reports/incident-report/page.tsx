@@ -646,9 +646,9 @@ export default function IncidentReportsPage({
         </div>
       )}
 
-      <Card className="border-slate-200 shadow-sm bg-slate-50 min-h-[500px] gap-0 pb-0 pt-2 flex flex-col">
+      <Card className="border-slate-200 shadow-sm bg-slate-50 min-h-[700px] gap-0 pb-0 pt-2 flex flex-col">
         <CardContent className="p-0 flex flex-col justify-between flex-1">
-          <div className="[&>div]:max-h-[500px] [&>div]:min-h-[500px] [&>div]:overflow-y-auto">
+          <div className="[&>div]:max-h-[700px] [&>div]:min-h-[700px] [&>div]:overflow-y-auto">
             <Table>
               <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                 <TableRow className="bg-slate-50">

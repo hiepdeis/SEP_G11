@@ -3,9 +3,9 @@
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
 import { useTranslation } from "react-i18next";
-import { ProjectsTab } from "@/components/pages/admin/master-data/projects-tab";
+import { SuppliersTab } from "@/components/pages/admin/master-data/suppliers-tab";
 
-export default function ProjectManagementPage() {
+export default function SupplierManagementPage() {
   const { t } = useTranslation();
 
   return (
@@ -18,13 +18,16 @@ export default function ProjectManagementPage() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                {t("Project Management")}
+                {t("Supplier Management")}
               </h1>
+              <p className="text-sm text-slate-500">
+                {t("Manage suppliers and their contracts.")}
+              </p>
             </div>
           </div>
 
           <div className="p-0">
-            <ProjectsTab role="accountant" />
+            <SuppliersTab role="accountant" />
           </div>
         </div>
       </main>

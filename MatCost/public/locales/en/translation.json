@@ -321,6 +321,8 @@
     "admin_profile": "Profile",
     "materials": "Materials",
     "suppliers": "Suppliers",
+    "warehouses": "Warehouses",
+    "projects": "Projects",
     "roles": {
       "construction": "Construction Team",
       "accountant": "Accountant",
@@ -1234,5 +1236,22 @@
   "Register New Contract": "Register New Contract",
   "Edit Contract": "Edit Contract",
   "Edit Quotation": "Edit Quotation",
-  "Quotations": "Quotations"
+  "Quotations": "Quotations",
+  "Edit Info": "Edit Info",
+  "Add Stock": "Add Stock",
+  "Welcome Back": "Welcome Back",
+  "Procurement Trend": "Procurement Trend",
+  "Project Distribution": "Project Distribution",
+  "Orders vs Requests Volume": "Orders vs Requests Volume",
+  "Request focus by project": "Request focus by project",
+  "Top Suppliers": "Top Suppliers",
+  "Spending by partner": "Spending by partner",
+  "Pending Approvals": "Pending Approvals",
+  "Critical Purchase Orders": "Critical Purchase Orders",
+  "Orders": "Orders",
+  "Requests": "Requests",
+  "No pending orders": "No pending orders",
+  "No pending requests": "No pending requests",
+  "DraftPO": "Draft PO",
+  "Budget Used": "Budget Used"
 }

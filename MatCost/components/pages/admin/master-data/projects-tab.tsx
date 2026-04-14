@@ -55,7 +55,13 @@ import {
 import { formatMoney } from "@/lib/master-data-utils";
 import { formatCurrency } from "@/lib/format-currency";
 
-export function ProjectsTab() {
+export function ProjectsTab({
+  viewOnly = false,
+  role = "admin",
+}: {
+  viewOnly?: boolean;
+  role?: string;
+}) {
   const { t } = useTranslation();
   const [items, setItems] = useState<ProjectItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -245,12 +251,17 @@ export function ProjectsTab() {
               setPage(1);
             }}
             placeholder={t("Search...")}
-            className="pl-10 m-2 bg-white"
+            className="pl-10 m-2 bg-white w-[99%]"
           />
         </div>
-        <Button onClick={openAdd} className="bg-indigo-600 hover:bg-indigo-700">
-          <Plus className="w-4 h-4 mr-2" /> {t("Add New")}
-        </Button>
+        {!viewOnly && (
+          <Button
+            onClick={openAdd}
+            className="bg-indigo-600 hover:bg-indigo-700 mr-2"
+          >
+            <Plus className="w-4 h-4 mr-2" /> {t("Add New")}
+          </Button>
+        )}
       </div>
 
       <div className="flex-grow flex flex-col bg-white rounded-xl border border-gray-100 overflow-hidden min-h-0">
@@ -271,7 +282,7 @@ export function ProjectsTab() {
                   {t("Budget")}
                 </TableHead>
                 <TableHead className="sticky top-0 z-20 bg-gray-50 px-5 text-[10px] text-gray-500 uppercase tracking-wider text-right">
-                  {t("Used")}
+                  {t("Budget Used")}
                 </TableHead>
                 <TableHead className="sticky top-0 z-20 bg-gray-50 px-5 text-[10px] text-gray-500 uppercase tracking-wider text-right">
                   {t("Actions")}
@@ -326,24 +337,32 @@ export function ProjectsTab() {
                         </TableCell>
                         <TableCell className="px-5 py-3 text-right">
                           <div className="flex justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openEdit(item)}
-                              disabled={deletingId === item._id}
-                              className="h-8 w-8 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => remove(item._id)}
-                              disabled={deletingId === item._id}
-                              className="h-8 w-8 text-gray-500 hover:text-red-600 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            {!viewOnly ? (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEdit(item)}
+                                  disabled={deletingId === item._id}
+                                  className="h-8 w-8 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => remove(item._id)}
+                                  disabled={deletingId === item._id}
+                                  className="h-8 w-8 text-gray-500 hover:text-red-600 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <span className="text-xs text-gray-400 italic px-2 py-1">
+                                {t("View Only")}
+                              </span>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

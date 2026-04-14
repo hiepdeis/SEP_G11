@@ -429,16 +429,16 @@ export default function CreatePurchaseRequestPage() {
                   <Table>
                     <TableHeader className="bg-slate-50 sticky top-0 z-10">
                       <TableRow>
-                        <TableHead className="w-[45%] pl-6">
+                        <TableHead className="w-[35%] pl-6">
                           {t("Material")}
                         </TableHead>
-                        <TableHead className="w-[15%] text-center">
+                        <TableHead className="w-[20%] text-center">
                           {t("Required")} *
                         </TableHead>
-                        <TableHead className="pr-6 text-center w-[35%]">
+                        <TableHead className="pr-6 text-center w-[40%]">
                           {t("Notes")}
                         </TableHead>
-                        <TableHead className="w-[5%]"></TableHead>
+                        <TableHead className="w-[10%]"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -512,48 +512,40 @@ export default function CreatePurchaseRequestPage() {
                               <div className="relative">
                                 <Input
                                   type="number"
-                                  min="1"
-                                  step={
-                                    materials.find(
-                                      (m) =>
-                                        m.materialId.toString() ===
-                                        item.materialId,
-                                    )?.isDecimalUnit
-                                      ? "any"
-                                      : "1"
-                                  }
-                                  placeholder={
-                                    materials.find(
-                                      (m) =>
-                                        m.materialId.toString() ===
-                                        item.materialId,
-                                    )?.isDecimalUnit
-                                      ? "0.00"
-                                      : "0"
-                                  }
-                                  className="w-full text-right pr-12 border-indigo-200 focus-visible:ring-indigo-600"
+                                  min="0"
+                                  className="w-full text-center font-semibold"
                                   value={item.quantity}
                                   onChange={(e) => {
+                                    let val = e.target.value;
+                                    val = val.replace(/-/g, "");
+                                    if (
+                                      val.length > 1 &&
+                                      val.startsWith("0") &&
+                                      val[1] !== "."
+                                    ) {
+                                      val = val.replace(/^0+/, "") || "0";
+                                    }
                                     const isDecimal = materials.find(
                                       (m) =>
                                         m.materialId.toString() ===
                                         item.materialId,
                                     )?.isDecimalUnit;
-
-                                    let newValue = e.target.value;
-
                                     if (!isDecimal) {
-                                      newValue = newValue.replace(/[.,]/g, "");
+                                      val = val.replace(/\./g, "");
+                                    } else if (val.includes(".")) {
+                                      const parts = val.split(".");
+                                      val =
+                                        parts[0] + "." + parts[1].slice(0, 3);
                                     }
-
+                                    e.target.value = val.slice(0, 12);
                                     handleItemChange(
                                       item.id,
                                       "quantity",
-                                      newValue.replace(/-/g, "").slice(0, 12),
+                                      e.target.value,
                                     );
                                   }}
                                 />
-                                <span className="absolute right-3 top-2.5 text-xs font-medium text-slate-400 pointer-events-none">
+                                <span className="absolute right-3 top-2.5 text-xs font-medium text-slate-400 pointer-events-none mr-6">
                                   {item.materialId
                                     ? materials.find(
                                         (m) =>

@@ -18,6 +18,8 @@ import {
   LayoutDashboard,
   BrickWall,
   Cable,
+  FolderKanban,
+  Warehouse,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -85,10 +87,22 @@ export function Sidebar() {
       roles: ["Manager", "Staff"],
     },
     {
+      label: t("sidebar.warehouses"),
+      icon: Warehouse,
+      href: `/${userDecode?.role.toLowerCase()}/warehouses`,
+      roles: ["Manager", "Staff"],
+    },
+    {
       label: t("sidebar.suppliers"),
       icon: Cable,
       href: `/${userDecode?.role.toLowerCase()}/suppliers`,
-      roles: ["Purchasing"],
+      roles: ["Purchasing", "Accountant"],
+    },
+    {
+      label: t("sidebar.projects"),
+      icon: FolderKanban,
+      href: `/${userDecode?.role.toLowerCase()}/projects`,
+      roles: ["Accountant"],
     },
   ];
 
@@ -321,11 +335,11 @@ export function Sidebar() {
       icon: Database,
       href: "/admin/master-data",
     },
-    {
-      label: t("sidebar.admin_notifications"),
-      icon: Bell,
-      href: "/admin/notifications",
-    },
+    // {
+    //   label: t("sidebar.admin_notifications"),
+    //   icon: Bell,
+    //   href: "/admin/notifications",
+    // },
   ];
 
   const isReportActive =
