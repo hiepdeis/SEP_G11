@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Lock, ShieldCheck, QrCode, Plus, Loader2, CheckCircle2, ArrowLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { OTPInput } from "input-otp";
+import { otpApi, OtpSetupResponse, OtpStatusResponse } from "@/services/otpservices";
 
 export default function TwoFactorAuthPage() {
   const router = useRouter();
@@ -16,18 +17,63 @@ export default function TwoFactorAuthPage() {
   const [step, setStep] = useState(1);
   const [code, setCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+  const [setupData, setSetupData] = useState<OtpSetupResponse | null>(null);
+  const [isLoadingSetup, setIsLoadingSetup] = useState(false);
+  // State quản lý trạng thái 2FA tổng thể
+  const [status, setStatus] = useState<OtpStatusResponse | null>(null);
+  const [isFetchingStatus, setIsFetchingStatus] = useState(true);
 
-  const handleVerify = () => {
+  // Gọi API lấy trạng thái ngay khi vào trang
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const data = await otpApi.get2FAStatus();
+        setStatus(data);
+      } catch (error) {
+        console.error(error);
+        toast.error("Không thể lấy trạng thái 2FA từ máy chủ.");
+      } finally {
+        setIsFetchingStatus(false);
+      }
+    };
+    fetchStatus();
+  }, []);
+
+  const handleSetupClick = async () => {
+        setIsLoadingSetup(true);
+        try {
+            const data = await otpApi.setup2FA();
+            setSetupData(data); // Lưu secret và qrUri vào state
+            setStep(3); // Gọi thành công mới chuyển sang Bước 3
+        } catch (error) {
+            toast.error("Không thể lấy mã thiết lập. Vui lòng thử lại.");
+            console.error(error);
+        } finally {
+            setIsLoadingSetup(false);
+        }
+    };
+
+
+  const handleVerify = async () => {
     if (code.length < 6) {
       toast.error("Vui lòng nhập đủ 6 ký tự.");
       return;
     }
     setIsVerifying(true);
-    setTimeout(() => {
-      setIsVerifying(false);
+   try {
+      await otpApi.validotp(code);
       toast.success("Thiết lập xác minh 2 bước thành công!");
-      router.push("/dashboard");
-    }, 1500);
+      
+      // Cập nhật lại state để UI đổi sang màn hình "Đã Bật"
+      setStatus(prev => prev ? { ...prev, isEnabled: true, isPending: false } : null);
+      
+      // Tùy chọn: Đẩy về trang chủ hoặc giữ lại trang này
+      // router.push("/dashboard");
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || "Mã không đúng hoặc đã hết hạn.");
+      } finally {
+        setIsVerifying(false);
+      }
   };
 
   return (
@@ -37,7 +83,41 @@ export default function TwoFactorAuthPage() {
         <Header title="Bảo mật & Xác minh 2 lớp (2FA)" />
 
         <div className="flex-grow overflow-y-auto p-4 sm:p-6 lg:p-10 flex flex-col items-center justify-center">
-          
+          {/* MÀN HÌNH LOADING TRẠNG THÁI */}
+          {isFetchingStatus && (
+            <div className="flex flex-col items-center text-slate-500">
+              <Loader2 className="w-8 h-8 animate-spin mb-4" />
+              <p>Đang tải thông tin bảo mật...</p>
+            </div>
+          )}
+
+          {/* MÀN HÌNH KHI ĐÃ BẬT 2FA (Không hiện các bước setup nữa) */}
+          {!isFetchingStatus && status?.isEnabled && (
+            <Card className="w-full max-w-[500px] border-slate-200 shadow-sm gap-0 border-t-4 border-t-green-500">
+              <CardContent className="p-8 flex flex-col items-center text-center space-y-6 bg-white">
+                <div className="w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center shadow-inner">
+                  <ShieldCheck className="w-10 h-10" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-800 mb-2">Xác thực 2 lớp đang BẬT</h2>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    Tài khoản của bạn đang được bảo vệ. Bạn sẽ cần nhập mã từ ứng dụng Authenticator mỗi khi đăng nhập.
+                  </p>
+                </div>
+                <Button 
+                  variant="outline"
+                  className="w-full text-slate-700 font-semibold shadow-sm"
+                  onClick={() => router.push("/dashboard")}
+                >
+                  Quay lại trang chủ
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* CÁC BƯỚC SETUP NẾU CHƯA BẬT */}
+          {!isFetchingStatus && !status?.isEnabled && (
+            <> 
           {/* BƯỚC 1: BẢO VỆ TÀI KHOẢN */}
           {step === 1 && (
             <Card className="w-full max-w-[500px] border-slate-200 shadow-sm gap-0">
@@ -91,12 +171,17 @@ export default function TwoFactorAuthPage() {
                     <p className="text-sm text-slate-600 leading-relaxed">
                       Tải ứng dụng <span className="font-semibold text-slate-800">Google Authenticator</span> từ <span className="text-indigo-600 cursor-pointer hover:underline font-medium">Google Play</span> hoặc <span className="text-indigo-600 cursor-pointer hover:underline font-medium">App Store</span>.
                     </p>
-                    <Button 
-                      variant="outline" 
-                      className="text-indigo-600 border-indigo-200 hover:bg-indigo-700 mt-4 font-semibold w-full sm:w-auto"
-                      onClick={() => setStep(3)}
+                   <Button 
+                        variant="outline" 
+                        className="text-indigo-600 border-indigo-200 hover:bg-indigo-700 hover:text-white mt-4 font-semibold w-full sm:w-auto"
+                        onClick={handleSetupClick} // <-- THAY ĐỔI Ở ĐÂY: Gắn hàm gọi API thay vì setStep(3) cứng
+                        disabled={isLoadingSetup} // Khoá nút khi đang load
                     >
-                      <Plus className="w-4 h-4 mr-2" /> Thiết lập ứng dụng xác thực
+                        {isLoadingSetup ? (
+                        <span className="flex items-center">Đang tải...</span> // Có thể thêm icon spinner nếu muốn
+                        ) : (
+                        <><Plus className="w-4 h-4 mr-2" /> Thiết lập ứng dụng xác thực</>
+                        )}
                     </Button>
                   </div>
                   <div className="w-32 shrink-0 flex items-center justify-center p-4 bg-slate-50 rounded-full border border-slate-100">
@@ -123,15 +208,22 @@ export default function TwoFactorAuthPage() {
                 
                 <div className="flex justify-center py-2">
                   <div className="p-3 border border-slate-200 rounded-xl bg-white shadow-sm">
-                    <QrCode className="w-40 h-40 text-slate-800" strokeWidth={1} />
-                  </div>
+                    {/* THAY ĐỔI Ở ĐÂY: Dùng ảnh QR tĩnh sinh từ url hoặc dùng thư viện qrcode.react */}
+                    <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(setupData.qrUri)}`} 
+                        alt="Mã QR"
+                        width={160}
+                        height={160}
+                        className="rounded-lg"
+                    />
+                    </div>
                 </div>
 
                 <div className="border-t border-slate-100 pt-5 space-y-3">
                   <p className="text-sm text-slate-600 font-medium">Hoặc nhập khóa thủ công:</p>
                   <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
                     <p className="text-center font-mono text-sm font-bold tracking-[0.2em] text-indigo-700 break-all">
-                      JIP2 GYDW BBI5 NTRX RDJY 32YV
+                      {setupData.secret}
                     </p>
                   </div>
                 </div>
@@ -200,7 +292,8 @@ export default function TwoFactorAuthPage() {
               </CardContent>
             </Card>
           )}
-
+          </>
+          )} 
         </div>
       </main>
     </div>

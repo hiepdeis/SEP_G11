@@ -18,6 +18,8 @@ namespace Backend.Domains.Import.DTOs.Managers
         public int? ConfirmedBy { get; set; }
         public string? ConfirmedByName { get; set; }
         public string? Notes { get; set; }
+        public string? Unit { get; set; }
+        public bool IsDecimalUnit { get; set; }
     }
 
     public class ConfirmStockShortageAlertDto

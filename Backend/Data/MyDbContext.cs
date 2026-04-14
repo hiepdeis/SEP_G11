@@ -113,6 +113,12 @@ public partial class MyDbContext : DbContext
     public virtual DbSet<SupplementaryReceiptItem> SupplementaryReceiptItems { get; set; }
     public virtual DbSet<PickingList> PickingLists { get; set; }
 
+    public virtual DbSet<TotpUser> TotpUsers { get; set; }
+
+    public virtual DbSet<DirectPurchaseOrder> DirectPurchaseOrders { get; set; }
+    public virtual DbSet<DirectPurchaseDetail> DirectPurchaseDetails { get; set; }
+    public virtual DbSet<SupplierTransaction> SupplierTransactions { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AdjustmentReason>(entity =>
@@ -1450,7 +1456,31 @@ public partial class MyDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<TotpUser>(entity =>
+        {
+            entity.HasKey(e => e.TotpId);
 
+            entity.HasIndex(e => e.UserId)
+                .IsUnique();
+
+            entity.Property(e => e.SecretKey)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(e => e.IsEnabled)
+                .HasDefaultValue(false);
+
+            entity.Property(e => e.FailedAttempts)
+                .HasDefaultValue(0);
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("GETUTCDATE()");
+
+            entity.HasOne(d => d.User)
+                .WithOne(p => p.TotpUser)
+                .HasForeignKey<TotpUser>(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
         OnModelCreatingPartial(modelBuilder);
     }
 

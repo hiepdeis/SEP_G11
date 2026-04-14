@@ -17,6 +17,7 @@ import {
   Bell,
   LayoutDashboard,
   ShieldCheck,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -1164,6 +1165,31 @@ export function Sidebar() {
                 <span className="text-base flex-1 text-left">Bảo mật 2FA</span>
               </a>
             </nav>
+
+            <div className="border-t border-slate-100 p-4 bg-slate-50/50">
+              <UserDropdown
+                side="top"
+                align="center"
+                trigger={
+                  <button className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-white border border-slate-200 shadow-sm">
+                    <div className="relative flex-shrink-0">
+                      <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold text-white shadow-md shadow-indigo-200 ring-2 ring-white">
+                        <User className="h-5 w-5" />
+                      </div>
+                    </div>
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="text-sm font-bold text-slate-900 truncate">
+                        {userProfile?.fullName || "Loading..."}
+                      </p>
+                      <p className="text-xs text-slate-500 truncate">
+                        {userProfile?.email || "..."}
+                      </p>
+                    </div>
+                    <Settings className="w-5 h-5 text-slate-400" />
+                  </button>
+                }
+              />
+            </div>
 
             {/* Admin Mobile Section */}
             {userDecode?.role === "Admin" && (
