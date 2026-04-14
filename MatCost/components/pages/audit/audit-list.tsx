@@ -21,7 +21,7 @@ import { endOfDay, format, isWithinInterval, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { DateTimePicker } from "@/components/ui/custom/date-time-picker";
-import { Pencil, Trash2, Save, LayoutGrid, CheckSquare, Warehouse as WarehouseIcon } from "lucide-react";
+import { Pencil, Trash2, Save, LayoutGrid, Warehouse as WarehouseIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -44,7 +44,6 @@ export default function SharedAuditList({ role }: AuditListProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(5);
 
-  // Edit/Delete States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedAudit, setSelectedAudit] = useState<AuditListItemDto | null>(null);
@@ -92,7 +91,6 @@ export default function SharedAuditList({ role }: AuditListProps) {
         plannedEndDate: fullDetails.plannedEndDate || ""
       });
       
-      // Fetch warehouses if not already loaded
       if (warehouses.length === 0) {
         const whRes = await warehouseApi.getAll();
         setWarehouses(whRes.data);
@@ -306,12 +304,34 @@ export default function SharedAuditList({ role }: AuditListProps) {
                 <Table className="w-full min-w-[800px] table-fixed">
                   <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                     <TableRow className="bg-slate-50 hover:bg-slate-50">
-                      <TableHead className="pl-6 w-[28%] cursor-pointer select-none group" onClick={() => handleSort("title")}><div className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">{t("Audit Info")} {getSortIcon("title")}</div></TableHead>
-                      <TableHead className="w-[18%] cursor-pointer select-none group" onClick={() => handleSort("warehouse")}><div className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">{t("Warehouse")} {getSortIcon("warehouse")}</div></TableHead>
-                      <TableHead className="w-[14%] cursor-pointer select-none group" onClick={() => handleSort("date")}><div className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">{t("Date")} {getSortIcon("date")}</div></TableHead>
-                      <TableHead className="w-[16%] cursor-pointer select-none group" onClick={() => handleSort("status")}><div className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">{t("Status")} {getSortIcon("status")}</div></TableHead>
-                      <TableHead className="w-[12%] cursor-pointer select-none group" onClick={() => handleSort("progress")}><div className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">{t("Progress")} {getSortIcon("progress")}</div></TableHead>
-                      <TableHead className="w-[12%] text-right pr-6">{t("Action")}</TableHead>
+                      <TableHead className="pl-6 w-[25%] cursor-pointer select-none group" onClick={() => handleSort("title")}>
+                        <div className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">
+                          {t("Audit Info")} {getSortIcon("title")}
+                        </div>
+                      </TableHead>
+                      <TableHead className="w-[18%] cursor-pointer select-none group" onClick={() => handleSort("warehouse")}>
+                        <div className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">
+                          {t("Warehouse")} {getSortIcon("warehouse")}
+                        </div>
+                      </TableHead>
+                      <TableHead className="w-[15%] cursor-pointer select-none group" onClick={() => handleSort("date")}>
+                        <div className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">
+                          {t("Date")} {getSortIcon("date")}
+                        </div>
+                      </TableHead>
+                      <TableHead className="w-[16%] cursor-pointer select-none group" onClick={() => handleSort("status")}>
+                        <div className="flex items-center justify-center gap-1.5 hover:text-slate-800 transition-colors">
+                          {t("Status")} {getSortIcon("status")}
+                        </div>
+                      </TableHead>
+                      <TableHead className="w-[12%] cursor-pointer select-none group" onClick={() => handleSort("progress")}>
+                        <div className="flex items-center justify-center gap-1.5 hover:text-slate-800 transition-colors">
+                          {t("Progress")} {getSortIcon("progress")}
+                        </div>
+                      </TableHead>
+                      <TableHead className="w-[14%] pr-6">
+                        <div className="flex items-center justify-end gap-1.5">{t("Action")}</div>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -321,20 +341,43 @@ export default function SharedAuditList({ role }: AuditListProps) {
                       <TableRow><TableCell colSpan={6} className="h-32 text-center text-slate-500 border-b-0"><div className="flex flex-col items-center justify-center gap-2"><FileText className="w-8 h-8 text-slate-300" /><p>{t("No audit sessions found matching your filters.")}</p></div></TableCell></TableRow>
                     ) : (
                       paginatedData.map((audit) => (
-                        <TableRow key={audit.stockTakeId} className="group hover:bg-slate-50/50 transition-colors">
-                          <TableCell className="pl-6"><div className="flex flex-col"><span className="font-semibold text-slate-700 truncate" title={audit.title}>{audit.title}</span><span className="text-xs text-slate-400">ID: AUD-{audit.stockTakeId}</span></div></TableCell>
-                          <TableCell><span className="text-sm text-slate-600 block truncate" title={audit.warehouseName}>{audit.warehouseName || `${t("Warehouse")} #${audit.warehouseId}`}</span></TableCell>
-                          <TableCell><span className="text-sm text-slate-500 flex items-center gap-1.5 whitespace-nowrap"><CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" />{audit.plannedStartDate ? format(new Date(audit.plannedStartDate), "HH:mm dd/MM/yyyy") : t("N/A")}</span></TableCell>
-                          <TableCell>{getStatusBadge(audit.status)}</TableCell>
+                        <TableRow 
+                          key={audit.stockTakeId} 
+                          className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
+                          onClick={() => navigateTo("detail", audit.stockTakeId.toString())}
+                        >
+                          <TableCell className="pl-6">
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-2 mb-1">
+                                <ClipboardList className="w-4 h-4 text-indigo-500" />
+                                <span className="font-bold text-slate-800 truncate" title={audit.title}>{audit.title}</span>
+                              </div>
+                              <span className="text-xs text-slate-400">ID: AUD-{audit.stockTakeId}</span>
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <div className="w-16 sm:w-20 bg-slate-100 rounded-full h-1.5 overflow-hidden flex-shrink-0"><div className={`h-1.5 rounded-full ${audit.countingProgress === 100 ? "bg-emerald-500" : "bg-indigo-500"}`} style={{ width: `${Math.min(audit.countingProgress, 100)}%` }}></div></div>
+                              <WarehouseIcon className="w-4 h-4 text-slate-400" />
+                              <span className="text-sm text-slate-600 block truncate" title={audit.warehouseName}>{audit.warehouseName || `${t("Warehouse")} #${audit.warehouseId}`}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-slate-500 flex items-center gap-1.5 whitespace-nowrap">
+                              <CalendarDays className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />
+                              {audit.plannedStartDate ? format(new Date(audit.plannedStartDate), "HH:mm dd/MM/yyyy") : t("N/A")}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center">{getStatusBadge(audit.status)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="w-16 sm:w-20 bg-slate-100 rounded-full h-1.5 overflow-hidden flex-shrink-0">
+                                <div className={`h-1.5 rounded-full ${audit.countingProgress === 100 ? "bg-emerald-500" : "bg-indigo-500"}`} style={{ width: `${Math.min(audit.countingProgress, 100)}%` }}></div>
+                              </div>
                               <span className="text-xs font-medium text-slate-600">{audit.countingProgress}%</span>
                             </div>
                           </TableCell>
                           <TableCell className="text-right pr-6">
                             <div className="flex justify-end gap-2">
-                              {/* New Update/Delete buttons for Accountant and Admin */}
                               {(role === "accountant" || role === "admin") && (audit.status === "Planned" || audit.status === "PLAN" || audit.status === "Assigned") && (
                                 <>
                                   <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50" onClick={() => handleEditClick(audit)}><Pencil className="w-4 h-4" /></Button>
@@ -344,12 +387,12 @@ export default function SharedAuditList({ role }: AuditListProps) {
                               
                               {role === "manager" && (
                                 <div className="flex justify-end gap-2">
-                                  {(audit.status === "Planned" || audit.status === "PLAN") && (<Button size="sm" variant="outline" className="shadow-sm border-indigo-200 text-indigo-600" onClick={() => navigateTo("assign-team", audit.stockTakeId.toString())}><Users className="w-3.5 h-3.5 mr-1.5" /> {t("Assign")}</Button>)}
-                                  <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm" onClick={() => navigateTo("detail", audit.stockTakeId.toString())}>{t("Detail")}</Button>
+                                  {(audit.status === "Planned" || audit.status === "PLAN") && (<Button size="sm" variant="outline" className="shadow-sm border-indigo-200 text-indigo-600 min-w-[100px]" onClick={(e) => { e.stopPropagation(); navigateTo("assign-team", audit.stockTakeId.toString()); }}><Users className="w-3.5 h-3.5 mr-1.5" /> {t("Assign")}</Button>)}
+                                  <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm min-w-[100px]" onClick={(e) => { e.stopPropagation(); navigateTo("detail", audit.stockTakeId.toString()); }}>{t("Detail")}</Button>
                                 </div>
                               )}
-                              {role === "staff" && (audit.status === "InProgress") && (<Button size="sm" variant="outline" className="shadow-sm border-indigo-200 text-indigo-600" onClick={() => navigateTo("manual-count", audit.stockTakeId.toString())}>{t("Count")} <ArrowRight className="w-3.5 h-3.5 ml-1" /></Button>)}
-                              {(role === "accountant" || role === "admin") && (<Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm" onClick={() => navigateTo("detail", audit.stockTakeId.toString())}>{t("View Report")}</Button>)}
+                              {role === "staff" && (audit.status === "InProgress") && (<Button size="sm" variant="outline" className="shadow-sm border-indigo-200 text-indigo-600 min-w-[100px]" onClick={(e) => { e.stopPropagation(); navigateTo("manual-count", audit.stockTakeId.toString()); }}>{t("Count")} <ArrowRight className="w-3.5 h-3.5 ml-1" /></Button>)}
+                              {(role === "accountant" || role === "admin") && (<Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm min-w-[100px]" onClick={(e) => { e.stopPropagation(); navigateTo("detail", audit.stockTakeId.toString()); }}>{t("Detail")}</Button>)}
                             </div>
                           </TableCell>
                         </TableRow>
