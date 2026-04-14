@@ -132,11 +132,21 @@ export function AuditCreate({ role }: AuditCreateProps) {
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-slate-700">{t("Target Warehouse *")}</label>
                       <Select value={formData.warehouseId > 0 ? formData.warehouseId.toString() : undefined} onValueChange={(val) => setFormData({...formData, warehouseId: parseInt(val)})} disabled={isLoadingWarehouses}>
-                        <SelectTrigger className="w-full bg-white hover:bg-slate-50 border-slate-200 h-[44px] min-h-[44px] max-h-[44px] px-4 shadow-sm text-slate-700 transition-colors">
-                          <SelectValue placeholder={isLoadingWarehouses ? t("Loading...") : t("Select a Warehouse")} />
+                        <SelectTrigger className="w-full bg-white hover:bg-slate-50 border-slate-200 h-[44px] min-h-[44px] max-h-[44px] px-4 shadow-sm transition-colors justify-start gap-2 [&>span]:line-clamp-1 [&>span]:flex [&>span]:items-center [&>span]:gap-2">
+                          <Warehouse className="w-5 h-5 text-indigo-600 shrink-0" />
+                          <div className={cn(
+                            "flex-1 text-left font-bold",
+                            formData.warehouseId > 0 ? "text-indigo-700" : "text-slate-400 font-normal"
+                          )}>
+                            <SelectValue placeholder={isLoadingWarehouses ? t("Loading...") : t("Select a Warehouse")} />
+                          </div>
                         </SelectTrigger>
-                        <SelectContent showSearch className="w-full">
-                          {warehouses.length > 0 ? (warehouses.map((wh) => (<SelectItem key={wh.warehouseId} value={wh.warehouseId.toString()}>{wh.name}</SelectItem>))) : (<SelectItem value="0" disabled>{t("No warehouses found")}</SelectItem>)}
+                        <SelectContent showSearch className="w-full [&_[data-slot=select-viewport]]:p-0">
+                          {warehouses.length > 0 ? (warehouses.map((wh) => (
+                            <SelectItem key={wh.warehouseId} value={wh.warehouseId.toString()} className="rounded-none py-3 px-4 cursor-pointer focus:bg-indigo-600 focus:text-white transition-colors font-bold">
+                              {wh.name}
+                            </SelectItem>
+                          ))) : (<SelectItem value="0" disabled className="font-bold">{t("No warehouses found")}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -176,10 +186,10 @@ export function AuditCreate({ role }: AuditCreateProps) {
                               <CommandInput placeholder={t("Search bins...")} className="h-10" />
                               <CommandList className="max-h-64">
                                 <CommandEmpty>{t("No bins found.")}</CommandEmpty>
-                                <CommandGroup>
+                                <CommandGroup className="p-0">
                                   <CommandItem 
                                     onSelect={() => handleSelectAll(!selectAllBins)}
-                                    className="group flex items-center gap-3 cursor-pointer font-bold text-indigo-600 data-[selected=true]:bg-indigo-600 data-[selected=true]:text-white border-b border-slate-100 rounded-none py-3 px-4"
+                                    className="group flex items-center gap-3 cursor-pointer font-bold text-indigo-600 data-[selected=true]:bg-indigo-600 data-[selected=true]:text-white border-b border-slate-100 rounded-none py-3.5 px-4 w-full"
                                   >
                                     <div className={cn(
                                       "flex h-4 w-4 items-center justify-center rounded-sm border transition-colors",
@@ -194,12 +204,12 @@ export function AuditCreate({ role }: AuditCreateProps) {
                                   {bins.map((bin) => {
                                     const isChecked = formData.binLocationIds?.includes(bin.binId);
                                     return (
-                                      <CommandItem
-                                        key={bin.binId}
-                                        value={bin.code}
-                                        onSelect={() => handleSelectBin(bin.binId, !isChecked)}
-                                        className="group flex items-center gap-3 cursor-pointer py-3 px-4 data-[selected=true]:bg-indigo-600 data-[selected=true]:text-white"
-                                      >
+                                        <CommandItem
+                                          key={bin.binId}
+                                          value={bin.code}
+                                          onSelect={() => handleSelectBin(bin.binId, !isChecked)}
+                                          className="group flex items-center gap-3 cursor-pointer py-3.5 px-4 data-[selected=true]:bg-indigo-600 data-[selected=true]:text-white rounded-none w-full"
+                                        >
                                         <div className={cn(
                                           "flex h-4 w-4 items-center justify-center rounded-sm border transition-colors",
                                           isChecked 
@@ -209,8 +219,8 @@ export function AuditCreate({ role }: AuditCreateProps) {
                                           <Check className="h-3 w-3 text-current" style={{ strokeWidth: 4 }} />
                                         </div>
                                         <span className={cn(
-                                          "flex-1 transition-colors", 
-                                          isChecked ? "font-semibold text-indigo-700 group-data-[selected=true]:text-white" : "text-slate-700 group-data-[selected=true]:text-white"
+                                          "flex-1 transition-colors font-bold", 
+                                          isChecked ? "text-indigo-700 group-data-[selected=true]:text-white" : "text-slate-700 group-data-[selected=true]:text-white"
                                         )}>
                                           {bin.code}
                                         </span>
