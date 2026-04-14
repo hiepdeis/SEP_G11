@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Truck, CheckCircle2, FileSignature, Eraser, Loader2, Package, MapPin } from "lucide-react";
 import SignatureCanvas from 'react-signature-canvas';
 import { toast } from "sonner";
-import axiosClient from '@/api/axiosClient'; // Tùy chỉnh theo config của bạn
+
 
 export default function IncomingShipments({ projectId }) {
   const [shipments, setShipments] = useState([]);

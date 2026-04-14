@@ -1,4 +1,30 @@
 {
+   "Information Input": "Information Input",
+  "Please enter the delivery address...": "Please enter the delivery address...",
+  "Material Details & Price Negotiation": "Material Details & Price Negotiation",
+  "Material Code / Name": "Material Code / Name",
+  "Quantity Needed": "Quantity Needed",
+  "Actual Unit Price (VND)": "Actual Unit Price (VND)",
+  "Line Total (VND)": "Line Total (VND)",
+   "Order not found": "Order not found",
+
+  "Loading...": "Loading...",
+
+  "Tạo phiếu xuất vật tư": "Create Material Issue Slip",
+
+  "Direct Purchase Orders": "Direct Purchase Orders",
+  "Direct Purchase Order Processing": "Direct Purchase Order Processing",
+
+  "Purchase Code": "Purchase Code",
+
+  "Please select supplier!": "Please select supplier!",
+
+  "Delivery Address": "Delivery Address",
+
+  "Total Order Value": "Total Order Value",
+  "Confirm Order": "Confirm Order",
+
+  "Manage and confirm supplier orders": "Manage and confirm supplier orders",
   "Inbound Requests": "Inbound Requests",
   "Material Request": "Material Request",
   "History of your requests": "History of your requests",
