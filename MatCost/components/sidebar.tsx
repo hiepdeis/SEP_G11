@@ -1198,6 +1198,7 @@ export function Sidebar() {
                 <span className="text-base flex-1 text-left">Bảo mật 2FA</span>
               </a>
             </nav>
+            <nav>
               <a
                 href="/security/2fa"
                 onClick={() => setIsMobileOpen(false)}
