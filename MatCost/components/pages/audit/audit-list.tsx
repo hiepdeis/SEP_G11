@@ -387,7 +387,7 @@ export default function SharedAuditList({ role }: AuditListProps) {
                               
                               {role === "manager" && (
                                 <div className="flex justify-end gap-2">
-                                  {(audit.status === "Planned" || audit.status === "PLAN") && (<Button size="sm" variant="outline" className="shadow-sm border-indigo-200 text-indigo-600 min-w-[100px]" onClick={(e) => { e.stopPropagation(); navigateTo("assign-team", audit.stockTakeId.toString()); }}><Users className="w-3.5 h-3.5 mr-1.5" /> {t("Assign")}</Button>)}
+                                  {(audit.status === "Planned" || audit.status === "Assigned") && (<Button size="sm" variant="outline" className="shadow-sm border-indigo-200 text-indigo-600 min-w-[100px]" onClick={(e) => { e.stopPropagation(); navigateTo("assign-team", audit.stockTakeId.toString()); }}><Users className="w-3.5 h-3.5 mr-1.5" /> {t("Assign")}</Button>)}
                                   <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm min-w-[100px]" onClick={(e) => { e.stopPropagation(); navigateTo("detail", audit.stockTakeId.toString()); }}>{t("Detail")}</Button>
                                 </div>
                               )}
