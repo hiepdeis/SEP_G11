@@ -113,6 +113,10 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<TotpUser> TotpUsers { get; set; }
 
+    public virtual DbSet<DirectPurchaseOrder> DirectPurchaseOrders { get; set; }
+    public virtual DbSet<DirectPurchaseDetail> DirectPurchaseDetails { get; set; }
+    public virtual DbSet<SupplierTransaction> SupplierTransactions { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AdjustmentReason>(entity =>

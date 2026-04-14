@@ -204,7 +204,7 @@ export default function CommonIssueSlipDetail() {
     setSelectedPoId(poId);
     setIsPoSigningOpen(true);
   };
- // kế toán ký và xác nhận 
+  // kế toán ký và xác nhận 
   const handleConfirmPoSignature = async () => {
     if (!poSigCanvas.current || poSigCanvas.current.isEmpty()) return toast.error("Vui lòng ký xác nhận.");
     try {
@@ -214,6 +214,7 @@ export default function CommonIssueSlipDetail() {
     } catch (error) { toast.error("Lỗi khi gửi yêu cầu xác thực."); } finally { setReviewing(false); }
   };
 
+  // KẾ TOÁN: Gửi Đơn mua ngoài cho phòng Thu mua sau khi đã ký và xác nhận OTP
   const handleConfirmPoOtp = async () => {
     if (poOtp.length !== 6) return toast.error("Vui lòng nhập đủ 6 số OTP.");
     if (!selectedPoId) return toast.error("Không tìm thấy mã PO.");
@@ -223,7 +224,7 @@ export default function CommonIssueSlipDetail() {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       await issueSlipApi.changeStatus(selectedPoId, { action: "Forwarded_To_Purchasing", reason: "" });
-      toast.success("Xác thực thành công! Đã chuyển lệnh Mua ngoài cho Thu mua.");
+      toast.success("Xác thực thành công! Đã chuyển lệnh Mua ngoài cho Thu mua.");  
       
       setGeneratedSlips(prev => prev ? { ...prev, poSent: true } : null);
       setIsPoOtpOpen(false); setPoOtp(""); clearPoSignature();
@@ -439,20 +440,6 @@ export default function CommonIssueSlipDetail() {
       setGeneratedSlips(prev => prev ? { ...prev, inventorySent: true } : null);
     } catch (err) {
       toast.error("Lỗi khi gửi lệnh Xuất kho.");
-    } finally {
-      setReviewing(false);
-    }
-  };
-
-  // KẾ TOÁN: Gửi Đơn mua ngoài cho phòng Thu mua
-  const handleSendPO = async (poId: number) => {
-    try {
-      setReviewing(true);
-      await issueSlipApi.changeStatus(poId, { action: "Forwarded_To_Purchasing", reason: "" });
-      toast.success("Đã chuyển lệnh Mua ngoài cho Thu mua!");
-      setGeneratedSlips(prev => prev ? { ...prev, poSent: true } : null);
-    } catch (err) {
-      toast.error("Lỗi khi gửi đơn mua ngoài.");
     } finally {
       setReviewing(false);
     }

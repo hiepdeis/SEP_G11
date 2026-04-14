@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Backend.Entities
 {
-    [Table("PickingList")]
+    [Table("PickingLists")]
     public partial class PickingList
     {
         [Key]

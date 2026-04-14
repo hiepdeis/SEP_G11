@@ -67,12 +67,15 @@ export default function CommonIssueSlipList() {
 
   const navigateToDetail = (issueId: number) => {
     const role = sessionStorage.getItem("role");
-    
+    console.log("Navigating to detail for issueId:", issueId, "with role:", role);
     if(role === "accountant"){
       router.push(`/accountant/outbound/issueSlip/checkInventory/${issueId}`);
+    } else if(role === "purchasing"){
+      router.push(`/outbound/purchasing/DirectPurchaseOrderDetail/${issueId}`);
     } else {
       router.push(`/outbound/common/IssueSlipDetail/${issueId}`); 
     }
+
   };
 
   const getStatusBadge = (status: string) => {
