@@ -4,14 +4,17 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
-import { ArrowLeft, Calendar as CalendarIcon, Warehouse, Save, Loader2, ClipboardList, LayoutGrid, CheckSquare, CalendarDays } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Warehouse, Save, Loader2, ClipboardList, LayoutGrid, CheckSquare, CalendarDays, Check, ChevronDown, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { auditService, CreateAuditPlanRequest } from "@/services/audit-service";
 import { warehouseApi, WarehouseListItemDto } from "@/services/warehouse-service";
 import axiosClient from "@/lib/axios-client";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { DateTimePicker } from "@/components/ui/custom/date-time-picker";
@@ -31,6 +34,7 @@ export function AuditCreate({ role }: AuditCreateProps) {
   const [bins, setBins] = useState<BinDto[]>([]);
   const [isLoadingBins, setIsLoadingBins] = useState(false);
   const [selectAllBins, setSelectAllBins] = useState(false);
+  const [isBinPopoverOpen, setIsBinPopoverOpen] = useState(false);
 
   const [formData, setFormData] = useState<CreateAuditPlanRequest>({
     title: "", warehouseId: 0, binLocationIds: [], plannedStartDate: "", plannedEndDate: "", notes: ""
@@ -53,7 +57,6 @@ export function AuditCreate({ role }: AuditCreateProps) {
       }
       try {
         setIsLoadingBins(true);
-        // Both roles currently use the admin prefix for master data retrieval
         const response = await axiosClient.get(`/admin/master-data/bin-locations`);
         const allBins = response.data.items || response.data || [];
         const filteredBins = allBins.filter((b: any) => b.warehouseId === formData.warehouseId);
@@ -117,11 +120,19 @@ export function AuditCreate({ role }: AuditCreateProps) {
                 <div className="space-y-4">
                   <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2"><Warehouse className="w-4 h-4 text-slate-400" /> 1. {t("Scope & Location")}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-                    <div className="space-y-2"><label className="text-sm font-medium text-slate-700">{t("Audit Title *")}</label><Input placeholder={t("e.g. Q1 2026 Opening Stock")} value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="bg-slate-50 focus:bg-white"/></div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-700">{t("Audit Title *")}</label>
+                      <Input 
+                        placeholder={t("e.g. Q1 2026 Opening Stock")} 
+                        value={formData.title} 
+                        onChange={(e) => setFormData({...formData, title: e.target.value})} 
+                        className="bg-white h-[44px] min-h-[44px] max-h-[44px] py-2 focus:bg-white border-slate-200 shadow-sm transition-all"
+                      />
+                    </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-slate-700">{t("Target Warehouse *")}</label>
                       <Select value={formData.warehouseId > 0 ? formData.warehouseId.toString() : undefined} onValueChange={(val) => setFormData({...formData, warehouseId: parseInt(val)})} disabled={isLoadingWarehouses}>
-                        <SelectTrigger className="w-full bg-slate-50 focus:bg-white text-slate-500">
+                        <SelectTrigger className="w-full bg-white hover:bg-slate-50 border-slate-200 h-[44px] min-h-[44px] max-h-[44px] px-4 shadow-sm text-slate-700 transition-colors">
                           <SelectValue placeholder={isLoadingWarehouses ? t("Loading...") : t("Select a Warehouse")} />
                         </SelectTrigger>
                         <SelectContent showSearch className="w-full">
@@ -136,18 +147,82 @@ export function AuditCreate({ role }: AuditCreateProps) {
                   <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
                     <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2"><LayoutGrid className="w-4 h-4 text-slate-400" /> 2. {t("Specific Bin Locations")}</h3>
                     <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm space-y-4">
-                      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                        <div><p className="font-semibold text-slate-800">{t("Available Bins")}</p><p className="text-xs text-slate-500">{t("Select the specific bins to audit, or select all for a full warehouse audit.")}</p></div>
-                        <Button variant={selectAllBins ? "default" : "outline"} size="sm" onClick={() => handleSelectAll(!selectAllBins)} className={`w-[210px] transition-colors ${selectAllBins ? "bg-indigo-600 text-white border-indigo-600" : "text-slate-700"}`} disabled={isLoadingBins || bins.length === 0}><CheckSquare className="w-4 h-4 flex-shrink-0" /><span className="truncate">{selectAllBins ? t("All Bins Selected") : t("Select All Bins")}</span></Button>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">{t("Select Bins to Audit *")}</label>
+                        <Popover open={isBinPopoverOpen} onOpenChange={setIsBinPopoverOpen}>
+                          <PopoverTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              role="combobox" 
+                              aria-expanded={isBinPopoverOpen}
+                              className="w-full justify-between bg-white hover:bg-slate-50 border-slate-200 h-11 px-4 shadow-sm"
+                              disabled={isLoadingBins || bins.length === 0}
+                            >
+                              <div className="flex items-center gap-2 truncate">
+                                <CheckSquare className="w-5 h-5 text-indigo-600" />
+                                {selectAllBins ? (
+                                  <span className="font-bold text-indigo-700">{t("All Bins Selected")}</span>
+                                ) : formData.binLocationIds && formData.binLocationIds.length > 0 ? (
+                                  <span className="font-bold text-indigo-700">{formData.binLocationIds.length} {t("bins selected")}</span>
+                                ) : (
+                                  <span className="text-slate-400">{t("Select bin locations...")}</span>
+                                )}
+                              </div>
+                              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-40" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                            <Command className="w-full">
+                              <CommandInput placeholder={t("Search bins...")} className="h-10" />
+                              <CommandList className="max-h-64">
+                                <CommandEmpty>{t("No bins found.")}</CommandEmpty>
+                                <CommandGroup>
+                                  <CommandItem 
+                                    onSelect={() => handleSelectAll(!selectAllBins)}
+                                    className="group flex items-center gap-3 cursor-pointer font-bold text-indigo-600 data-[selected=true]:bg-indigo-600 data-[selected=true]:text-white border-b border-slate-100 rounded-none py-3 px-4"
+                                  >
+                                    <div className={cn(
+                                      "flex h-4 w-4 items-center justify-center rounded-sm border transition-colors",
+                                      selectAllBins 
+                                        ? "bg-indigo-600 border-indigo-600 text-white group-data-[selected=true]:bg-white group-data-[selected=true]:border-white group-data-[selected=true]:text-indigo-600" 
+                                        : "border-indigo-600 text-transparent group-data-[selected=true]:border-white"
+                                    )}>
+                                      <Check className="h-3 w-3 text-current" style={{ strokeWidth: 4 }} />
+                                    </div>
+                                    <span className="flex-1">{t("Select All Bins")}</span>
+                                  </CommandItem>
+                                  {bins.map((bin) => {
+                                    const isChecked = formData.binLocationIds?.includes(bin.binId);
+                                    return (
+                                      <CommandItem
+                                        key={bin.binId}
+                                        value={bin.code}
+                                        onSelect={() => handleSelectBin(bin.binId, !isChecked)}
+                                        className="group flex items-center gap-3 cursor-pointer py-3 px-4 data-[selected=true]:bg-indigo-600 data-[selected=true]:text-white"
+                                      >
+                                        <div className={cn(
+                                          "flex h-4 w-4 items-center justify-center rounded-sm border transition-colors",
+                                          isChecked 
+                                            ? "bg-indigo-600 border-indigo-600 text-white group-data-[selected=true]:bg-white group-data-[selected=true]:border-white group-data-[selected=true]:text-indigo-600" 
+                                            : "border-slate-300 text-transparent group-data-[selected=true]:border-white"
+                                        )}>
+                                          <Check className="h-3 w-3 text-current" style={{ strokeWidth: 4 }} />
+                                        </div>
+                                        <span className={cn(
+                                          "flex-1 transition-colors", 
+                                          isChecked ? "font-semibold text-indigo-700 group-data-[selected=true]:text-white" : "text-slate-700 group-data-[selected=true]:text-white"
+                                        )}>
+                                          {bin.code}
+                                        </span>
+                                      </CommandItem>
+                                    );
+                                  })}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       </div>
-                      {isLoadingBins ? (<div className="flex justify-center items-center py-6 text-indigo-500"><Loader2 className="w-6 h-6 animate-spin" /></div>) : bins.length > 0 ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-48 overflow-y-auto p-1 pr-2">
-                          {bins.map((bin) => {
-                            const isChecked = formData.binLocationIds?.includes(bin.binId);
-                            return (<label key={bin.binId} className={`flex items-center gap-2 p-2.5 rounded-md border cursor-pointer transition-colors ${isChecked ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-slate-50 border-slate-200 hover:border-indigo-300 text-slate-700'}`}><input type="checkbox" className="w-4 h-4 accent-indigo-600 cursor-pointer" checked={isChecked} onChange={(e) => handleSelectBin(bin.binId, e.target.checked)} /><span className="font-medium text-sm">{bin.code}</span></label>);
-                          })}
-                        </div>
-                      ) : (<div className="text-center py-6 text-sm text-slate-500">{t("No bins available in this warehouse.")}</div>)}
                     </div>
                   </div>
                 )}
@@ -174,7 +249,19 @@ export function AuditCreate({ role }: AuditCreateProps) {
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="bg-white border-t border-slate-100 p-6 flex justify-end gap-3"><Button variant="outline" onClick={() => router.back()} disabled={isLoading}>{t("Cancel")}</Button><Button onClick={handleSave} disabled={isLoading} className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[150px] shadow-sm">{isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4" />} {t("Save & Close")}</Button></CardFooter>
+              <CardFooter className="bg-white border-t border-slate-100 p-6 flex justify-end gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => router.back()} 
+                  disabled={isLoading}
+                  className="h-11 px-6 bg-white hover:bg-slate-50 border-slate-200 text-slate-600 hover:text-indigo-600 font-bold transition-all shadow-sm active:scale-[0.98]"
+                >
+                  {t("Cancel")}
+                </Button>
+                <Button onClick={handleSave} disabled={isLoading} className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[150px] h-11 font-bold shadow-md transition-all active:scale-[0.98]">
+                  {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />} {t("Save & Close")}
+                </Button>
+              </CardFooter>
             </Card>
           </div>
         </div>
