@@ -10,7 +10,8 @@ export interface ProjectDto {
   status?: string;
 }
 
-export interface CreateProjectRequest {
+export interface SaveProjectRequest {
+  projectId?: number;
   code: string;
   name: string;
   startDate?: string;
@@ -32,14 +33,14 @@ export const projectService = {
     const response = await axiosClient.get<ProjectDto[]>("/accountants/projects");
     return response.data;
   },
-  create: async (data: CreateProjectRequest) => {
-    const response = await axiosClient.post("/accountants/projects", data);
+  save: async (data: SaveProjectRequest) => {
+    const response = await axiosClient.post("/accountants/projects/save", data);
     return response.data;
   },
-  update: async (id: number, data: UpdateProjectRequest) => {
-    const response = await axiosClient.put(`/accountants/projects/${id}`, data);
-    return response.data;
-  },
+  // update: async (id: number, data: UpdateProjectRequest) => {
+  //   const response = await axiosClient.put(`/accountants/projects/${id}`, data);
+  //   return response.data;
+  // },
   delete: async (id: number) => {
     const response = await axiosClient.delete(`/accountants/projects/${id}`);
     return response.data;

@@ -687,8 +687,10 @@ namespace Backend.Domains.Import.Services
                 {
                     MaterialId = i.MaterialId,
                     MaterialName = i.Material?.Name ?? string.Empty,
+                    MaterialCode = i.Material?.Code ?? string.Empty,
                     OrderedQuantity = i.SupplementaryQuantity,
-                    Unit = i.Material?.Unit ?? string.Empty
+                    Unit = i.Material?.Unit ?? string.Empty,
+                    IsDecimalUnit = i.Material?.IsDecimalUnit ?? false
                 }).ToList()
             };
         }

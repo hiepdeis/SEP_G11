@@ -36,6 +36,7 @@ declare global {
 }
 
 import { useReactToPrint } from "react-to-print";
+import { otpApi } from "@/services/otpservices";
 
 export default function CommonIssueSlipDetail() {
   const params = useParams();
@@ -141,19 +142,6 @@ export default function CommonIssueSlipDetail() {
 }, [detail]); // 👈 OK vì KHÔNG gọi API nữa
   
 
-  const setupRecaptcha = () => {
-     if (typeof window === "undefined") return;
-
-    if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(
-        auth,
-        "recaptcha-container",
-        {
-          size: "invisible",
-        }
-      );
-    }
-  };
 
   const handlePrint = useReactToPrint({
   contentRef: printRef,
@@ -167,7 +155,7 @@ export default function CommonIssueSlipDetail() {
   }
 });
 
-const handleSignatureEnd = () => {
+  const handleSignatureEnd = () => {
     if (sigCanvas.current && !sigCanvas.current.isEmpty()) setIsSigned(true);
   };
 
@@ -182,29 +170,8 @@ const handleSignatureEnd = () => {
     if (!sigCanvas.current || sigCanvas.current.isEmpty()) return toast.error("Vui lòng ký xác nhận.");
     try {
       setReviewing(true);
-
-      setupRecaptcha();
-      const phone = "+84858454828"; 
-      console.log("Using phone number for OTP:", phone);
-      const appVerifier = window.recaptchaVerifier;
-
-      try {
-        const confirmationResult = await signInWithPhoneNumber(
-          auth,
-          phone,
-          appVerifier
-        );
-        window.confirmationResult = confirmationResult;
-      } catch (error: any) {
-        console.log("ERROR CODE:", error.code);
-        console.log("FULL ERROR:", error);
-      }
-
-     
-
-    toast.success("Đã gửi mã OTP!");
-    setIsAdminSigning(false);
-    setIsOtpModalOpen(true);
+      setIsAdminSigning(false);
+      setIsOtpModalOpen(true);
     } catch (error) {
       toast.error("Lỗi khi gửi yêu cầu xác thực.");
     } finally {
@@ -216,30 +183,13 @@ const handleSignatureEnd = () => {
     if (otp.length !== 6) return toast.error("Vui lòng nhập đủ 6 số OTP.");
     try {
       setReviewing(true);
-      
-       const result = await window.confirmationResult.confirm(otp);
-
-    const user = result.user;
-
-    const idToken = await user.getIdToken(); // 🔥 QUAN TRỌNG
-
-    const signatureBase64 = sigCanvas.current
-      ?.getTrimmedCanvas()
-      .toDataURL("image/png");
-
-    // 👉 Gửi lên backend
-    await axiosClient.post(`/IssueSlips/${issueId}/approve-with-otp`, {
-      idToken,
-      signatureBase64,
-    });
-
-    toast.success("Xác thực thành công!");
-    setIsOtpModalOpen(false);
-    setOtp("");
-    clearSignature();
-
-    const data = await issueSlipApi.getIssueSlipDetail(issueId);
-    setDetail(data);
+      await otpApi.verifyAction(otp);
+      toast.success("Xác thực và ký duyệt thành công!");
+      setIsOtpModalOpen(false);
+      setOtp("");
+      handleReview("Approved");
+      const data = await issueSlipApi.getIssueSlipDetail(issueId);
+      setDetail(data);
     } catch (error) {
       toast.error("Mã OTP không chính xác hoặc đã hết hạn.");
     } finally {
@@ -254,30 +204,31 @@ const handleSignatureEnd = () => {
     setSelectedPoId(poId);
     setIsPoSigningOpen(true);
   };
-
+  // kế toán ký và xác nhận 
   const handleConfirmPoSignature = async () => {
     if (!poSigCanvas.current || poSigCanvas.current.isEmpty()) return toast.error("Vui lòng ký xác nhận.");
     try {
-      setReviewing(true);
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Giả lập mạng 1s
-      toast.success("Hệ thống đã gửi mã OTP đến điện thoại của Kế toán.");
+      
       setIsPoSigningOpen(false);
       setIsPoOtpOpen(true);
     } catch (error) { toast.error("Lỗi khi gửi yêu cầu xác thực."); } finally { setReviewing(false); }
   };
 
+  // KẾ TOÁN: Gửi Đơn mua ngoài cho phòng Thu mua sau khi đã ký và xác nhận OTP
   const handleConfirmPoOtp = async () => {
     if (poOtp.length !== 6) return toast.error("Vui lòng nhập đủ 6 số OTP.");
     if (!selectedPoId) return toast.error("Không tìm thấy mã PO.");
     try {
       setReviewing(true);
+      await otpApi.verifyAction(poOtp);
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       await issueSlipApi.changeStatus(selectedPoId, { action: "Forwarded_To_Purchasing", reason: "" });
-      toast.success("Xác thực thành công! Đã chuyển lệnh Mua ngoài cho Thu mua.");
+      toast.success("Xác thực thành công! Đã chuyển lệnh Mua ngoài cho Thu mua.");  
       
       setGeneratedSlips(prev => prev ? { ...prev, poSent: true } : null);
       setIsPoOtpOpen(false); setPoOtp(""); clearPoSignature();
+    
     } catch (error) { toast.error("Mã OTP không chính xác."); } finally { setReviewing(false); }
   };
 
@@ -489,20 +440,6 @@ const handleSignatureEnd = () => {
       setGeneratedSlips(prev => prev ? { ...prev, inventorySent: true } : null);
     } catch (err) {
       toast.error("Lỗi khi gửi lệnh Xuất kho.");
-    } finally {
-      setReviewing(false);
-    }
-  };
-
-  // KẾ TOÁN: Gửi Đơn mua ngoài cho phòng Thu mua
-  const handleSendPO = async (poId: number) => {
-    try {
-      setReviewing(true);
-      await issueSlipApi.changeStatus(poId, { action: "Forwarded_To_Purchasing", reason: "" });
-      toast.success("Đã chuyển lệnh Mua ngoài cho Thu mua!");
-      setGeneratedSlips(prev => prev ? { ...prev, poSent: true } : null);
-    } catch (err) {
-      toast.error("Lỗi khi gửi đơn mua ngoài.");
     } finally {
       setReviewing(false);
     }
@@ -797,7 +734,7 @@ const handleSignatureEnd = () => {
                 </Card>
               )}
 
-              {/* DANH SÁCH NHẶT HÀNG */}
+              {/* DANH SÁCH NHẶT HÀNG  cho nhan vien */}
               {role === "WarehouseStaff" && detail.status === "Picking_In_Progress" && (
                 <Card className="border-slate-200 shadow-sm bg-white overflow-hidden mt-0 sm:mt-6">
                   <CardHeader className="bg-white border-b border-slate-100 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1159,7 +1096,7 @@ const handleSignatureEnd = () => {
                         <SelectTrigger className="bg-white">
                           <SelectValue placeholder="-- Chọn nhân viên --" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent showSearch className="w-full">
                           {pickers.map((p) => (
                             <SelectItem key={p.userId} value={p.userId.toString()}>
                               {p.fullName}
@@ -1293,7 +1230,7 @@ const handleSignatureEnd = () => {
                 </DialogContent>
               </Dialog>
 
-              {/* ================= MODAL KÝ TÊN CỦA ADMIN ================= */}
+              {/*  MODAL KÝ TÊN CỦA ADMIN  */}
               <Dialog open={isAdminSigning} onOpenChange={(open) => { 
                 setIsAdminSigning(open); 
                 if (!open && sigCanvas.current) { sigCanvas.current.clear(); setIsSigned(false); } 
@@ -1344,7 +1281,7 @@ const handleSignatureEnd = () => {
                 </DialogContent>
               </Dialog>
 
-              {/* ================= MODAL NHẬP OTP CỦA ADMIN ================= */}
+              {/*  MODAL NHẬP OTP CỦA ADMIN  */}
               <div id="recaptcha-container" style={{ display: "none" }} /> 
               <Dialog open={isOtpModalOpen} onOpenChange={setIsOtpModalOpen}>
                 <DialogContent className="sm:max-w-[400px]">
@@ -1353,7 +1290,7 @@ const handleSignatureEnd = () => {
                       <ShieldCheck className="w-5 h-5" /> Xác thực bảo mật OTP
                     </DialogTitle>
                     <DialogDescription>
-                      Hệ thống đã gửi một mã bảo mật gồm 6 ký tự đến số điện thoại của bạn. Vui lòng kiểm tra tin nhắn.
+                      Hệ thống yêu cầu mã xác thực 2 lớp. Vui lòng kiểm tra ứng dụng Authenticator của bạn và nhập mã gồm 6 chữ số.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="py-6 flex flex-col items-center justify-center space-y-4">
@@ -1384,7 +1321,7 @@ const handleSignatureEnd = () => {
                         </div>
                       )}
                     />
-                    <p className="text-xs text-slate-500">Mã OTP sẽ hết hạn trong 5 phút nữa.</p>
+                    <p className="text-xs text-slate-500">Mã OTP sẽ reset trong 1 phút nữa.</p>
                   </div>
                   <DialogFooter className="gap-2">
                     <Button variant="outline" onClick={() => setIsOtpModalOpen(false)}>Hủy</Button>
@@ -1401,7 +1338,7 @@ const handleSignatureEnd = () => {
               </Dialog>
               </div>       
 
-              {/* ================= MODAL KÝ TÊN CỦA ACCOUNTANT (GỬI PO) ================= */}
+              {/*  MODAL KÝ TÊN CỦA ACCOUNTANT (GỬI PO)  */}
               <Dialog open={isPoSigningOpen} onOpenChange={(open) => { 
                 setIsPoSigningOpen(open); 
                 if (!open && poSigCanvas.current) { poSigCanvas.current.clear(); setIsPoSigned(false); } 
@@ -1452,7 +1389,7 @@ const handleSignatureEnd = () => {
                 </DialogContent>
               </Dialog>
 
-              {/* ================= MODAL NHẬP OTP CỦA ACCOUNTANT (GỬI PO) ================= */}
+              {/*  MODAL NHẬP OTP CỦA ACCOUNTANT (GỬI PO)  */}
               <Dialog open={isPoOtpOpen} onOpenChange={setIsPoOtpOpen}>
                 <DialogContent className="w-[95vw] sm:max-w-[400px] rounded-lg">
                   <DialogHeader>
@@ -1460,7 +1397,7 @@ const handleSignatureEnd = () => {
                       <ShieldCheck className="w-5 h-5" /> Xác thực bảo mật OTP
                     </DialogTitle>
                     <DialogDescription>
-                      Hệ thống đã gửi một mã bảo mật gồm 6 chữ số đến số điện thoại của bạn. Vui lòng kiểm tra tin nhắn.
+                      Hệ thống yêu cầu mã xác thực 2 lớp. Vui lòng kiểm tra ứng dụng Authenticator của bạn và nhập mã gồm 6 chữ số.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="py-6 flex flex-col items-center justify-center space-y-4">
@@ -1490,7 +1427,7 @@ const handleSignatureEnd = () => {
                         </div>
                       )}
                     />
-                    <p className="text-xs text-slate-500">Mã OTP sẽ hết hạn trong 5 phút nữa.</p>
+                    <p className="text-xs text-slate-500">Mã OTP sẽ hết hạn trong 1 phút nữa.</p>
                   </div>
                   <DialogFooter className="gap-2">
                     <Button variant="outline" onClick={() => setIsPoOtpOpen(false)}>Hủy</Button>

@@ -324,14 +324,14 @@ export default function IssueMaterialPage() {
                   <label className="text-xs font-bold text-slate-700 uppercase">{t("Project")} <span className="text-red-500">*</span></label>
                   <Select value={formData.projectId} onValueChange={(val) => { setFormData({...formData, projectId: val}); setFormErrors(prev => prev.filter(e => e !== 'projectId')); }}>
                     <SelectTrigger className={`w-full bg-slate-50 focus:bg-white ${formErrors.includes('projectId') ? 'border-red-500 ring-1 ring-red-500' : ''}`}><SelectValue placeholder={t("Select...")} /></SelectTrigger>
-                    <SelectContent>{projects.map(p => <SelectItem key={p.projectId} value={p.projectId.toString()}>{p.name}</SelectItem>)}</SelectContent>
+                    <SelectContent showSearch className="w-full">{projects.map(p => <SelectItem key={p.projectId} value={p.projectId.toString()}>{p.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className={`space-y-2 ${shakeFields.includes('workItem') ? 'animate-shake' : ''}`}>
                   <label className="text-xs font-bold text-slate-700 uppercase">{t("Work Item")} <span className="text-red-500">*</span></label>
                   <Select value={formData.workItem} onValueChange={(val) => { setFormData({...formData, workItem: val}); setFormErrors(prev => prev.filter(e => e !== 'workItem')); }}>
                     <SelectTrigger className={`w-full bg-slate-50 focus:bg-white ${formErrors.includes('workItem') ? 'border-red-500 ring-1 ring-red-500' : ''}`}><SelectValue placeholder={t("Select...")} /></SelectTrigger>
-                    <SelectContent><SelectItem value="foundation">{t("Foundation")}</SelectItem></SelectContent>
+                    <SelectContent showSearch className="w-full"><SelectItem value="foundation">{t("Foundation")}</SelectItem></SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2"><label className="text-xs font-bold text-slate-700 uppercase">{t("Requester")}</label><Input value={formData.requester} disabled className="bg-slate-100 text-slate-600 font-medium" /></div>
@@ -340,7 +340,7 @@ export default function IssueMaterialPage() {
                   <label className="text-xs font-bold text-slate-700 uppercase">{t("Source Warehouse")} <span className="text-red-500">*</span></label>
                   <Select value={formData.warehouseId} onValueChange={(val) => { setFormData({...formData, warehouseId: val}); setFormErrors(prev => prev.filter(e => e !== 'warehouseId')); }}>
                     <SelectTrigger className={`w-full bg-slate-50 focus:bg-white ${formErrors.includes('warehouseId') ? 'border-red-500 ring-1 ring-red-500' : ''}`}><SelectValue placeholder={t("Select...")} /></SelectTrigger>
-                    <SelectContent>{warehouses.map(wh => <SelectItem key={wh.warehouseId} value={wh.warehouseId.toString()}>{wh.name}</SelectItem>)}</SelectContent>
+                    <SelectContent showSearch className="w-full">{warehouses.map(wh => <SelectItem key={wh.warehouseId} value={wh.warehouseId.toString()}>{wh.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className={`space-y-2 ${shakeFields.includes('deliveryLocation') ? 'animate-shake' : ''}`}>

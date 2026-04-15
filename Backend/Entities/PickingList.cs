@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Backend.Entities
 {
-    [Table("PickingList")]
+    [Table("PickingLists")]
     public partial class PickingList
     {
         [Key]
@@ -38,5 +38,7 @@ namespace Backend.Entities
         [ForeignKey("BinId")]
         [InverseProperty("PickingLists")]
         public virtual BinLocation Bin { get; set; } = null!;
+
+        public int? ActualPickerId { get; set; }
     }
 }

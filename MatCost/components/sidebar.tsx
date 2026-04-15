@@ -16,6 +16,7 @@ import {
   Database,
   Bell,
   LayoutDashboard,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,11 +31,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useRouter, usePathname } from "next/navigation";
 import { useSidebar } from "./sidebar-context";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { UserDropdown } from "@/components/user-dropdown";
 import { useAuth } from "@/components/providers/auth-provider";
 import { userApi } from "@/services/user-service";
 import { useTranslation } from "react-i18next";
+import IncomingShipments from "@/app/(protected)/outbound/purchasing/IncomingShipments/page";
 
 export function Sidebar() {
   const { t } = useTranslation();
@@ -48,11 +50,31 @@ export function Sidebar() {
     email: string;
   } | null>(null);
 
+  const [showInboundMobile, setShowInboundMobile] = useState(false);
   const [showOutboundMobile, setShowOutboundMobile] = useState(false);
   const [showReportsMobile, setShowReportsMobile] = useState(false);
   const [openMobileReportRole, setOpenMobileReportRole] = useState<
     string | null
   >(null);
+
+  const [devBypassRole, setDevBypassRole] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("DEV_BYPASS_ROLE") === "true";
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handleStorage = () => {
+      setDevBypassRole(localStorage.getItem("DEV_BYPASS_ROLE") === "true");
+    };
+    window.addEventListener("storage", handleStorage);
+    const id = setInterval(handleStorage, 1000);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      clearInterval(id);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -70,11 +92,10 @@ export function Sidebar() {
   }, [userDecode?.id]);
 
   const navItems = [
-    { label: t("sidebar.dashboard"), icon: LayoutGrid, href: "/dashboard" },
     {
-      label: t("sidebar.inventory"),
-      icon: Package,
-      href: "/dashboard/inventory",
+      label: t("sidebar.dashboard"),
+      icon: LayoutGrid,
+      href: `/${userDecode?.role.toLowerCase()}`,
     },
   ];
 
@@ -85,20 +106,75 @@ export function Sidebar() {
     },
     {
       label: t("sidebar.roles.construction"),
-      href: "/outbound/contruction/MaterialRequestForm",
+      href: "/outbound/purchasing/IncomingShipments",
     },
-    { label: t("sidebar.roles.accountant"), href: "/outbound/account" },
-    { label: t("sidebar.roles.manager"), href: "/outbound/manager" },
+    // { label: t("sidebar.roles.accountant"), href: "/outbound/account" },
+    // { label: t("sidebar.roles.manager"), href: "/outbound/manager" },
+    // {
+    //   label: t("sidebar.tabs.inventory_issue"),
+    //   href: "/outbound/staff/InventoryIssueList",
+    // },
+
+  ];
+
+  const allAuditTabs = [
+    { label: t("sidebar.roles.admin"), href: "/admin/audit", roles: ["Admin"] },
     {
-      label: t("sidebar.tabs.inventory_issue"),
-      href: "/outbound/staff/InventoryIssueList",
+      label: t("sidebar.roles.accountant"),
+      href: "/accountant/audit",
+      roles: ["Accountant"],
+    },
+    {
+      label: t("sidebar.roles.manager"),
+      href: "/manager/audit",
+      roles: ["Manager"],
+    },
+    { label: t("sidebar.roles.staff"), href: "/staff/audit", roles: ["Staff"] },
+  ];
+
+  const allReportRoles = [
+    {
+      id: "staff",
+      label: t("sidebar.roles.staff"),
+      href: "/staff/reports",
+      roles: ["Staff"],
+      categories: [
+        {
+          label: t("sidebar.tabs.import_export"),
+          href: "/staff/reports/import-export",
+        },
+      ],
+    },
+    {
+      id: "manager",
+      label: t("sidebar.roles.manager"),
+      href: "/manager/reports",
+      roles: ["Manager"],
+      categories: [
+        {
+          label: t("sidebar.tabs.import_export"),
+          href: "/manager/reports/import-export",
+        },
+      ],
+    },
+    {
+      label: t("sidebar.roles.admin"),
+      href: "/admin/reports",
+      roles: ["Admin"],
+      categories: [
+        {
+          label: t("sidebar.tabs.import_export"),
+          href: "/admin/reports/import-export",
+        },
+      ],
     },
   ];
 
-  const inboundTabs = [
+  const allInboundTabs = [
     {
       label: t("sidebar.roles.admin"),
       href: "/admin",
+      roles: ["Admin"],
       subItems: [
         {
           label: t("sidebar.tabs.purchase_requests"),
@@ -113,6 +189,7 @@ export function Sidebar() {
     {
       label: t("sidebar.roles.purchase"),
       href: "/purchasing",
+      roles: ["Purchasing"],
       subItems: [
         {
           label: t("sidebar.tabs.purchase_orders"),
@@ -127,6 +204,7 @@ export function Sidebar() {
     {
       label: t("sidebar.roles.accountant"),
       href: "/accountant",
+      roles: ["Accountant"],
       subItems: [
         {
           label: t("sidebar.tabs.purchase_orders"),
@@ -141,6 +219,7 @@ export function Sidebar() {
     {
       label: t("sidebar.roles.manager"),
       href: "/manager",
+      roles: ["Manager"],
       subItems: [
         {
           label: t("sidebar.tabs.pending_pos"),
@@ -163,6 +242,7 @@ export function Sidebar() {
     {
       label: t("sidebar.roles.staff"),
       href: "/staff",
+      roles: ["Staff"],
       subItems: [
         {
           label: t("sidebar.tabs.pending_pos"),
@@ -180,44 +260,49 @@ export function Sidebar() {
     },
   ];
 
-  const auditTabs = [
-    { label: t("sidebar.roles.admin"), href: "/admin/audit" },
-    { label: t("sidebar.roles.accountant"), href: "/accountant/audit" },
-    { label: t("sidebar.roles.manager"), href: "/manager/audit" },
-    { label: t("sidebar.roles.staff"), href: "/staff/audit" },
-  ];
+  const userRole = userDecode?.role ?? "";
 
-  const reportRoles = [
-    {
-      id: "staff",
-      label: t("sidebar.roles.staff"),
-      href: "/staff/reports",
-      categories: [
-        {
-          label: t("sidebar.tabs.import_export"),
-          href: "/staff/reports/import-export",
-        },
-      ],
-    },
-    {
-      id: "manager",
-      label: t("sidebar.roles.manager"),
-      href: "/manager/reports",
-      categories: [
-        {
-          label: t("sidebar.tabs.import_export"),
-          href: "/manager/reports/import-export",
-        },
-      ],
-    },
-  ];
+  type InboundTab = {
+    label: string;
+    href: string;
+    roles?: string[];
+    subItems?: { label: string; href: string }[];
+  };
+
+  const inboundTabs: InboundTab[] = useMemo(() => {
+    if (devBypassRole) return allInboundTabs;
+    return allInboundTabs
+      .filter((tab) => tab.roles.includes(userRole))
+      .flatMap((tab) =>
+        tab.subItems
+          ? tab.subItems.map((sub) => ({ label: sub.label, href: sub.href }))
+          : [{ label: tab.label, href: tab.href }],
+      );
+  }, [devBypassRole, userRole, t]);
+
+  const auditTabs = useMemo(() => {
+    if (devBypassRole) return allAuditTabs;
+    return allAuditTabs.filter((tab) => tab.roles.includes(userRole));
+  }, [devBypassRole, userRole, t]);
+
+  type ReportTab = {
+    label: string;
+    href: string;
+    id?: string;
+    roles?: string[];
+    categories?: { label: string; href: string }[];
+  };
+
+  const reportRoles: ReportTab[] = useMemo(() => {
+    if (devBypassRole) return allReportRoles;
+    return allReportRoles
+      .filter((r) => r.roles.includes(userRole))
+      .flatMap((r) =>
+        r.categories.map((cat) => ({ label: cat.label, href: cat.href })),
+      );
+  }, [devBypassRole, userRole, t]);
 
   const adminNavItems = [
-    {
-      label: t("sidebar.admin_dashboard"),
-      icon: LayoutDashboard,
-      href: "/admin",
-    },
     { label: t("sidebar.admin_users"), icon: Users, href: "/admin/users" },
     {
       label: t("sidebar.admin_master_data"),
@@ -298,7 +383,7 @@ export function Sidebar() {
         <nav className="flex-1 px-3 py-6 space-y-2 overflow-y-auto no-scrollbar">
           {navItems.map((item, i) => {
             const Icon = item.icon;
-            const isActive = pathname.match(item.href);
+            const isActive = pathname === item.href;
             return (
               <a
                 key={i}
@@ -343,10 +428,11 @@ export function Sidebar() {
           })}
 
           {/* Inbound (Import) Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className={`
+          {inboundTabs.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={`
                   relative flex gap-3 px-3 py-3 rounded-xl transition-all duration-300 group overflow-hidden w-full
                   ${
                     pathname.match("/material-request") ||
@@ -356,9 +442,9 @@ export function Sidebar() {
                   }
                   ${isExpanded ? "justify-start" : "justify-center"}
                 `}
-              >
-                <Download
-                  className={`
+                >
+                  <Download
+                    className={`
                     h-5 w-5 flex-shrink-0 transition-all duration-300
                     ${
                       pathname.match("/material-request") ||
@@ -367,64 +453,67 @@ export function Sidebar() {
                         : "text-slate-400 group-hover:text-slate-600 group-hover:scale-110"
                     }
                   `}
-                />
-                {isExpanded && (
-                  <>
-                    <span className="text-sm font-medium whitespace-nowrap">
-                      {t("sidebar.inbound")}
-                    </span>
-                    <ChevronDown className="w-4 h-4 ml-auto" />
-                  </>
-                )}
-                {(pathname.match("/material-request") ||
-                  pathname.match("/import-request")) && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              side="right"
-              align="start"
-              className="ml-4 w-56"
-            >
-              {inboundTabs.map((tab) =>
-                tab.subItems ? (
-                  <DropdownMenuSub key={tab.label}>
-                    <DropdownMenuSubTrigger className="cursor-pointer">
+                  />
+                  {isExpanded && (
+                    <>
+                      <span className="text-sm font-medium whitespace-nowrap">
+                        {t("sidebar.inbound")}
+                      </span>
+                      <ChevronDown className="w-4 h-4 ml-auto" />
+                    </>
+                  )}
+                  {(pathname.match("/material-request") ||
+                    pathname.match("/import-request")) && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                side="right"
+                align="start"
+                className="ml-4 w-56"
+              >
+                {inboundTabs.map((tab) =>
+                  "subItems" in tab && tab.subItems ? (
+                    <DropdownMenuSub key={tab.label}>
+                      <DropdownMenuSubTrigger className="cursor-pointer">
+                        {tab.label}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent className="w-48">
+                          {tab.subItems.map(
+                            (sub: { label: string; href: string }) => (
+                              <DropdownMenuItem
+                                key={sub.href}
+                                onClick={() => router.push(sub.href)}
+                                className={
+                                  pathname === sub.href
+                                    ? "bg-blue-100 font-semibold"
+                                    : ""
+                                }
+                              >
+                                {sub.label}
+                              </DropdownMenuItem>
+                            ),
+                          )}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                  ) : (
+                    <DropdownMenuItem
+                      key={tab.href}
+                      onClick={() => router.push(tab.href)}
+                      className={
+                        pathname === tab.href ? "bg-blue-100 font-semibold" : ""
+                      }
+                    >
                       {tab.label}
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuPortal>
-                      <DropdownMenuSubContent className="w-48">
-                        {tab.subItems.map((sub) => (
-                          <DropdownMenuItem
-                            key={sub.href}
-                            onClick={() => router.push(sub.href)}
-                            className={
-                              pathname === sub.href
-                                ? "bg-blue-100 font-semibold"
-                                : ""
-                            }
-                          >
-                            {sub.label}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuPortal>
-                  </DropdownMenuSub>
-                ) : (
-                  <DropdownMenuItem
-                    key={tab.href}
-                    onClick={() => router.push(tab.href)}
-                    className={
-                      pathname === tab.href ? "bg-blue-100 font-semibold" : ""
-                    }
-                  >
-                    {tab.label}
-                  </DropdownMenuItem>
-                ),
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                    </DropdownMenuItem>
+                  ),
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           {/* Outbound Dropdown */}
           <DropdownMenu>
@@ -478,10 +567,11 @@ export function Sidebar() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className={`
+          {reportRoles.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={`
                   relative flex gap-3 px-3 py-3 rounded-xl transition-all duration-300 group overflow-hidden w-full
                   ${
                     isReportActive
@@ -490,9 +580,9 @@ export function Sidebar() {
                   }
                   ${isExpanded ? "justify-start" : "justify-center"}
                 `}
-              >
-                <FileText
-                  className={`
+                >
+                  <FileText
+                    className={`
                     h-5 w-5 flex-shrink-0 transition-all duration-300
                     ${
                       isReportActive
@@ -500,62 +590,78 @@ export function Sidebar() {
                         : "text-slate-400 group-hover:text-slate-600 group-hover:scale-110"
                     }
                   `}
-                />
-                {isExpanded && (
-                  <>
-                    <span className="text-sm font-medium whitespace-nowrap">
-                      {t("sidebar.reports")}
-                    </span>
-                    <ChevronDown className="w-4 h-4 ml-auto" />
-                  </>
+                  />
+                  {isExpanded && (
+                    <>
+                      <span className="text-sm font-medium whitespace-nowrap">
+                        {t("sidebar.reports")}
+                      </span>
+                      <ChevronDown className="w-4 h-4 ml-auto" />
+                    </>
+                  )}
+                  {isReportActive && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                side="right"
+                align="start"
+                className="ml-4 w-56"
+              >
+                {reportRoles.map((role) =>
+                  "categories" in role && role.categories ? (
+                    <DropdownMenuSub key={role.href}>
+                      <DropdownMenuSubTrigger
+                        className="cursor-pointer"
+                        onClick={() => router.push(role.href)}
+                      >
+                        <span>{role.label}</span>
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent className="w-44">
+                          {role.categories.map(
+                            (cat: { label: string; href: string }) => (
+                              <DropdownMenuItem
+                                key={cat.href}
+                                onClick={() => router.push(cat.href)}
+                                className={
+                                  pathname === cat.href
+                                    ? "bg-blue-100 font-semibold"
+                                    : ""
+                                }
+                              >
+                                {cat.label}
+                              </DropdownMenuItem>
+                            ),
+                          )}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                  ) : (
+                    <DropdownMenuItem
+                      key={role.href}
+                      onClick={() => router.push(role.href)}
+                      className={
+                        pathname === role.href
+                          ? "bg-blue-100 font-semibold"
+                          : ""
+                      }
+                    >
+                      {role.label}
+                    </DropdownMenuItem>
+                  ),
                 )}
-                {isReportActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
-                )}
-              </button>
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent
-              side="right"
-              align="start"
-              className="ml-4 w-56"
-            >
-              {reportRoles.map((role) => (
-                <DropdownMenuSub key={role.id}>
-                  {/* Click to navigate, Hover to open submenu */}
-                  <DropdownMenuSubTrigger
-                    className="cursor-pointer"
-                    onClick={() => router.push(role.href)}
-                  >
-                    <span>{role.label}</span>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuPortal>
-                    <DropdownMenuSubContent className="w-44">
-                      {role.categories.map((cat) => (
-                        <DropdownMenuItem
-                          key={cat.href}
-                          onClick={() => router.push(cat.href)}
-                          className={
-                            pathname === cat.href
-                              ? "bg-blue-100 font-semibold"
-                              : ""
-                          }
-                        >
-                          {cat.label}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuPortal>
-                </DropdownMenuSub>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           {/* Audit Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className={`
+          {auditTabs.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={`
                   relative flex gap-3 px-3 py-3 rounded-xl transition-all duration-300 group overflow-hidden w-full
                   ${
                     pathname.includes("/audit")
@@ -564,9 +670,9 @@ export function Sidebar() {
                   }
                   ${isExpanded ? "justify-start" : "justify-center"}
                 `}
-              >
-                <ClipboardCheck
-                  className={`
+                >
+                  <ClipboardCheck
+                    className={`
                     h-5 w-5 flex-shrink-0 transition-all duration-300
                     ${
                       pathname.includes("/audit")
@@ -574,36 +680,71 @@ export function Sidebar() {
                         : "text-slate-400 group-hover:text-slate-600 group-hover:scale-110"
                     }
                   `}
-                />
-                {isExpanded && (
-                  <>
-                    <span className="text-sm font-medium whitespace-nowrap">
-                      {t("sidebar.audit")}
-                    </span>
-                    <ChevronDown className="w-4 h-4 ml-auto" />
-                  </>
-                )}
-                {pathname.includes("/audit") && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="right" align="start" className="ml-4">
-              {auditTabs.map((tab) => (
-                <DropdownMenuItem
-                  key={tab.href}
-                  onClick={() => router.push(tab.href)}
-                  className={
-                    pathname.startsWith(tab.href)
-                      ? "bg-blue-100 font-semibold text-blue-700"
-                      : ""
-                  }
-                >
-                  {tab.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  />
+                  {isExpanded && (
+                    <>
+                      <span className="text-sm font-medium whitespace-nowrap">
+                        {t("sidebar.audit")}
+                      </span>
+                      <ChevronDown className="w-4 h-4 ml-auto" />
+                    </>
+                  )}
+                  {pathname.includes("/audit") && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="right" align="start" className="ml-4">
+                {auditTabs.map((tab) => (
+                  <DropdownMenuItem
+                    key={tab.href}
+                    onClick={() => router.push(tab.href)}
+                    className={
+                      pathname.startsWith(tab.href)
+                        ? "bg-blue-100 font-semibold text-blue-700"
+                        : ""
+                    }
+                  >
+                    {tab.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          <a
+            href="/security/2fa"
+            className={`
+              relative flex gap-3 px-3 py-3 rounded-xl transition-all duration-300 group overflow-hidden w-full
+              ${
+                pathname.includes("/security/2fa")
+                  ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm"
+              }
+              ${isExpanded ? "justify-start" : "justify-center"}
+            `}
+          >
+            <ShieldCheck
+              className={`
+                h-5 w-5 flex-shrink-0 transition-all duration-300
+                ${
+                  pathname.includes("/security/2fa")
+                    ? "text-blue-600 scale-110"
+                    : "text-slate-400 group-hover:text-slate-600 group-hover:scale-110"
+                }
+              `}
+            />
+            {isExpanded && (
+              <span className="text-sm font-medium whitespace-nowrap">
+                Bảo mật 2FA
+              </span>
+            )}
+            {pathname.includes("/security/2fa") && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
+            )}
+          </a>
+
+
 
           {/* Admin Section */}
           {userDecode?.role === "Admin" && (
@@ -618,18 +759,18 @@ export function Sidebar() {
                   const Icon = item.icon;
                   const isActive = pathname === item.href;
                   return (
-                    <a
+                    <button
                       key={i}
-                      href={item.href}
+                      onClick={() => router.push(item.href)}
                       className={`
-                        relative flex gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 group overflow-hidden
-                        ${
-                          isActive
-                            ? "bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-100"
-                            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                        }
-                        ${isExpanded ? "justify-start" : "justify-center"}
-                      `}
+                      relative flex gap-3 px-3 py-3 rounded-xl transition-all duration-300 group overflow-hidden w-full
+                      ${
+                        isActive
+                          ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100"
+                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm"
+                      }
+                      ${isExpanded ? "justify-start" : "justify-center"}
+                    `}
                     >
                       {isActive && (
                         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-indigo-600 rounded-r-full" />
@@ -649,7 +790,7 @@ export function Sidebar() {
                           {item.label}
                         </span>
                       )}
-                    </a>
+                    </button>
                   );
                 })}
               </div>
@@ -808,6 +949,80 @@ export function Sidebar() {
                 )}
               </div>
 
+              {/* Inbound Accordion Mobile */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setShowInboundMobile((v) => !v)}
+                  className={`
+                    flex items-center gap-4 px-4 py-3.5 rounded-xl w-full transition-all duration-200 group relative
+                    ${
+                      pathname.match("/material-request") ||
+                      pathname.match("/import-request")
+                        ? "bg-blue-50 text-blue-700 font-semibold shadow-sm"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    }
+                  `}
+                >
+                  <Download
+                    className={`h-5 w-5 flex-shrink-0 transition-colors ${
+                      pathname.match("/material-request") ||
+                      pathname.match("/import-request")
+                        ? "text-blue-600"
+                        : "text-slate-400 group-hover:text-slate-600"
+                    }`}
+                  />
+                  <span className="text-base flex-1 text-left">
+                    {t("sidebar.inbound")}
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform duration-200 ${showInboundMobile ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {showInboundMobile && (
+                  <div className="ml-10 flex flex-col gap-1 border-l-2 border-slate-100 pl-2">
+                    {inboundTabs.map((tab) =>
+                      "subItems" in tab && tab.subItems ? (
+                        <div key={tab.label}>
+                          <p className="px-3 py-1.5 text-xs font-semibold text-slate-400 uppercase">
+                            {tab.label}
+                          </p>
+                          {tab.subItems.map(
+                            (sub: { label: string; href: string }) => (
+                              <a
+                                key={sub.href}
+                                href={sub.href}
+                                onClick={() => setIsMobileOpen(false)}
+                                className={`px-3 py-2 rounded-lg text-sm transition-colors block ${
+                                  pathname === sub.href
+                                    ? "bg-blue-100 text-blue-700 font-semibold"
+                                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                                }`}
+                              >
+                                {sub.label}
+                              </a>
+                            ),
+                          )}
+                        </div>
+                      ) : (
+                        <a
+                          key={tab.href}
+                          href={tab.href}
+                          onClick={() => setIsMobileOpen(false)}
+                          className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                            pathname === tab.href
+                              ? "bg-blue-100 text-blue-700 font-semibold"
+                              : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                          }`}
+                        >
+                          {tab.label}
+                        </a>
+                      ),
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Audit Dropdown Mobile */}
               <div className="space-y-1">
                 <button
@@ -893,7 +1108,7 @@ export function Sidebar() {
                               setOpenMobileReportRole(
                                 openMobileReportRole === role.id
                                   ? null
-                                  : role.id,
+                                  : (role.id ?? null),
                               );
                             }}
                             className="p-2 text-slate-400 hover:text-slate-700"
@@ -906,7 +1121,7 @@ export function Sidebar() {
 
                         {openMobileReportRole === role.id && (
                           <div className="ml-4 flex flex-col gap-1 mt-1">
-                            {role.categories.map((cat) => (
+                            {role.categories?.map((cat) => (
                               <a
                                 key={cat.href}
                                 href={cat.href}
@@ -927,32 +1142,59 @@ export function Sidebar() {
                   </div>
                 )}
               </div>
-            </nav>
 
-            <div className="border-t border-slate-100 p-4 bg-slate-50/50">
-              <UserDropdown
-                side="top"
-                align="center"
-                trigger={
-                  <button className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-white border border-slate-200 shadow-sm">
-                    <div className="relative flex-shrink-0">
-                      <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold text-white shadow-md shadow-indigo-200 ring-2 ring-white">
-                        <User className="h-5 w-5" />
-                      </div>
-                    </div>
-                    <div className="flex-1 text-left min-w-0">
-                      <p className="text-sm font-bold text-slate-900 truncate">
-                        {userProfile?.fullName || "Loading..."}
-                      </p>
-                      <p className="text-xs text-slate-500 truncate">
-                        {userProfile?.email || "..."}
-                      </p>
-                    </div>
-                    <Settings className="w-5 h-5 text-slate-400" />
-                  </button>
-                }
-              />
-            </div>
+
+              <a
+                href="/security/2fa"
+                onClick={() => setIsMobileOpen(false)}
+                className={`
+                  flex items-center gap-4 px-4 py-3.5 rounded-xl w-full transition-all duration-200 group relative
+                  ${
+                    pathname.includes("/security/2fa")
+                      ? "bg-blue-50 text-blue-700 font-semibold shadow-sm"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }
+                `}
+              >
+                {pathname.includes("/security/2fa") && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-blue-600 rounded-r-full"></div>
+                )}
+                <ShieldCheck
+                  className={`h-5 w-5 flex-shrink-0 transition-colors ${
+                    pathname.includes("/security/2fa")
+                      ? "text-blue-600"
+                      : "text-slate-400 group-hover:text-slate-600"
+                  }`}
+                />
+                <span className="text-base flex-1 text-left">Bảo mật 2FA</span>
+              </a>
+            </nav>
+            <nav>
+              <a
+                href="/security/2fa"
+                onClick={() => setIsMobileOpen(false)}
+                className={`
+                  flex items-center gap-4 px-4 py-3.5 rounded-xl w-full transition-all duration-200 group relative
+                  ${
+                    pathname.includes("/security/2fa")
+                      ? "bg-blue-50 text-blue-700 font-semibold shadow-sm"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }
+                `}
+              >
+                {pathname.includes("/security/2fa") && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-blue-600 rounded-r-full"></div>
+                )}
+                <ShieldCheck
+                  className={`h-5 w-5 flex-shrink-0 transition-colors ${
+                    pathname.includes("/security/2fa")
+                      ? "text-blue-600"
+                      : "text-slate-400 group-hover:text-slate-600"
+                  }`}
+                />
+                <span className="text-base flex-1 text-left">Bảo mật 2FA</span>
+              </a>
+            </nav>
 
             {/* Admin Mobile Section */}
             {userDecode?.role === "Admin" && (
@@ -988,6 +1230,30 @@ export function Sidebar() {
                 </div>
               </div>
             )}
+            <div className="border-t border-slate-100 p-4 bg-slate-50/50">
+              <UserDropdown
+                side="top"
+                align="center"
+                trigger={
+                  <button className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-white border border-slate-200 shadow-sm">
+                    <div className="relative flex-shrink-0">
+                      <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold text-white shadow-md shadow-indigo-200 ring-2 ring-white">
+                        <User className="h-5 w-5" />
+                      </div>
+                    </div>
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="text-sm font-bold text-slate-900 truncate">
+                        {userProfile?.fullName || "Loading..."}
+                      </p>
+                      <p className="text-xs text-slate-500 truncate">
+                        {userProfile?.email || "..."}
+                      </p>
+                    </div>
+                    <Settings className="w-5 h-5 text-slate-400" />
+                  </button>
+                }
+              />
+            </div>
           </aside>
         </>
       )}

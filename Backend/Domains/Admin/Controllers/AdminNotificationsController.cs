@@ -1,4 +1,4 @@
-﻿using Backend.Domains.Admin.Dtos;
+using Backend.Domains.Admin.Dtos;
 using Backend.Domains.Admin.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -41,8 +41,15 @@ namespace Backend.Controllers
             [FromBody] CreateNotificationDto request,
             CancellationToken ct)
         {
-            var result = await _service.CreateAsync(request, ct);
-            return Ok(result);
+            try
+            {
+                var result = await _service.CreateAsync(request, ct);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPatch("{id:long}/read")]

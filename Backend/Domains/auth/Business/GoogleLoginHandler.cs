@@ -29,7 +29,7 @@ namespace Backend.Domains.auth.Business
                     Email = googleUser.Email,
                     FullName = googleUser.Name,
                     Username = googleUser.Email.Split('@')[0],
-                    RoleId = 1,
+                    RoleId = 5,
                     Status = true,
                     PasswordHash = Guid.NewGuid().ToString()
                 };
