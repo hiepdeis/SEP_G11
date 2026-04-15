@@ -196,12 +196,14 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   };
 
   const handleAccountantRejectResolve = async () => {
+    if (!isSigned) return toast.error(t("Please sign before rejecting"));
+    const sigData = sigCanvas.current?.toDataURL();
     try {
       setIsSubmitting(true);
-      await auditService.accountantRejectResolve(stockTakeId, rejectNotes);
+      await auditService.accountantRejectResolve(stockTakeId, rejectNotes, sigData);
       toast.success(t("Resolution rejected. Escalated to Admin."));
       await fetchData();
-    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); setIsAccountantRejecting(false); setRejectNotes(""); }
+    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); setIsAccountantRejecting(false); setRejectNotes(""); handleClearSignature(); }
   };
 
   // === ADMIN ACTIONS ===
@@ -428,7 +430,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                               <div className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-inner">
                                 <ReactSignatureCanvas ref={sigCanvas} penColor="navy" canvasProps={{ className: "w-full h-40" }} onEnd={onSignatureEnd} />
                               </div>
-                              <Button variant="ghost" size="sm" onClick={handleClearSignature} className="text-slate-500 text-xs flex items-center gap-1"><Eraser className="w-3 h-3" /> {t("Clear")}</Button>
+                              <Button variant="ghost" size="sm" onClick={handleClearSignature} className="text-slate-500 text-xs flex items-center gap-1 hover:bg-transparent hover:text-indigo-600"><Eraser className="w-3 h-3" /> {t("Clear")}</Button>
                             </div>
                             <DialogFooter className="gap-2 mt-4"><Button variant="outline" onClick={() => { setIsAccountantApproving(false); handleClearSignature(); }}>{t("Cancel")}</Button><Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleAccountantApprove} disabled={isSubmitting || !isSigned}>{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Check className="w-4 h-4 mr-2"/>} {t("Sign & Complete")}</Button></DialogFooter>
                           </DialogContent>
@@ -472,7 +474,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                             <div className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-inner">
                               <ReactSignatureCanvas ref={sigCanvas} penColor="maroon" canvasProps={{ className: "w-full h-40" }} onEnd={onSignatureEnd} />
                             </div>
-                            <Button variant="ghost" size="sm" onClick={handleClearSignature} className="text-slate-500 text-xs flex items-center gap-1"><Eraser className="w-3 h-3" /> {t("Clear")}</Button>
+                            <Button variant="ghost" size="sm" onClick={handleClearSignature} className="text-slate-500 text-xs flex items-center gap-1 hover:bg-transparent hover:text-indigo-600"><Eraser className="w-3 h-3" /> {t("Clear")}</Button>
                           </div>
                           <DialogFooter className="gap-2 mt-4"><Button variant="outline" onClick={() => { setIsManagerConfirming(false); handleClearSignature(); }}>{t("Cancel")}</Button><Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleManagerConfirm} disabled={isSubmitting || !isSigned}>{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Check className="w-4 h-4 mr-2"/>} {t("Sign & Submit")}</Button></DialogFooter>
                         </DialogContent>
@@ -497,17 +499,26 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                                 <div className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-inner">
                                   <ReactSignatureCanvas ref={sigCanvas} penColor="navy" canvasProps={{ className: "w-full h-40" }} onEnd={onSignatureEnd} />
                                 </div>
-                                <Button variant="ghost" size="sm" onClick={handleClearSignature} className="text-slate-500 text-xs flex items-center gap-1"><Eraser className="w-3 h-3" /> {t("Clear")}</Button>
+                                <Button variant="ghost" size="sm" onClick={handleClearSignature} className="text-slate-500 text-xs flex items-center gap-1 hover:bg-transparent hover:text-indigo-600"><Eraser className="w-3 h-3" /> {t("Clear")}</Button>
                             </div>
                             <DialogFooter className="gap-2 mt-4"><Button variant="outline" onClick={() => { setIsAccountantApprovingResolve(false); handleClearSignature(); }}>{t("Cancel")}</Button><Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleAccountantApproveResolve} disabled={isSubmitting || !isSigned}>{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Check className="w-4 h-4 mr-2"/>} {t("Approve & Complete")}</Button></DialogFooter>
                           </DialogContent>
                         </Dialog>
-                        <Dialog open={isAccountantRejecting} onOpenChange={setIsAccountantRejecting}>
+                        <Dialog open={isAccountantRejecting} onOpenChange={(open) => { setIsAccountantRejecting(open); if (!open) handleClearSignature(); }}>
                           <DialogTrigger asChild><Button variant="outline" className="flex-1 border-red-200 text-red-700 hover:bg-red-50" disabled={isSubmitting}><AlertTriangle className="w-4 h-4 mr-2" /> {t("Reject")}</Button></DialogTrigger>
                           <DialogContent className="sm:max-w-[450px]">
                             <DialogHeader><DialogTitle className="text-red-700">{t("Reject Resolution")}</DialogTitle><DialogDescription>{t("Reject to escalate this audit to Admin for final review.")}</DialogDescription></DialogHeader>
-                            <div className="py-4"><Textarea placeholder={t("Reason for rejection (optional)...")} value={rejectNotes} onChange={(e) => setRejectNotes(e.target.value)} className="min-h-[100px]" /></div>
-                            <DialogFooter className="gap-2"><Button variant="outline" onClick={() => setIsAccountantRejecting(false)}>{t("Cancel")}</Button><Button className="bg-red-600 hover:bg-red-700 text-white" onClick={handleAccountantRejectResolve} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <ShieldAlert className="w-4 h-4 mr-2"/>} {t("Reject & Escalate")}</Button></DialogFooter>
+                            <div className="py-4 space-y-4">
+                              <Textarea placeholder={t("Reason for rejection (optional)...")} value={rejectNotes} onChange={(e) => setRejectNotes(e.target.value)} className="min-h-[100px]" />
+                              <div className="space-y-3">
+                                <label className="text-xs font-semibold text-slate-500 uppercase">{t("Accountant Signature")} <span className="text-red-500">*</span></label>
+                                <div className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-inner">
+                                  <ReactSignatureCanvas ref={sigCanvas} penColor="navy" canvasProps={{ className: "w-full h-40" }} onEnd={onSignatureEnd} />
+                                </div>
+                                <Button variant="ghost" size="sm" onClick={handleClearSignature} className="text-slate-500 text-xs flex items-center gap-1 hover:bg-transparent hover:text-indigo-600"><Eraser className="w-3 h-3" /> {t("Clear")}</Button>
+                              </div>
+                            </div>
+                            <DialogFooter className="gap-2"><Button variant="outline" onClick={() => { setIsAccountantRejecting(false); handleClearSignature(); }}>{t("Cancel")}</Button><Button className="bg-red-600 hover:bg-red-700 text-white" onClick={handleAccountantRejectResolve} disabled={isSubmitting || !isSigned}>{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <ShieldAlert className="w-4 h-4 mr-2"/>} {t("Reject & Escalate")}</Button></DialogFooter>
                           </DialogContent>
                         </Dialog>
                       </div>
@@ -540,7 +551,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                                 <div className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-inner">
                                   <ReactSignatureCanvas ref={sigCanvas} penColor="black" canvasProps={{ className: "w-full h-32" }} onEnd={onSignatureEnd} />
                                 </div>
-                                <Button variant="ghost" size="sm" onClick={handleClearSignature} className="text-slate-500 text-xs flex items-center gap-1 h-7"><Eraser className="w-3 h-3" /> {t("Clear")}</Button>
+                                <Button variant="ghost" size="sm" onClick={handleClearSignature} className="text-slate-500 text-xs flex items-center gap-1 hover:bg-transparent hover:text-indigo-600"><Eraser className="w-3 h-3" /> {t("Clear")}</Button>
                             </div>
                           </div>
                           <DialogFooter className="gap-2 pt-4"><Button variant="outline" onClick={() => setIsAdminFinalizing(false)}>{t("Cancel")}</Button><Button className="bg-red-600 hover:bg-red-700 text-white" onClick={handleAdminFinalize} disabled={isSubmitting || !penaltyReason || !penaltyAmount || !targetManagerId || !isSigned}>{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Gavel className="w-4 h-4 mr-2"/>} {t("Sign & Complete")}</Button></DialogFooter>
@@ -557,7 +568,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                 </CardContent>
               </Card>
 
-              {/* PENALTY CARD - shown when penalty exists */}
+              {/* PENALTY CARD */}
               {detailData.penalty && (
                 <Card className="border-red-200 shadow-sm bg-red-50/30">
                   <CardHeader className="border-b border-red-100 py-4"><CardTitle className="text-base font-semibold flex items-center gap-2 text-red-800"><Gavel className="w-4 h-4" /> {t("Penalty Record")}</CardTitle></CardHeader>

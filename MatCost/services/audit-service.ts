@@ -150,8 +150,8 @@ export const auditService = {
   },
 
   /** Accountant rejects Manager's resolution → escalate to Admin */
-  accountantRejectResolve: async (stockTakeId: number, notes: string = "") => {
-    const response = await axiosClient.post(`/accountants/audits/${stockTakeId}/reject-resolve`, { notes });
+  accountantRejectResolve: async (stockTakeId: number, notes: string = "", signatureData?: string) => {
+    const response = await axiosClient.post(`/accountants/audits/${stockTakeId}/reject-resolve`, { notes, signatureData });
     return response.data;
   },
 

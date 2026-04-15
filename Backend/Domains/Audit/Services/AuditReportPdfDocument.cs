@@ -1,4 +1,4 @@
-﻿using Backend.Domains.Audit.DTOs.Accountants;
+using Backend.Domains.Audit.DTOs.Accountants;
 
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -287,10 +287,15 @@ public sealed class AuditReportPdfDocument : IDocument
 
     private void ComposeSignatureSection(IContainer container)
     {
-        var managerName = FindSigner("Manager") ?? _model.CompletedByName ?? "";
-        var accountantName = FindSigner("Accountant") ?? _model.CreatedByName ?? "";
-        var keeperName = FindSigner("Keeper") ?? FindSigner("Warehouse") ?? "";
-        var directorName = "";
+        // Role mapping:
+        // Admin → Giám đốc (Director)
+        // Accountant → Kế toán trưởng (Chief Accountant)
+        // Manager → Thủ kho (Warehouse Manager)
+        // Staff → Trưởng ban kiểm kê (Inventory Team Leader)
+        var adminSig = FindSignerWithData("Admin");
+        var accountantSig = FindSignerWithData("Accountant");
+        var managerSig = FindSignerWithData("Manager");
+        var staffSig = FindSignerWithData("Staff");
 
         container.Column(col =>
         {
@@ -311,25 +316,29 @@ public sealed class AuditReportPdfDocument : IDocument
                     table.Cell(),
                     "Giám đốc",
                     "(Ý kiến giải quyết số chênh lệch)",
-                    directorName);
+                    adminSig.name,
+                    adminSig.signatureData);
 
                 SignatureCell(
                     table.Cell(),
                     "Kế toán trưởng",
                     "",
-                    accountantName);
+                    accountantSig.name,
+                    accountantSig.signatureData);
 
                 SignatureCell(
                     table.Cell(),
                     "Thủ kho",
                     "",
-                    keeperName);
+                    managerSig.name,
+                    managerSig.signatureData);
 
                 SignatureCell(
                     table.Cell(),
                     "Trưởng ban kiểm kê",
                     "",
-                    managerName);
+                    staffSig.name,
+                    staffSig.signatureData);
             });
         });
     }
@@ -420,6 +429,14 @@ public sealed class AuditReportPdfDocument : IDocument
             ?.FullName;
     }
 
+    private (string? name, string? signatureData) FindSignerWithData(string roleKeyword)
+    {
+        var sig = _model.Signatures
+            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.Role)
+                              && x.Role.Contains(roleKeyword, StringComparison.OrdinalIgnoreCase));
+        return (sig?.FullName, sig?.SignatureData);
+    }
+
     private static void HeaderCell(IContainer container, string? text, bool center = false)
     {
         var c = container
@@ -451,7 +468,7 @@ public sealed class AuditReportPdfDocument : IDocument
             t.SemiBold();
     }
 
-    private static void SignatureCell(IContainer container, string title, string subTitle, string? signerName)
+    private static void SignatureCell(IContainer container, string title, string subTitle, string? signerName, string? signatureData = null)
     {
         container
             .Border(1)
@@ -466,7 +483,24 @@ public sealed class AuditReportPdfDocument : IDocument
 
                 col.Item().AlignCenter().Text("(Ký, họ tên)").Italic().FontSize(8);
 
-                col.Item().Height(36);
+                // Render signature image if available (base64 data URI)
+                if (!string.IsNullOrWhiteSpace(signatureData) && signatureData.StartsWith("data:image"))
+                {
+                    try
+                    {
+                        var base64Data = signatureData.Substring(signatureData.IndexOf(",") + 1);
+                        var imageBytes = Convert.FromBase64String(base64Data);
+                        col.Item().AlignCenter().Height(36).Image(imageBytes, ImageScaling.FitHeight);
+                    }
+                    catch
+                    {
+                        col.Item().Height(36); // fallback if image parsing fails
+                    }
+                }
+                else
+                {
+                    col.Item().Height(36);
+                }
 
                 col.Item().AlignCenter().Text(string.IsNullOrWhiteSpace(signerName) ? "" : signerName)
                     .SemiBold().FontSize(9);

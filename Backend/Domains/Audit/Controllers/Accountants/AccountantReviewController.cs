@@ -52,7 +52,7 @@ namespace Backend.Domains.Audit.Controllers.Accountants
             CancellationToken ct)
         {
             var userId = User.GetRequiredUserId();
-            var result = await _reviewService.AccountantRejectResolveAsync(stockTakeId, userId, body?.Notes, ct);
+            var result = await _reviewService.AccountantRejectResolveAsync(stockTakeId, userId, body?.Notes, body?.SignatureData, ct);
             if (!result.success) return BadRequest(new { message = result.message });
             return Ok(new { message = result.message });
         }
@@ -60,6 +60,7 @@ namespace Backend.Domains.Audit.Controllers.Accountants
         public class RejectResolveBody
         {
             public string? Notes { get; set; }
+            public string? SignatureData { get; set; }
         }
     }
 }

@@ -103,6 +103,7 @@ namespace Backend.Domains.Audit.Interfaces
             int stockTakeId,
             int userId,
             string? notes,
+            string? signatureData,
             CancellationToken ct);
 
         /// <summary>Admin issues penalty + signs → complete + update inventory</summary>

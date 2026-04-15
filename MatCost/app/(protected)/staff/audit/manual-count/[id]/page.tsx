@@ -28,6 +28,7 @@ export default function StaffCountingPage() {
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
   const [uncountedOnly, setUncountedOnly] = useState(true);
+  const [recountUncountedOnly, setRecountUncountedOnly] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [editingItem, setEditingItem] = useState<MaterialBatchDto | CountItemDto | null>(null);
   const [tempCount, setTempCount] = useState("");
@@ -136,7 +137,9 @@ export default function StaffCountingPage() {
     return task.materialName.toLowerCase().includes(term) || (task.batchCode && task.batchCode.toLowerCase().includes(term));
   });
 
-  const displayRecountData = recountTasks;
+  const displayRecountData = recountUncountedOnly 
+    ? recountTasks.filter(t => t.countQty === null || t.countQty === undefined)
+    : recountTasks.filter(t => t.countQty !== null && t.countQty !== undefined);
 
   const filteredRecountData = displayRecountData.filter(task => {
     if (!searchTerm) return true;
@@ -188,10 +191,15 @@ export default function StaffCountingPage() {
               </div>
               <div className="flex gap-3 items-center">
                   <div className="relative flex-1"><Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" /><Input placeholder={t("Search name or batch...")} className="pl-10 h-11 bg-white shadow-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
-                  {recountTasks.length === 0 && (
+                  {recountTasks.length === 0 ? (
                     <Button variant={uncountedOnly ? "default" : "outline"} onClick={() => setUncountedOnly(!uncountedOnly)} className={`h-11 w-[140px] flex-shrink-0 transition-colors ${uncountedOnly ? "bg-indigo-600 text-white border-indigo-600" : "bg-white"}`}>
                       <Filter className="w-4 h-4 mr-2 flex-shrink-0" /> 
                       <span className="truncate">{uncountedOnly ? t("Uncounted") : t("Counted")}</span>
+                    </Button>
+                  ) : (
+                    <Button variant={recountUncountedOnly ? "default" : "outline"} onClick={() => setRecountUncountedOnly(!recountUncountedOnly)} className={`h-11 w-[140px] flex-shrink-0 transition-colors ${recountUncountedOnly ? "bg-rose-600 text-white border-rose-600" : "bg-white"}`}>
+                      <Filter className="w-4 h-4 mr-2 flex-shrink-0" /> 
+                      <span className="truncate">{recountUncountedOnly ? t("Uncounted") : t("Counted")}</span>
                     </Button>
                   )}
               </div>
@@ -282,7 +290,7 @@ export default function StaffCountingPage() {
                 <FileSignature className="w-5 h-5" /> {t("Sign Audit Record")}
               </DialogTitle>
               <DialogDescription>
-                {t("All staff members must sign to finalize the count. Your signature confirms the data entered above is accurate.")}
+                {t("As the team representative, sign below to confirm the count data is accurate and submit for review.")}
               </DialogDescription>
             </DialogHeader>
             
@@ -300,7 +308,7 @@ export default function StaffCountingPage() {
               </div>
               <div className="flex w-full justify-between items-center mt-3">
                 <span className="text-xs text-slate-400 italic">{t("Sign inside the area above")}</span>
-                <Button variant="ghost" size="sm" onClick={clearSignature} className="text-slate-500 h-8 px-2">
+                <Button variant="ghost" size="sm" onClick={clearSignature} className="text-slate-500 h-8 px-2 hover:bg-transparent hover:text-indigo-600">
                   <Eraser className="w-3.5 h-3.5 mr-1.5" /> {t("Clear")}
                 </Button>
               </div>

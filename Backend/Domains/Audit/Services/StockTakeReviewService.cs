@@ -1184,38 +1184,19 @@ namespace Backend.Domains.Audit.Services
 
             _db.StockTakeSignatures.Add(signature);
 
-            // Check if this is the final signature needed for transition
-            var activeStaffIds = await _db.StockTakeTeamMembers
-                .Where(x => x.StockTakeId == stockTakeId && x.IsActive)
-                .Select(x => x.UserId)
-                .ToListAsync(ct);
+            // One representative staff signature is enough → transition immediately
+            st.Status = "PendingAccountantReview";
+            await UnlockActiveLocksAsync(stockTakeId, userId, ct);
 
-            var signedStaffIds = await _db.StockTakeSignatures
-                .Where(x => x.StockTakeId == stockTakeId && activeStaffIds.Contains(x.UserId))
-                .Select(x => x.UserId)
-                .ToListAsync(ct);
-
-            // Include current signature (not yet in DB)
-            if (!signedStaffIds.Contains(userId)) signedStaffIds.Add(userId);
-
-            var remainingToSign = activeStaffIds.Count(id => !signedStaffIds.Contains(id));
-
-            if (remainingToSign == 0)
-            {
-                // All active staff have signed → transition to PendingAccountantReview
-                st.Status = "PendingAccountantReview";
-                await UnlockActiveLocksAsync(stockTakeId, userId, ct);
-
-                await _notificationService.QueueAuditNotificationAsync(
-                    stockTakeId,
-                    $"Đội ngũ kiểm kê đã ký xác nhận hoàn tất Audit #{st.StockTakeId} ({st.Title}). Chờ Kế toán kiểm tra.",
-                    includeCreator: true,
-                    includeTeamMembers: false,
-                    roleNames: new[] { "Accountant" },
-                    extraUserIds: null,
-                    excludeUserIds: null,
-                    ct: ct);
-            }
+            await _notificationService.QueueAuditNotificationAsync(
+                stockTakeId,
+                $"Đội ngũ kiểm kê đã ký xác nhận hoàn tất Audit #{st.StockTakeId} ({st.Title}). Chờ Kế toán kiểm tra.",
+                includeCreator: true,
+                includeTeamMembers: false,
+                roleNames: new[] { "Accountant" },
+                extraUserIds: null,
+                excludeUserIds: null,
+                ct: ct);
 
             await _db.SaveChangesAsync(ct);
 
@@ -1317,6 +1298,7 @@ namespace Backend.Domains.Audit.Services
             int stockTakeId,
             int userId,
             string? notes,
+            string? signatureData,
             CancellationToken ct)
         {
             var st = await _db.StockTakes.FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
@@ -1329,6 +1311,11 @@ namespace Backend.Domains.Audit.Services
                 .FirstOrDefaultAsync(x => x.UserId == userId, ct);
             if (user == null || !string.Equals(user.Role.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase))
                 return (false, "Only Accountants can perform this action.");
+
+            if (string.IsNullOrWhiteSpace(signatureData))
+                return (false, "Accountant signature is required.");
+
+            await AddSignatureIfNotExistsAsync(stockTakeId, userId, "Accountant", signatureData, ct);
 
             st.Status = "PendingAdminReview";
 
