@@ -344,9 +344,10 @@ export default function StaffIncidentPage({
               };
             }),
           };
-          await staffReceiptsApi.createIncidentReport(id, payload);
+          const res = await staffReceiptsApi.createIncidentReport(id, payload);
           toast.success(t("Incident Report created successfully!"));
           await initData();
+          handleSubmitToManager(res.data.incidentId);
         } catch (error: any) {
           toast.error(
             error.response?.data?.message ||
@@ -422,33 +423,23 @@ export default function StaffIncidentPage({
     });
   };
 
-  const handleSubmitToManager = () => {
-    if (!historicalIncidentData?.incidentId) return;
+  const handleSubmitToManager = async (idFromCreate?: number) => {
+    const targetIncidentId = idFromCreate || historicalIncidentData?.incidentId;
+    if (!targetIncidentId) return;
 
-    showConfirmToast({
-      title: t("Submit for Manager Review?"),
-      description: t(
-        "Are you sure you want to forward this incident report to the Warehouse Manager?",
-      ),
-      confirmLabel: t("Yes, Submit"),
-      onConfirm: async () => {
-        setIsSubmittingToManager(true);
-        try {
-          await staffIncidentApi.submitToManager(
-            historicalIncidentData.incidentId,
-          );
-          toast.success(t("Report submitted to manager successfully!"));
+    setIsSubmittingToManager(true);
+    try {
+      await staffIncidentApi.submitToManager(targetIncidentId);
+      toast.success(t("Report submitted to manager successfully!"));
 
-          router.push(`/${rolePath}/incident-reports`);
-        } catch (error: any) {
-          toast.error(
-            error.response?.data?.message || t("Failed to submit report"),
-          );
-        } finally {
-          setIsSubmittingToManager(false);
-        }
-      },
-    });
+      router.push(`/${rolePath}/incident-reports`);
+    } catch (error: any) {
+      toast.error(
+        error.response?.data?.message || t("Failed to submit report"),
+      );
+    } finally {
+      setIsSubmittingToManager(false);
+    }
   };
 
   const handleImageUpload = async (
@@ -583,7 +574,7 @@ export default function StaffIncidentPage({
                 ) : isHistoryView &&
                   historicalIncidentData?.status === "Open" ? (
                   <div className="flex flex-col gap-2 items-end">
-                    <Button
+                    {/* <Button
                       className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md min-w-[200px]"
                       onClick={handleSubmitToManager}
                       disabled={isSubmittingToManager}
@@ -594,7 +585,7 @@ export default function StaffIncidentPage({
                         <Send className="w-4 h-4 mr-2" />
                       )}
                       {t("Submit for Manager Review")}
-                    </Button>
+                    </Button> */}
                     <span className="text-xs text-slate-500 italic">
                       {t(
                         "Note: The incident report will be sent to the manager for review and approval.",

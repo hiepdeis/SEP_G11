@@ -60,7 +60,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StaffIncidentReports from "@/components/pages/incident-reports-staff/page";
 import { formatDateTime } from "@/lib/format-date-time";
 
-
 type IncidentSummary = ManagerIncidentSummaryDto | PurchasingIncidentSummaryDto;
 
 export default function IncidentsListPage({
@@ -75,7 +74,7 @@ export default function IncidentsListPage({
   const [isLoading, setIsLoading] = useState(true);
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-
+  const [filterStatus, setFilterStatus] = useState<string>("All");
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
     to: Date | undefined;
@@ -139,10 +138,21 @@ export default function IncidentsListPage({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, sortConfig, itemsPerPage, dateRange]);
+  }, [searchTerm, sortConfig, itemsPerPage, dateRange, filterStatus]);
 
   // 1. Lọc dữ liệu
   const filteredData = incidents.filter((item) => {
+    let matchesStatus = false;
+    if (filterStatus === "All") {
+      matchesStatus = true;
+    } else if (filterStatus === "PendingIncidentReview") {
+      matchesStatus = ["PendingManagerReview"].includes(item.status!);
+    } else if (filterStatus === "PendingSupplementaryReview") {
+      matchesStatus = ["PendingManagerApproval"].includes(item.status!);
+    } else {
+      matchesStatus = item.status === filterStatus;
+    }
+
     const searchLower = searchTerm.toLowerCase();
 
     const matchesSearch =
@@ -176,7 +186,7 @@ export default function IncidentsListPage({
       }
     }
 
-    return matchesSearch && matchesDate;
+    return matchesSearch && matchesDate && matchesStatus;
   });
 
   const sortedData = [...filteredData].sort((a, b) => {
@@ -221,8 +231,6 @@ export default function IncidentsListPage({
       router.push(`/manager/incident-reports/${id}`);
     }
   };
-
-
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
@@ -302,6 +310,44 @@ export default function IncidentsListPage({
                       <span className="text-sm font-medium text-slate-500 hidden md:block">
                         {t("Filters")}:
                       </span>
+                      {role === "manager" ? (
+                        <Select
+                          value={filterStatus}
+                          onValueChange={setFilterStatus}
+                        >
+                          <SelectTrigger className="w-[250px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
+                            <SelectValue placeholder={t("Filter by status")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="All">
+                              <Badge
+                                variant="outline"
+                                className="bg-slate-50 text-slate-700 border-slate-200"
+                              >
+                                {t("All")}
+                              </Badge>
+                            </SelectItem>
+                            <SelectItem value="PendingIncidentReview">
+                              <Badge
+                                variant="outline"
+                                className="bg-amber-50 text-amber-700 border-amber-200"
+                              >
+                                {t("Pending Incident Review")}
+                              </Badge>
+                            </SelectItem>
+                            <SelectItem value="PendingSupplementaryReview">
+                              <Badge
+                                variant="outline"
+                                className="bg-yellow-50 text-yellow-700 border-yellow-200"
+                              >
+                                {t("Pending Supplementary Review")}
+                              </Badge>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <></>
+                      )}
 
                       <div className="flex items-center gap-2">
                         <Popover>
@@ -541,7 +587,14 @@ export default function IncidentsListPage({
                                   >
                                     {role === "purchase"
                                       ? t("Pending Action")
-                                      : t("Pending Review")}
+                                      : t(
+                                          item.status === "PendingManagerReview"
+                                            ? "Pending Incident Review"
+                                            : item.status ===
+                                                "PendingManagerApproval"
+                                              ? "Pending Supplementary Review"
+                                              : "Pending Review",
+                                        )}
                                   </Badge>
                                 </TableCell>
 

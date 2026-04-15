@@ -260,6 +260,7 @@ export interface ManagerIncidentSummaryDto {
   receiptId: number;
   receiptCode?: string;
   submittedAt: string;
+  status?: string;
   items: ManagerIncidentItemSummaryDto[];
 }
 
@@ -400,6 +401,7 @@ export interface PurchasingIncidentSummaryDto {
   receiptId: number;
   receiptCode?: string;
   createdAt: string;
+  status?: string;
   items: PurchasingIncidentItemSummaryDto[];
 }
 

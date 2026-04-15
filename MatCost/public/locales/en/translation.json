@@ -726,7 +726,7 @@
   "Select a PR...": "Select a PR...",
   "Global Supplier": "Global Supplier",
   "Select to apply to all items...": "Select to apply to all items...",
-  "Leave blank if you want to select different suppliers per item.": "Leave blank if you want to select different suppliers per item.",
+  "Supplier only appear if they have active contract and can provide all listed material quotations. Leave blank if you want to select different suppliers per item.": "Supplier only appear if they have active contract and can provide all listed material quotations. Leave blank if you want to select different suppliers per item.",
   "Estimated Total": "Estimated Total",
   "Based on entered unit prices.": "Based on entered unit prices.",
   "Order Details & Pricing": "Order Details & Pricing",
@@ -1253,5 +1253,6 @@
   "No pending orders": "No pending orders",
   "No pending requests": "No pending requests",
   "DraftPO": "Draft PO",
-  "Budget Used": "Budget Used"
+  "Budget Used": "Budget Used",
+  "Import Data": "Import Data"
 }

@@ -13,6 +13,7 @@ interface IncidentExcelItem {
   materialName: string;
   orderedQuantity: number;
   actualQuantity: number;
+  passQuantity: number;
   failQuantity: number; // Tổng Fail cố định từ QC
   breakdown: {
     quantity: number; // Cố định

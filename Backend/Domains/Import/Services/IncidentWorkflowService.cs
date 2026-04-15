@@ -69,6 +69,7 @@ namespace Backend.Domains.Import.Services
                 ReceiptId = i.ReceiptId,
                 ReceiptCode = i.Receipt?.ReceiptCode,
                 SubmittedAt = i.CreatedAt,
+                Status = i.Status,
                 Items = MapIncidentItems(i)
             }).ToList();
         }

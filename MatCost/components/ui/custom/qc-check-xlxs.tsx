@@ -156,7 +156,7 @@ export function QCReceiptExcelHandler({
           onClick={() => fileInputRef.current?.click()}
         >
           <Upload className="w-3.5 h-3.5 mr-1" />
-          {t("Import QC")}
+          {t("Import Data")}
         </Button>
       </div>
       <span className="text-[11px] text-slate-500 italic pr-1">

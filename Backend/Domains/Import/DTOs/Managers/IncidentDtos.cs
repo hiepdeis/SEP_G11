@@ -11,6 +11,7 @@ namespace Backend.Domains.Import.DTOs.Managers
         public long ReceiptId { get; set; }
         public string? ReceiptCode { get; set; }
         public DateTime SubmittedAt { get; set; }
+        public string Status { get; set; } = string.Empty;
         public List<ManagerIncidentItemSummaryDto> Items { get; set; } = new();
     }
 
