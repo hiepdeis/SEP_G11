@@ -50,19 +50,30 @@ namespace Backend.Domains.Import.Services
                 parentPo = await LoadParentPurchaseOrderForRevisionAsync(dto.ParentPOId.Value, requestId, supplierId);
             }
 
+            await using var transaction = await _context.Database.BeginTransactionAsync();
             var orders = new List<PurchaseOrder>();
 
-            foreach (var group in groupedItems.GroupBy(x => x.SupplierId!.Value))
+            try
             {
-                var items = group.Select(i => new PurchaseOrderItem
+                foreach (var group in groupedItems.GroupBy(x => x.SupplierId!.Value))
                 {
-                    MaterialId = i.Item.MaterialId,
-                    OrderedQuantity = i.Item.OrderedQuantity,
-                    UnitPrice = i.Item.UnitPrice
-                }).ToList();
+                    var items = group.Select(i => new PurchaseOrderItem
+                    {
+                        MaterialId = i.Item.MaterialId,
+                        OrderedQuantity = i.Item.OrderedQuantity,
+                        UnitPrice = i.Item.UnitPrice
+                    }).ToList();
 
-                var order = await CreateDraftAsync(requestId, purchasingId, group.Key, items, parentPo, dto.RevisionNote);
-                orders.Add(order);
+                    var order = await CreateDraftAsync(requestId, purchasingId, group.Key, items, parentPo, dto.RevisionNote);
+                    orders.Add(order);
+                }
+
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
             }
 
             return orders;

@@ -182,7 +182,18 @@ namespace Backend.Domains.Import.Services
             alert.ConfirmedAt = DateTime.UtcNow;
 
             if (adjustedQuantity.HasValue)
+            {
+                if (adjustedQuantity.Value <= 0)
+                    throw new ArgumentException("Số lượng điều chỉnh phải lớn hơn 0");
+
+                if (adjustedQuantity.Value < alert.Material.MinStockLevel)
+                    throw new ArgumentException("Số lượng điều chỉnh không được nhỏ hơn mức tồn tối thiểu của vật liệu");
+
+                if (adjustedQuantity.Value > alert.Material.MaxStockLevel)
+                    throw new ArgumentException("Số lượng điều chỉnh không được lớn hơn mức tồn tối đa của vật liệu");
+
                 alert.SuggestedQuantity = adjustedQuantity.Value;
+            }
 
             if (!string.IsNullOrWhiteSpace(notes))
                 alert.Notes = notes;
