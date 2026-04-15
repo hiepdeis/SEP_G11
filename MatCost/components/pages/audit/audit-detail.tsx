@@ -208,7 +208,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
 
   // === ADMIN ACTIONS ===
   const handleAdminFinalize = async () => {
-    if (!penaltyReason || !penaltyAmount || !targetManagerId) return toast.error(t("Please fill all penalty fields"));
+    if (!penaltyReason || !penaltyAmount || !targetManagerId) return toast.error(t("Please fill all penalize fields"));
     if (!isSigned) return toast.error(t("Please sign before completing"));
     
     const sigData = sigCanvas.current?.toDataURL();
@@ -220,10 +220,10 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
         penaltyAmount: Number(penaltyAmount),
         penaltyNotes: penaltyNotes || undefined,
         targetManagerUserId: Number(targetManagerId),
-        auditNotes: "Admin finalized with penalty",
+        auditNotes: "Admin finalized with penalize",
         signatureData: sigData
       });
-      toast.success(t("Penalty issued and audit completed!"));
+      toast.success(t("Penalize issued and audit completed!"));
       router.push(`/${role}/audit`);
     } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); setIsAdminFinalizing(false); handleClearSignature(); }
   };
@@ -531,19 +531,19 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                   <Card className="border-red-200 shadow-sm bg-red-50/30 gap-0 border-x-0 border-t-0 rounded-none">
                     <CardHeader className="border-b border-red-100 pt-4 pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2 text-red-800"><Gavel className="w-5 h-5" /> {t("Admin Final Review")}</CardTitle></CardHeader>
                     <CardContent className="pt-6 space-y-4">
-                      <p className="text-sm text-red-700/80">{t("Accountant rejected Manager's resolution. Issue a penalty and finalize.")}</p>
+                      <p className="text-sm text-red-700/80">{t("Accountant rejected Manager's resolution. Issue a penalize and finalize.")}</p>
                       <Dialog open={isAdminFinalizing} onOpenChange={setIsAdminFinalizing}>
-                        <DialogTrigger asChild><Button className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold shadow-sm h-11" disabled={isSubmitting}><Gavel className="w-5 h-5 mr-2" /> {t("Issue Penalty & Complete")}</Button></DialogTrigger>
+                        <DialogTrigger asChild><Button className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold shadow-sm h-11" disabled={isSubmitting}><Gavel className="w-5 h-5 mr-2" /> {t("Issue Penalize & Complete")}</Button></DialogTrigger>
                         <DialogContent className="sm:max-w-[500px]">
-                          <DialogHeader><DialogTitle className="text-red-700 flex items-center gap-2"><Gavel className="w-5 h-5" /> {t("Issue Penalty")}</DialogTitle><DialogDescription>{t("Fill in penalty details for the responsible Manager.")}</DialogDescription></DialogHeader>
+                          <DialogHeader><DialogTitle className="text-red-700 flex items-center gap-2"><Gavel className="w-5 h-5" /> {t("Issue Penalize")}</DialogTitle><DialogDescription>{t("Fill in penalize details for the responsible Manager.")}</DialogDescription></DialogHeader>
                           <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto px-1">
                             <div>
                                 <label className="text-sm font-semibold text-slate-700">{t("Responsible Manager")}</label>
                                 <Input value={managerInfo?.name || t("Not identified")} disabled className="mt-1 bg-slate-100 border-slate-200 cursor-not-allowed opacity-80" />
                                 <input type="hidden" value={targetManagerId} />
                             </div>
-                            <div><label className="text-sm font-semibold text-slate-700">{t("Penalty Reason")} <span className="text-red-500">*</span></label><Input placeholder={t("Reason for penalty...")} value={penaltyReason} onChange={(e) => setPenaltyReason(e.target.value)} className="mt-1" /></div>
-                            <div><label className="text-sm font-semibold text-slate-700">{t("Auto-Calculated Penalty Amount (VNĐ)")} <span className="text-red-500">*</span></label><Input type="number" placeholder="0" value={penaltyAmount} disabled className="mt-1 bg-slate-100 border-slate-200 font-bold text-red-600 cursor-not-allowed opacity-80" /></div>
+                            <div><label className="text-sm font-semibold text-slate-700">{t("Penalize Reason")} <span className="text-red-500">*</span></label><Input placeholder={t("Reason for penalize...")} value={penaltyReason} onChange={(e) => setPenaltyReason(e.target.value)} className="mt-1" /></div>
+                            <div><label className="text-sm font-semibold text-slate-700">{t("Auto-Calculated Penalize Amount (VNĐ)")} <span className="text-red-500">*</span></label><Input type="number" placeholder="0" value={penaltyAmount} disabled className="mt-1 bg-slate-100 border-slate-200 font-bold text-red-600 cursor-not-allowed opacity-80" /></div>
                             <div><label className="text-sm font-semibold text-slate-700">{t("Notes")}</label><Textarea placeholder={t("Additional notes...")} value={penaltyNotes} onChange={(e) => setPenaltyNotes(e.target.value)} className="mt-1 min-h-[80px]" /></div>
                             
                             <div className="space-y-3 pt-2">
@@ -571,14 +571,14 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
               {/* PENALTY CARD */}
               {detailData.penalty && (
                 <Card className="border-red-200 shadow-sm bg-red-50/30">
-                  <CardHeader className="border-b border-red-100 py-4"><CardTitle className="text-base font-semibold flex items-center gap-2 text-red-800"><Gavel className="w-4 h-4" /> {t("Penalty Record")}</CardTitle></CardHeader>
+                  <CardHeader className="border-b border-red-100 py-4"><CardTitle className="text-base font-semibold flex items-center gap-2 text-red-800"><Gavel className="w-4 h-4" /> {t("Penalize Record")}</CardTitle></CardHeader>
                   <CardContent className="p-6 space-y-4">
                     <div>
-                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Penalty Reason")}</label>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Penalize Reason")}</label>
                       <p className="text-sm text-red-700 mt-1.5 bg-red-50 p-2.5 rounded-md border border-red-200 font-medium break-words">{detailData.penalty.reason}</p>
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Penalty Amount")}</label>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Penalize Amount")}</label>
                       <div className="mt-1.5 bg-red-50 p-2.5 rounded-md border border-red-200">
                         <span className="text-lg font-bold text-red-700">{Number(detailData.penalty.amount).toLocaleString("vi-VN")} VNĐ</span>
                       </div>
