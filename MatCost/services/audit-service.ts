@@ -91,8 +91,8 @@ export const auditService = {
     const response = await axiosClient.get<{items: VarianceItemDto[]}>(`/manager/audits/${stockTakeId}/variances/details`);
     return response.data.items;
   },
-  resolveVariance: async (stockTakeId: number, detailId: number, resolutionAction: string, adjustmentReasonId?: number, signatureData?: string) => {
-    const payload = { resolutionAction, adjustmentReasonId, signatureData };
+  resolveVariance: async (stockTakeId: number, detailId: number, resolutionAction: string, adjustmentReasonId?: number, signatureData?: string, notes?: string) => {
+    const payload = { resolutionAction, adjustmentReasonId, signatureData, notes };
     const response = await axiosClient.put(`/manager/audits/${stockTakeId}/variances/${detailId}/resolve`, payload);
     return response.data;
   },
@@ -104,6 +104,10 @@ export const auditService = {
   requestRecountAll: async (stockTakeId: number, reasonId: number, note: string = "") => {
     const payload = { reasonId, note };
     const response = await axiosClient.post(`/manager/audits/${stockTakeId}/request-recount-all`, payload);
+    return response.data;
+  },
+  managerConfirmResolution: async (stockTakeId: number, signatureData?: string) => {
+    const response = await axiosClient.post(`/manager/audits/${stockTakeId}/confirm-resolution`, { signatureData });
     return response.data;
   },
   

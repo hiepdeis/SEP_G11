@@ -60,6 +60,13 @@ namespace Backend.Domains.Audit.Interfaces
             int managerUserId,
             CancellationToken ct);
 
+        /// <summary>Manager confirms all resolutions with a single signature → transitions to PendingAccountantApproval</summary>
+        Task<(bool success, string message)> ManagerConfirmResolutionAsync(
+            int stockTakeId,
+            int managerUserId,
+            string? signatureData,
+            CancellationToken ct);
+
         Task<StockTakeReviewDetailDto> GetReviewDetailAsync(int stockTakeId, CancellationToken ct);
 
         Task<(bool success, string message, SignatureInfoDto? signature)> SignOffAsync(

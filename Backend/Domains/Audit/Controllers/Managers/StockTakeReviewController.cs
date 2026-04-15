@@ -203,6 +203,27 @@ public class StockTakeReviewController : ControllerBase
         return Ok(new { message });
     }
 
+    [HttpPost("{stockTakeId:int}/confirm-resolution")]
+    [Authorize(Roles = "Manager, Admin")]
+    public async Task<IActionResult> ConfirmResolution(
+        int stockTakeId,
+        [FromBody] ApproveResolveRequest? req,
+        CancellationToken ct = default)
+    {
+        var userId = GetUserId();
+
+        var (success, message) = await _service.ManagerConfirmResolutionAsync(
+            stockTakeId,
+            userId,
+            req?.SignatureData,
+            ct);
+
+        if (!success)
+            return BadRequest(new { message });
+
+        return Ok(new { message });
+    }
+
     [HttpPut("{stockTakeId:int}/variances/{detailId:long}/reason")]
     [Authorize(Roles = "Manager, Admin")]
     public async Task<IActionResult> UpdateVarianceReason(

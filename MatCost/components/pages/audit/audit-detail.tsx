@@ -38,6 +38,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   const [isAccountantApprovingResolve, setIsAccountantApprovingResolve] = useState(false);
   const [isAccountantRejecting, setIsAccountantRejecting] = useState(false);
   const [isAdminFinalizing, setIsAdminFinalizing] = useState(false);
+  const [isManagerConfirming, setIsManagerConfirming] = useState(false);
   const [rejectNotes, setRejectNotes] = useState("");
 
   // Admin penalty form
@@ -50,6 +51,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   const [isSigned, setIsSigned] = useState(false);
   const [resolveItem, setResolveItem] = useState<VarianceItemDto | null>(null);
   const [resolveAction, setResolveAction] = useState("");
+  const [resolveNotes, setResolveNotes] = useState("");
   const [candidates, setCandidates] = useState<RecountCandidateDto[]>([]);
   const [showCandidates, setShowCandidates] = useState(false);
   const [managerInfo, setManagerInfo] = useState<{ id: number; name: string } | null>(null);
@@ -128,30 +130,28 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   };
 
   const handleConfirmResolve = async () => {
-    if (!resolveItem || !resolveAction) return toast.error(t("Select Resolution Action"));
-    
-    // Check if this is the final unresolved item to require signature
-    const isFinalItem = (detailData?.varianceSummary?.unresolvedVariances || 0) <= 1;
-    let sigData: string | undefined = undefined;
-
-    if (isFinalItem && resolveAction !== "RequestRecount") {
-      if (!isSigned) return toast.error(t("Please sign to finalize the resolution process"));
-      sigData = sigCanvas.current?.toDataURL();
-    }
+    if (!resolveItem) return;
+    if (!resolveNotes.trim()) return toast.error(t("Please enter a resolution note"));
 
     try {
       setIsSubmitting(true);
-      if (resolveAction === "RequestRecount") {
-         await auditService.requestRecount(stockTakeId, resolveItem.id, 1, "Manager recount request");
-         toast.success(t("Recount request sent to staff!"));
-      } else {
-         await auditService.resolveVariance(stockTakeId, resolveItem.id, resolveAction, 1, sigData); 
-         toast.success(t("Variance resolved successfully!"));
-      }
+      await auditService.resolveVariance(stockTakeId, resolveItem.id, "Accept", 1, undefined, resolveNotes.trim()); 
+      toast.success(t("Variance resolved successfully!"));
       await fetchData(); 
-      handleClearSignature();
       setResolveItem(null);
+      setResolveNotes("");
     } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); }
+  };
+
+  const handleManagerConfirm = async () => {
+    if (!isSigned) return toast.error(t("Please sign before confirming"));
+    const sigData = sigCanvas.current?.toDataURL();
+    try {
+      setIsSubmitting(true);
+      await auditService.managerConfirmResolution(stockTakeId, sigData);
+      toast.success(t("All resolutions confirmed! Awaiting accountant approval."));
+      await fetchData();
+    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); setIsManagerConfirming(false); handleClearSignature(); }
   };
 
   const handleRecountAll = async () => {
@@ -286,6 +286,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   const hasRecountRequested = variances.some(v => v.discrepancyStatus === "RecountRequested");
   const hasUnresolvedVariances = variances.some(v => !v.resolutionAction);
   const hasRecountEligibleItems = variances.some(v => !v.resolutionAction && v.discrepancyStatus !== "RecountRequested" && (v.countRound ?? 1) <= 1 && v.discrepancyStatus === "Discrepancy");
+  const allVariancesResolved = variances.length > 0 && variances.every(v => v.resolutionAction);
   const metrics = detailData?.metrics;
   const isCountComplete = (metrics?.totalItems ?? 0) > 0 && (metrics?.countedItems === metrics?.totalItems);
   const hasDiscrepancies = (metrics?.discrepancyItems ?? 0) > 0;
@@ -456,6 +457,30 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                   </Card>
                 )}
 
+                {/* MANAGER: Confirm & Sign after all resolved */}
+                {role === "manager" && status === "pendingmanagerreview" && allVariancesResolved && (
+                  <Card className="border-emerald-200 shadow-sm bg-emerald-50/30 gap-0 border-x-0 border-t-0 rounded-none">
+                    <CardHeader className="border-b border-emerald-100 pt-4 pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2 text-emerald-800"><CheckCircle className="w-5 h-5" /> {t("All Discrepancies Resolved")}</CardTitle></CardHeader>
+                    <CardContent className="pt-6 space-y-4">
+                      <p className="text-sm text-emerald-700/80">{t("All discrepancy items have been resolved. Confirm and sign to submit for accountant approval.")}</p>
+                      <Dialog open={isManagerConfirming} onOpenChange={(open) => { setIsManagerConfirming(open); if (!open) handleClearSignature(); }}>
+                        <DialogTrigger asChild><Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm h-11" disabled={isSubmitting}><FileSignature className="w-5 h-5 mr-2" /> {t("Confirm & Sign")}</Button></DialogTrigger>
+                        <DialogContent className="sm:max-w-[400px]">
+                          <DialogHeader><DialogTitle className="text-emerald-700">{t("Confirm All Resolutions")}</DialogTitle><DialogDescription>{t("Sign below to confirm all resolutions and submit for accountant approval.")}</DialogDescription></DialogHeader>
+                          <div className="space-y-3 py-4">
+                            <label className="text-xs font-semibold text-slate-500 uppercase">{t("Manager Digital Signature")} <span className="text-red-500">*</span></label>
+                            <div className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-inner">
+                              <ReactSignatureCanvas ref={sigCanvas} penColor="maroon" canvasProps={{ className: "w-full h-40" }} onEnd={onSignatureEnd} />
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={handleClearSignature} className="text-slate-500 text-xs flex items-center gap-1"><Eraser className="w-3 h-3" /> {t("Clear")}</Button>
+                          </div>
+                          <DialogFooter className="gap-2 mt-4"><Button variant="outline" onClick={() => { setIsManagerConfirming(false); handleClearSignature(); }}>{t("Cancel")}</Button><Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleManagerConfirm} disabled={isSubmitting || !isSigned}>{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Check className="w-4 h-4 mr-2"/>} {t("Sign & Submit")}</Button></DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* ACCOUNTANT/ADMIN: Approve/Reject Manager's resolution (PendingAccountantApproval) */}
                 {(role === "accountant" || role === "admin") && status === "pendingaccountantapproval" && (
                   <Card className="border-violet-200 shadow-sm bg-violet-50/30 gap-0 border-x-0 border-t-0 rounded-none">
@@ -552,7 +577,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
       </main>
 
       {/* RESOLVE DIALOG */}
-      <Dialog open={resolveItem !== null} onOpenChange={(open) => !open && setResolveItem(null)}>
+      <Dialog open={resolveItem !== null} onOpenChange={(open) => { if (!open) { setResolveItem(null); setResolveNotes(""); } }}>
         <DialogContent aria-describedby="resolve-dialog-description" className="sm:max-w-[450px]">
           <DialogHeader>
             <DialogTitle className="text-indigo-700 flex items-center gap-2"><ClipboardList className="w-5 h-5" /> {t("Resolve Discrepancy")}</DialogTitle>
@@ -564,30 +589,14 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                 <span className={`font-bold text-base ${(resolveItem?.variance || 0) < 0 ? 'text-red-600' : 'text-blue-600'}`}>{(resolveItem?.variance || 0) > 0 ? "+" : ""}{resolveItem?.variance}</span>
              </div>
             <div className="space-y-2">
-               <label className="text-sm font-semibold text-slate-700">{t("Select Resolution Action")} <span className="text-red-500">*</span></label>
-               <Select value={resolveAction} onValueChange={setResolveAction}>
-                 <SelectTrigger className="h-10"><SelectValue placeholder={t("Choose action...")} /></SelectTrigger>
-                 <SelectContent>
-                   <SelectItem value="AdjustSystem">{t("Adjust System (Update Inventory)")}</SelectItem>
-                   <SelectItem value="Investigate">{t("Investigate (Keep pending)")}</SelectItem>
-                   <SelectItem value="Accept">{t("Accept (Ignore variance)")}</SelectItem>
-                   <SelectItem value="RequestRecount">{t("Request Recount (Staff redo)")}</SelectItem>
-                 </SelectContent>
-               </Select>
+               <label className="text-sm font-semibold text-slate-700">{t("Resolution Note")} <span className="text-red-500">*</span></label>
+               <Textarea placeholder={t("Enter your resolution note...")} value={resolveNotes} onChange={(e) => setResolveNotes(e.target.value)} maxLength={500} className="min-h-[80px] max-h-[160px] resize-none break-words overflow-wrap-anywhere" />
+               <p className="text-xs text-slate-400 text-right">{resolveNotes.length}/500</p>
             </div>
-            {((detailData?.varianceSummary?.unresolvedVariances || 0) <= 1 && resolveAction !== "" && resolveAction !== "RequestRecount") && (
-               <div className="space-y-3 pt-2">
-                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Manager Digital Signature (Final Step)")}</label>
-                  <div className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-inner">
-                    <ReactSignatureCanvas ref={sigCanvas} penColor="maroon" canvasProps={{ className: "w-full h-32" }} onEnd={onSignatureEnd} />
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={handleClearSignature} className="text-slate-500 text-xs flex items-center gap-1 h-7"><Eraser className="w-3 h-3" /> {t("Clear")}</Button>
-               </div>
-            )}
           </div>
           <DialogFooter>
             <DialogClose asChild><Button variant="outline">{t("Cancel")}</Button></DialogClose>
-            <Button className="bg-indigo-600 text-white hover:bg-indigo-700" onClick={handleConfirmResolve} disabled={isSubmitting || !resolveAction}>{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} {t("Confirm")}</Button>
+            <Button className="bg-indigo-600 text-white hover:bg-indigo-700" onClick={handleConfirmResolve} disabled={isSubmitting || !resolveNotes.trim()}>{isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} {t("Confirm")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

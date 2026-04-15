@@ -568,6 +568,10 @@ namespace Backend.Domains.Audit.Services
             detail.ResolvedBy = resolvedByUserId;
             detail.ResolvedAt = DateTime.UtcNow;
 
+            // Save manager notes
+            if (!string.IsNullOrWhiteSpace(request.Notes))
+                detail.Reason = request.Notes.Trim();
+
             await _notificationService.QueueAuditNotificationAsync(
                 stockTakeId,
                 $"Chênh lệch cho vật tư #{detail.MaterialId} trong Audit #{st.StockTakeId} ({st.Title}) đã được xử lý với phương án {DescribeResolutionAction(normalizedAction)}.",
@@ -580,45 +584,61 @@ namespace Backend.Domains.Audit.Services
 
             await _db.SaveChangesAsync(ct);
 
-            // Check if all variances are now resolved → auto-transition to PendingAccountantApproval
-            if (string.Equals(st.Status, "PendingManagerReview", StringComparison.OrdinalIgnoreCase))
-            {
-                var remainingUnresolved = await _db.StockTakeDetails
-                    .AsNoTracking()
-                    .CountAsync(x =>
-                        x.StockTakeId == stockTakeId &&
-                        (x.SystemQty ?? 0m) != (x.CountQty ?? 0m) &&
-                        (
-                            x.ResolutionAction == null ||
-                            x.ResolvedBy == null ||
-                            x.ResolvedAt == null
-                        ), ct);
-
-                if (remainingUnresolved == 0)
-                {
-                    // Last item resolved -> save Manager signature if provided
-                    if (!string.IsNullOrWhiteSpace(request.SignatureData))
-                    {
-                        await AddSignatureIfNotExistsAsync(stockTakeId, resolvedByUserId, "Manager", request.SignatureData, ct);
-                    }
-
-                    st.Status = "PendingAccountantApproval";
-
-                    await _notificationService.QueueAuditNotificationAsync(
-                        stockTakeId,
-                        $"Manager đã xử lý xong tất cả chênh lệch cho Audit #{st.StockTakeId} ({st.Title}). Chờ Kế toán duyệt.",
-                        includeCreator: true,
-                        includeTeamMembers: false,
-                        roleNames: new[] { "Accountant" },
-                        extraUserIds: null,
-                        excludeUserIds: new[] { resolvedByUserId },
-                        ct);
-
-                    await _db.SaveChangesAsync(ct);
-                }
-            }
-
             return (true, "Variance resolved successfully.");
+        }
+
+        public async Task<(bool success, string message)> ManagerConfirmResolutionAsync(
+            int stockTakeId,
+            int managerUserId,
+            string? signatureData,
+            CancellationToken ct)
+        {
+            var st = await _db.StockTakes
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
+
+            if (st == null)
+                return (false, "Audit not found.");
+
+            if (!string.Equals(st.Status, "PendingManagerReview", StringComparison.OrdinalIgnoreCase))
+                return (false, $"Audit must be in 'PendingManagerReview' status. Current: '{st.Status}'.");
+
+            // Check all discrepancy items are resolved
+            var remainingUnresolved = await _db.StockTakeDetails
+                .AsNoTracking()
+                .CountAsync(x =>
+                    x.StockTakeId == stockTakeId &&
+                    (x.SystemQty ?? 0m) != (x.CountQty ?? 0m) &&
+                    (
+                        x.ResolutionAction == null ||
+                        x.ResolvedBy == null ||
+                        x.ResolvedAt == null
+                    ), ct);
+
+            if (remainingUnresolved > 0)
+                return (false, $"There are still {remainingUnresolved} unresolved discrepancy items.");
+
+            if (string.IsNullOrWhiteSpace(signatureData))
+                return (false, "Manager signature is required.");
+
+            // Save Manager signature
+            await AddSignatureIfNotExistsAsync(stockTakeId, managerUserId, "Manager", signatureData, ct);
+
+            // Transition to PendingAccountantApproval
+            st.Status = "PendingAccountantApproval";
+
+            await _notificationService.QueueAuditNotificationAsync(
+                stockTakeId,
+                $"Manager đã xử lý xong tất cả chênh lệch cho Audit #{st.StockTakeId} ({st.Title}). Chờ Kế toán duyệt.",
+                includeCreator: true,
+                includeTeamMembers: false,
+                roleNames: new[] { "Accountant" },
+                extraUserIds: null,
+                excludeUserIds: new[] { managerUserId },
+                ct);
+
+            await _db.SaveChangesAsync(ct);
+
+            return (true, "All resolutions confirmed. Awaiting accountant approval.");
         }
 
         public async Task<(bool success, string message)> UpdateVarianceReasonAsync(
