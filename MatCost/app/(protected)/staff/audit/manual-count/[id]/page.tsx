@@ -55,7 +55,8 @@ export default function StaffCountingPage() {
         setRecountTasks(recountData);
         if (recountData.length > 0 && activeTab === "normal") setActiveTab("recount");
         // When all recount items are done, auto-toggle filter to show counted items
-        if (recountData.length === 0 && activeTab === "recount") setRecountUncountedOnly(false);
+        const hasUncounted = recountData.some((t: any) => t.countQty === null || t.countQty === undefined);
+        if (!hasUncounted && recountData.length > 0 && activeTab === "recount") setRecountUncountedOnly(false);
     } catch (error: any) {
         const status = error.response?.status;
         if (status === 401 || status === 403) {
@@ -95,7 +96,8 @@ export default function StaffCountingPage() {
   };
 
   const handleCompleteAudit = () => {
-    if (recountTasks.length > 0) return toast.error(t("You must complete all recount tasks before submitting!"));
+    const hasUncountedRecount = recountTasks.some(t => t.countQty === null || t.countQty === undefined);
+    if (hasUncountedRecount) return toast.error(t("You must complete all recount tasks before submitting!"));
     setIsSignatureModalOpen(true);
   };
 
@@ -232,14 +234,14 @@ export default function StaffCountingPage() {
                           </CardContent>
                       </Card>
                     );
-                }) : filteredData.length === 0 ? (
+                })) : filteredData.length === 0 ? (
                     <div className="text-center py-10 text-slate-400">{searchTerm ? t("No items found.") : t("List is empty.")}</div>
                 ) : filteredData.map(task => (
-                    <Card key={`${task.materialId}-${task.batchId}`} className={`border-l-4 ${uncountedOnly ? "border-l-indigo-400" : "border-l-emerald-500 bg-emerald-50/20"} shadow-sm`}>
+                    <Card key={`${task.materialId}-${task.batchId}-${task.binId}`} className={`border-l-4 ${uncountedOnly ? "border-l-indigo-400" : "border-l-emerald-500 bg-emerald-50/20"} shadow-sm`}>
                         <CardContent className="p-4 flex justify-between items-center">
                           <div>
                               <div className="font-bold flex items-center gap-2 text-slate-800">{task.materialName} {!uncountedOnly && <Check className="w-4 h-4 text-emerald-600"/>}</div>
-                              <div className="text-xs text-slate-500 mt-1">{t("Batch:")} {task.batchCode}</div>
+                              <div className="text-xs text-slate-500 mt-1">{t("Batch:")} {task.batchCode} | {task.binCode}</div>
                               {!uncountedOnly && (task as any).countQty && <div className="text-xs text-indigo-600 font-medium mt-1">{t("Count Qty:")} <span className="font-bold">{(task as any).countQty}</span></div>}
                           </div>
                           <Button size="sm" onClick={() => startEdit(task)} variant={uncountedOnly ? "default" : "outline"} className={uncountedOnly ? "bg-indigo-600 text-white" : ""}>
@@ -254,7 +256,7 @@ export default function StaffCountingPage() {
         </div>
         {!accessDenied && !loading && (
           <div className="shrink-0 p-4 bg-white border-t flex justify-center">
-            <Button size="lg" className={`w-full max-w-2xl font-bold ${progress < 100 || recountTasks.length > 0 ? "bg-slate-300 hover:bg-slate-300 text-slate-500" : "bg-emerald-600 hover:bg-emerald-700 text-white"}`} onClick={handleCompleteAudit} disabled={progress < 100 || recountTasks.length > 0}><Send className="w-5 h-5 mr-2" /> {t("Finish & Submit Count")}</Button>
+            <Button size="lg" className={`w-full max-w-2xl font-bold ${progress < 100 || recountTasks.some(t => t.countQty === null || t.countQty === undefined) ? "bg-slate-300 hover:bg-slate-300 text-slate-500" : "bg-emerald-600 hover:bg-emerald-700 text-white"}`} onClick={handleCompleteAudit} disabled={progress < 100 || recountTasks.some(t => t.countQty === null || t.countQty === undefined)}><Send className="w-5 h-5 mr-2" /> {t("Finish & Submit Count")}</Button>
           </div>
         )}
 

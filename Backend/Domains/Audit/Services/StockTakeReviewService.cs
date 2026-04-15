@@ -728,12 +728,15 @@ namespace Backend.Domains.Audit.Services
             if (!string.Equals(detail.DiscrepancyStatus, "Discrepancy", StringComparison.OrdinalIgnoreCase))
                 return (false, "Only items with discrepancy status can be requested for recount.");
 
-            var reason = await _db.AdjustmentReasons
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.ReasonId == request.ReasonId && x.IsActive, ct);
+            if (request.ReasonId > 0)
+            {
+                var reason = await _db.AdjustmentReasons
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.ReasonId == request.ReasonId && x.IsActive, ct);
 
-            if (reason == null)
-                return (false, "Invalid reason.");
+                if (reason == null)
+                    return (false, "Invalid reason.");
+            }
 
             // 1. Identify all materials in the audit scope (InventoryCurrent matching warehouse and assigned bins)
             var assignedBinIds = await _db.StockTakeBinLocations
@@ -775,7 +778,7 @@ namespace Backend.Domains.Audit.Services
                         CountRound = 1,
                         DiscrepancyStatus = "RecountRequested",
                         Reason = "Missing from Round 1 count",
-                        AdjustmentReasonId = request.ReasonId,
+                        AdjustmentReasonId = request.ReasonId > 0 ? request.ReasonId : null,
                         ResolvedBy = managerUserId,
                         ResolvedAt = DateTime.UtcNow
                     };
@@ -784,28 +787,27 @@ namespace Backend.Domains.Audit.Services
                 else
                 {
                     d.DiscrepancyStatus = "RecountRequested";
-                    d.CountQty = null;       // Clear old count for Round 2
-                    d.CountedBy = null;      // Clear old counter
-                    d.CountedAt = null;      // Clear old time
+                    d.CountQty = null;
+                    d.CountedBy = null;
+                    d.CountedAt = null;
                     d.ResolutionAction = null;
-                    d.AdjustmentReasonId = request.ReasonId;
+                    d.AdjustmentReasonId = request.ReasonId > 0 ? request.ReasonId : null;
                     d.Reason = d.Id == detailId ? request.Note : "Required full scope recount";
                     d.ResolvedBy = managerUserId;
                     d.ResolvedAt = DateTime.UtcNow;
                 }
             }
 
-            // 4. Also reset any existing details that might not be in the current inventory query (ghost items)
             foreach (var d in existingDetails)
             {
                 if (d.DiscrepancyStatus != "RecountRequested")
                 {
                     d.DiscrepancyStatus = "RecountRequested";
-                    d.CountQty = null;       // Clear old count
+                    d.CountQty = null;
                     d.CountedBy = null;
                     d.CountedAt = null;
                     d.ResolutionAction = null;
-                    d.AdjustmentReasonId = request.ReasonId;
+                    d.AdjustmentReasonId = request.ReasonId > 0 ? request.ReasonId : null;
                     d.Reason = d.Id == detailId ? request.Note : "Required full scope recount";
                     d.ResolvedBy = managerUserId;
                     d.ResolvedAt = DateTime.UtcNow;

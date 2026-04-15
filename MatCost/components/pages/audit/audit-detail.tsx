@@ -157,7 +157,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   const handleRecountAll = async () => {
     try {
         setIsSubmitting(true);
-        await auditService.requestRecountAll(stockTakeId, 1, "Manager recount all request");
+        await auditService.requestRecountAll(stockTakeId, 0, "Manager recount all request");
         toast.success(t("Recount request sent for all pending items!"));
         await fetchData();
     } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); }
