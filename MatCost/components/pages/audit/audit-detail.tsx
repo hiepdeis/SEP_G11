@@ -556,6 +556,47 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                   {detailData.notes && (<div><label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Notes")}</label><p className="text-sm text-slate-700 mt-1.5 bg-slate-50 p-3 rounded-md border border-slate-100 leading-relaxed">{detailData.notes}</p></div>)}
                 </CardContent>
               </Card>
+
+              {/* PENALTY CARD - shown when penalty exists */}
+              {detailData.penalty && (
+                <Card className="border-red-200 shadow-sm bg-red-50/30">
+                  <CardHeader className="border-b border-red-100 py-4"><CardTitle className="text-base font-semibold flex items-center gap-2 text-red-800"><Gavel className="w-4 h-4" /> {t("Penalty Record")}</CardTitle></CardHeader>
+                  <CardContent className="p-6 space-y-4">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Penalty Reason")}</label>
+                      <p className="text-sm text-red-700 mt-1.5 bg-red-50 p-2.5 rounded-md border border-red-200 font-medium break-words">{detailData.penalty.reason}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Penalty Amount")}</label>
+                      <div className="mt-1.5 bg-red-50 p-2.5 rounded-md border border-red-200">
+                        <span className="text-lg font-bold text-red-700">{Number(detailData.penalty.amount).toLocaleString("vi-VN")} VNĐ</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Penalized Manager")}</label>
+                      <div className="mt-1.5 flex items-center gap-2 text-slate-800 font-medium bg-slate-50 p-2.5 rounded-md border border-slate-100">
+                        <Users className="w-4 h-4 text-red-500" />{detailData.penalty.targetUserName || `ID: ${detailData.penalty.targetUserId}`}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Issued By")}</label>
+                      <div className="mt-1.5 flex items-center gap-2 text-slate-800 font-medium bg-slate-50 p-2.5 rounded-md border border-slate-100">
+                        <ShieldAlert className="w-4 h-4 text-indigo-500" />{detailData.penalty.issuedByName || `ID: ${detailData.penalty.issuedByUserId}`}
+                      </div>
+                    </div>
+                    {detailData.penalty.notes && (
+                      <div>
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Notes")}</label>
+                        <p className="text-sm text-slate-700 mt-1.5 bg-slate-50 p-3 rounded-md border border-slate-100 leading-relaxed break-words">{detailData.penalty.notes}</p>
+                      </div>
+                    )}
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Issued Date")}</label>
+                      <p className="text-sm text-slate-700 mt-1.5 font-medium">{new Date(detailData.penalty.createdAt).toLocaleString("vi-VN")}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </div>

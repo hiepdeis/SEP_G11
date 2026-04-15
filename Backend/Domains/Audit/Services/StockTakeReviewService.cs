@@ -1058,6 +1058,32 @@ namespace Backend.Domains.Audit.Services
                 CompletedByName = completedByName
             };
 
+            // Get penalty info if exists
+            var penaltyEntity = await _db.AuditPenalties
+                .AsNoTracking()
+                .Where(x => x.StockTakeId == stockTakeId)
+                .Include(x => x.IssuedByUser)
+                .Include(x => x.TargetUser)
+                .OrderByDescending(x => x.CreatedAt)
+                .FirstOrDefaultAsync(ct);
+
+            PenaltyInfoDto? penalty = null;
+            if (penaltyEntity != null)
+            {
+                penalty = new PenaltyInfoDto
+                {
+                    PenaltyId = penaltyEntity.PenaltyId,
+                    Reason = penaltyEntity.Reason,
+                    Amount = penaltyEntity.Amount,
+                    Notes = penaltyEntity.Notes,
+                    IssuedByUserId = penaltyEntity.IssuedByUserId,
+                    IssuedByName = penaltyEntity.IssuedByUser?.FullName,
+                    TargetUserId = penaltyEntity.TargetUserId,
+                    TargetUserName = penaltyEntity.TargetUser?.FullName,
+                    CreatedAt = ToUtc(penaltyEntity.CreatedAt)
+                };
+            }
+
             return new StockTakeReviewDetailDto
             {
                 StockTakeId = st.StockTakeId,
@@ -1074,7 +1100,8 @@ namespace Backend.Domains.Audit.Services
                 VarianceSummary = varianceSummary,
                 Timeline = timeline,
                 TeamMembers = teamMembers,
-                Signatures = signatures
+                Signatures = signatures,
+                Penalty = penalty
             };
         }
 

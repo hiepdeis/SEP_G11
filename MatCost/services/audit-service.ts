@@ -11,7 +11,8 @@ export interface MaterialBatchDto { materialId: number; materialName: string; ba
 export interface UpsertCountRequest { materialId: number; binCode: string; batchCode: string; countQty: number; reason?: string; }
 export interface AuditMetricsDto { totalItems: number; countedItems: number; matchedItems: number; discrepancyItems: number; countingProgress: number; }
 export interface VarianceItemDto { id: number; materialName: string; binCode: string; batchCode: string; systemQty: number; countQty: number; variance: number; discrepancyStatus: string; resolutionAction?: string; countRound?: number; unitPrice: number; }
-export interface StockTakeReviewDetailDto { stockTakeId: number; title: string; status: string; warehouseId: number; warehouseName: string; notes?: string; metrics: AuditMetricsDto; signatures?: SignatureInfoDto[]; timeline?: any; teamMembers?: any; }
+export interface StockTakeReviewDetailDto { stockTakeId: number; title: string; status: string; warehouseId: number; warehouseName: string; notes?: string; metrics: AuditMetricsDto; signatures?: SignatureInfoDto[]; timeline?: any; teamMembers?: any; varianceSummary?: any; penalty?: PenaltyInfoDto; }
+export interface PenaltyInfoDto { penaltyId: number; reason: string; amount: number; notes?: string; issuedByUserId: number; issuedByName?: string; targetUserId: number; targetUserName?: string; createdAt: string; }
 export interface SignatureInfoDto { userId: number; fullName: string; role: string; signedAt: string; notes?: string; }
 export interface RecountCandidateDto { userId: number; fullName: string; isActive: boolean; assignedAt: string; removedAt?: string; }
 
