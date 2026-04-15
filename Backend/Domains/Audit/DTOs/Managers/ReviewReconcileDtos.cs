@@ -79,12 +79,14 @@ public sealed class VarianceItemDto
     public int? ResolvedBy { get; set; }
     public string? ResolvedByName { get; set; }
     public DateTime? ResolvedAt { get; set; }
+    public decimal UnitPrice { get; set; }
 }
 
 public sealed class ResolveVarianceRequest
 {
     public string? ResolutionAction { get; set; } // e.g., "Accept", "AdjustSystem", "Investigate"
     public int? AdjustmentReasonId { get; set; }
+    public string? SignatureData { get; set; }
 }
 
 public sealed class UpdateVarianceReasonRequest
@@ -101,6 +103,11 @@ public sealed class SignOffRequest
 public sealed class CompleteAuditRequest
 {
     public string? Notes { get; set; }
+}
+
+public sealed class ApproveResolveRequest
+{
+    public string? SignatureData { get; set; }
 }
 
 public sealed class TeamMemberDto
@@ -279,4 +286,22 @@ public sealed class RecountCandidateDto
     public bool IsActive { get; set; }
     public DateTime? AssignedAt { get; set; }
     public DateTime? RemovedAt { get; set; }
+}
+
+public sealed class AccountantReviewRequest
+{
+    /// <summary>"Approve" (all matched) or "ForwardToManager" (has discrepancies)</summary>
+    public string Action { get; set; } = null!;
+    public string? Notes { get; set; }
+    public string? SignatureData { get; set; }
+}
+
+public sealed class AdminFinalizeRequest
+{
+    public string PenaltyReason { get; set; } = null!;
+    public decimal PenaltyAmount { get; set; }
+    public string? PenaltyNotes { get; set; }
+    public int TargetManagerUserId { get; set; }
+    public string? AuditNotes { get; set; }
+    public string? SignatureData { get; set; }
 }

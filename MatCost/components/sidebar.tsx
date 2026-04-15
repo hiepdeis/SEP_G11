@@ -20,6 +20,7 @@ import {
   Cable,
   FolderKanban,
   Warehouse,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +40,7 @@ import { UserDropdown } from "@/components/user-dropdown";
 import { useAuth } from "@/components/providers/auth-provider";
 import { userApi } from "@/services/user-service";
 import { useTranslation } from "react-i18next";
+import IncomingShipments from "@/app/(protected)/outbound/purchasing/IncomingShipments/page";
 
 export function Sidebar() {
   const { t } = useTranslation();
@@ -113,14 +115,14 @@ export function Sidebar() {
     },
     {
       label: t("sidebar.roles.construction"),
-      href: "/outbound/contruction/MaterialRequestForm",
+      href: "/outbound/purchasing/IncomingShipments",
     },
-    { label: t("sidebar.roles.accountant"), href: "/outbound/account" },
-    { label: t("sidebar.roles.manager"), href: "/outbound/manager" },
-    {
-      label: t("sidebar.tabs.inventory_issue"),
-      href: "/outbound/staff/InventoryIssueList",
-    },
+    // { label: t("sidebar.roles.accountant"), href: "/outbound/account" },
+    // { label: t("sidebar.roles.manager"), href: "/outbound/manager" },
+    // {
+    //   label: t("sidebar.tabs.inventory_issue"),
+    //   href: "/outbound/staff/InventoryIssueList",
+    // },
   ];
 
   const allAuditTabs = [
@@ -738,6 +740,38 @@ export function Sidebar() {
             </DropdownMenu>
           )}
 
+          <a
+            href="/security/2fa"
+            className={`
+              relative flex gap-3 px-3 py-3 rounded-xl transition-all duration-300 group overflow-hidden w-full
+              ${
+                pathname.includes("/security/2fa")
+                  ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm"
+              }
+              ${isExpanded ? "justify-start" : "justify-center"}
+            `}
+          >
+            <ShieldCheck
+              className={`
+                h-5 w-5 flex-shrink-0 transition-all duration-300
+                ${
+                  pathname.includes("/security/2fa")
+                    ? "text-blue-600 scale-110"
+                    : "text-slate-400 group-hover:text-slate-600 group-hover:scale-110"
+                }
+              `}
+            />
+            {isExpanded && (
+              <span className="text-sm font-medium whitespace-nowrap">
+                Bảo mật 2FA
+              </span>
+            )}
+            {pathname.includes("/security/2fa") && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
+            )}
+          </a>
+
           {/* Admin Section */}
           {userDecode?.role === "Admin" && (
             <div className="pt-4 mt-4 border-t border-slate-100">
@@ -1134,6 +1168,57 @@ export function Sidebar() {
                   </div>
                 )}
               </div>
+
+              <a
+                href="/security/2fa"
+                onClick={() => setIsMobileOpen(false)}
+                className={`
+                  flex items-center gap-4 px-4 py-3.5 rounded-xl w-full transition-all duration-200 group relative
+                  ${
+                    pathname.includes("/security/2fa")
+                      ? "bg-blue-50 text-blue-700 font-semibold shadow-sm"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }
+                `}
+              >
+                {pathname.includes("/security/2fa") && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-blue-600 rounded-r-full"></div>
+                )}
+                <ShieldCheck
+                  className={`h-5 w-5 flex-shrink-0 transition-colors ${
+                    pathname.includes("/security/2fa")
+                      ? "text-blue-600"
+                      : "text-slate-400 group-hover:text-slate-600"
+                  }`}
+                />
+                <span className="text-base flex-1 text-left">Bảo mật 2FA</span>
+              </a>
+            </nav>
+            <nav>
+              <a
+                href="/security/2fa"
+                onClick={() => setIsMobileOpen(false)}
+                className={`
+                  flex items-center gap-4 px-4 py-3.5 rounded-xl w-full transition-all duration-200 group relative
+                  ${
+                    pathname.includes("/security/2fa")
+                      ? "bg-blue-50 text-blue-700 font-semibold shadow-sm"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }
+                `}
+              >
+                {pathname.includes("/security/2fa") && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-blue-600 rounded-r-full"></div>
+                )}
+                <ShieldCheck
+                  className={`h-5 w-5 flex-shrink-0 transition-colors ${
+                    pathname.includes("/security/2fa")
+                      ? "text-blue-600"
+                      : "text-slate-400 group-hover:text-slate-600"
+                  }`}
+                />
+                <span className="text-base flex-1 text-left">Bảo mật 2FA</span>
+              </a>
             </nav>
 
             {/* Admin Mobile Section */}

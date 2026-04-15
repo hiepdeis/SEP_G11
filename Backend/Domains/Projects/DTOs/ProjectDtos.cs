@@ -11,8 +11,9 @@ namespace Backend.Domains.Projects.DTOs
         public string? Status { get; set; }
     }
 
-    public class CreateProjectRequest
+    public class SaveProjectRequest
     {
+        public int? ProjectId { get; set; }
         public string Code { get; set; } = null!;
         public string Name { get; set; } = null!;
         public DateTime? StartDate { get; set; }

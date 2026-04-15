@@ -187,6 +187,12 @@ namespace Backend.Domains.outbound.Controllers
                 .Include(x => x.Project)
                 .Include(x => x.IssueDetails)
                     .ThenInclude(d => d.Material) // Join để lấy Đơn giá
+                .Include(x => x.IssueDetails)
+                    .ThenInclude(d => d.PickingLists)
+                        .ThenInclude(p => p.Batch)
+                .Include(x => x.IssueDetails)
+                    .ThenInclude(d => d.PickingLists)
+                .ThenInclude(p => p.Bin)
                 .Include(x => x.CreatedByNavigation)
                 .FirstOrDefaultAsync(x => x.IssueId == id);
 
@@ -317,7 +323,18 @@ namespace Backend.Domains.outbound.Controllers
                         IsStockSufficient = availableStock >= d.Quantity,
                         UnitPrice = d.Material.UnitPrice ?? 0,
                         LineTotal = d.Quantity * (d.Material.UnitPrice ?? 0),
-                        FifoSuggestedBatches = suggestedBatches
+                        FifoSuggestedBatches = suggestedBatches,
+                        ActualPickingItems = d.PickingLists.Select(p => new
+                        {
+                            pickingId = p.PickingId,
+                            materialCode = d.Material.Code,
+                            materialName = d.Material.Name,
+                            unit = d.Material.Unit,
+                            batchCode = p.Batch.BatchCode,
+                            binLocation = p.Bin.Code, 
+                            qtyToPick = p.QtyToPick,
+                            isPicked = p.IsPicked
+                        }).ToList()
                     };
                 })
             };
@@ -428,104 +445,6 @@ namespace Backend.Domains.outbound.Controllers
         }
 
 
-
-        [HttpPost("{id}/process-inventory")]
-        // [Authorize(Roles = "Accountant, WarehouseManager")]
-        public async Task<IActionResult> ProcessInventory(long id)
-        {
-            var issue = await _context.IssueSlips
-                .Include(x => x.IssueDetails)
-                    .ThenInclude(d => d.Material)
-                .FirstOrDefaultAsync(x => x.IssueId == id);
-
-            if (issue == null) return NotFound("IssueSlip not found");
-
-            // Bắt buộc phải được duyệt tiền rồi mới cho check kho
-            if (issue.Status != "Approved")
-                return BadRequest("Chỉ phiếu đã được duyệt (Approved) mới có thể xử lý tồn kho.");
-
-            // Lấy tồn kho thực tế khả dụng
-            var materialIds = issue.IssueDetails.Select(x => x.MaterialId).ToList();
-            var inventoryData = await _context.InventoryCurrents
-                .Where(ic => ic.WarehouseId == issue.WarehouseId && materialIds.Contains(ic.MaterialId))
-                .GroupBy(ic => ic.MaterialId)
-                .Select(g => new {
-                    MaterialId = g.Key,
-                    AvailableQty = g.Sum(ic => (ic.QuantityOnHand ?? 0) - (ic.QuantityAllocated ?? 0))
-                })
-                .ToDictionaryAsync(x => x.MaterialId, x => x.AvailableQty);
-
-            bool hasSplit = false;
-            List<string> directPoNotes = new List<string>();
-
-            foreach (var detail in issue.IssueDetails)
-            {
-                decimal available = inventoryData.ContainsKey(detail.MaterialId) ? inventoryData[detail.MaterialId] : 0;
-                decimal requested = detail.Quantity;
-
-                if (available >= requested)
-                {
-                    // CASE 3: ĐỦ HÀNG -> Bỏ qua, cứ để nguyên số lượng đó cho kho xuất
-                    continue;
-                }
-                else if (available > 0 && available < requested)
-                {
-                    // CASE 2: THIẾU HÀNG (Có 1 phần) -> Split
-                    hasSplit = true;
-                    decimal missingQty = requested - available;
-
-                    // Ép số lượng xuất của phiếu này xuống đúng bằng tồn kho hiện có
-                    detail.Quantity = available;
-                    directPoNotes.Add($"- {detail.Material.Name}: Thiếu {missingQty} {detail.Material.Unit}.");
-
-                    // TODO: Gắn logic tạo phiếu Purchase Request (Mua xuất thẳng) ở đây
-                }
-                else if (available == 0)
-                {
-                    // CASE 1: KHÔNG CÓ HÀNG (0%) -> Split toàn bộ
-                    hasSplit = true;
-                    detail.Quantity = 0;
-                    directPoNotes.Add($"- {detail.Material.Name}: Cháy kho toàn bộ {requested} {detail.Material.Unit}.");
-
-                    // TODO: Gắn logic tạo phiếu Purchase Request ở đây
-                }
-            }
-
-            // CHỐT TRẠNG THÁI SAU KHI CHECK KHO
-            if (hasSplit)
-            {
-                issue.Description = "Yêu cầu mua xuất thẳng: " + string.Join(" ", directPoNotes);
-
-                // Nếu tất cả các dòng đều = 0 (Không còn món nào trong kho)
-                if (issue.IssueDetails.All(d => d.Quantity == 0))
-                {
-                    issue.Status = "Forwarded_To_Purchasing"; // Chuyển thẳng đội Mua hàng
-                    issue.Description = "Hết hàng hoàn toàn. Chuyển thành Đơn mua xuất thẳng.";
-                }
-                else
-                {
-                    issue.Status = "Ready_to_Pick"; // Vẫn còn hàng lẻ để nhặt
-                    issue.Description = "Đã tách phiếu phần thiếu. Chuyển Kho xuất phần có sẵn.";
-                }
-            }
-            else
-            {
-                // Kho đủ 100%
-                issue.Status = "Ready_to_Pick";
-                issue.Description = "Kho đã xác nhận đủ hàng. Sẵn sàng xuất kho.";
-            }
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new
-            {
-                issue.IssueId,
-                NewStatus = issue.Status,
-                IsSplit = hasSplit,
-                Message = issue.Description
-            });
-        }
-
         [HttpGet("materials/{materialId}/batches-in-stock")]
         // [Authorize(Roles = "Accountant, WarehouseManager")]
         public async Task<IActionResult> GetBatchesInStock(int materialId, [FromQuery] int warehouseId)
@@ -562,6 +481,7 @@ namespace Backend.Domains.outbound.Controllers
             });
         }
 
+     
         [HttpPost("{id}/draft-process-inventory")]
         // [Authorize(Roles = "Accountant")]
         public async Task<IActionResult> ProcessDraftInventory(long id, [FromBody] ProcessDraftInventoryRequest request)
@@ -648,8 +568,7 @@ namespace Backend.Domains.outbound.Controllers
                     {
                         var inventoryRecord = await _context.InventoryCurrents
                             .Include(ic => ic.Bin)
-                            .FirstOrDefaultAsync(ic => ic.WarehouseId == originalIssue.WarehouseId
-                                                    && ic.MaterialId == detail.MaterialId
+                            .FirstOrDefaultAsync(ic => ic.MaterialId == detail.MaterialId
                                                     && ic.BatchId == batch.BatchId);
 
                         if (inventoryRecord != null)
@@ -663,7 +582,8 @@ namespace Backend.Domains.outbound.Controllers
                                 BatchId = batch.BatchId,
                                 BinId = inventoryRecord.Bin.BinId, // Lấy vị trí Kệ từ tồn kho
                                 QtyToPick = batch.QtyToTake,
-                                IsPicked = false // Mặc định là chưa nhặt
+                                IsPicked = false, // Mặc định là chưa nhặt
+                                ActualPickerId = null
                             });
                         }
                     }
@@ -752,7 +672,13 @@ namespace Backend.Domains.outbound.Controllers
         // [Authorize(Roles = "Accountant, Admin, WarehouseManager")]
         public async Task<IActionResult> ChangeSlipStatus(long id, [FromBody] ChangeStatusRequest request)
         {
-            var slip = await _context.IssueSlips.FindAsync(id);
+           // var slip = await _context.IssueSlips.Include(x => x.Project).FirstOrDefaultAsync(x => x.IssueId == id);
+            var slip = await _context.IssueSlips
+                                    .Include(x => x.Project)
+                                    .Include(x => x.IssueDetails)           
+                                        .ThenInclude(d => d.PickingLists)  
+                                    .FirstOrDefaultAsync(x => x.IssueId == id);
+
             if (slip == null) return NotFound("Không tìm thấy phiếu.");
 
             // Dùng chung 1 API, xử lý linh hoạt dựa vào Action gửi lên
@@ -767,12 +693,97 @@ namespace Backend.Domains.outbound.Controllers
                 case "Forwarded_To_Purchasing":
                     // Kế toán gửi cho bộ phận Mua hàng
                     if (slip.Status != "Draft_Direct_PO") return BadRequest("Chỉ Đơn mua nháp mới được gửi Thu mua.");
+                    // 1. Tạo Đơn mua xuất thẳng mới (Sang bảng DirectPurchaseOrders)
+                    var newDpo = new DirectPurchaseOrder
+                    {
+                        DpoCode = "DPO-" + DateTime.Now.ToString("yyMMdd") + "-" + new Random().Next(1000, 9999),
+                        ReferenceCode = slip.IssueCode, // Nối dây rốn với phiếu Nháp
+                        ProjectId = slip.Project.ProjectId,
+                        CreatedBy = slip.CreatedBy,
+                        OrderDate = DateTime.UtcNow,
+                        Status = "Pending_Supplier_Selection", // Trạng thái chờ Thu mua vào chọn Nhà cung cấp
+                        SupplierId = null, // ĐỂ TRỐNG (Null) chờ Thu mua điền
+                        Description = $"Chuyển từ đơn mua nháp {slip.IssueCode}.",
+                        DirectPurchaseDetails = new List<DirectPurchaseDetail>()
+                    };
+
+                    // 2. Lấy toàn bộ hàng hóa từ Phiếu Nháp copy sang Đơn mua thật
+                    foreach (var detail in slip.IssueDetails)
+                    {
+                        newDpo.DirectPurchaseDetails.Add(new DirectPurchaseDetail
+                        {
+                            MaterialId = detail.MaterialId,
+                            Quantity = detail.Quantity,
+                            NegotiatedUnitPrice = detail.UnitPrice ?? 0 // Lấy giá dự toán làm base
+                        });
+                    }
+
+                    // 3. Add vào database (Entity Framework sẽ tự sinh lệnh INSERT)
+                    _context.DirectPurchaseOrders.Add(newDpo);
+                    slip.Description += $"\nHệ thống: Đã khởi tạo đơn mua ngoài chính thức [{newDpo.DpoCode}].";
                     slip.Status = "Forwarded_To_Purchasing";
                     break;
 
                 case "Picking_In_Progress":
                     // Sau này Thủ kho giao việc cho Nhân viên đi nhặt hàng
                     slip.Status = "Picking_In_Progress";
+                    break;
+
+                case "Ready_For_Delivery":
+                    if (slip.Status != "Picking_In_Progress")
+                        return BadRequest("Phiếu chưa ở trạng thái đang nhặt hàng.");
+
+                    // TIẾN HÀNH TRỪ TỒN KHO VẬT LÝ
+                    foreach (var detail in slip.IssueDetails)
+                    {
+                        foreach (var pick in detail.PickingLists)
+                        {
+                            // Chỉ trừ những món nhân viên đã thực sự tick chọn (isPicked = true)
+                            if (pick.IsPicked)
+                            {
+                                var inventoryRecord = await _context.InventoryCurrents
+                                    .FirstOrDefaultAsync(ic => ic.WarehouseId == slip.WarehouseId
+                                                            && ic.MaterialId == detail.MaterialId
+                                                            && ic.BatchId == pick.BatchId
+                                                            && ic.BinId == pick.BinId);
+
+                                if (inventoryRecord != null)
+                                {
+                                    // 1. Trừ tồn kho thực tế
+                                    inventoryRecord.QuantityOnHand = (inventoryRecord.QuantityOnHand ?? 0) - pick.QtyToPick;
+
+                                    // 2. Giải phóng tồn kho giữ chỗ
+                                    inventoryRecord.QuantityAllocated = (inventoryRecord.QuantityAllocated ?? 0) - pick.QtyToPick;
+
+                                    // Đảm bảo không bị âm số (Safe check)
+                                    if (inventoryRecord.QuantityAllocated < 0) inventoryRecord.QuantityAllocated = 0;
+                                    if (inventoryRecord.QuantityOnHand < 0) inventoryRecord.QuantityOnHand = 0;
+                                }
+                            }
+                        }
+                    }
+
+                    slip.Status = "Ready_For_Delivery";
+                    slip.Description += $"\n(Kho: Đã xuất hàng và trừ tồn kho vật lý lúc {DateTime.Now:HH:mm}).";
+                    break;
+                case "Completed":
+                    // 1. Chỉ cho phép nhận hàng nếu phiếu đang trên đường giao && slip.Status != "Delivering_To_Site"
+                    if (slip.Status != "Ready_For_Delivery" )
+                        return BadRequest("Phiếu phải ở trạng thái đang giao hàng mới có thể xác nhận.");
+
+                    // 2. Cập nhật trạng thái và ngày thực nhận
+                    slip.Status = "Completed";
+                    if (slip.Project != null)
+                    {
+                        // Tính tổng tiền của phiếu xuất này (Số lượng * Đơn giá dự toán/Giá xuất kho)
+                        decimal totalSlipCost = slip.IssueDetails.Sum(d => d.Quantity * (d.UnitPrice ?? 0));
+
+                        // Cộng dồn vào chi phí dự án
+                        slip.Project.BudgetUsed = (slip.Project.BudgetUsed ?? 0) + totalSlipCost;
+
+                        slip.Description += $"\n(Kế toán: Đã ghi nhận {totalSlipCost:N0} VNĐ từ kho vào chi phí dự án).";
+                    }
+                    slip.Description += $"\n(Hiện trường: Kỹ sư đã xác nhận nhận đủ hàng vào lúc {DateTime.Now:dd/MM/yyyy HH:mm}).";
                     break;
 
                 // ... Bạn có thể nhét thêm 100 trạng thái khác vào đây mà không cần viết thêm API mới ...

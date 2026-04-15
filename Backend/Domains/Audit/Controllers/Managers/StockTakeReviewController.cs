@@ -28,7 +28,7 @@ public class StockTakeReviewController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Manager,Accountant,Staff")]
+    [Authorize(Roles = "Manager,Accountant,Staff,Admin")]
     public async Task<IActionResult> GetAllAudits(
         [FromQuery] int skip = 0,
         [FromQuery] int take = 50,
@@ -59,7 +59,7 @@ public class StockTakeReviewController : ControllerBase
     }
 
     [HttpGet("{stockTakeId:int}/metrics")]
-    [Authorize(Roles = "Manager, Accountant")]
+    [Authorize(Roles = "Manager, Accountant, Admin")]
     public async Task<IActionResult> GetMetrics(int stockTakeId, CancellationToken ct = default)
     {
         try
@@ -74,7 +74,7 @@ public class StockTakeReviewController : ControllerBase
     }
 
     [HttpGet("{stockTakeId:int}/variances")]
-    [Authorize(Roles = "Manager, Accountant")]
+    [Authorize(Roles = "Manager, Accountant, Admin")]
     public async Task<IActionResult> GetVariances(
         int stockTakeId,
         [FromQuery] int skip = 0,
@@ -99,7 +99,7 @@ public class StockTakeReviewController : ControllerBase
     }
 
     [HttpGet("{stockTakeId:int}/variances/details")]
-    [Authorize(Roles = "Manager, Accountant")]
+    [Authorize(Roles = "Manager, Accountant, Admin")]
     public async Task<IActionResult> GetVarianceDetails(
         int stockTakeId,
         [FromQuery] bool? resolved = null,
@@ -122,7 +122,7 @@ public class StockTakeReviewController : ControllerBase
     }
 
     [HttpGet("{stockTakeId:int}/variances/{detailId:long}")]
-    [Authorize(Roles = "Manager, Accountant")]
+    [Authorize(Roles = "Manager, Accountant, Admin")]
     public async Task<IActionResult> GetVarianceDetail(
         int stockTakeId,
         long detailId,
@@ -143,7 +143,7 @@ public class StockTakeReviewController : ControllerBase
     }
 
     [HttpPut("{stockTakeId:int}/variances/{detailId:long}/resolve")]
-    [Authorize(Roles = "Manager")]
+    [Authorize(Roles = "Manager, Admin")]
     public async Task<IActionResult> ResolveVariance(
         int stockTakeId,
         long detailId,
@@ -160,7 +160,7 @@ public class StockTakeReviewController : ControllerBase
     }
 
     [HttpPut("{stockTakeId:int}/variances/{detailId:long}/request-recount")]
-    [Authorize(Roles = "Manager")]
+    [Authorize(Roles = "Manager, Admin")]
     public async Task<IActionResult> RequestRecount(
         int stockTakeId,
         long detailId,
@@ -183,7 +183,7 @@ public class StockTakeReviewController : ControllerBase
     }
 
     [HttpPut("{stockTakeId:int}/variances/{detailId:long}/reason")]
-    [Authorize(Roles = "Manager")]
+    [Authorize(Roles = "Manager, Admin")]
     public async Task<IActionResult> UpdateVarianceReason(
         int stockTakeId,
         long detailId,
@@ -199,7 +199,7 @@ public class StockTakeReviewController : ControllerBase
     }
 
     [HttpGet("{stockTakeId:int}/review-detail")]
-    [Authorize(Roles = "Manager, Accountant")]
+    [Authorize(Roles = "Manager, Accountant, Admin")]
     public async Task<IActionResult> GetReviewDetail(int stockTakeId, CancellationToken ct = default)
     {
         try
@@ -230,7 +230,7 @@ public class StockTakeReviewController : ControllerBase
     }
 
     [HttpGet("{stockTakeId:int}/recount-candidates")]
-    [Authorize(Roles = "Manager, Accountant")]
+    [Authorize(Roles = "Manager, Accountant, Admin")]
     public async Task<IActionResult> GetRecountCandidates(
         int stockTakeId,
         CancellationToken ct = default)
@@ -255,7 +255,7 @@ public class StockTakeReviewController : ControllerBase
     }
 
     [HttpPost("{stockTakeId:int}/recount-candidates/{targetUserId:int}/rejoin")]
-    [Authorize(Roles = "Manager")]
+    [Authorize(Roles = "Manager, Admin")]
     public async Task<IActionResult> RejoinForRecount(
         int stockTakeId,
         int targetUserId,

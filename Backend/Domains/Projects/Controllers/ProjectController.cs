@@ -25,10 +25,10 @@ namespace Backend.Controllers
             return Ok(data);
         }
 
-        [HttpPost]
-        public async Task<IActionResult> Create([FromBody] CreateProjectRequest request, CancellationToken ct)
+        [HttpPost("save")] 
+        public async Task<IActionResult> Save([FromBody] SaveProjectRequest request, CancellationToken ct)
         {
-            var result = await _service.CreateProjectAsync(request, ct);
+            var result = await _service.SaveProjectAsync(request, ct);
             if (!result.success) return BadRequest(new { message = result.message });
             return Ok(new { message = result.message });
         }
