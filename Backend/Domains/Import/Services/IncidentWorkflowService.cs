@@ -52,7 +52,6 @@ namespace Backend.Domains.Import.Services
             var incidents = await _context.IncidentReports
                 .Include(i => i.Receipt)
                 .Include(i => i.IncidentReportDetails)
-                    .ThenInclude(d => d.EvidenceImages)
                 .Include(i => i.QCCheck)
                     .ThenInclude(q => q!.QCCheckDetails)
                         .ThenInclude(d => d.ReceiptDetail)
@@ -70,7 +69,7 @@ namespace Backend.Domains.Import.Services
                 ReceiptCode = i.Receipt?.ReceiptCode,
                 SubmittedAt = i.CreatedAt,
                 Status = i.Status,
-                Items = MapIncidentItems(i)
+                Items = MapIncidentItems(i, includeImages: false)
             }).ToList();
         }
 
@@ -598,7 +597,7 @@ namespace Backend.Domains.Import.Services
             await _context.SaveChangesAsync();
         }
 
-        private static List<ManagerIncidentItemSummaryDto> MapIncidentItems(IncidentReport incident)
+        private static List<ManagerIncidentItemSummaryDto> MapIncidentItems(IncidentReport incident, bool includeImages = true)
         {
             var evidenceByMaterial = incident.IncidentReportDetails
                 .GroupBy(d => d.MaterialId)
@@ -640,7 +639,7 @@ namespace Backend.Domains.Import.Services
                     FailQuantityQuantity = qcd?.FailQuantityQuantity,
                     FailQuantityQuality = qcd?.FailQuantityQuality,
                     FailQuantityDamage = qcd?.FailQuantityDamage,
-                    EvidenceImages = evidenceByMaterial.TryGetValue(rd.MaterialId, out var images)
+                    EvidenceImages = includeImages && evidenceByMaterial.TryGetValue(rd.MaterialId, out var images)
                     ? images
                     : new List<string>()
                 };
