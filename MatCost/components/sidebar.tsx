@@ -36,6 +36,7 @@ import { UserDropdown } from "@/components/user-dropdown";
 import { useAuth } from "@/components/providers/auth-provider";
 import { userApi } from "@/services/user-service";
 import { useTranslation } from "react-i18next";
+import IncomingShipments from "@/app/(protected)/outbound/purchasing/IncomingShipments/page";
 
 export function Sidebar() {
   const { t } = useTranslation();
@@ -105,14 +106,15 @@ export function Sidebar() {
     },
     {
       label: t("sidebar.roles.construction"),
-      href: "/outbound/contruction/MaterialRequestForm",
+      href: "/outbound/purchasing/IncomingShipments",
     },
-    { label: t("sidebar.roles.accountant"), href: "/outbound/account" },
-    { label: t("sidebar.roles.manager"), href: "/outbound/manager" },
-    {
-      label: t("sidebar.tabs.inventory_issue"),
-      href: "/outbound/staff/InventoryIssueList",
-    },
+    // { label: t("sidebar.roles.accountant"), href: "/outbound/account" },
+    // { label: t("sidebar.roles.manager"), href: "/outbound/manager" },
+    // {
+    //   label: t("sidebar.tabs.inventory_issue"),
+    //   href: "/outbound/staff/InventoryIssueList",
+    // },
+
   ];
 
   const allAuditTabs = [
@@ -742,6 +744,8 @@ export function Sidebar() {
             )}
           </a>
 
+
+
           {/* Admin Section */}
           {userDecode?.role === "Admin" && (
             <div className="pt-4 mt-4 border-t border-slate-100">
@@ -1139,6 +1143,7 @@ export function Sidebar() {
                 )}
               </div>
 
+
               <a
                 href="/security/2fa"
                 onClick={() => setIsMobileOpen(false)}
@@ -1164,31 +1169,32 @@ export function Sidebar() {
                 <span className="text-base flex-1 text-left">Bảo mật 2FA</span>
               </a>
             </nav>
-
-            <div className="border-t border-slate-100 p-4 bg-slate-50/50">
-              <UserDropdown
-                side="top"
-                align="center"
-                trigger={
-                  <button className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-white border border-slate-200 shadow-sm">
-                    <div className="relative flex-shrink-0">
-                      <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold text-white shadow-md shadow-indigo-200 ring-2 ring-white">
-                        <User className="h-5 w-5" />
-                      </div>
-                    </div>
-                    <div className="flex-1 text-left min-w-0">
-                      <p className="text-sm font-bold text-slate-900 truncate">
-                        {userProfile?.fullName || "Loading..."}
-                      </p>
-                      <p className="text-xs text-slate-500 truncate">
-                        {userProfile?.email || "..."}
-                      </p>
-                    </div>
-                    <Settings className="w-5 h-5 text-slate-400" />
-                  </button>
-                }
-              />
-            </div>
+            <nav>
+              <a
+                href="/security/2fa"
+                onClick={() => setIsMobileOpen(false)}
+                className={`
+                  flex items-center gap-4 px-4 py-3.5 rounded-xl w-full transition-all duration-200 group relative
+                  ${
+                    pathname.includes("/security/2fa")
+                      ? "bg-blue-50 text-blue-700 font-semibold shadow-sm"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }
+                `}
+              >
+                {pathname.includes("/security/2fa") && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-blue-600 rounded-r-full"></div>
+                )}
+                <ShieldCheck
+                  className={`h-5 w-5 flex-shrink-0 transition-colors ${
+                    pathname.includes("/security/2fa")
+                      ? "text-blue-600"
+                      : "text-slate-400 group-hover:text-slate-600"
+                  }`}
+                />
+                <span className="text-base flex-1 text-left">Bảo mật 2FA</span>
+              </a>
+            </nav>
 
             {/* Admin Mobile Section */}
             {userDecode?.role === "Admin" && (

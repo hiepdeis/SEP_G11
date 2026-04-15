@@ -41,8 +41,6 @@ public partial class Supplier
     [InverseProperty("Supplier")]
     public virtual ICollection<PurchaseOrderItem> PurchaseOrderItems { get; set; } = new List<PurchaseOrderItem>();
 
-    [InverseProperty("Supplier")]
-    public virtual ICollection<DirectPurchaseOrder> DirectPurchaseOrders { get; set; } = new List<DirectPurchaseOrder>();
 
     [InverseProperty("Supplier")]
     public virtual ICollection<SupplierTransaction> SupplierTransactions { get; set; } = new List<SupplierTransaction>();

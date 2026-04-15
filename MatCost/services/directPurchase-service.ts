@@ -24,14 +24,26 @@ export interface DirectPurchase {
 export interface ConfirmOrderItem {
   dpoDetailId: number;
   negotiatedUnitPrice: number;
+  supplierId: number;
 }
 
 export interface ConfirmOrderRequest {
-  supplierId: number;
-  expectedDeliveryDate: string; 
+  expectedDeliveryDate?: string;
   deliveryAddress: string;
   items: ConfirmOrderItem[];
 }
+export interface IncomingShipment {
+  recordId: number;
+  code: string;
+  type: string;
+  sourceName: string;
+  expectedDate: string;
+  status: string;
+  itemsSummary: string;
+  licensePlate: string;
+}
+
+ 
 
 export const directPurchaseApi = {
   getDirectPurchaseById: async (id: number): Promise<DirectPurchase> => {
@@ -42,6 +54,12 @@ export const directPurchaseApi = {
     const res = await axiosClient.post(
       `/DirectPurchase/${id}/confirm-order`,
       data
+    );
+    return res.data;
+  },
+  getIncomingShipments: async (): Promise<IncomingShipment[]> => {
+    const res = await axiosClient.get(
+      `/DirectPurchase/api/site/incoming-shipments`
     );
     return res.data;
   },

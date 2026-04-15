@@ -1,6 +1,9 @@
 "use client";
 
+
 import { useEffect, useState } from "react";
+
+
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/ui/custom/header";
@@ -9,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Lock, ShieldCheck, QrCode, Plus, Loader2, CheckCircle2, ArrowLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { OTPInput } from "input-otp";
+
 import { otpApi, OtpSetupResponse, OtpStatusResponse } from "@/services/otpservices";
 
 export default function TwoFactorAuthPage() {
@@ -55,11 +59,13 @@ export default function TwoFactorAuthPage() {
 
 
   const handleVerify = async () => {
+
     if (code.length < 6) {
       toast.error("Vui lòng nhập đủ 6 ký tự.");
       return;
     }
     setIsVerifying(true);
+
    try {
       await otpApi.validotp(code);
       toast.success("Thiết lập xác minh 2 bước thành công!");
@@ -74,6 +80,7 @@ export default function TwoFactorAuthPage() {
       } finally {
         setIsVerifying(false);
       }
+
   };
 
   return (
@@ -83,6 +90,7 @@ export default function TwoFactorAuthPage() {
         <Header title="Bảo mật & Xác minh 2 lớp (2FA)" />
 
         <div className="flex-grow overflow-y-auto p-4 sm:p-6 lg:p-10 flex flex-col items-center justify-center">
+
           {/* MÀN HÌNH LOADING TRẠNG THÁI */}
           {isFetchingStatus && (
             <div className="flex flex-col items-center text-slate-500">
@@ -118,6 +126,7 @@ export default function TwoFactorAuthPage() {
           {/* CÁC BƯỚC SETUP NẾU CHƯA BẬT */}
           {!isFetchingStatus && !status?.isEnabled && (
             <> 
+
           {/* BƯỚC 1: BẢO VỆ TÀI KHOẢN */}
           {step === 1 && (
             <Card className="w-full max-w-[500px] border-slate-200 shadow-sm gap-0">
@@ -171,6 +180,7 @@ export default function TwoFactorAuthPage() {
                     <p className="text-sm text-slate-600 leading-relaxed">
                       Tải ứng dụng <span className="font-semibold text-slate-800">Google Authenticator</span> từ <span className="text-indigo-600 cursor-pointer hover:underline font-medium">Google Play</span> hoặc <span className="text-indigo-600 cursor-pointer hover:underline font-medium">App Store</span>.
                     </p>
+
                    <Button 
                         variant="outline" 
                         className="text-indigo-600 border-indigo-200 hover:bg-indigo-700 hover:text-white mt-4 font-semibold w-full sm:w-auto"
@@ -182,6 +192,7 @@ export default function TwoFactorAuthPage() {
                         ) : (
                         <><Plus className="w-4 h-4 mr-2" /> Thiết lập ứng dụng xác thực</>
                         )}
+
                     </Button>
                   </div>
                   <div className="w-32 shrink-0 flex items-center justify-center p-4 bg-slate-50 rounded-full border border-slate-100">
@@ -217,6 +228,7 @@ export default function TwoFactorAuthPage() {
                         className="rounded-lg"
                     />
                     </div>
+
                 </div>
 
                 <div className="border-t border-slate-100 pt-5 space-y-3">
@@ -292,6 +304,7 @@ export default function TwoFactorAuthPage() {
               </CardContent>
             </Card>
           )}
+
           </>
           )} 
         </div>

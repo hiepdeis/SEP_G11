@@ -46,10 +46,6 @@ namespace Backend.Entities
 
         public string? Description { get; set; }
 
-        // --- Navigation Properties ---
-        [ForeignKey("SupplierId")]
-        [InverseProperty("DirectPurchaseOrders")]
-        public virtual Supplier Supplier { get; set; } = null!;
 
         // Tùy thuộc vào tên Entity Project của bạn, có thể mở comment dòng dưới
         [ForeignKey("ProjectId")]

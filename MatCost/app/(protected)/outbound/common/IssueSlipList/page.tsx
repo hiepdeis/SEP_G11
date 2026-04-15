@@ -178,6 +178,7 @@ export default function CommonIssueSlipList() {
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
+
         <Header title={`${t("Outbound Management")} (${role?.toUpperCase()})`} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
