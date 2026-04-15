@@ -19,6 +19,8 @@ import {
   FileWarning,
   ShieldCheck,
   User,
+  X,
+  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,6 +69,10 @@ import {
   Legend,
 } from "recharts";
 import { useAuth } from "@/components/providers/auth-provider";
+import { DateRangePicker } from "@/components/ui/custom/date-range-picker";
+import { YearRangePicker } from "@/components/ui/custom/year-range-picker";
+import { ExportExcelButton } from "@/components/ui/custom/export-excel";
+import { ExportPdfButton } from "@/components/ui/custom/export-pdf";
 
 interface IncidentListItem {
   id: string;
@@ -106,6 +112,14 @@ export default function IncidentReportsPage({
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
     to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
+  });
+
+  const [yearRange, setYearRange] = useState<{
+    from: number | undefined;
+    to: number | undefined;
   }>({
     from: undefined,
     to: undefined,
@@ -459,77 +473,149 @@ export default function IncidentReportsPage({
             </Select>
           )}
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+            {/* Filter Popover */}
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className={cn(
-                    "justify-start text-left font-normal h-9 bg-white shadow-sm",
-                    !dateRange.from && "text-slate-500",
-                  )}
+                  className="h-9 bg-white shadow-sm relative group"
                 >
-                  <CalendarDays className="mr-2 h-4 w-4" />
-                  {dateRange.from ? (
-                    format(dateRange.from, "dd/MM/yyyy")
-                  ) : (
-                    <span>{t("From Date")}</span>
+                  <Filter className="w-4 h-4 mr-2 text-slate-500 group-hover:text-white" />
+                  {t("Filters")}
+                  {(dateRange.from ||
+                    dateRange.to ||
+                    yearRange.from ||
+                    yearRange.to ||
+                    selectedStaffId !== "All") && (
+                    <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white shadow-sm">
+                      {(dateRange.from || dateRange.to ? 1 : 0) +
+                        (yearRange.from || yearRange.to ? 1 : 0) +
+                        (selectedStaffId !== "All" ? 1 : 0)}
+                    </span>
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={dateRange.from}
-                  onSelect={(date) =>
-                    setDateRange((prev) => ({ ...prev, from: date }))
-                  }
-                  initialFocus
-                />
+              <PopoverContent className="w-[340px] p-5 shadow-lg" align="end">
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between border-b pb-2 border-slate-100">
+                    <h4 className="font-semibold text-slate-800">
+                      {t("Advanced Filters")}
+                    </h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-slate-500 hover:text-white"
+                      onClick={() => {
+                        setDateRange({ from: undefined, to: undefined });
+                        setYearRange({ from: undefined, to: undefined });
+                        setSelectedStaffId("All");
+                      }}
+                    >
+                      {t("Clear All")} <X className="w-3 h-3 ml-1" />
+                    </Button>
+                  </div>
+
+                  {/* Date Range Group */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      {t("Date Range")}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <DateRangePicker
+                        dateRange={dateRange}
+                        onDateRangeChange={setDateRange}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Year Range Group */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      {t("Year Range")}
+                    </label>
+                    <YearRangePicker
+                      yearRange={yearRange}
+                      onYearRangeChange={setYearRange}
+                    />
+                  </div>
+
+                  {/* Staff Group (Managers only) */}
+                  {role?.toLowerCase() === "manager" && (
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                        {t("Staff Member")}
+                      </label>
+                      <Select
+                        value={selectedStaffId}
+                        onValueChange={(val) => setSelectedStaffId(val)}
+                      >
+                        <SelectTrigger className="w-full h-9">
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-slate-500" />
+                            <span className="truncate">
+                              {selectedStaffId === "All"
+                                ? t("All Staffs")
+                                : staffList.find(
+                                    (s) => s.id.toString() === selectedStaffId,
+                                  )?.fullName || t("Unknown")}
+                            </span>
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="All">{t("All Staffs")}</SelectItem>
+                          {staffList.map((staff) => (
+                            <SelectItem
+                              key={staff.id}
+                              value={staff.id.toString()}
+                            >
+                              {staff.fullName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
               </PopoverContent>
             </Popover>
-            <span className="text-slate-400">-</span>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "justify-start text-left font-normal h-9 bg-white shadow-sm",
-                    !dateRange.to && "text-slate-500",
-                  )}
-                >
-                  <CalendarDays className="mr-2 h-4 w-4" />
-                  {dateRange.to ? (
-                    format(dateRange.to, "dd/MM/yyyy")
-                  ) : (
-                    <span>{t("To Date")}</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={dateRange.to}
-                  onSelect={(date) =>
-                    setDateRange((prev) => ({ ...prev, to: date }))
-                  }
-                  initialFocus
-                  disabled={(date) =>
-                    dateRange.from ? date < dateRange.from : false
-                  }
-                />
-              </PopoverContent>
-            </Popover>
-            {(dateRange.from || dateRange.to) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 text-xs text-slate-500 px-2"
-                onClick={() => setDateRange({ from: undefined, to: undefined })}
-              >
-                <Delete className="h-4 w-4" />
-              </Button>
-            )}
+
+            {/* Export Buttons */}
+            <div className="flex items-center gap-1 border-l border-slate-200 pl-2">
+              <ExportExcelButton
+                data={filteredData}
+                filename={`Incident_Report`}
+                columns={[
+                  { header: t("Mã sự cố"), key: "code" },
+                  { header: t("Mã phiếu"), key: "referenceCode" },
+                  {
+                    header: t("Ngày"),
+                    key: (item) => formatDateTime(item.date),
+                  },
+                  { header: t("Người tạo"), key: "creatorName" },
+                  { header: t("Kho"), key: "warehouseName" },
+                  { header: t("Tổng số lượng"), key: "totalQuantity" },
+                  { header: t("Trạng thái"), key: "status" },
+                ]}
+              />
+              <ExportPdfButton
+                data={filteredData}
+                title="BÁO CÁO SỰ CỐ"
+                columns={[
+                  { header: t("Mã sự cố"), key: "code" },
+                  { header: t("Mã phiếu"), key: "referenceCode" },
+                  {
+                    header: t("Ngày"),
+                    key: (item) => formatDateTime(item.date),
+                  },
+                  { header: t("Người tạo"), key: "creatorName" },
+                  { header: t("Kho"), key: "warehouseName" },
+                  { header: t("Tổng số lượng"), key: "totalQuantity" },
+                  { header: t("Trạng thái"), key: "status" },
+                ]}
+                disabled={filteredData.length === 0}
+              />
+            </div>
           </div>
         </div>
         <div className="relative w-full md:w-64">
@@ -545,106 +631,104 @@ export default function IncidentReportsPage({
       </Card>
 
       {/* CHARTS SECTION */}
-      {!isLoading && filteredData.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Bar Chart (Trend) */}
-          <Card className="border-slate-200 shadow-sm bg-white lg:col-span-2">
-            <CardHeader className="border-b border-slate-100 py-4">
-              <h3 className="text-base font-bold text-slate-800">
-                {t("Incident Frequency Trend")}
-              </h3>
-            </CardHeader>
-            <CardContent className="p-4 pt-6 h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={trendChartData}
-                  margin={{ top: 0, right: 0, left: -30, bottom: 0 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke="#e2e8f0"
-                  />
-                  <XAxis
-                    dataKey="date"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12, fill: "#64748b" }}
-                    dy={10}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12, fill: "#64748b" }}
-                    allowDecimals={false}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "#f1f5f9" }}
-                    contentStyle={{
-                      borderRadius: "8px",
-                      border: "none",
-                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                    }}
-                  />
-                  <Legend
-                    iconType="circle"
-                    wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }}
-                  />
-                  <Bar
-                    dataKey="count"
-                    name={t("Incidents")}
-                    fill="#4f46e5"
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={40}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Bar Chart (Trend) */}
+        <Card className="border-slate-200 shadow-sm bg-white lg:col-span-2">
+          <CardHeader className="border-b border-slate-100 py-4">
+            <h3 className="text-base font-bold text-slate-800">
+              {t("Incident Frequency Trend")}
+            </h3>
+          </CardHeader>
+          <CardContent className="p-4 pt-6 h-[250px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={trendChartData}
+                margin={{ top: 0, right: 0, left: -30, bottom: 0 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#e2e8f0"
+                />
+                <XAxis
+                  dataKey="date"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: "#64748b" }}
+                  dy={10}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: "#64748b" }}
+                  allowDecimals={false}
+                />
+                <Tooltip
+                  cursor={{ fill: "#f1f5f9" }}
+                  contentStyle={{
+                    borderRadius: "8px",
+                    border: "none",
+                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                  }}
+                />
+                <Legend
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }}
+                />
+                <Bar
+                  dataKey="count"
+                  name={t("Incidents")}
+                  fill="#4f46e5"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={40}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-          {/* Pie Chart (Status Ratio) */}
-          <Card className="border-slate-200 shadow-sm bg-white lg:col-span-1">
-            <CardHeader className="border-b border-slate-100 py-4">
-              <h3 className="text-base font-bold text-slate-800">
-                {t("Resolution Status")}
-              </h3>
-            </CardHeader>
-            <CardContent className="p-4 flex flex-col items-center justify-center h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieChartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={2}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {pieChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value) => [`${value} incidents`, ""]}
-                    contentStyle={{
-                      borderRadius: "8px",
-                      border: "none",
-                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                    }}
-                  />
-                  <Legend
-                    iconType="circle"
-                    verticalAlign="bottom"
-                    wrapperStyle={{ fontSize: "12px" }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+        {/* Pie Chart (Status Ratio) */}
+        <Card className="border-slate-200 shadow-sm bg-white lg:col-span-1">
+          <CardHeader className="border-b border-slate-100 py-4">
+            <h3 className="text-base font-bold text-slate-800">
+              {t("Resolution Status")}
+            </h3>
+          </CardHeader>
+          <CardContent className="p-4 flex flex-col items-center justify-center h-[250px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={pieChartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={2}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {pieChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value) => [`${value} incidents`, ""]}
+                  contentStyle={{
+                    borderRadius: "8px",
+                    border: "none",
+                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                  }}
+                />
+                <Legend
+                  iconType="circle"
+                  verticalAlign="bottom"
+                  wrapperStyle={{ fontSize: "12px" }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card className="border-slate-200 shadow-sm bg-slate-50 min-h-[700px] gap-0 pb-0 pt-2 flex flex-col">
         <CardContent className="p-0 flex flex-col justify-between flex-1">

@@ -1288,5 +1288,12 @@
   "Import Data": "Nhập dữ liệu",
   "Replacement": "Thay thế",
   "Previous Issue": "Sự cố trước",
-  "ETA": "Dự kiến"
+  "ETA": "Dự kiến",
+  "Verify Stamping": "Xác nhận đóng dấu",
+  "Confirm Stamping": "Xác nhận đóng dấu",
+  "Please enter the OTP to confirm stamping this receipt. This action will notify the Accounting team.": "Vui lòng nhập mã OTP để xác nhận đóng dấu phiếu nhập này. Hành động này sẽ thông báo cho bộ phận Kế toán.",
+  "OTP code will reset in every 1 minute.": "Mã OTP sẽ được làm mới sau mỗi 1 phút.",
+  "Verify Closure": "Xác nhận đóng dấu",
+  "Confirm Closure": "Xác nhận đóng dấu",
+  "Please enter the OTP to confirm closing this receipt. This action cannot be undone.": "Vui lòng nhập mã OTP để xác nhận đóng dấu phiếu nhập này. Hành động này không thể hoàn tác."
 }

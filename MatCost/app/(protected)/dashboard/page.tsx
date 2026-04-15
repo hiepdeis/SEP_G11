@@ -15,6 +15,8 @@ export default function DashboardPage() {
     }
   }, [user]);
 
+  //chuyển logic 2fa sang MatCost\components\pages\dashboard\page.tsx để dùng chung
+
   if (isLoading) {
     return (
       <>

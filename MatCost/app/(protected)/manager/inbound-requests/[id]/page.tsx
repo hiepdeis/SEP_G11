@@ -34,7 +34,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -53,6 +52,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDateTime } from "@/lib/format-date-time";
+import { showConfirmToast } from "@/hooks/confirm-toast";
+import { OtpVerificationModal } from "@/components/ui/custom/otp-modal";
 
 export default function ManagerReceiptDetailPage() {
   const { t } = useTranslation();
@@ -66,9 +67,9 @@ export default function ManagerReceiptDetailPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(5);
 
-  const [isStampModalOpen, setIsStampModalOpen] = useState(false);
   const [stampNotes, setStampNotes] = useState("");
   const [isStamping, setIsStamping] = useState(false);
+  const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
 
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [viewerImage, setViewerImage] = useState<string | null>(null);
@@ -99,7 +100,6 @@ export default function ManagerReceiptDetailPage() {
       });
 
       toast.success(t("Receipt stamped successfully!"));
-      setIsStampModalOpen(false);
 
       router.push("/manager/inbound-requests");
     } catch (error: any) {
@@ -173,7 +173,17 @@ export default function ManagerReceiptDetailPage() {
             {canStamp && (
               <Button
                 className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-                onClick={() => setIsStampModalOpen(true)}
+                onClick={() =>
+                  showConfirmToast({
+                    title: t("Verify Stamping"),
+                    description: t(
+                      "You are about to stamp and officially confirm this receipt. This action will notify the Accounting team.",
+                    ),
+                    confirmLabel: t("Confirm & Stamp"),
+                    cancelLabel: t("Cancel"),
+                    onConfirm: () => setIsOtpModalOpen(true),
+                  })
+                }
               >
                 <PackageCheck className="w-4 h-4 mr-2" />
                 {t("Stamp & Confirm Receipt")}
@@ -497,68 +507,6 @@ export default function ManagerReceiptDetailPage() {
           </div>
         </div>
       </main>
-
-      {/* MODAL: ĐÓNG DẤU XÁC NHẬN (STAMP) */}
-      <Dialog
-        open={isStampModalOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            setIsStampModalOpen(false);
-            setStampNotes("");
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden border-0 shadow-lg bg-white">
-          <DialogHeader className="pt-5 pb-4 px-6 border-b border-slate-100 bg-white">
-            <DialogTitle className="text-emerald-700 flex items-center gap-2 text-lg">
-              <CheckCircle2 className="w-5 h-5" />
-              {t("Stamp Receipt")}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="p-6 space-y-4 bg-white">
-            <p className="text-sm text-slate-700">
-              {t(
-                "You are about to stamp and officially confirm this receipt. This action will notify the Accounting team.",
-              )}
-            </p>
-            {/* <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">
-                {t("Stamp Notes (Optional)")}
-              </label>
-              <Textarea
-                placeholder={t("Add any final notes or remarks here...")}
-                className="min-h-[100px] resize-none focus-visible:ring-emerald-500 mt-2 bg-white"
-                value={stampNotes}
-                onChange={(e) => setStampNotes(e.target.value)}
-                autoFocus
-              />
-            </div> */}
-          </div>
-
-          <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-white flex justify-end gap-2">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setIsStampModalOpen(false);
-                setStampNotes("");
-              }}
-              className="text-slate-600 hover:bg-slate-100 hover:text-slate-600"
-              disabled={isStamping}
-            >
-              {t("Cancel")}
-            </Button>
-            <Button
-              onClick={handleStampReceipt}
-              disabled={isStamping}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              {isStamping && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {t("Confirm & Stamp")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       <Dialog open={isViewerOpen} onOpenChange={setIsViewerOpen}>
         <DialogContent className="sm:max-w-3xl bg-transparent border-0 shadow-none p-0 flex flex-col items-center justify-center">
           <DialogHeader>
@@ -581,6 +529,16 @@ export default function ManagerReceiptDetailPage() {
           )}
         </DialogContent>
       </Dialog>
+      <OtpVerificationModal
+        isOpen={isOtpModalOpen}
+        onClose={() => setIsOtpModalOpen(false)}
+        onSuccess={handleStampReceipt}
+        title={t("Verify Stamping")}
+        description={t(
+          "Please enter the OTP to confirm stamping this receipt. This action will notify the Accounting team.",
+        )}
+        submitText={t("Confirm & Stamp")}
+      />
     </div>
   );
 }

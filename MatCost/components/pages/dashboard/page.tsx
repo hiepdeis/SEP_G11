@@ -11,11 +11,12 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Activity,
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { UserDropdown } from "@/components/user-dropdown";
-
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/custom/card-wrapper";
 
 interface StatData {
@@ -26,7 +27,15 @@ interface StatData {
   icon: React.ElementType;
   theme: "blue" | "orange" | "purple" | "slate";
 }
-
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { otpApi } from "@/services/otpservices";
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -78,6 +87,28 @@ export default function DashboardPage() {
         return "bg-slate-100 text-slate-600";
     }
   };
+  const [show2FAPrompt, setShow2FAPrompt] = useState(false);
+  useEffect(() => {
+    const checkSecurityStatus = async () => {
+      try {
+        const userRole = sessionStorage.getItem("role");
+
+        // 2. CHỈ CHECK NẾU LÀ ADMIN HOẶC KẾ TOÁN
+        if (userRole === "Admin" || userRole === "Accountant") {
+          const status = await otpApi.get2FAStatus();
+
+          // 3. NẾU CHƯA BẬT THÌ HIỆN POPUP
+          if (!status.isEnabled) {
+            setShow2FAPrompt(true);
+          }
+        }
+      } catch (error) {
+        console.error("Lỗi khi kiểm tra trạng thái bảo mật:", error);
+      }
+    };
+
+    checkSecurityStatus();
+  }, []);
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
@@ -290,6 +321,40 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
+
+      {/* POPUP NHẮC NHỞ BẬT 2FA */}
+      <Dialog open={show2FAPrompt}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <div className="mx-auto w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mb-4">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <DialogTitle className="text-center text-xl">
+              Yêu cầu thiết lập bảo mật
+            </DialogTitle>
+            <DialogDescription className="text-center pt-2">
+              Tài khoản của bạn có quyền hạn cao (Ký duyệt, Xuất nhập vật tư).
+              Để đảm bảo an toàn cho hệ thống MatCost, vui lòng{" "}
+              <b>bật Xác thực 2 lớp (2FA)</b> ngay bây giờ.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+            {/* <Button 
+              variant="outline" 
+              onClick={() => setShow2FAPrompt(false)}
+              className="w-full sm:w-1/3"
+            >
+              Để sau
+            </Button> */}
+            <Button
+              onClick={() => router.push("/security/2fa")} // Thay bằng đường dẫn tới trang 2FA của bạn
+              className="w-full sm:w-2/3 bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              Thiết lập ngay
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

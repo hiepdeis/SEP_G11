@@ -62,6 +62,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatQuantity } from "@/lib/format-quantity";
+import { OtpVerificationModal } from "@/components/ui/custom/otp-modal";
 
 export default function PurchaseOrderReviewPage({ role = "accountant" }) {
   const params = useParams();
@@ -79,6 +80,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
 
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -114,6 +116,27 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
     if (id) fetchReviewDetail();
   }, [id, router, t]);
 
+  const executeApprove = async () => {
+    setIsApproving(true);
+    const isAccountant = role === "accountant";
+    try {
+      if (isAccountant) {
+        await accountantPurchaseOrderApi.approve(id);
+        toast.success(t("Pricing approved successfully by Accountant."));
+      } else {
+        await adminPurchaseOrderApi.approve(id);
+        toast.success(t("Purchase Order approved successfully by Admin."));
+      }
+
+      await fetchReviewDetail();
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.response?.data?.message || t("Failed to approve."));
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
   const handleApprove = () => {
     const isAccountant = role === "accountant";
 
@@ -125,25 +148,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
         ? t("Are you sure you want to approve the pricing for this order?")
         : t("Are you sure you want to approve this purchase order?"),
       confirmLabel: t("Yes, Approve"),
-      onConfirm: async () => {
-        setIsApproving(true);
-        try {
-          if (isAccountant) {
-            await accountantPurchaseOrderApi.approve(id);
-            toast.success(t("Pricing approved successfully by Accountant."));
-          } else {
-            await adminPurchaseOrderApi.approve(id);
-            toast.success(t("Purchase Order approved successfully by Admin."));
-          }
-
-          await fetchReviewDetail();
-        } catch (error: any) {
-          console.error(error);
-          toast.error(error.response?.data?.message || t("Failed to approve."));
-        } finally {
-          setIsApproving(false);
-        }
-      },
+      onConfirm: () => setIsOtpModalOpen(true),
     });
   };
 
@@ -800,6 +805,16 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <OtpVerificationModal
+        isOpen={isOtpModalOpen}
+        onClose={() => setIsOtpModalOpen(false)}
+        onSuccess={executeApprove}
+        title={t("Verify Approval")}
+        description={t(
+          "Please enter the OTP to confirm approving this purchase order.",
+        )}
+        submitText={t("Confirm Approve")}
+      />
     </div>
   );
 }

@@ -22,6 +22,8 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Filter,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -72,6 +74,10 @@ import {
   YAxis,
 } from "recharts";
 import { formatQuantity } from "@/lib/format-quantity";
+import { YearRangePicker } from "@/components/ui/custom/year-range-picker";
+import { ExportExcelButton } from "@/components/ui/custom/export-excel";
+import { ExportPdfButton } from "@/components/ui/custom/export-pdf";
+import { DateRangePicker } from "@/components/ui/custom/date-range-picker";
 
 interface Props {
   role?: "staff" | "manager";
@@ -93,10 +99,17 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
   const [staffList, setStaffList] = useState<UserDto[]>([]);
   const [selectedStaffId, setSelectedStaffId] = useState<string>("All");
 
-  // STATE QUẢN LÝ DATE FILTER
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
     to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
+  });
+
+  const [yearRange, setYearRange] = useState<{
+    from: number | undefined;
+    to: number | undefined;
   }>({
     from: undefined,
     to: undefined,
@@ -163,7 +176,14 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
   // Reset page khi có bất kỳ filter nào thay đổi
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, activeTab, itemsPerPage, selectedStaffId, dateRange]);
+  }, [
+    searchTerm,
+    activeTab,
+    itemsPerPage,
+    selectedStaffId,
+    dateRange,
+    yearRange,
+  ]);
 
   const filteredItems = cards.filter((item) => {
     // 1. Tab Filter
@@ -206,7 +226,21 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
       }
     }
 
-    return matchesTab && matchesStaff && matchesSearch && matchesDate;
+    // 5. Year Filter
+    let matchesYear = true;
+    if (yearRange.from || yearRange.to) {
+      if (!item.transactionDate) {
+        matchesYear = false;
+      } else {
+        const itemYear = new Date(item.transactionDate).getFullYear();
+        if (yearRange.from && itemYear < yearRange.from) matchesYear = false;
+        if (yearRange.to && itemYear > yearRange.to) matchesYear = false;
+      }
+    }
+
+    return (
+      matchesTab && matchesStaff && matchesSearch && matchesDate && matchesYear
+    );
   });
 
   const filteredData = [...filteredItems].sort((a, b) => {
@@ -318,15 +352,6 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6 ">
           <div className="flex items-start gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.back()}
-              className="h-8 w-8 mt-0.5 shrink-0 rounded-full hover:bg-slate-200 text-slate-500 hover:text-indigo-600 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-
             <div className="flex flex-col gap-1">
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">
                 {t("Warehouse Cards")}
@@ -400,15 +425,18 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
             </Card>
           </div>
 
-          <Card className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full bg-white p-4">
-            <Tabs
-              defaultValue="Import"
-              value={activeTab}
-              onValueChange={(val) => setActiveTab(val as "Import" | "Export")}
-              className="w-full"
-            >
-              <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-                <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+          <Card className="flex flex-col bg-white p-4 mb-4 shadow-sm border-slate-200">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              {/* Left: Tabs */}
+              <Tabs
+                defaultValue="Import"
+                value={activeTab}
+                onValueChange={(val) =>
+                  setActiveTab(val as "Import" | "Export")
+                }
+                className="w-full lg:w-auto"
+              >
+                <TabsList className="grid w-full grid-cols-2 lg:w-[300px]">
                   <TabsTrigger
                     value="Import"
                     className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
@@ -422,135 +450,183 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                     {t("Outbound (Export)")}
                   </TabsTrigger>
                 </TabsList>
+              </Tabs>
 
-                <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3">
-                  <span className="text-sm font-medium text-slate-500 hidden md:block">
-                    {t("Filters")}:
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "justify-start text-left font-normal h-9 bg-white shadow-sm",
-                            !dateRange.from && "text-slate-500",
-                          )}
-                        >
-                          <CalendarDays className="mr-2 h-4 w-4" />
-                          {dateRange.from ? (
-                            format(dateRange.from, "dd/MM/yyyy")
-                          ) : (
-                            <span>{t("From Date")}</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={dateRange.from}
-                          onSelect={(date) =>
-                            setDateRange((prev) => ({ ...prev, from: date }))
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+              {/* Right: Search, Filters & Export */}
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+                {/* Search Bar */}
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
+                  <Input
+                    placeholder={t("Search Code, Material, Bin...")}
+                    className="pl-9 h-9 shadow-sm"
+                    maxLength={50}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
 
-                    <span className="text-slate-400">-</span>
-
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "justify-start text-left font-normal h-9 bg-white shadow-sm",
-                            !dateRange.to && "text-slate-500",
-                          )}
-                        >
-                          <CalendarDays className="mr-2 h-4 w-4" />
-                          {dateRange.to ? (
-                            format(dateRange.to, "dd/MM/yyyy")
-                          ) : (
-                            <span>{t("To Date")}</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={dateRange.to}
-                          onSelect={(date) =>
-                            setDateRange((prev) => ({ ...prev, to: date }))
-                          }
-                          initialFocus
-                          disabled={(date) =>
-                            dateRange.from ? date < dateRange.from : false
-                          }
-                        />
-                      </PopoverContent>
-                    </Popover>
-
-                    {(dateRange.from || dateRange.to) && (
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+                  {/* Filter Popover */}
+                  <Popover>
+                    <PopoverTrigger asChild>
                       <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 text-xs text-slate-500 px-2"
-                        onClick={() =>
-                          setDateRange({ from: undefined, to: undefined })
-                        }
+                        variant="outline"
+                        className="h-9 bg-white shadow-sm relative group"
                       >
-                        <Delete className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-
-                  {role?.toLowerCase() === "manager" && (
-                    <Select
-                      value={selectedStaffId}
-                      onValueChange={(val) => setSelectedStaffId(val)}
-                    >
-                      <SelectTrigger className="bg-white shadow-sm border-slate-200 h-9">
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4 text-slate-500" />
-                          <span className="truncate">
-                            {selectedStaffId === "All"
-                              ? t("All Staffs")
-                              : staffList.find(
-                                  (s) => s.id.toString() === selectedStaffId,
-                                )?.fullName || t("Unknown Staff")}
+                        <Filter className="w-4 h-4 mr-2 text-slate-500 group-hover:text-white" />
+                        {t("Filters")}
+                        {(dateRange.from ||
+                          dateRange.to ||
+                          yearRange.from ||
+                          yearRange.to ||
+                          selectedStaffId !== "All") && (
+                          <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white shadow-sm">
+                            {(dateRange.from || dateRange.to ? 1 : 0) +
+                              (yearRange.from || yearRange.to ? 1 : 0) +
+                              (selectedStaffId !== "All" ? 1 : 0)}
                           </span>
-                        </div>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="All">{t("All Staffs")}</SelectItem>
-                        {staffList.map((staff) => (
-                          <SelectItem
-                            key={staff.id}
-                            value={staff.id.toString()}
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-[340px] p-5 shadow-lg"
+                      align="end"
+                    >
+                      <div className="space-y-5">
+                        <div className="flex items-center justify-between border-b pb-2 border-slate-100">
+                          <h4 className="font-semibold text-slate-800">
+                            {t("Advanced Filters")}
+                          </h4>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-slate-500 hover:text-white"
+                            onClick={() => {
+                              setDateRange({ from: undefined, to: undefined });
+                              setYearRange({ from: undefined, to: undefined });
+                              setSelectedStaffId("All");
+                            }}
                           >
-                            {staff.fullName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+                            {t("Clear All")} <X className="w-3 h-3 ml-1" />
+                          </Button>
+                        </div>
 
-                  <div className="relative w-full sm:w-64">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
-                    <Input
-                      placeholder={t(
-                        "Search Material or Card Code or Bin Code...",
-                      )}
-                      className="pl-9 h-9 shadow-sm"
-                      maxLength={50}
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                        {/* Date Range Group */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            {t("Date Range")}
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <DateRangePicker
+                              dateRange={dateRange}
+                              onDateRangeChange={setDateRange}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Year Range Group */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            {t("Year Range")}
+                          </label>
+                          <YearRangePicker
+                            yearRange={yearRange}
+                            onYearRangeChange={setYearRange}
+                          />
+                        </div>
+
+                        {/* Staff Group (Managers only) */}
+                        {role?.toLowerCase() === "manager" && (
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                              {t("Staff Member")}
+                            </label>
+                            <Select
+                              value={selectedStaffId}
+                              onValueChange={(val) => setSelectedStaffId(val)}
+                            >
+                              <SelectTrigger className="w-full h-9">
+                                <div className="flex items-center gap-2">
+                                  <User className="w-4 h-4 text-slate-500" />
+                                  <span className="truncate">
+                                    {selectedStaffId === "All"
+                                      ? t("All Staffs")
+                                      : staffList.find(
+                                          (s) =>
+                                            s.id.toString() === selectedStaffId,
+                                        )?.fullName || t("Unknown")}
+                                  </span>
+                                </div>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="All">
+                                  {t("All Staffs")}
+                                </SelectItem>
+                                {staffList.map((staff) => (
+                                  <SelectItem
+                                    key={staff.id}
+                                    value={staff.id.toString()}
+                                  >
+                                    {staff.fullName}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
+                  {/* Export Buttons */}
+                  <div className="flex items-center gap-1 border-l border-slate-200 pl-2">
+                    <ExportExcelButton
+                      data={filteredData}
+                      filename={`${activeTab}_TheKho`}
+                      columns={[
+                        { header: t("Mã thẻ kho"), key: "cardCode" },
+                        {
+                          header: t("Ngày giao dịch"),
+                          key: (item) => formatDateTime(item.transactionDate),
+                        },
+                        { header: t("Mã vật tư"), key: "materialCode" },
+                        { header: t("Tên vật tư"), key: "materialName" },
+                        { header: t("Kệ"), key: "binCode" },
+                        { header: t("Loại giao dịch"), key: "transactionType" },
+                        { header: t("Tồn đầu"), key: "quantityBefore" },
+                        { header: t("Phát sinh"), key: "quantity" },
+                        { header: t("Tồn cuối"), key: "quantityAfter" },
+                        { header: t("Người tạo"), key: "createdByName" },
+                      ]}
+                    />
+                    <ExportPdfButton
+                      data={filteredData}
+                      title="BÁO CÁO THẺ KHO"
+                      columns={[
+                        { header: t("Mã thẻ kho"), key: "cardCode" },
+                        {
+                          header: t("Ngày giao dịch"),
+                          key: (item) => formatDateTime(item.transactionDate),
+                        },
+                        { header: t("Mã vật tư"), key: "materialCode" },
+                        { header: t("Tên vật tư"), key: "materialName" },
+                        { header: t("Kệ"), key: "binCode" },
+                        { header: t("Loại giao dịch"), key: "transactionType" },
+                        { header: t("Tồn đầu"), key: "quantityBefore" },
+                        { header: t("Phát sinh"), key: "quantity" },
+                        { header: t("Tồn cuối"), key: "quantityAfter" },
+                        {
+                          header: t("Người tạo"),
+                          key: "createdByName",
+                        },
+                      ]}
+                      disabled={filteredData.length === 0}
                     />
                   </div>
                 </div>
               </div>
-            </Tabs>
+            </div>
           </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -1280,5 +1280,15 @@
   "No pending requests": "No pending requests",
   "DraftPO": "Draft PO",
   "Budget Used": "Budget Used",
-  "Import Data": "Import Data"
+  "Import Data": "Import Data",
+  "Replacement": "Replacement",
+  "Previous Issue": "Previous Issue",
+  "ETA": "ETA",
+  "Verify Stamping": "Verify Stamping",
+  "Confirm Stamping": "Confirm Stamping",
+  "Please enter the OTP to confirm stamping this receipt. This action will notify the Accounting team.": "Please enter the OTP to confirm stamping this receipt. This action will notify the Accounting team.",
+  "OTP code will reset in every 1 minute.": "OTP code will reset in every 1 minute.",
+  "Verify Closure": "Verify Closure",
+  "Confirm Closure": "Confirm Closure",
+  "Please enter the OTP to confirm closing this receipt. This action cannot be undone.": "Please enter the OTP to confirm closing this receipt. This action cannot be undone."
 }

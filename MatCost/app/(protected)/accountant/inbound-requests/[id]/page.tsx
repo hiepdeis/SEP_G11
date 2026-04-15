@@ -58,6 +58,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatDateTime } from "@/lib/format-date-time";
+import { OtpVerificationModal } from "@/components/ui/custom/otp-modal";
+import { showConfirmToast } from "@/hooks/confirm-toast";
 
 export default function AccountantReceiptDetailPage() {
   const { t } = useTranslation();
@@ -71,7 +73,6 @@ export default function AccountantReceiptDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   // Modal State
-  const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
   const [accountingNote, setAccountingNote] = useState("");
   const [isClosing, setIsClosing] = useState(false);
 
@@ -82,6 +83,8 @@ export default function AccountantReceiptDetailPage() {
   // Pagination for Inventory
   const [inventoryPage, setInventoryPage] = useState(1);
   const inventoryPerPage = 5;
+
+  const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchReceiptDetail = async () => {
@@ -101,7 +104,7 @@ export default function AccountantReceiptDetailPage() {
     if (id) fetchReceiptDetail();
   }, [id, router, t]);
 
-  const handleCloseReceipt = async () => {
+  const executeCloseReceipt = async () => {
     setIsClosing(true);
     try {
       await accountantReceiptsApi.closeReceipt(id, {
@@ -111,7 +114,6 @@ export default function AccountantReceiptDetailPage() {
       toast.success(
         t("Receipt closed successfully. Accounting records finalized."),
       );
-      setIsCloseModalOpen(false);
 
       router.push("/accountant/inbound-requests");
     } catch (error: any) {
@@ -195,7 +197,17 @@ export default function AccountantReceiptDetailPage() {
             {isPendingClosure && (
               <Button
                 className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-                onClick={() => setIsCloseModalOpen(true)}
+                onClick={() =>
+                  showConfirmToast({
+                    title: t("Finalize & Close Receipt"),
+                    description: t(
+                      "By closing this receipt, you confirm that all accounting checks have been completed. This action will lock the receipt from further modifications.",
+                    ),
+                    confirmLabel: t("Confirm Close"),
+                    cancelLabel: t("Cancel"),
+                    onConfirm: () => setIsOtpModalOpen(true),
+                  })
+                }
               >
                 <Lock className="w-4 h-4 mr-2" />
                 {t("Finalize & Close Receipt")}
@@ -605,70 +617,16 @@ export default function AccountantReceiptDetailPage() {
           </div>
         </div>
       </main>
-      <Dialog
-        open={isCloseModalOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            setIsCloseModalOpen(false);
-            setAccountingNote("");
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden border-0 shadow-lg bg-white">
-          <DialogHeader className="pt-5 pb-4 px-6 border-b border-slate-100 bg-white">
-            <DialogTitle className="text-indigo-800 flex items-center gap-2 text-lg">
-              <Lock className="w-5 h-5" />
-              {t("Finalize & Close Receipt")}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="p-6 space-y-4 bg-white">
-            <p className="text-sm text-slate-700">
-              {t(
-                "By closing this receipt, you confirm that all accounting checks have been completed. This action will lock the receipt from further modifications.",
-              )}
-            </p>
-            {/* <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">
-                {t("Accounting Note (Optional)")}
-              </label>
-              <Textarea
-                placeholder={t("Enter any final accounting remarks...")}
-                className="min-h-[100px] resize-none focus-visible:ring-indigo-500 mt-2 bg-white"
-                value={accountingNote}
-                onChange={(e) => setAccountingNote(e.target.value)}
-                autoFocus
-              />
-            </div> */}
-          </div>
-
-          <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-white flex justify-end gap-2">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setIsCloseModalOpen(false);
-                setAccountingNote("");
-              }}
-              className="text-slate-600 hover:bg-slate-100 hover:text-slate-600"
-              disabled={isClosing}
-            >
-              {t("Cancel")}
-            </Button>
-            <Button
-              onClick={handleCloseReceipt}
-              disabled={isClosing}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
-            >
-              {isClosing ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Check className="w-4 h-4 mr-2" />
-              )}
-              {t("Confirm Close")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <OtpVerificationModal
+        isOpen={isOtpModalOpen}
+        onClose={() => setIsOtpModalOpen(false)}
+        onSuccess={executeCloseReceipt}
+        title={t("Verify Closure")}
+        description={t(
+          "Please enter the OTP to confirm closing this receipt. This action cannot be undone.",
+        )}
+        submitText={t("Confirm Closure")}
+      />
     </div>
   );
 }
