@@ -54,6 +54,8 @@ export default function StaffCountingPage() {
         setCountedTasks(countedData);
         setRecountTasks(recountData);
         if (recountData.length > 0 && activeTab === "normal") setActiveTab("recount");
+        // When all recount items are done, auto-toggle filter to show counted items
+        if (recountData.length === 0 && activeTab === "recount") setRecountUncountedOnly(false);
     } catch (error: any) {
         const status = error.response?.status;
         if (status === 401 || status === 403) {
@@ -166,7 +168,7 @@ export default function StaffCountingPage() {
                   <Button size="lg" className="mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-md h-12 px-8" onClick={() => router.push('/staff/audit')}><ArrowLeft className="w-5 h-5 mr-2" /> {t("Back to List")}</Button>
              </div>
           ) : (
-            <div className="p-4 lg:p-8 space-y-6 max-w-2xl mx-auto w-full pb-28">
+            <div className="p-4 lg:p-8 space-y-6 max-w-2xl mx-auto w-full pb-6">
               <div className="flex items-center justify-between">
                   <Button variant="ghost" onClick={() => router.back()} className="pl-0 hover:bg-transparent hover:text-indigo-600"><ArrowLeft className="w-4 h-4 mr-2" /> {t("Back")}</Button>
                   <div className="text-sm font-medium">Audit ID: #{stockTakeId}</div>
@@ -179,7 +181,7 @@ export default function StaffCountingPage() {
                   <div className="w-full bg-indigo-900/40 h-2.5 rounded-full overflow-hidden"><div className="bg-emerald-400 h-full rounded-full transition-all" style={{ width: `${progress}%` }} /></div>
               </div>
               <div className="flex gap-2">
-                {recountTasks.length === 0 ? (
+                {activeTab === "normal" ? (
                   <div className="flex-1 py-3 px-4 rounded-xl bg-white text-indigo-700 shadow-sm border border-indigo-100 flex items-center justify-center gap-2 font-bold text-sm">
                     <CheckCircle2 className="w-4 h-4" /> {t("First Count Round")}
                   </div>
@@ -191,7 +193,7 @@ export default function StaffCountingPage() {
               </div>
               <div className="flex gap-3 items-center">
                   <div className="relative flex-1"><Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" /><Input placeholder={t("Search name or batch...")} className="pl-10 h-11 bg-white shadow-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
-                  {recountTasks.length === 0 ? (
+                  {activeTab === "normal" ? (
                     <Button variant={uncountedOnly ? "default" : "outline"} onClick={() => setUncountedOnly(!uncountedOnly)} className={`h-11 w-[140px] flex-shrink-0 transition-colors ${uncountedOnly ? "bg-indigo-600 text-white border-indigo-600" : "bg-white"}`}>
                       <Filter className="w-4 h-4 mr-2 flex-shrink-0" /> 
                       <span className="truncate">{uncountedOnly ? t("Uncounted") : t("Counted")}</span>
@@ -204,7 +206,13 @@ export default function StaffCountingPage() {
                   )}
               </div>
               <div className="space-y-3">
-                {activeTab === "recount" ? filteredRecountData.length === 0 ? (
+                {activeTab === "recount" ? (recountTasks.length === 0 ? (
+                    <div className="text-center py-12 space-y-4 animate-in fade-in zoom-in-95 duration-300">
+                      <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto shadow-sm"><CheckCircle2 className="w-8 h-8 text-emerald-600" /></div>
+                      <h3 className="text-lg font-bold text-slate-800">{t("All Recount Items Completed!")}</h3>
+                      <p className="text-sm text-slate-500 max-w-sm mx-auto">{t("You have finished recounting all items. Press the button below to submit your results.")}</p>
+                    </div>
+                ) : filteredRecountData.length === 0 ? (
                     <div className="text-center py-10 text-slate-400">{searchTerm ? t("No items found.") : t("List is empty.")}</div>
                 ) : filteredRecountData.map(task => {
                     const isItemCounted = task.countQty !== null && task.countQty !== undefined;
@@ -245,7 +253,7 @@ export default function StaffCountingPage() {
           )}
         </div>
         {!accessDenied && !loading && (
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t flex justify-center z-20">
+          <div className="shrink-0 p-4 bg-white border-t flex justify-center">
             <Button size="lg" className={`w-full max-w-2xl font-bold ${progress < 100 || recountTasks.length > 0 ? "bg-slate-300 hover:bg-slate-300 text-slate-500" : "bg-emerald-600 hover:bg-emerald-700 text-white"}`} onClick={handleCompleteAudit} disabled={progress < 100 || recountTasks.length > 0}><Send className="w-5 h-5 mr-2" /> {t("Finish & Submit Count")}</Button>
           </div>
         )}
