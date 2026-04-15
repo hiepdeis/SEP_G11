@@ -182,6 +182,27 @@ public class StockTakeReviewController : ControllerBase
         return Ok(new { message });
     }
 
+    [HttpPost("{stockTakeId:int}/request-recount-all")]
+    [Authorize(Roles = "Manager, Admin")]
+    public async Task<IActionResult> RequestRecountAll(
+        int stockTakeId,
+        [FromBody] RequestRecountRequest? req,
+        CancellationToken ct = default)
+    {
+        var userId = GetUserId();
+
+        var (success, message) = await _service.RequestRecountAllAsync(
+            stockTakeId,
+            req ?? new RequestRecountRequest(),
+            userId,
+            ct);
+
+        if (!success)
+            return BadRequest(new { message });
+
+        return Ok(new { message });
+    }
+
     [HttpPut("{stockTakeId:int}/variances/{detailId:long}/reason")]
     [Authorize(Roles = "Manager, Admin")]
     public async Task<IActionResult> UpdateVarianceReason(

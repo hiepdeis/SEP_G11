@@ -53,6 +53,13 @@ namespace Backend.Domains.Audit.Interfaces
             int managerUserId,
             CancellationToken ct);
 
+        /// <summary>Request recount for ALL pending discrepancy items (round 1) at once</summary>
+        Task<(bool success, string message)> RequestRecountAllAsync(
+            int stockTakeId,
+            RequestRecountRequest request,
+            int managerUserId,
+            CancellationToken ct);
+
         Task<StockTakeReviewDetailDto> GetReviewDetailAsync(int stockTakeId, CancellationToken ct);
 
         Task<(bool success, string message, SignatureInfoDto? signature)> SignOffAsync(

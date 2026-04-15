@@ -65,10 +65,10 @@ export default function StaffCountingPage() {
 
   useEffect(() => { if (stockTakeId) loadTasks(); }, [stockTakeId]);
 
-  const startEdit = (item: any, isRecount: boolean) => {
+  const startEdit = (item: any) => {
     setEditingItem(item);
-    if (isRecount) { setTempCount(""); setTempBin(item.binCode || ""); } 
-    else { setTempCount(""); setTempBin(""); }
+    setTempCount("");
+    setTempBin("");
   };
 
   const saveCount = async () => {
@@ -135,7 +135,9 @@ export default function StaffCountingPage() {
     const term = searchTerm.toLowerCase();
     return task.materialName.toLowerCase().includes(term) || (task.batchCode && task.batchCode.toLowerCase().includes(term));
   });
-  const displayRecountData = uncountedOnly ? recountTasks : [];
+
+  const displayRecountData = recountTasks;
+
   const filteredRecountData = displayRecountData.filter(task => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
@@ -163,7 +165,7 @@ export default function StaffCountingPage() {
           ) : (
             <div className="p-4 lg:p-8 space-y-6 max-w-2xl mx-auto w-full pb-28">
               <div className="flex items-center justify-between">
-                  <Button variant="ghost" onClick={() => router.back()} className="pl-0 hover:text-indigo-600"><ArrowLeft className="w-4 h-4 mr-2" /> {t("Back")}</Button>
+                  <Button variant="ghost" onClick={() => router.back()} className="pl-0 hover:bg-transparent hover:text-indigo-600"><ArrowLeft className="w-4 h-4 mr-2" /> {t("Back")}</Button>
                   <div className="text-sm font-medium">Audit ID: #{stockTakeId}</div>
               </div>
               <div className="bg-indigo-600 rounded-xl p-6 text-white shadow-md relative overflow-hidden">
@@ -173,31 +175,48 @@ export default function StaffCountingPage() {
                   </div>
                   <div className="w-full bg-indigo-900/40 h-2.5 rounded-full overflow-hidden"><div className="bg-emerald-400 h-full rounded-full transition-all" style={{ width: `${progress}%` }} /></div>
               </div>
-              <div className="flex gap-2 bg-slate-200/50 p-1.5 rounded-xl shadow-inner">
-                  <button onClick={() => setActiveTab("normal")} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === "normal" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500"}`}>{t("First Count")}</button>
-                  <button onClick={() => setActiveTab("recount")} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === "recount" ? "bg-white text-rose-700 shadow-sm" : "text-slate-500"}`}>
-                    {t("Recount Tasks")}{recountTasks.length > 0 && <span className="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full">{recountTasks.length}</span>}
-                  </button>
+              <div className="flex gap-2">
+                {recountTasks.length === 0 ? (
+                  <div className="flex-1 py-3 px-4 rounded-xl bg-white text-indigo-700 shadow-sm border border-indigo-100 flex items-center justify-center gap-2 font-bold text-sm">
+                    <CheckCircle2 className="w-4 h-4" /> {t("First Count Round")}
+                  </div>
+                ) : (
+                  <div className="flex-1 py-3 px-4 rounded-xl bg-white text-rose-700 shadow-sm border border-rose-100 flex items-center justify-center gap-2 font-bold text-sm">
+                    <RefreshCcw className="w-4 h-4" /> {t("Recount Tasks Round")} {recountTasks.length > 0 && <span className="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full">{recountTasks.length}</span>}
+                  </div>
+                )}
               </div>
               <div className="flex gap-3 items-center">
                   <div className="relative flex-1"><Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" /><Input placeholder={t("Search name or batch...")} className="pl-10 h-11 bg-white shadow-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
-                  <Button variant={uncountedOnly ? "default" : "outline"} onClick={() => setUncountedOnly(!uncountedOnly)} className={`h-11 w-[140px] flex-shrink-0 transition-colors ${uncountedOnly ? "bg-indigo-600 text-white border-indigo-600" : "bg-white"}`}><Filter className="w-4 h-4 mr-2 flex-shrink-0" /> <span className="truncate">{uncountedOnly ? t("Uncounted") : t("Counted")}</span></Button>
+                  {recountTasks.length === 0 && (
+                    <Button variant={uncountedOnly ? "default" : "outline"} onClick={() => setUncountedOnly(!uncountedOnly)} className={`h-11 w-[140px] flex-shrink-0 transition-colors ${uncountedOnly ? "bg-indigo-600 text-white border-indigo-600" : "bg-white"}`}>
+                      <Filter className="w-4 h-4 mr-2 flex-shrink-0" /> 
+                      <span className="truncate">{uncountedOnly ? t("Uncounted") : t("Counted")}</span>
+                    </Button>
+                  )}
               </div>
               <div className="space-y-3">
                 {activeTab === "recount" ? filteredRecountData.length === 0 ? (
-                    <div className="text-center py-10 text-slate-400">{searchTerm || !uncountedOnly ? t("No items found.") : t("List is empty.")}</div>
-                ) : filteredRecountData.map(task => (
-                    <Card key={task.id} className="border-l-4 border-l-rose-500 bg-rose-50/10 shadow-sm">
-                        <CardContent className="p-4 flex justify-between items-center">
-                          <div>
-                              <div className="font-bold flex items-center gap-2 text-slate-800">{task.materialName} <AlertTriangle className="w-4 h-4 text-rose-500"/></div>
-                              <div className="text-xs text-slate-500 mt-1">{t("Batch:")} {task.batchCode} | {t("Round:")} {task.countRound || 1}</div>
-                              <div className="text-xs text-rose-600 font-medium flex items-center gap-1 mt-1"><MapPin className="w-3 h-3"/> {t("Bin Code:")} {task.binCode}</div>
-                          </div>
-                          <Button size="sm" onClick={() => startEdit(task, true)} className="bg-rose-100 text-rose-700 hover:bg-rose-200"><RefreshCcw className="w-3 h-3 mr-1.5" /> {t("Recount")}</Button>
-                        </CardContent>
-                    </Card>
-                )) : filteredData.length === 0 ? (
+                    <div className="text-center py-10 text-slate-400">{searchTerm ? t("No items found.") : t("List is empty.")}</div>
+                ) : filteredRecountData.map(task => {
+                    const isItemCounted = task.countQty !== null && task.countQty !== undefined;
+                    return (
+                      <Card key={`${task.materialId}-${task.binId}-${task.batchId}`} className={`border-l-4 ${!isItemCounted ? "border-l-rose-500 bg-rose-50/10" : "border-l-rose-400 bg-rose-50/20"} shadow-sm`}>
+                          <CardContent className="p-4 flex justify-between items-center">
+                            <div>
+                                <div className="font-bold flex items-center gap-2 text-slate-800">
+                                  {task.materialName} 
+                                  {!isItemCounted ? <AlertTriangle className="w-4 h-4 text-rose-500"/> : <CheckCircle2 className="w-4 h-4 text-rose-400"/>}
+                                </div>
+                                <div className="text-xs text-slate-500 mt-1">{t("Batch:")} {task.batchCode} | {t("Round:")} {task.countRound || 2}</div>
+                            </div>
+                            <Button size="sm" onClick={() => startEdit(task)} className={!isItemCounted ? "bg-rose-100 text-rose-700 hover:bg-rose-200" : "bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100"}>
+                              {!isItemCounted ? <><RefreshCcw className="w-3 h-3 mr-1.5" /> {t("Recount")}</> : <><PenLine className="w-3 h-3 mr-1.5" /> {t("Count")}</>}
+                            </Button>
+                          </CardContent>
+                      </Card>
+                    );
+                }) : filteredData.length === 0 ? (
                     <div className="text-center py-10 text-slate-400">{searchTerm ? t("No items found.") : t("List is empty.")}</div>
                 ) : filteredData.map(task => (
                     <Card key={`${task.materialId}-${task.batchId}`} className={`border-l-4 ${uncountedOnly ? "border-l-indigo-400" : "border-l-emerald-500 bg-emerald-50/20"} shadow-sm`}>
@@ -205,8 +224,11 @@ export default function StaffCountingPage() {
                           <div>
                               <div className="font-bold flex items-center gap-2 text-slate-800">{task.materialName} {!uncountedOnly && <Check className="w-4 h-4 text-emerald-600"/>}</div>
                               <div className="text-xs text-slate-500 mt-1">{t("Batch:")} {task.batchCode}</div>
+                              {!uncountedOnly && (task as any).countQty && <div className="text-xs text-indigo-600 font-medium mt-1">{t("Count Qty:")} <span className="font-bold">{(task as any).countQty}</span></div>}
                           </div>
-                          <Button size="sm" onClick={() => startEdit(task, false)} variant={uncountedOnly ? "default" : "outline"} className={uncountedOnly ? "bg-indigo-600 text-white" : ""}><PenLine className="w-3 h-3 mr-1.5"/> {uncountedOnly ? t("Count") : t("Edit")}</Button>
+                          <Button size="sm" onClick={() => startEdit(task)} variant={uncountedOnly ? "default" : "outline"} className={uncountedOnly ? "bg-indigo-600 text-white" : ""}>
+                            <PenLine className="w-3 h-3 mr-1.5"/> {uncountedOnly ? t("Count") : t("Edit")}
+                          </Button>
                         </CardContent>
                     </Card>
                 ))}
@@ -227,7 +249,7 @@ export default function StaffCountingPage() {
                 <p className="font-bold text-center text-lg text-slate-800">{editingItem?.materialName}</p>
                 <div className="space-y-2">
                     <label className="text-xs font-semibold uppercase text-slate-500">{t("Bin Code *")}</label>
-                    <Input value={tempBin} onChange={e => setTempBin(e.target.value)} disabled={activeTab === "recount"} className="uppercase font-bold bg-slate-50 focus:bg-white" placeholder="VD: ZONE-A1" autoFocus={activeTab === "normal"}/>
+                    <Input value={tempBin} onChange={e => setTempBin(e.target.value)} className="uppercase font-bold bg-slate-50 focus:bg-white" placeholder="VD: ZONE-A1" autoFocus/>
                 </div>
                 <div className="space-y-2">
                     <label className="text-xs font-semibold uppercase text-slate-500">{t("Actual Quantity *")}</label>
@@ -237,7 +259,18 @@ export default function StaffCountingPage() {
                     </div>
                 </div>
               </div>
-              <DialogFooter><Button variant="outline" onClick={() => setEditingItem(null)}>{t("Cancel")}</Button><Button onClick={saveCount} disabled={savingItem} className="bg-indigo-600 text-white hover:bg-indigo-700">{savingItem ? <Loader2 className="animate-spin w-4 h-4" /> : <Save className="w-4 h-4 mr-2"/>} {t("Save")}</Button></DialogFooter>
+              <DialogFooter>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setEditingItem(null)}
+                  className="h-11 px-6 bg-white hover:bg-slate-50 border-slate-200 text-slate-600 hover:text-indigo-600 font-bold transition-all shadow-sm active:scale-[0.98]"
+                >
+                  {t("Cancel")}
+                </Button>
+                <Button onClick={saveCount} disabled={savingItem} className="h-11 min-w-[100px] bg-indigo-600 text-white hover:bg-indigo-700 font-bold shadow-md transition-all active:scale-[0.98]">
+                  {savingItem ? <Loader2 className="animate-spin w-4 h-4" /> : <Save className="w-4 h-4 mr-2"/>} {t("Save")}
+                </Button>
+              </DialogFooter>
           </DialogContent>
         </Dialog>
 
@@ -267,18 +300,23 @@ export default function StaffCountingPage() {
               </div>
               <div className="flex w-full justify-between items-center mt-3">
                 <span className="text-xs text-slate-400 italic">{t("Sign inside the area above")}</span>
-                <Button variant="ghost" size="sm" onClick={clearSignature} className="text-slate-500 hover:text-rose-600 h-8 px-2 transition-colors">
+                <Button variant="ghost" size="sm" onClick={clearSignature} className="text-slate-500 h-8 px-2">
                   <Eraser className="w-3.5 h-3.5 mr-1.5" /> {t("Clear")}
                 </Button>
               </div>
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => setIsSignatureModalOpen(false)} disabled={isSubmittingFinal}>
+            <DialogFooter className="flex flex-row gap-3 sm:gap-3 w-full mt-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsSignatureModalOpen(false)} 
+                disabled={isSubmittingFinal}
+                className="flex-1 h-11 px-6 bg-white hover:bg-slate-50 border-slate-200 text-slate-600 hover:text-indigo-600 font-bold transition-all shadow-sm active:scale-[0.98]"
+              >
                 {t("Cancel")}
               </Button>
               <Button 
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 shadow-md"
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-11 px-6 shadow-md transition-all active:scale-[0.98]"
                 onClick={handleConfirmFullSubmit}
                 disabled={!isSigned || isSubmittingFinal}
               >

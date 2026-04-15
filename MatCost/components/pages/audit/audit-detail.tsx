@@ -154,11 +154,11 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
     } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); }
   };
 
-  const handleQuickRecount = async (item: VarianceItemDto) => {
+  const handleRecountAll = async () => {
     try {
         setIsSubmitting(true);
-        await auditService.requestRecount(stockTakeId, item.id, 1, "Manager recount request");
-        toast.success(t("Recount request sent to staff!"));
+        await auditService.requestRecountAll(stockTakeId, 1, "Manager recount all request");
+        toast.success(t("Recount request sent for all pending items!"));
         await fetchData();
     } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); }
   };
@@ -285,6 +285,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
 
   const hasRecountRequested = variances.some(v => v.discrepancyStatus === "RecountRequested");
   const hasUnresolvedVariances = variances.some(v => !v.resolutionAction);
+  const hasRecountEligibleItems = variances.some(v => !v.resolutionAction && v.discrepancyStatus !== "RecountRequested" && (v.countRound ?? 1) <= 1 && v.discrepancyStatus === "Discrepancy");
   const metrics = detailData?.metrics;
   const isCountComplete = (metrics?.totalItems ?? 0) > 0 && (metrics?.countedItems === metrics?.totalItems);
   const hasDiscrepancies = (metrics?.discrepancyItems ?? 0) > 0;
@@ -319,10 +320,13 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                 <Card className="bg-white border-slate-200 shadow-sm"><CardContent className="p-4 flex items-center gap-4"><div className="p-3 bg-rose-100 text-rose-600 rounded-lg shrink-0"><AlertTriangle className="w-5 h-5" /></div><div><p className="text-xs font-medium text-rose-600 uppercase">{t("Discrepancy")}</p><h3 className="text-xl font-bold text-rose-700">{metrics?.discrepancyItems || 0}</h3></div></CardContent></Card>
               </div>
 
-              <Card className="border-slate-200 shadow-sm overflow-hidden flex flex-col gap-0">
-                <CardHeader className="bg-white border-b border-slate-100 py-4 flex flex-row justify-between items-center">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pb-5"><ClipboardList className="w-4 h-4 text-indigo-600" /> {t("Discrepancies Details")}</CardTitle>
+              <Card className="border-slate-200 shadow-sm overflow-hidden flex flex-col gap-0 pb-0 bg-white">
+                <CardHeader className="border-b border-slate-100 py-4 flex flex-row justify-between items-center">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800"><ClipboardList className="w-4 h-4 text-indigo-600" /> {t("Discrepancies Details")}</CardTitle>
                   <div className="flex gap-2">
+                    {canResolve && hasRecountEligibleItems && (
+                      <Button size="sm" className="h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white shadow-sm" onClick={handleRecountAll} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCcw className="w-3.5 h-3.5 mr-1.5" />} {t("Request Recount All")}</Button>
+                    )}
                     {canExport && detailData.status === "Completed" && (
                       <Button variant="outline" size="sm" className="h-8 text-xs border-indigo-200 text-indigo-700 bg-indigo-50" onClick={handleExportPdf}><Download className="w-3.5 h-3.5 mr-1.5" /> {t("Download PDF")}</Button>
                     )}
@@ -333,13 +337,13 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                     <Table className="w-full min-w-[700px] table-fixed">
                       <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                         <TableRow className="bg-slate-50 hover:bg-slate-50">
-                          <TableHead className="pl-6 w-[28%]">{t("Material")}</TableHead>
-                          <TableHead className="text-right w-[12%]">{t("Sys Qty")}</TableHead>
-                          <TableHead className="text-right w-[12%]">{t("Count Qty")}</TableHead>
-                          <TableHead className="text-right w-[12%]">{t("Variance")}</TableHead>
-                          <TableHead className="text-center w-[10%]">{t("Round")}</TableHead>
-                          <TableHead className="text-center w-[14%]">{t("Status")}</TableHead>
-                          <TableHead className="text-right pr-6 w-[12%]">{t("Action")}</TableHead>
+                          <TableHead className="pl-6 w-[28%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Material")}</TableHead>
+                          <TableHead className="text-right w-[12%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Sys Qty")}</TableHead>
+                          <TableHead className="text-right w-[12%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Count Qty")}</TableHead>
+                          <TableHead className="text-right w-[12%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Variance")}</TableHead>
+                          <TableHead className="text-center w-[10%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Round")}</TableHead>
+                          <TableHead className="text-center w-[14%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Status")}</TableHead>
+                          <TableHead className="text-right pr-6 w-[12%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Action")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -360,8 +364,8 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                                 {row.resolutionAction ? <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 font-normal">{t("Resolved")}</Badge> : row.discrepancyStatus === "RecountRequested" ? <Badge className="bg-orange-50 text-orange-700 border-orange-200 font-normal flex items-center justify-center gap-1 mx-auto w-fit"><RefreshCcw className="w-3 h-3" /> {t("Recounting")}</Badge> : <Badge className="bg-rose-50 text-rose-700 border-rose-200 font-normal flex items-center justify-center gap-1 mx-auto w-fit"><AlertTriangle className="w-3 h-3" /> {t("Pending")}</Badge>}
                               </TableCell>
                               <TableCell className="text-right pr-6">
-                                {canResolve && !row.resolutionAction && row.discrepancyStatus !== "RecountRequested" && (
-                                  countRound <= 1 && row.discrepancyStatus === "Discrepancy" ? <Button size="sm" variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-500" onClick={() => handleQuickRecount(row)} disabled={isSubmitting}><RefreshCcw className="w-3.5 h-3.5 mr-1.5" /> {t("Recount")}</Button> : <Button size="sm" variant="outline" className="text-indigo-600 border-indigo-200" onClick={() => { setResolveItem(row); setResolveAction(""); }}>{t("Resolve")}</Button>
+                                {canResolve && !row.resolutionAction && row.discrepancyStatus !== "RecountRequested" && countRound > 1 && (
+                                  <Button size="sm" variant="outline" className="text-indigo-600 border-indigo-200" onClick={() => { setResolveItem(row); setResolveAction(""); }}>{t("Resolve")}</Button>
                                 )}
                                 {row.resolutionAction && <span className="text-xs text-slate-400 italic block">{t(row.resolutionAction)}</span>}
                               </TableCell>

@@ -715,16 +715,82 @@ namespace Backend.Domains.Audit.Services
             if (reason == null)
                 return (false, "Invalid reason.");
 
-            detail.DiscrepancyStatus = "RecountRequested";
+            // 1. Identify all materials in the audit scope (InventoryCurrent matching warehouse and assigned bins)
+            var assignedBinIds = await _db.StockTakeBinLocations
+                .Where(x => x.StockTakeId == stockTakeId)
+                .Select(x => x.BinId)
+                .ToListAsync(ct);
 
-            // KHÔNG set thành Recount nữa, vì query unresolved của ông đang coi
-            // ResolutionAction != null là đã resolve
-            detail.ResolutionAction = null;
+            var query = _db.InventoryCurrents.Where(x => x.WarehouseId == st.WarehouseId);
+            if (assignedBinIds.Any())
+            {
+                query = query.Where(x => assignedBinIds.Contains(x.BinId));
+            }
 
-            detail.AdjustmentReasonId = request.ReasonId;
-            detail.Reason = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
-            detail.ResolvedBy = managerUserId;
-            detail.ResolvedAt = DateTime.UtcNow;
+            var scopedInventory = await query.ToListAsync(ct);
+
+            // 2. Load all existing details
+            var existingDetails = await _db.StockTakeDetails
+                .Where(x => x.StockTakeId == stockTakeId)
+                .ToListAsync(ct);
+
+            // 3. Ensure every inventory item has a StockTakeDetail and reset it
+            foreach (var inv in scopedInventory)
+            {
+                var d = existingDetails.FirstOrDefault(x => 
+                    x.MaterialId == inv.MaterialId && 
+                    x.BinId == inv.BinId && 
+                    x.BatchId == inv.BatchId);
+
+                if (d == null)
+                {
+                    d = new StockTakeDetail
+                    {
+                        StockTakeId = stockTakeId,
+                        MaterialId = inv.MaterialId,
+                        BinId = inv.BinId,
+                        BatchId = inv.BatchId,
+                        SystemQty = inv.QuantityOnHand ?? 0m,
+                        CountQty = null,
+                        CountRound = 1,
+                        DiscrepancyStatus = "RecountRequested",
+                        Reason = "Missing from Round 1 count",
+                        AdjustmentReasonId = request.ReasonId,
+                        ResolvedBy = managerUserId,
+                        ResolvedAt = DateTime.UtcNow
+                    };
+                    _db.StockTakeDetails.Add(d);
+                }
+                else
+                {
+                    d.DiscrepancyStatus = "RecountRequested";
+                    d.CountQty = null;       // Clear old count for Round 2
+                    d.CountedBy = null;      // Clear old counter
+                    d.CountedAt = null;      // Clear old time
+                    d.ResolutionAction = null;
+                    d.AdjustmentReasonId = request.ReasonId;
+                    d.Reason = d.Id == detailId ? request.Note : "Required full scope recount";
+                    d.ResolvedBy = managerUserId;
+                    d.ResolvedAt = DateTime.UtcNow;
+                }
+            }
+
+            // 4. Also reset any existing details that might not be in the current inventory query (ghost items)
+            foreach (var d in existingDetails)
+            {
+                if (d.DiscrepancyStatus != "RecountRequested")
+                {
+                    d.DiscrepancyStatus = "RecountRequested";
+                    d.CountQty = null;       // Clear old count
+                    d.CountedBy = null;
+                    d.CountedAt = null;
+                    d.ResolutionAction = null;
+                    d.AdjustmentReasonId = request.ReasonId;
+                    d.Reason = d.Id == detailId ? request.Note : "Required full scope recount";
+                    d.ResolvedBy = managerUserId;
+                    d.ResolvedAt = DateTime.UtcNow;
+                }
+            }
 
             // Reset audit status to "InProgress" to allow staff to work again
             st.Status = "InProgress";
@@ -767,6 +833,38 @@ namespace Backend.Domains.Audit.Services
 
             return (true, "Recount requested successfully. Audit is back to InProgress.");
         }
+
+        public async Task<(bool success, string message)> RequestRecountAllAsync(
+            int stockTakeId,
+            RequestRecountRequest request,
+            int managerUserId,
+            CancellationToken ct)
+        {
+            var st = await _db.StockTakes
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
+
+            if (st == null)
+                return (false, "Audit not found.");
+
+            if (!string.Equals(st.Status, "PendingManagerReview", StringComparison.OrdinalIgnoreCase))
+                return (false, $"Only audits in 'PendingManagerReview' status can request recount. Current status: '{st.Status}'.");
+
+            // Find the first eligible item: Discrepancy status, round 1, has been counted
+            var firstEligible = await _db.StockTakeDetails
+                .FirstOrDefaultAsync(x =>
+                    x.StockTakeId == stockTakeId &&
+                    x.DiscrepancyStatus == "Discrepancy" &&
+                    x.CountRound <= 1 &&
+                    x.CountQty != null &&
+                    (x.Variance ?? 0m) != 0m, ct);
+
+            if (firstEligible == null)
+                return (false, "No eligible pending discrepancy items found for recount.");
+
+            // Delegate to existing full-scope recount logic
+            return await RequestRecountAsync(stockTakeId, firstEligible.Id, request, managerUserId, ct);
+        }
+
         public async Task<StockTakeReviewDetailDto> GetReviewDetailAsync(int stockTakeId, CancellationToken ct)
         {
             var st = await _db.StockTakes

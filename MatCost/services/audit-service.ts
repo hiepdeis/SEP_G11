@@ -101,6 +101,11 @@ export const auditService = {
     const response = await axiosClient.put(`/manager/audits/${stockTakeId}/variances/${detailId}/request-recount`, payload);
     return response.data;
   },
+  requestRecountAll: async (stockTakeId: number, reasonId: number, note: string = "") => {
+    const payload = { reasonId, note };
+    const response = await axiosClient.post(`/manager/audits/${stockTakeId}/request-recount-all`, payload);
+    return response.data;
+  },
   
   // RECOUNT TEAM MANAGEMENT
   getRecountCandidates: async (stockTakeId: number) => {
