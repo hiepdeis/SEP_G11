@@ -14,20 +14,22 @@ import { directPurchaseApi } from '@/services/directPurchase-service';
 import { supplierApi } from '@/services/supplier-service';
 
 import { useTranslation } from "react-i18next"; 
+import { Sidebar } from '@/components/sidebar';
+import { Header } from '@/components/ui/custom/header';
 
 
 
 export default function DirectPurchaseOrderDetail() {
   const params = useParams();
   const issueId = Array.isArray(params.issueId) ? params.issueId[0] : params.issueId;
- const { t } = useTranslation();
+  const { t } = useTranslation();
   const [dpoDetail, setDpoDetail] = useState<any>(null);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-
+  const [itemSuppliers, setItemSuppliers] = useState<Record<number, string>>({});
   // States cho Form chốt đơn
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string>("");
+
   const [deliveryDate, setDeliveryDate] = useState<string>("");
   const [deliveryAddress, setDeliveryAddress] = useState<string>("");
   
@@ -51,10 +53,7 @@ export default function DirectPurchaseOrderDetail() {
         console.log("-> Đã lấy xong DPO Detail:", data);
 
         setDpoDetail(data);
-
-        if (data.supplierId) setSelectedSupplierId(data.supplierId.toString());
-       // setDeliveryAddress(data.deliveryAddress || "Công trường dự án"); 
-        
+    
         const initialPrices: Record<number, number> = {};
         data.details.forEach((item: any) => {
           initialPrices[item.dpoDetailId] = item.negotiatedUnitPrice;
@@ -84,28 +83,26 @@ export default function DirectPurchaseOrderDetail() {
 
   // 2. XỬ LÝ CHỐT ĐƠN
   const handleConfirmOrder = async () => {
-    if (!selectedSupplierId) return toast.error("Vui lòng chọn Nhà cung cấp!");
-
+    const unselectedItems = dpoDetail.details.filter((item: any) => !itemSuppliers[item.dpoDetailId]);
+    if (unselectedItems.length > 0) {
+      return toast.error(t("Vui lòng chọn Nhà cung cấp cho tất cả các vật tư!"));
+    }
     try {
       setSubmitting(true);
-      
-      // Build Payload khớp 100% với DTO ConfirmDpoRequest ở Backend
+
       const payload = {
-        supplierId: Number(selectedSupplierId),
         expectedDeliveryDate: deliveryDate ? new Date(deliveryDate).toISOString() : null,
         deliveryAddress: deliveryAddress,
         items: dpoDetail.details.map((item: any) => ({
           dpoDetailId: item.dpoDetailId,
-          negotiatedUnitPrice: Number(editedPrices[item.dpoDetailId] || 0)
+          negotiatedUnitPrice: Number(editedPrices[item.dpoDetailId] || 0),
+          supplierId: Number(itemSuppliers[item.dpoDetailId]) // Gắn ID NCC của từng dòng
         }))
       };
 
-      // 🚨 QUAN TRỌNG: Gọi Submit bằng DPO_ID thật sự, không dùng issueId
-      await axiosClient.post(`/DirectPurchaseOrder/${dpoDetail.dpoId}/confirm-order`, payload);
-      
+      await directPurchaseApi.confirmOrder(dpoDetail.dpoId, payload);
       toast.success("Tuyệt vời! Đã chốt đơn và chuyển lệnh Giao hàng.");
-      
-      // Load lại trang hoặc back về list
+    
       const dpoRes = await directPurchaseApi.getDirectPurchaseById(Number(issueId));
       setDpoDetail(dpoRes);
       
@@ -124,9 +121,16 @@ export default function DirectPurchaseOrderDetail() {
   const currentTotal = calculateTotal();
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 p-4">
-      {/* HEADER TỔNG QUAN */}
-      <div className="flex justify-between items-center bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+   <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
+      {/* SIDEBAR LUÔN CỐ ĐỊNH BÊN TRÁI */}
+      <Sidebar />
+
+
+      <main className="flex-grow flex flex-col overflow-hidden relative z-10">
+        
+        {/* HEADER CỐ ĐỊNH PHÍA TRÊN */}
+        <Header title={t("Direct Purchase Order Processing")} />
+         <div className="flex justify-between items-center bg-white p-5 rounded-xl shadow-sm border border-slate-200">
         <div>
           <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
             <ShoppingCart className="w-6 h-6 text-indigo-600" /> {t("Direct Purchase Order Processing")}
@@ -144,7 +148,85 @@ export default function DirectPurchaseOrderDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* CỘT TRÁI: THÔNG TIN ĐẶT HÀNG & CHỐT ĐƠN */}
+      
+        {/* CỘT PHẢI: BẢNG VẬT TƯ & ÉP GIÁ */}
+        <div className="lg:col-span-2">
+          <Card className="shadow-sm border-slate-200 h-full flex flex-col">
+            <CardHeader className="bg-slate-50 border-b pb-4">
+              <CardTitle className="text-base flex items-center gap-2 text-slate-700">
+                <DollarSign className="w-5 h-5 text-emerald-500"/> {t("Material Details & Price Negotiation")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 flex-1 overflow-x-auto">
+              <Table className="min-w-[600px]">
+                <TableHeader>
+                  <TableRow className="bg-slate-50/50">
+                    <TableHead className="w-[50px] text-center pl-4">STT</TableHead>
+                    <TableHead>{t("Material Code / Name")}</TableHead>
+                    <TableHead className="text-right">{t("Quantity Needed")}</TableHead>
+                    <TableHead className="text-right w-[180px]">{t("Actual Unit Price (VND)")}</TableHead>
+                    <TableHead className="w-[200px]">{t("Supplier")}</TableHead>
+                    <TableHead className="text-right pr-4">{t("Line Total (VND)")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dpoDetail.details.map((item: any, idx: number) => {
+                    const currentPrice = editedPrices[item.dpoDetailId] || 0;
+                    const lineTotal = currentPrice * item.quantity;
+                    
+                    return (
+                      <TableRow key={item.dpoDetailId} className="hover:bg-slate-50/50">
+                        <TableCell className="text-center text-slate-500 font-medium pl-4">{idx + 1}</TableCell>
+                        <TableCell>
+                          <div className="font-bold text-slate-700">{item.materialName}</div>
+                          <div className="text-xs text-slate-400 mt-0.5">{t("Material Code")}: {item.materialId}</div>
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-slate-800 text-base">
+                          {item.quantity}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Input 
+                            type="number"
+                            min="0"
+                            disabled={isReadOnly}
+                            className={`text-right font-bold h-9 ${isReadOnly ? 'bg-slate-50 text-slate-500' : 'bg-white text-indigo-700 border-indigo-200 focus-visible:ring-indigo-500'}`}
+                            value={editedPrices[item.dpoDetailId] || ""}
+                            onChange={(e) => setEditedPrices(prev => ({
+                              ...prev,
+                              [item.dpoDetailId]: Number(e.target.value)
+                            }))}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Select 
+                            disabled={isReadOnly} 
+                            value={itemSuppliers[item.dpoDetailId] || ""} 
+                            onValueChange={(val) => setItemSuppliers(prev => ({ ...prev, [item.dpoDetailId]: val }))}
+                          >
+                            <SelectTrigger className={`w-full h-9 ${isReadOnly ? 'bg-slate-50' : 'bg-white'}`}>
+                              <SelectValue placeholder="-- Chọn NCC --" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {suppliers.map(s => (
+                                <SelectItem key={s.supplierId} value={s.supplierId.toString()}>
+                                  {s.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-emerald-600 pr-4">
+                          {lineTotal.toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+          {/* CỘT TRÁI: THÔNG TIN ĐẶT HÀNG & CHỐT ĐƠN */}
         <div className="lg:col-span-1 space-y-6">
           <Card className="shadow-sm border-slate-200">
             <CardHeader className="bg-slate-50 border-b pb-4">
@@ -153,28 +235,14 @@ export default function DirectPurchaseOrderDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 space-y-5">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">{t("Supplier")} <span className="text-red-500">*</span></label>
-                <Select disabled={isReadOnly} value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
-                  <SelectTrigger className="w-full bg-white">
-                    <SelectValue placeholder={t("Please select supplier!")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {suppliers.map(s => (
-                      <SelectItem key={s.supplierId} value={s.supplierId.toString()}>
-                        {s.code} - {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
                   <Calendar className="w-4 h-4 text-slate-400"/> {t("Expected Delivery Date")}
                 </label>
                 <Input 
-                  type="date" 
+                  type="datetime-local"
                   disabled={isReadOnly}
                   className="bg-white"
                   value={deliveryDate} 
@@ -218,67 +286,10 @@ export default function DirectPurchaseOrderDetail() {
             </CardContent>
           </Card>
         </div>
-
-        {/* CỘT PHẢI: BẢNG VẬT TƯ & ÉP GIÁ */}
-        <div className="lg:col-span-2">
-          <Card className="shadow-sm border-slate-200 h-full flex flex-col">
-            <CardHeader className="bg-slate-50 border-b pb-4">
-              <CardTitle className="text-base flex items-center gap-2 text-slate-700">
-                <DollarSign className="w-5 h-5 text-emerald-500"/> {t("Material Details & Price Negotiation")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 flex-1 overflow-x-auto">
-              <Table className="min-w-[600px]">
-                <TableHeader>
-                  <TableRow className="bg-slate-50/50">
-                    <TableHead className="w-[50px] text-center pl-4">STT</TableHead>
-                    <TableHead>{t("Material Code / Name")}</TableHead>
-                    <TableHead className="text-right">{t("Quantity Needed")}</TableHead>
-                    <TableHead className="text-right w-[180px]">{t("Actual Unit Price (VND)")}</TableHead>
-                    <TableHead className="text-right pr-4">{t("Line Total (VND)")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dpoDetail.details.map((item: any, idx: number) => {
-                    const currentPrice = editedPrices[item.dpoDetailId] || 0;
-                    const lineTotal = currentPrice * item.quantity;
-                    
-                    return (
-                      <TableRow key={item.dpoDetailId} className="hover:bg-slate-50/50">
-                        <TableCell className="text-center text-slate-500 font-medium pl-4">{idx + 1}</TableCell>
-                        <TableCell>
-                          <div className="font-bold text-slate-700">{item.materialName}</div>
-                          <div className="text-xs text-slate-400 mt-0.5">{t("Material Code")}: {item.materialId}</div>
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-slate-800 text-base">
-                          {item.quantity}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Input 
-                            type="number"
-                            min="0"
-                            disabled={isReadOnly}
-                            className={`text-right font-bold h-9 ${isReadOnly ? 'bg-slate-50 text-slate-500' : 'bg-white text-indigo-700 border-indigo-200 focus-visible:ring-indigo-500'}`}
-                            value={editedPrices[item.dpoDetailId] || ""}
-                            onChange={(e) => setEditedPrices(prev => ({
-                              ...prev,
-                              [item.dpoDetailId]: Number(e.target.value)
-                            }))}
-                          />
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-emerald-600 pr-4">
-                          {lineTotal.toLocaleString()}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </div>
-
+            
       </div>
+        </main>
+     
     </div>
   );
 }

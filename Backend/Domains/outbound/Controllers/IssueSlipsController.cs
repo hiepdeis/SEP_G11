@@ -766,6 +766,25 @@ namespace Backend.Domains.outbound.Controllers
                     slip.Status = "Ready_For_Delivery";
                     slip.Description += $"\n(Kho: Đã xuất hàng và trừ tồn kho vật lý lúc {DateTime.Now:HH:mm}).";
                     break;
+                case "Completed":
+                    // 1. Chỉ cho phép nhận hàng nếu phiếu đang trên đường giao && slip.Status != "Delivering_To_Site"
+                    if (slip.Status != "Ready_For_Delivery" )
+                        return BadRequest("Phiếu phải ở trạng thái đang giao hàng mới có thể xác nhận.");
+
+                    // 2. Cập nhật trạng thái và ngày thực nhận
+                    slip.Status = "Completed";
+                    if (slip.Project != null)
+                    {
+                        // Tính tổng tiền của phiếu xuất này (Số lượng * Đơn giá dự toán/Giá xuất kho)
+                        decimal totalSlipCost = slip.IssueDetails.Sum(d => d.Quantity * (d.UnitPrice ?? 0));
+
+                        // Cộng dồn vào chi phí dự án
+                        slip.Project.BudgetUsed = (slip.Project.BudgetUsed ?? 0) + totalSlipCost;
+
+                        slip.Description += $"\n(Kế toán: Đã ghi nhận {totalSlipCost:N0} VNĐ từ kho vào chi phí dự án).";
+                    }
+                    slip.Description += $"\n(Hiện trường: Kỹ sư đã xác nhận nhận đủ hàng vào lúc {DateTime.Now:dd/MM/yyyy HH:mm}).";
+                    break;
 
                 // ... Bạn có thể nhét thêm 100 trạng thái khác vào đây mà không cần viết thêm API mới ...
 

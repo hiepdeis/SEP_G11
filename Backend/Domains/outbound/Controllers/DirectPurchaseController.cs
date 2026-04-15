@@ -1,4 +1,5 @@
 ﻿using Backend.Data;
+using Backend.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -26,9 +27,11 @@ namespace Backend.Domains.outbound.Controllers
                                         .FirstOrDefaultAsync();
             if (string.IsNullOrEmpty(issueCode))
                 return NotFound(new { message = "Không tìm thấy phiếu yêu cầu gốc." });
-
+            // && x.SupplierId != null
             var dpo = await _context.DirectPurchaseOrders
-                .Where(x => x.ReferenceCode == issueCode)
+                .Include(d => d.DirectPurchaseDetails)
+                    .ThenInclude(detail => detail.Material )
+                .Where(x => x.ReferenceCode == issueCode )
                 .Select(x => new DirectPurchaseOrderDto
                 {
                     DpoId = x.DpoId,
@@ -61,68 +64,211 @@ namespace Backend.Domains.outbound.Controllers
         // [Authorize(Roles = "Purchasing, Admin")]
         public async Task<IActionResult> ConfirmPurchaseOrder(long id, [FromBody] ConfirmDpoRequest request)
         {
-            // 1. Kiểm tra Validate từ DTO
+            // 1. Kiểm tra Validate
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            // 2. Lấy phiếu DPO kèm theo các dòng chi tiết
-            var dpo = await _context.DirectPurchaseOrders
+            // 2. Lấy phiếu DPO NHÁP kèm theo các dòng chi tiết
+            var originalDpo = await _context.DirectPurchaseOrders
                 .Include(x => x.DirectPurchaseDetails)
                 .FirstOrDefaultAsync(x => x.DpoId == id);
 
-            if (dpo == null)
+            if (originalDpo == null)
                 return NotFound(new { message = "Không tìm thấy đơn mua xuất thẳng." });
 
-            // 3. Chặn nếu phiếu không nằm ở trạng thái chờ Thu mua xử lý
-            if (dpo.Status != "Pending_Supplier_Selection" && dpo.Status != "Forwarded_To_Purchasing")
+            // 3. Chặn nếu phiếu không nằm ở trạng thái nháp
+            if (originalDpo.Status != "Pending_Supplier_Selection" && originalDpo.Status != "Draft_DPO" && originalDpo.Status != "Forwarded_To_Purchasing")
             {
                 return BadRequest(new { message = "Phiếu này không ở trạng thái chờ Thu mua chốt đơn." });
             }
 
-            // 4. Cập nhật thông tin Master (Đầu phiếu)
-            dpo.SupplierId = request.SupplierId;
-            dpo.ExpectedDeliveryDate = request.ExpectedDeliveryDate;
+            // 4. GOM NHÓM VẬT TƯ THEO NHÀ CUNG CẤP (Phép thuật nằm ở đây)
+            var groupedItems = request.Items.GroupBy(i => i.SupplierId).ToList();
 
-            if (!string.IsNullOrEmpty(request.DeliveryAddress))
+            var newlyCreatedDpoCodes = new List<string>(); // Để ghi log
+
+            // 5. DUYỆT QUA TỪNG NHÀ CUNG CẤP ĐỂ ĐẺ RA PHIẾU MỚI
+            foreach (var group in groupedItems)
             {
-                dpo.DeliveryAddress = request.DeliveryAddress;
-            }
+                var supplierId = group.Key;
+                decimal totalOrderAmount = 0;
 
-            // 5. Cập nhật Giá đàm phán cho từng dòng chi tiết & Tính lại Tổng tiền
-            decimal totalOrderAmount = 0;
-
-            foreach (var reqItem in request.Items)
-            {
-                var detail = dpo.DirectPurchaseDetails.FirstOrDefault(d => d.DpoDetailId == reqItem.DpoDetailId);
-                if (detail != null)
+                // Tạo 1 Phiếu DPO THỰC TẾ cho Nhà cung cấp này
+                var newDpo = new DirectPurchaseOrder
                 {
-                    // Cập nhật giá mới do Thu mua nhập vào
-                    detail.NegotiatedUnitPrice = reqItem.NegotiatedUnitPrice;
+                    DpoCode = "DPO-" + DateTime.Now.ToString("yyMMdd") + "-" + new Random().Next(1000, 9999),
+                    ReferenceCode = originalDpo.ReferenceCode, // Vẫn nối về mã Yêu cầu gốc (REQ-...)
+                    ProjectId = originalDpo.ProjectId,
+                    CreatedBy = originalDpo.CreatedBy,
 
-                    // Tính thành tiền của dòng này và cộng dồn vào tổng
-                    totalOrderAmount += (detail.Quantity * detail.NegotiatedUnitPrice);
+                    SupplierId = supplierId, // Lấy ID nhà cung cấp từ nhóm
+
+                    OrderDate = DateTime.UtcNow,
+                    ExpectedDeliveryDate = request.ExpectedDeliveryDate,
+                    DeliveryAddress = request.DeliveryAddress,
+
+                    Status = "Delivering_To_Site", // Chuyển thẳng sang trạng thái Đang giao hàng
+                    Description = $"Đơn hàng tách từ phiếu yêu cầu {originalDpo.DpoCode}.",
+                    DirectPurchaseDetails = new List<DirectPurchaseDetail>()
+                };
+
+                // Lọc và copy các vật tư thuộc về Nhà cung cấp này
+                foreach (var reqItem in group)
+                {
+                    var oldDetail = originalDpo.DirectPurchaseDetails.FirstOrDefault(d => d.DpoDetailId == reqItem.DpoDetailId);
+                    if (oldDetail != null)
+                    {
+                        // Bỏ vào phiếu mới
+                        newDpo.DirectPurchaseDetails.Add(new DirectPurchaseDetail
+                        {
+                            MaterialId = oldDetail.MaterialId,
+                            Quantity = oldDetail.Quantity,
+                            NegotiatedUnitPrice = reqItem.NegotiatedUnitPrice,
+                            SupplierId = supplierId
+                        });
+
+                        // Cộng dồn tiền
+                        totalOrderAmount += (oldDetail.Quantity * reqItem.NegotiatedUnitPrice);
+                    }
                 }
+
+                newDpo.TotalAmount = totalOrderAmount;
+
+                // Thêm phiếu mới vào DB
+                _context.DirectPurchaseOrders.Add(newDpo);
+                newlyCreatedDpoCodes.Add(newDpo.DpoCode);
             }
 
-            // 6. Cập nhật Tổng tiền và Trạng thái
-            dpo.TotalAmount = totalOrderAmount;
-            dpo.Status = "Delivering_To_Site"; // Trạng thái: Đang giao đến công trường
+            // 6. KHÓA PHIẾU NHÁP LẠI (Chuyển trạng thái để không hiện lên danh sách chờ xử lý nữa)
+            originalDpo.Status = "Processed";
+            string codes = string.Join(", ", newlyCreatedDpoCodes);
+            originalDpo.Description += $"\n({DateTime.Now:dd/MM/yyyy HH:mm} - Thu mua đã tách thành {groupedItems.Count} đơn hàng thực tế: {codes})";
 
-            // Ghi log lại lịch sử thao tác
-            dpo.Description += $"\n({DateTime.Now:dd/MM/yyyy HH:mm} - Thu mua chốt đơn. Tổng tiền: {totalOrderAmount:N0} VNĐ)";
-
-            // 7. Lưu DB
+            // 7. Lưu tất cả sự thay đổi xuống DB
             await _context.SaveChangesAsync();
 
-            // 8. Trả về cho Frontend
             return Ok(new
             {
-                message = "Đã chốt đơn và chuyển trạng thái Đang giao hàng!",
-                dpoId = dpo.DpoId,
-                totalAmount = dpo.TotalAmount,
-                newStatus = dpo.Status
+                message = $"Đã chốt đơn và tự động tách thành {groupedItems.Count} phiếu giao hàng!",
+                newStatus = originalDpo.Status
             });
         }
+
+        [HttpGet("api/site/incoming-shipments")]
+        // [Authorize(Roles = "SiteEngineer, Admin")]
+        public async Task<IActionResult> GetIncomingShipments()
+        {
+            string deliveringStatus = "Ready_For_Delivery";
+
+            // 1. LẤY CÁC CHUYẾN XE TỪ KHO NỘI BỘ (Không đổi)
+            var issueSlipsData = await _context.IssueSlips
+                .Include(i => i.IssueDetails)
+                    .ThenInclude(d => d.Material)
+                .Where(i => i.Status == deliveringStatus)
+                .ToListAsync(); // Kéo về RAM trước
+
+            var issueSlips = issueSlipsData.Select(i => new IncomingShipmentDto
+            {
+                RecordId = i.IssueId,
+                Code = i.IssueCode,
+                Type = "Issue_Slip",
+                SourceName = "Kho Công Ty",
+                ExpectedDate = i.IssueDate,
+                Status = "Đang giao đến",
+                ItemsSummary = string.Join(", ", i.IssueDetails.Select(d => $"{d.Quantity} {d.Material.Name}")),
+                LicensePlate = i.Description
+            }).ToList();
+
+            // 2. LẤY CÁC CHUYẾN XE TỪ NHÀ CUNG CẤP (Sửa lại bằng LINQ JOIN)
+            // Dùng cú pháp Query Syntax để thực hiện Left Join với bảng Suppliers
+            var dposQuery = await (
+                from d in _context.DirectPurchaseOrders
+                    .Include(x => x.DirectPurchaseDetails)
+                        .ThenInclude(x => x.Material)
+                where d.Status == deliveringStatus
+                join s in _context.Suppliers on d.SupplierId equals s.SupplierId into supGroup
+                from s in supGroup.DefaultIfEmpty() // Left join đề phòng SupplierId null
+                select new
+                {
+                    Dpo = d,
+                    SupplierName = s != null ? s.Name : "Không rõ NCC"
+                }
+            ).ToListAsync(); // Kéo về RAM
+
+            var dpos = dposQuery.Select(x => new IncomingShipmentDto
+            {
+                RecordId = x.Dpo.DpoId,
+                Code = x.Dpo.DpoCode,
+                Type = "Direct_PO",
+                SourceName = x.SupplierName, // Lấy tên NCC từ phép Join ở trên
+                ExpectedDate = x.Dpo.ExpectedDeliveryDate,
+                Status = "Đang giao đến",
+                ItemsSummary = string.Join(", ", x.Dpo.DirectPurchaseDetails.Select(detail => $"{detail.Quantity} {detail.Material.Name}")),
+                LicensePlate = x.Dpo.DeliveryAddress
+            }).ToList();
+
+            // 3. HỢP NHẤT (MERGE) & SẮP XẾP
+            var allShipments = new List<IncomingShipmentDto>();
+            allShipments.AddRange(issueSlips);
+            allShipments.AddRange(dpos);
+
+            var sortedShipments = allShipments
+                .OrderBy(s => s.ExpectedDate ?? DateTime.MaxValue)
+                .ToList();
+
+            return Ok(sortedShipments);
+        }
+
+        [HttpPost("{id}/confirm-receipt")]
+        public async Task<IActionResult> ConfirmReceipt(long id)
+        {
+            // 1. Lấy thông tin đơn mua kèm theo thông tin Dự án để cập nhật tiền
+            var dpo = await _context.DirectPurchaseOrders
+                .Include(x => x.Project)
+                .FirstOrDefaultAsync(x => x.DpoId == id);
+
+            if (dpo == null) return NotFound("Không tìm thấy đơn mua hàng.");
+
+            // 2. Kiểm tra trạng thái
+            if (dpo.Status != "Delivering_To_Site")
+                return BadRequest("Đơn hàng chưa ở trạng thái giao hàng hoặc đã hoàn thành trước đó.");
+
+            // 3. Cập nhật trạng thái đơn hàng
+            dpo.Status = "Completed";
+            dpo.ActualDeliveryDate = DateTime.UtcNow;
+            dpo.Description += $"\n(Hiện trường: Đã xác nhận nhận hàng thành công. Ghi nhận công nợ cho NCC).";
+
+            // 4. 🔥 LOGIC "ĂN TIỀN" CỦA MATCOST: Cập nhật chi phí thực tế cho Dự án
+            // Giả sử bảng Project của bạn có cột BudgetUsed (Số tiền đã tiêu thực tế)
+            if (dpo.Project != null)
+            {
+                dpo.Project.BudgetUsed = (dpo.Project.BudgetUsed ?? 0) + dpo.TotalAmount;
+
+                dpo.Description += $"\n(Kế toán: Đã ghi nhận {dpo.TotalAmount:N0} VNĐ vào chi phí dự án).";
+            }
+
+            // 5. Lưu thay đổi
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Xác nhận nhận hàng thành công! Chi phí đã được ghi nhận cho dự án.",
+                dpoCode = dpo.DpoCode,
+            });
+        }
+    }
+
+
+    public class IncomingShipmentDto
+    {
+        public long RecordId { get; set; }
+        public string Code { get; set; }
+        public string Type { get; set; }
+        public string SourceName { get; set; }
+        public DateTime? ExpectedDate { get; set; }
+        public string Status { get; set; } 
+        public string ItemsSummary { get; set; }
+        public string LicensePlate { get; set; }
     }
 
     public class DirectPurchaseDetailDto
@@ -147,27 +293,19 @@ namespace Backend.Domains.outbound.Controllers
 
         public List<DirectPurchaseDetailDto> Details { get; set; } = new();
     }
-
     public class ConfirmDpoRequest
     {
-        [Required(ErrorMessage = "Vui lòng chọn Nhà cung cấp.")]
-        public int SupplierId { get; set; }
-
         public DateTime? ExpectedDeliveryDate { get; set; }
-
         public string? DeliveryAddress { get; set; }
-
-        [Required(ErrorMessage = "Danh sách vật tư không được để trống.")]
-        [MinLength(1, ErrorMessage = "Đơn hàng phải có ít nhất 1 vật tư.")]
         public List<UpdateDpoPriceDto> Items { get; set; } = new List<UpdateDpoPriceDto>();
     }
 
     public class UpdateDpoPriceDto
     {
-        [Required]
         public long DpoDetailId { get; set; }
-
-        [Required]
         public decimal NegotiatedUnitPrice { get; set; }
+        public int SupplierId { get; set; } // <--- Nhận thêm cái này từ UI
     }
+   
+   
 }

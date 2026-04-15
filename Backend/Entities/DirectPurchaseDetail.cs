@@ -35,5 +35,11 @@ namespace Backend.Entities
         // Tùy thuộc vào tên Entity Material của bạn, có thể mở comment dòng dưới
         [ForeignKey("MaterialId")]
         public virtual Material Material { get; set; } = null!;
+
+        [Column("SupplierID")]
+        public int? SupplierId { get; set; }
+
+        [ForeignKey("SupplierId")]
+        public virtual Supplier? Supplier { get; set; }
     }
 }
