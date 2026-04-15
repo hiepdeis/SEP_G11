@@ -1115,6 +1115,11 @@ export const staffReceiptsApi = {
       "/staff/receipts/pending-pos",
     );
   },
+  getPendingPurchaseOrderDetail: (purchaseOrderId: number) => {
+    return axiosClient.get<PendingPurchaseOrderDto>(
+      `/staff/receipts/pending-pos/${purchaseOrderId}`,
+    );
+  },
   getPendingSupplementaryReceiptDetail: (supplementaryReceiptId: number) => {
     return axiosClient.get<PendingPurchaseOrderDto>(
       `/staff/receipts/pending-pos/supplementary/${supplementaryReceiptId}`,

@@ -30,6 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   staffReceiptsApi,
   purchasingPurchaseOrderApi,
+  PendingPurchaseOrderDto,
 } from "@/services/import-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -61,7 +62,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
   const poIdParam = searchParams.get("poId");
   const supIdParam = searchParams.get("supId");
 
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<PendingPurchaseOrderDto | null>(null);
   const [items, setItems] = useState<ReceiveItemInput[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -87,7 +88,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
             );
           orderData = res.data;
         } else {
-          const res = await purchasingPurchaseOrderApi.getOrder(
+          const res = await staffReceiptsApi.getPendingPurchaseOrderDetail(
             Number(poIdParam),
           );
           orderData = res.data;
@@ -371,7 +372,7 @@ export default function ReceiveGoodsPage({ role = "staff" }: { role: string }) {
                     variant="outline"
                     className="bg-indigo-50 text-indigo-700 border-indigo-200 ml-2"
                   >
-                    PO #{order.purchaseOrderCode || order.poCode}
+                    {order.poCode}
                   </Badge>
                 </h1>
               </div>
