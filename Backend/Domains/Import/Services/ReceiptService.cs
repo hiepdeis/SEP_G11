@@ -399,6 +399,26 @@ namespace Backend.Domains.Import.Services
                         throw new InvalidOperationException("Supplementary receipt is not approved for receiving goods");
                 }
 
+                // Prevent duplicate receipt creation for the same source.
+                if (dto.SupplementaryReceiptId.HasValue)
+                {
+                    var hasExistingSupplementaryReceipt = await _context.Receipts
+                        .AnyAsync(r => r.SupplementaryReceiptId == dto.SupplementaryReceiptId.Value);
+
+                    if (hasExistingSupplementaryReceipt)
+                        throw new InvalidOperationException(
+                            $"Receipt đã tồn tại cho phiếu bổ sung {dto.SupplementaryReceiptId.Value}");
+                }
+                else
+                {
+                    var hasExistingPoReceipt = await _context.Receipts
+                        .AnyAsync(r => r.PurchaseOrderId == dto.PurchaseOrderId && r.SupplementaryReceiptId == null);
+
+                    if (hasExistingPoReceipt)
+                        throw new InvalidOperationException(
+                            $"Receipt đã tồn tại với PO {dto.PurchaseOrderId}");
+                }
+
                 var warehouse = await _context.Warehouses
                     .OrderBy(w => w.WarehouseId)
                     .FirstOrDefaultAsync();
@@ -644,6 +664,40 @@ namespace Backend.Domains.Import.Services
                 .ToListAsync();
 
             return newDeliveries.Concat(replacementDeliveries).ToList();
+        }
+
+        public async Task<PendingPurchaseOrderDto> GetPendingPurchaseOrderDetailAsync(long purchaseOrderId)
+        {
+            var purchaseOrder = await _context.PurchaseOrders
+                .Include(o => o.Supplier)
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.Material)
+                .Where(o => o.PurchaseOrderId == purchaseOrderId)
+                .Where(o => o.Status == "SentToSupplier" && o.ExpectedDeliveryDate.HasValue)
+                .Where(o => !_context.Receipts.Any(r => r.PurchaseOrderId == o.PurchaseOrderId))
+                .FirstOrDefaultAsync();
+
+            if (purchaseOrder == null)
+                throw new KeyNotFoundException($"Pending purchase order with ID {purchaseOrderId} not found");
+
+            return new PendingPurchaseOrderDto
+            {
+                Type = "NewDelivery",
+                PurchaseOrderId = purchaseOrder.PurchaseOrderId,
+                PoCode = purchaseOrder.PurchaseOrderCode,
+                SupplierName = purchaseOrder.Supplier?.Name ?? string.Empty,
+                ExpectedDeliveryDate = purchaseOrder.ExpectedDeliveryDate!.Value,
+                SupplierNote = purchaseOrder.SupplierNote,
+                Items = purchaseOrder.Items.Select(i => new PendingPurchaseOrderItemDto
+                {
+                    MaterialId = i.MaterialId,
+                    MaterialName = i.Material?.Name ?? string.Empty,
+                    MaterialCode = i.Material?.Code ?? string.Empty,
+                    OrderedQuantity = i.OrderedQuantity,
+                    Unit = i.Material?.Unit ?? string.Empty,
+                    IsDecimalUnit = i.Material?.IsDecimalUnit ?? false
+                }).ToList()
+            };
         }
 
         public async Task<PendingPurchaseOrderDto> GetPendingSupplementaryReceiptDetailAsync(long supplementaryReceiptId)
@@ -1266,7 +1320,7 @@ namespace Backend.Domains.Import.Services
 
                 var parentReceipt = await _context.Receipts
                     .FirstOrDefaultAsync(r => r.ReceiptId == currentRootReceiptId);
-                
+
                 if (parentReceipt == null) break;
                 currentSupplId = parentReceipt.SupplementaryReceiptId;
             }
@@ -1281,7 +1335,7 @@ namespace Backend.Domains.Import.Services
             while (queue.Count > 0)
             {
                 var currId = queue.Dequeue();
-                
+
                 if (relatedReceiptIdsList.Add(currId))
                 {
                     var incidents = await _context.IncidentReports
@@ -1455,7 +1509,7 @@ namespace Backend.Domains.Import.Services
 
                     var parentReceipt = await _context.Receipts
                         .FirstOrDefaultAsync(r => r.ReceiptId == currentRootReceiptId);
-                    
+
                     if (parentReceipt == null) break;
                     currentSupplId = parentReceipt.SupplementaryReceiptId;
                 }
@@ -1467,7 +1521,7 @@ namespace Backend.Domains.Import.Services
                 while (queue.Count > 0)
                 {
                     var currId = queue.Dequeue();
-                    
+
                     if (relatedReceiptIdsList.Add(currId))
                     {
                         var incidents = await _context.IncidentReports
@@ -1511,7 +1565,7 @@ namespace Backend.Domains.Import.Services
                     var invalidCodes = string.Join(", ", invalidReceipts.Select(r => r.ReceiptCode));
                     throw new InvalidOperationException($"Không thể đóng dấu. Các phiếu {invalidCodes} đang không ở trạng thái PartiallyPutaway.");
                 }
-                
+
                 // Cập nhật trạng thái của tất cả các phiếu trong chuỗi thành Stamped luôn
                 foreach (var r in relatedReceipts.Where(x => x.ReceiptId != receipt.ReceiptId))
                 {
@@ -2287,6 +2341,7 @@ namespace Backend.Domains.Import.Services
                     ReceiptCode = i.Receipt.ReceiptCode,
                     WarehouseName = i.Receipt.Warehouse != null ? i.Receipt.Warehouse.Name : null,
                     CreatedAt = i.CreatedAt,
+                    CreatedBy = i.CreatedBy,
                     CreatedByName = i.CreatedByNavigation.FullName ?? i.CreatedByNavigation.Email,
                     Description = i.Description,
                     Status = i.Status,

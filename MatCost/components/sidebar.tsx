@@ -16,6 +16,10 @@ import {
   Database,
   Bell,
   LayoutDashboard,
+  BrickWall,
+  Cable,
+  FolderKanban,
+  Warehouse,
   ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -45,10 +49,6 @@ export function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const { user: userDecode } = useAuth();
-  const [userProfile, setUserProfile] = useState<{
-    fullName: string;
-    email: string;
-  } | null>(null);
 
   const [showInboundMobile, setShowInboundMobile] = useState(false);
   const [showOutboundMobile, setShowOutboundMobile] = useState(false);
@@ -76,26 +76,35 @@ export function Sidebar() {
     };
   }, []);
 
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (userDecode?.id) {
-        try {
-          const res = await userApi.getById(userDecode.id);
-          setUserProfile(res.data);
-        } catch (error) {
-          console.error("Failed to fetch user profile", error);
-        }
-      }
-    };
-
-    fetchUserProfile();
-  }, [userDecode?.id]);
-
   const navItems = [
     {
       label: t("sidebar.dashboard"),
       icon: LayoutGrid,
       href: `/${userDecode?.role.toLowerCase()}`,
+    },
+    {
+      label: t("sidebar.materials"),
+      icon: BrickWall,
+      href: `/${userDecode?.role.toLowerCase()}/materials`,
+      roles: ["Manager", "Staff"],
+    },
+    {
+      label: t("sidebar.warehouses"),
+      icon: Warehouse,
+      href: `/${userDecode?.role.toLowerCase()}/warehouses`,
+      roles: ["Manager", "Staff"],
+    },
+    {
+      label: t("sidebar.suppliers"),
+      icon: Cable,
+      href: `/${userDecode?.role.toLowerCase()}/suppliers`,
+      roles: ["Purchasing", "Accountant"],
+    },
+    {
+      label: t("sidebar.projects"),
+      icon: FolderKanban,
+      href: `/${userDecode?.role.toLowerCase()}/projects`,
+      roles: ["Accountant"],
     },
   ];
 
@@ -114,7 +123,6 @@ export function Sidebar() {
     //   label: t("sidebar.tabs.inventory_issue"),
     //   href: "/outbound/staff/InventoryIssueList",
     // },
-
   ];
 
   const allAuditTabs = [
@@ -143,6 +151,10 @@ export function Sidebar() {
           label: t("sidebar.tabs.import_export"),
           href: "/staff/reports/import-export",
         },
+        {
+          label: t("sidebar.tabs.incident_reports"),
+          href: "/staff/reports/incident",
+        },
       ],
     },
     {
@@ -155,6 +167,10 @@ export function Sidebar() {
           label: t("sidebar.tabs.import_export"),
           href: "/manager/reports/import-export",
         },
+        {
+          label: t("sidebar.tabs.incident_reports"),
+          href: "/manager/reports/incident",
+        },
       ],
     },
     {
@@ -165,6 +181,10 @@ export function Sidebar() {
         {
           label: t("sidebar.tabs.import_export"),
           href: "/admin/reports/import-export",
+        },
+        {
+          label: t("sidebar.tabs.incident_reports"),
+          href: "/admin/reports/incident",
         },
       ],
     },
@@ -262,6 +282,14 @@ export function Sidebar() {
 
   const userRole = userDecode?.role ?? "";
 
+  const filteredNavItems = useMemo(() => {
+    if (devBypassRole) return navItems;
+    return navItems.filter((item) => {
+      if (!item.roles) return true;
+      return item.roles.includes(userRole);
+    });
+  }, [devBypassRole, userRole, t, userDecode]);
+
   type InboundTab = {
     label: string;
     href: string;
@@ -309,11 +337,11 @@ export function Sidebar() {
       icon: Database,
       href: "/admin/master-data",
     },
-    {
-      label: t("sidebar.admin_notifications"),
-      icon: Bell,
-      href: "/admin/notifications",
-    },
+    // {
+    //   label: t("sidebar.admin_notifications"),
+    //   icon: Bell,
+    //   href: "/admin/notifications",
+    // },
   ];
 
   const isReportActive =
@@ -381,7 +409,7 @@ export function Sidebar() {
         </div>
 
         <nav className="flex-1 px-3 py-6 space-y-2 overflow-y-auto no-scrollbar">
-          {navItems.map((item, i) => {
+          {filteredNavItems.map((item, i) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
             return (
@@ -744,8 +772,6 @@ export function Sidebar() {
             )}
           </a>
 
-
-
           {/* Admin Section */}
           {userDecode?.role === "Admin" && (
             <div className="pt-4 mt-4 border-t border-slate-100">
@@ -818,10 +844,10 @@ export function Sidebar() {
                 {isExpanded && (
                   <div className="flex-1 text-left min-w-0 animate-in fade-in slide-in-from-left-2 duration-300">
                     <p className="text-sm font-semibold text-slate-900 truncate">
-                      {userProfile?.fullName || "Loading..."}
+                      {userDecode?.fullName || "Loading..."}
                     </p>
                     <p className="text-xs text-slate-500 truncate">
-                      {userProfile?.email || "..."}
+                      {userDecode?.email || "..."}
                     </p>
                   </div>
                 )}
@@ -874,7 +900,7 @@ export function Sidebar() {
             </div>
 
             <nav className="flex-1 px-4 py-6 space-y-2">
-              {navItems.map((item, i) => {
+              {filteredNavItems.map((item, i) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href;
                 return (
@@ -1143,7 +1169,6 @@ export function Sidebar() {
                 )}
               </div>
 
-
               <a
                 href="/security/2fa"
                 onClick={() => setIsMobileOpen(false)}
@@ -1243,10 +1268,10 @@ export function Sidebar() {
                     </div>
                     <div className="flex-1 text-left min-w-0">
                       <p className="text-sm font-bold text-slate-900 truncate">
-                        {userProfile?.fullName || "Loading..."}
+                        {userDecode?.fullName || "Loading..."}
                       </p>
                       <p className="text-xs text-slate-500 truncate">
-                        {userProfile?.email || "..."}
+                        {userDecode?.email || "..."}
                       </p>
                     </div>
                     <Settings className="w-5 h-5 text-slate-400" />

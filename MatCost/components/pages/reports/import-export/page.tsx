@@ -19,6 +19,11 @@ import {
   User,
   Delete,
   FileText,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  Filter,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -55,7 +60,24 @@ import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { formatDateTime } from "@/lib/format-date-time";
-
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { formatQuantity } from "@/lib/format-quantity";
+import { YearRangePicker } from "@/components/ui/custom/year-range-picker";
+import { ExportExcelButton } from "@/components/ui/custom/export-excel";
+import { ExportPdfButton } from "@/components/ui/custom/export-pdf";
+import { DateRangePicker } from "@/components/ui/custom/date-range-picker";
 
 interface Props {
   role?: "staff" | "manager";
@@ -72,12 +94,11 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
 
   const [activeTab, setActiveTab] = useState<"Import" | "Export">("Import");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number>(5);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
 
   const [staffList, setStaffList] = useState<UserDto[]>([]);
   const [selectedStaffId, setSelectedStaffId] = useState<string>("All");
 
-  // STATE QUẢN LÝ DATE FILTER
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
     to: Date | undefined;
@@ -85,6 +106,31 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
     from: undefined,
     to: undefined,
   });
+
+  const [yearRange, setYearRange] = useState<{
+    from: number | undefined;
+    to: number | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
+  });
+
+  const [sortConfig, setSortConfig] = useState<{
+    key: "date" | "change" | "total";
+    direction: "asc" | "desc";
+  } | null>(null);
+
+  const handleSort = (key: "date" | "change" | "total") => {
+    let direction: "asc" | "desc" = "asc";
+    if (
+      sortConfig &&
+      sortConfig.key === key &&
+      sortConfig.direction === "asc"
+    ) {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
 
   useEffect(() => {
     const fetchCards = async () => {
@@ -130,9 +176,16 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
   // Reset page khi có bất kỳ filter nào thay đổi
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, activeTab, itemsPerPage, selectedStaffId, dateRange]);
+  }, [
+    searchTerm,
+    activeTab,
+    itemsPerPage,
+    selectedStaffId,
+    dateRange,
+    yearRange,
+  ]);
 
-  const filteredData = cards.filter((item) => {
+  const filteredItems = cards.filter((item) => {
     // 1. Tab Filter
     const matchesTab =
       item.transactionType.toLowerCase() === activeTab.toLowerCase();
@@ -150,7 +203,8 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
     const matchesSearch =
       item.cardCode.toLowerCase().includes(term) ||
       (item.materialCode && item.materialCode.toLowerCase().includes(term)) ||
-      (item.materialName && item.materialName.toLowerCase().includes(term));
+      (item.materialName && item.materialName.toLowerCase().includes(term)) ||
+      (item.binCode && item.binCode.toLowerCase().includes(term));
 
     // 4. Date Filter
     let matchesDate = true;
@@ -172,7 +226,51 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
       }
     }
 
-    return matchesTab && matchesStaff && matchesSearch && matchesDate;
+    // 5. Year Filter
+    let matchesYear = true;
+    if (yearRange.from || yearRange.to) {
+      if (!item.transactionDate) {
+        matchesYear = false;
+      } else {
+        const itemYear = new Date(item.transactionDate).getFullYear();
+        if (yearRange.from && itemYear < yearRange.from) matchesYear = false;
+        if (yearRange.to && itemYear > yearRange.to) matchesYear = false;
+      }
+    }
+
+    return (
+      matchesTab && matchesStaff && matchesSearch && matchesDate && matchesYear
+    );
+  });
+
+  const filteredData = [...filteredItems].sort((a, b) => {
+    if (!sortConfig) return 0;
+
+    if (sortConfig.key === "date") {
+      const dateA = a.transactionDate
+        ? new Date(a.transactionDate).getTime()
+        : 0;
+      const dateB = b.transactionDate
+        ? new Date(b.transactionDate).getTime()
+        : 0;
+      return sortConfig.direction === "asc" ? dateA - dateB : dateB - dateA;
+    }
+
+    if (sortConfig.key === "change") {
+      const amtA = a.quantity || 0;
+      const amtB = b.quantity || 0;
+      return sortConfig.direction === "asc" ? amtA - amtB : amtB - amtA;
+    }
+
+    if (sortConfig.key === "total") {
+      const quantityAfterA = a.quantityAfter || 0;
+      const quantityAfterB = b.quantityAfter || 0;
+      return sortConfig.direction === "asc"
+        ? quantityAfterA - quantityAfterB
+        : quantityAfterB - quantityAfterA;
+    }
+
+    return 0;
   });
 
   const isAll = itemsPerPage === -1;
@@ -201,7 +299,45 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
     0,
   );
 
+  const processChartData = () => {
+    const dataMap: Record<
+      string,
+      { date: string; import: number; export: number }
+    > = {};
 
+    // Sắp xếp dữ liệu theo ngày tăng dần để biểu đồ hiển thị đúng timeline
+    const sortedData = [...filteredData].sort(
+      (a, b) =>
+        new Date(a.transactionDate).getTime() -
+        new Date(b.transactionDate).getTime(),
+    );
+
+    sortedData.forEach((item) => {
+      if (!item.transactionDate) return;
+      const dateStr = format(new Date(item.transactionDate), "dd/MM/yyyy");
+
+      if (!dataMap[dateStr]) {
+        dataMap[dateStr] = { date: dateStr, import: 0, export: 0 };
+      }
+
+      if (item.transactionType.toLowerCase() === "import") {
+        dataMap[dateStr].import += item.quantity;
+      } else {
+        dataMap[dateStr].export += item.quantity;
+      }
+    });
+
+    // Lấy tối đa 14 ngày gần nhất để biểu đồ không bị quá chật
+    return Object.values(dataMap).slice(-14);
+  };
+
+  const trendChartData = processChartData();
+
+  // DỮ LIỆU CHO BIỂU ĐỒ TRÒN (TỶ TRỌNG)
+  const pieChartData = [
+    { name: t("Import"), value: totalImportQty, color: "#10b981" }, // emerald-500
+    { name: t("Export"), value: totalExportQty, color: "#f43f5e" }, // rose-500
+  ];
 
   const handleViewDetail = (e: React.MouseEvent, item: WarehouseCardDto) => {
     e.stopPropagation();
@@ -216,15 +352,6 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6 ">
           <div className="flex items-start gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.back()}
-              className="h-8 w-8 mt-0.5 shrink-0 rounded-full hover:bg-slate-200 text-slate-500 hover:text-indigo-600 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-
             <div className="flex flex-col gap-1">
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">
                 {t("Warehouse Cards")}
@@ -298,167 +425,348 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
             </Card>
           </div>
 
-          {/* Main List & Tabs */}
-          <Card className="border-slate-200 shadow-sm bg-white min-h-[500px] gap-0 flex flex-col pb-0">
-            <CardHeader className="border-b border-slate-100 pb-4 shrink-0">
+          <Card className="flex flex-col bg-white p-4 mb-4 shadow-sm border-slate-200">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              {/* Left: Tabs */}
               <Tabs
                 defaultValue="Import"
                 value={activeTab}
                 onValueChange={(val) =>
                   setActiveTab(val as "Import" | "Export")
                 }
-                className="w-full"
+                className="w-full lg:w-auto"
               >
-                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-                  <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
-                    <TabsTrigger
-                      value="Import"
-                      className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
-                    >
-                      {t("Inbound (Import)")}
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="Export"
-                      className="data-[state=active]:bg-rose-500 data-[state=active]:text-white"
-                    >
-                      {t("Outbound (Export)")}
-                    </TabsTrigger>
-                  </TabsList>
+                <TabsList className="grid w-full grid-cols-2 lg:w-[300px]">
+                  <TabsTrigger
+                    value="Import"
+                    className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
+                  >
+                    {t("Inbound (Import)")}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="Export"
+                    className="data-[state=active]:bg-rose-500 data-[state=active]:text-white"
+                  >
+                    {t("Outbound (Export)")}
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
 
-                  <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3">
-                    <span className="text-sm font-medium text-slate-500 hidden md:block">
-                      {t("Filters")}:
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "justify-start text-left font-normal h-9 bg-white shadow-sm",
-                              !dateRange.from && "text-slate-500",
-                            )}
-                          >
-                            <CalendarDays className="mr-2 h-4 w-4" />
-                            {dateRange.from ? (
-                              format(dateRange.from, "dd/MM/yyyy")
-                            ) : (
-                              <span>{t("From Date")}</span>
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={dateRange.from}
-                            onSelect={(date) =>
-                              setDateRange((prev) => ({ ...prev, from: date }))
-                            }
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
+              {/* Right: Search, Filters & Export */}
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+                {/* Search Bar */}
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
+                  <Input
+                    placeholder={t("Search Code, Material, Bin...")}
+                    className="pl-9 h-9 shadow-sm"
+                    maxLength={50}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
 
-                      <span className="text-slate-400">-</span>
-
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "justify-start text-left font-normal h-9 bg-white shadow-sm",
-                              !dateRange.to && "text-slate-500",
-                            )}
-                          >
-                            <CalendarDays className="mr-2 h-4 w-4" />
-                            {dateRange.to ? (
-                              format(dateRange.to, "dd/MM/yyyy")
-                            ) : (
-                              <span>{t("To Date")}</span>
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={dateRange.to}
-                            onSelect={(date) =>
-                              setDateRange((prev) => ({ ...prev, to: date }))
-                            }
-                            initialFocus
-                            disabled={(date) =>
-                              dateRange.from ? date < dateRange.from : false
-                            }
-                          />
-                        </PopoverContent>
-                      </Popover>
-
-                      {(dateRange.from || dateRange.to) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 text-xs text-slate-500 px-2"
-                          onClick={() =>
-                            setDateRange({ from: undefined, to: undefined })
-                          }
-                        >
-                          <Delete className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-
-                    {role?.toLowerCase() === "manager" && (
-                      <Select
-                        value={selectedStaffId}
-                        onValueChange={(val) => setSelectedStaffId(val)}
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+                  {/* Filter Popover */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="h-9 bg-white shadow-sm relative group"
                       >
-                        <SelectTrigger className="bg-white shadow-sm border-slate-200 h-9">
-                          <div className="flex items-center gap-2">
-                            <User className="w-4 h-4 text-slate-500" />
-                            <span className="truncate">
-                              {selectedStaffId === "All"
-                                ? t("All Staffs")
-                                : staffList.find(
-                                    (s) => s.id.toString() === selectedStaffId,
-                                  )?.fullName || t("Unknown Staff")}
-                            </span>
-                          </div>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="All">{t("All Staffs")}</SelectItem>
-                          {staffList.map((staff) => (
-                            <SelectItem
-                              key={staff.id}
-                              value={staff.id.toString()}
-                            >
-                              {staff.fullName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
+                        <Filter className="w-4 h-4 mr-2 text-slate-500 group-hover:text-white" />
+                        {t("Filters")}
+                        {(dateRange.from ||
+                          dateRange.to ||
+                          yearRange.from ||
+                          yearRange.to ||
+                          selectedStaffId !== "All") && (
+                          <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white shadow-sm">
+                            {(dateRange.from || dateRange.to ? 1 : 0) +
+                              (yearRange.from || yearRange.to ? 1 : 0) +
+                              (selectedStaffId !== "All" ? 1 : 0)}
+                          </span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-[340px] p-5 shadow-lg"
+                      align="end"
+                    >
+                      <div className="space-y-5">
+                        <div className="flex items-center justify-between border-b pb-2 border-slate-100">
+                          <h4 className="font-semibold text-slate-800">
+                            {t("Advanced Filters")}
+                          </h4>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-slate-500 hover:text-white"
+                            onClick={() => {
+                              setDateRange({ from: undefined, to: undefined });
+                              setYearRange({ from: undefined, to: undefined });
+                              setSelectedStaffId("All");
+                            }}
+                          >
+                            {t("Clear All")} <X className="w-3 h-3 ml-1" />
+                          </Button>
+                        </div>
 
-                    <div className="relative w-full sm:w-64">
-                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
-                      <Input
-                        placeholder={t("Search Material or Card Code...")}
-                        className="pl-9 h-9 shadow-sm"
-                        maxLength={50}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
-                    </div>
+                        {/* Date Range Group */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            {t("Date Range")}
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <DateRangePicker
+                              dateRange={dateRange}
+                              onDateRangeChange={setDateRange}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Year Range Group */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            {t("Year Range")}
+                          </label>
+                          <YearRangePicker
+                            yearRange={yearRange}
+                            onYearRangeChange={setYearRange}
+                          />
+                        </div>
+
+                        {/* Staff Group (Managers only) */}
+                        {role?.toLowerCase() === "manager" && (
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                              {t("Staff Member")}
+                            </label>
+                            <Select
+                              value={selectedStaffId}
+                              onValueChange={(val) => setSelectedStaffId(val)}
+                            >
+                              <SelectTrigger className="w-full h-9">
+                                <div className="flex items-center gap-2">
+                                  <User className="w-4 h-4 text-slate-500" />
+                                  <span className="truncate">
+                                    {selectedStaffId === "All"
+                                      ? t("All Staffs")
+                                      : staffList.find(
+                                          (s) =>
+                                            s.id.toString() === selectedStaffId,
+                                        )?.fullName || t("Unknown")}
+                                  </span>
+                                </div>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="All">
+                                  {t("All Staffs")}
+                                </SelectItem>
+                                {staffList.map((staff) => (
+                                  <SelectItem
+                                    key={staff.id}
+                                    value={staff.id.toString()}
+                                  >
+                                    {staff.fullName}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
+                  {/* Export Buttons */}
+                  <div className="flex items-center gap-1 border-l border-slate-200 pl-2">
+                    <ExportExcelButton
+                      data={filteredData}
+                      filename={`${activeTab}_TheKho`}
+                      columns={[
+                        { header: t("Mã thẻ kho"), key: "cardCode" },
+                        {
+                          header: t("Ngày giao dịch"),
+                          key: (item) => formatDateTime(item.transactionDate),
+                        },
+                        { header: t("Mã vật tư"), key: "materialCode" },
+                        { header: t("Tên vật tư"), key: "materialName" },
+                        { header: t("Kệ"), key: "binCode" },
+                        { header: t("Loại giao dịch"), key: "transactionType" },
+                        { header: t("Tồn đầu"), key: "quantityBefore" },
+                        { header: t("Phát sinh"), key: "quantity" },
+                        { header: t("Tồn cuối"), key: "quantityAfter" },
+                        { header: t("Người tạo"), key: "createdByName" },
+                      ]}
+                    />
+                    <ExportPdfButton
+                      data={filteredData}
+                      title="BÁO CÁO THẺ KHO"
+                      columns={[
+                        { header: t("Mã thẻ kho"), key: "cardCode" },
+                        {
+                          header: t("Ngày giao dịch"),
+                          key: (item) => formatDateTime(item.transactionDate),
+                        },
+                        { header: t("Mã vật tư"), key: "materialCode" },
+                        { header: t("Tên vật tư"), key: "materialName" },
+                        { header: t("Kệ"), key: "binCode" },
+                        { header: t("Loại giao dịch"), key: "transactionType" },
+                        { header: t("Tồn đầu"), key: "quantityBefore" },
+                        { header: t("Phát sinh"), key: "quantity" },
+                        { header: t("Tồn cuối"), key: "quantityAfter" },
+                        {
+                          header: t("Người tạo"),
+                          key: "createdByName",
+                        },
+                      ]}
+                      disabled={filteredData.length === 0}
+                    />
                   </div>
                 </div>
-              </Tabs>
-            </CardHeader>
+              </div>
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Biểu đồ xu hướng (Chiếm 2 cột) */}
+            <Card className="border-slate-200 shadow-sm bg-white lg:col-span-2">
+              <CardHeader className="border-b border-slate-100 py-4">
+                <h3 className="text-base font-bold text-slate-800">
+                  {t("Transaction Trend")}
+                </h3>
+              </CardHeader>
+              <CardContent className="p-4 pt-6 h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={trendChartData}
+                    margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="#e2e8f0"
+                    />
+                    <XAxis
+                      dataKey="date"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: "#64748b" }}
+                      dy={10}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: "#64748b" }}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "#f1f5f9" }}
+                      contentStyle={{
+                        borderRadius: "8px",
+                        border: "none",
+                        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                      }}
+                    />
+                    <Legend
+                      iconType="circle"
+                      wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }}
+                    />
+                    <Bar
+                      dataKey="import"
+                      name={t("Import")}
+                      fill="#10b981"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={40}
+                    />
+                    <Bar
+                      dataKey="export"
+                      name={t("Export")}
+                      fill="#f43f5e"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={40}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Biểu đồ tỷ trọng (Chiếm 1 cột) */}
+            <Card className="border-slate-200 shadow-sm bg-white lg:col-span-1">
+              <CardHeader className="border-b border-slate-100 py-4">
+                <h3 className="text-base font-bold text-slate-800">
+                  {t("Import/Export Ratio")}
+                </h3>
+              </CardHeader>
+              <CardContent className="p-4 flex flex-col items-center justify-center h-[300px]">
+                {totalImportQty === 0 && totalExportQty === 0 ? (
+                  <div className="text-sm text-slate-400 flex flex-col items-center gap-2">
+                    <AlertCircle className="w-8 h-8 opacity-50" />
+                    {t("No quantity data to display")}
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={90}
+                        paddingAngle={2}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        {pieChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value) => [
+                          `${value.toLocaleString("vi-VN")} items`,
+                          "",
+                        ]}
+                        contentStyle={{
+                          borderRadius: "8px",
+                          border: "none",
+                          boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                        }}
+                      />
+                      <Legend
+                        iconType="circle"
+                        verticalAlign="bottom"
+                        wrapperStyle={{ fontSize: "12px" }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Main List & Tabs */}
+          <Card className="border-slate-200 shadow-sm bg-slate-50 min-h-[700px] gap-0 flex flex-col pb-0 pt-2">
             <CardContent className="p-0 flex flex-col justify-between flex-1">
-              <div className="max-h-[350px] min-h-[350px] overflow-y-auto relative scrollbar-thin no-scrollbar">
+              <div className="[&>div]:max-h-[700px] [&>div]:min-h-[700px] [&>div]:overflow-y-auto">
                 <Table>
-                  <TableHeader>
-                    <TableRow className="bg-slate-50">
-                      <TableHead className="pl-6 w-[220px]">
-                        {t("Transaction")}
+                  <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
+                    <TableRow className="hover:bg-transparent bp-10">
+                      <TableHead
+                        className="pl-6 w-[220px]"
+                        onClick={() => handleSort("date")}
+                      >
+                        <div className="flex items-center gap-1.5 select-none">
+                          {t("Transaction")}
+                          {sortConfig?.key === "date" ? (
+                            sortConfig.direction === "asc" ? (
+                              <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
+                            ) : (
+                              <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50 hover:text-indigo-600" />
+                          )}
+                        </div>
                       </TableHead>
                       <TableHead>{t("Material Details")}</TableHead>
                       <TableHead>{t("Location")}</TableHead>
@@ -466,11 +774,39 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                       <TableHead className="text-right">
                         {t("Quantity Before")}
                       </TableHead>
-                      <TableHead className="text-center w-[120px]">
-                        {t("Change")}
+                      <TableHead
+                        className="text-center w-[120px]"
+                        onClick={() => handleSort("change")}
+                      >
+                        <div className="flex items-center gap-1.5 select-none">
+                          {t("Change")}
+                          {sortConfig?.key === "change" ? (
+                            sortConfig.direction === "asc" ? (
+                              <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
+                            ) : (
+                              <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50 hover:text-indigo-600" />
+                          )}
+                        </div>
                       </TableHead>
-                      <TableHead className="text-right pr-6">
-                        {t("Total")}
+                      <TableHead
+                        className="text-right pr-6"
+                        onClick={() => handleSort("total")}
+                      >
+                        <div className="flex items-center gap-1.5 select-none">
+                          {t("Total")}
+                          {sortConfig?.key === "total" ? (
+                            sortConfig.direction === "asc" ? (
+                              <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
+                            ) : (
+                              <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50 hover:text-indigo-600" />
+                          )}
+                        </div>
                       </TableHead>
                       <TableHead className="text-right pr-6 w-[100px]">
                         {t("Action")}
@@ -503,7 +839,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                       paginatedData.map((item) => (
                         <TableRow
                           key={item.cardId}
-                          className="group hover:bg-slate-50/50 transition-colors align-top"
+                          className="group hover:bg-slate-50/50 transition-colors align-top bg-white"
                         >
                           <TableCell className="pl-6 py-3">
                             <div className="flex flex-col gap-1">
@@ -561,7 +897,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                           </TableCell>
 
                           <TableCell className="text-right py-3 text-slate-500">
-                            {item.quantityBefore.toLocaleString("vi-VN")}
+                            {formatQuantity(item.quantityBefore)}
                           </TableCell>
 
                           <TableCell className="text-center py-3">
@@ -576,14 +912,14 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                               {item.transactionType.toLowerCase() === "import"
                                 ? "+"
                                 : "-"}
-                              {item.quantity.toLocaleString("vi-VN")}
+                              {formatQuantity(item.quantity)}
                             </Badge>
                           </TableCell>
 
                           <TableCell className="text-right pr-6 py-3">
                             <div className="flex flex-col items-end gap-0.5">
                               <span className="font-bold text-slate-800 text-md">
-                                {item.quantityAfter.toLocaleString("vi-VN")}
+                                {formatQuantity(item.quantityAfter)}
                               </span>
                               <span className="text-[11px] text-slate-400">
                                 {item.materialUnit}

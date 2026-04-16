@@ -122,6 +122,7 @@ namespace Backend.Domains.Import.DTOs.Staff
         public string? ReceiptCode { get; set; }
         public string? WarehouseName { get; set; }
         public DateTime CreatedAt { get; set; }
+        public int CreatedBy { get; set; }
         public string? CreatedByName { get; set; }
         public string Description { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;

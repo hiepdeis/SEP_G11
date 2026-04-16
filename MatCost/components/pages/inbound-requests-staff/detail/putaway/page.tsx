@@ -435,11 +435,14 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
               <div className="space-y-6">
                 {paginatedItems.map((item, idx) => {
                   const absoluteIdx = startIndex + idx;
-                  const totalAllocated = calculateAllocatedQty(
-                    item.binAllocations,
+                  const totalAllocated = Number(
+                    formatQuantity(calculateAllocatedQty(item.binAllocations)),
                   );
                   const isQtyMatched =
-                    Math.abs(totalAllocated - item.passQuantity) < 0.001;
+                    Math.abs(
+                      totalAllocated -
+                        Number(formatQuantity(item.passQuantity)),
+                    ) < 0.0001;
 
                   return (
                     <Card
@@ -715,20 +718,40 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                                               </label>
                                               <Input
                                                 type="number"
-                                                min={
-                                                  item.isDecimalUnit
-                                                    ? "0.001"
-                                                    : "1"
-                                                }
-                                                step={
-                                                  item.isDecimalUnit
-                                                    ? "0.001"
-                                                    : "1"
-                                                }
-                                                placeholder="Quantity..."
-                                                className="h-9 focus-visible:ring-indigo-500 bg-white"
+                                                min="0"
+                                                className="w-full text-center focus-visible:ring-indigo-600 font-semibold"
                                                 value={bin.quantity}
-                                                onChange={(e) =>
+                                                onChange={(e) => {
+                                                  let val = e.target.value;
+                                                  val = val.replace(/-/g, "");
+                                                  if (
+                                                    val.length > 1 &&
+                                                    val.startsWith("0") &&
+                                                    val[1] !== "."
+                                                  ) {
+                                                    val =
+                                                      val.replace(/^0+/, "") ||
+                                                      "0";
+                                                  }
+                                                  if (!item.isDecimalUnit) {
+                                                    val = val.replace(
+                                                      /\./g,
+                                                      "",
+                                                    );
+                                                  } else if (
+                                                    val.includes(".")
+                                                  ) {
+                                                    const parts =
+                                                      val.split(".");
+                                                    val =
+                                                      parts[0] +
+                                                      "." +
+                                                      parts[1].slice(0, 3);
+                                                  }
+                                                  e.target.value = val.slice(
+                                                    0,
+                                                    12,
+                                                  );
                                                   handleBinChange(
                                                     absoluteIdx,
                                                     actualBinIdx,
@@ -738,8 +761,8 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                                                       : e.target.value
                                                           .replace(/-/g, "")
                                                           .slice(0, 12),
-                                                  )
-                                                }
+                                                  );
+                                                }}
                                               />
                                             </div>
 

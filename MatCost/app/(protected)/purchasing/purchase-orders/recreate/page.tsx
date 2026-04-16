@@ -404,9 +404,9 @@ export default function RecreatePurchaseOrderPage() {
                         )}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="text-xs text-slate-500 mt-1 italic">
                       {t(
-                        "Leave blank if you want to select different suppliers per item.",
+                        "Supplier only appear if they have active contract and can provide all listed material quotations. Leave blank if you want to select different suppliers per item.",
                       )}
                     </p>
                   </div>

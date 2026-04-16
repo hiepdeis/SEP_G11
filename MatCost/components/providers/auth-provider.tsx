@@ -6,12 +6,13 @@ import { authApi } from "@/services/auth-service";
 import { setAccessToken } from "@/lib/axios-client";
 import { jwtDecode } from "jwt-decode";
 import { FullPageSpinner } from "@/components/ui/custom/full-page-spinner";
+import { userApi } from "@/services/user-service";
 
 interface JwtRawPayload {
   "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress": string;
   "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier": string;
   "http://schemas.microsoft.com/ws/2008/06/identity/claims/role": string;
-  "Status": string; 
+  Status: string;
   exp: number;
   iss: string;
   aud: string;
@@ -22,7 +23,9 @@ export interface UserPayload {
   email: string;
   role: string;
   status: boolean;
+  fullName?: string;
 }
+
 interface AuthContextType {
   user: UserPayload | null;
   isLoading: boolean;
@@ -51,9 +54,8 @@ export default function AuthProvider({
       try {
         const res = await authApi.getMe();
         const token = res.data.accessToken;
-        
+
         setAccessToken(token);
-        // Test
         if (typeof window !== "undefined") {
           (window as any).jwt = token;
         }
@@ -62,12 +64,18 @@ export default function AuthProvider({
           const decoded = jwtDecode<JwtRawPayload>(token);
 
           const cleanUser: UserPayload = {
-            id: Number(decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"]),
-            
-            email: decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"],
-            
-            role: decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"],
-            
+            id: Number(
+              decoded[
+                "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
+              ],
+            ),
+            email:
+              decoded[
+                "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"
+              ],
+            role: decoded[
+              "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+            ],
             status: decoded.Status === "True",
           };
 
@@ -75,7 +83,7 @@ export default function AuthProvider({
         }
       } catch (error) {
         console.error("Auth failed", error);
-        setAccessToken(null); 
+        setAccessToken(null);
         router.push("/");
       } finally {
         setIsLoading(false);
@@ -84,6 +92,25 @@ export default function AuthProvider({
 
     initAuth();
   }, [router]);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (user?.id && !user.fullName) {
+        try {
+          const res = await userApi.getById(user.id);
+
+          setUser((prev) => {
+            if (!prev) return null;
+            return { ...prev, fullName: res.data.fullName };
+          });
+        } catch (error) {
+          console.error("Failed to fetch user profile", error);
+        }
+      }
+    };
+
+    fetchUserProfile();
+  }, [user?.id, user?.fullName]);
 
   if (isLoading) {
     return <FullPageSpinner />;

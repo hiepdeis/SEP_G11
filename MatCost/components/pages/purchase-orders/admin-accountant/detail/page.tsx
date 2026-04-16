@@ -18,6 +18,10 @@ import {
   ChevronLeft,
   ChevronRight,
   History,
+  Package,
+  FolderKanban,
+  Landmark,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,6 +51,7 @@ import { useTranslation } from "react-i18next";
 import { formatPascalCase } from "@/lib/format-pascal-case";
 import { formatCurrency } from "@/lib/format-currency";
 import { formatDateTime } from "@/lib/format-date-time";
+import { projectApi, ProjectDto } from "@/services/project-services";
 
 import { showConfirmToast } from "@/hooks/confirm-toast";
 import {
@@ -57,6 +62,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatQuantity } from "@/lib/format-quantity";
+import { OtpVerificationModal } from "@/components/ui/custom/otp-modal";
 
 export default function PurchaseOrderReviewPage({ role = "accountant" }) {
   const params = useParams();
@@ -66,6 +72,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
   const id = Number(params.id);
 
   const [data, setData] = useState<PurchaseOrderReviewResponseDto | null>(null);
+  const [projectData, setProjectData] = useState<ProjectDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const [isApproving, setIsApproving] = useState(false);
@@ -73,6 +80,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
 
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -82,12 +90,23 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
     try {
       const res = await accountantPurchaseOrderApi.getReview(id);
       setData(res.data);
+
+      if (res.data.order.projectId) {
+        try {
+          const projectRes = await projectApi.getProjectById(
+            res.data.order.projectId,
+          );
+          setProjectData(projectRes);
+        } catch (projErr) {
+          console.error("Failed to fetch project details", projErr);
+        }
+      }
     } catch (error: any) {
       console.error("Failed to fetch review details", error);
       toast.error(
         error.response?.data?.message || t("Purchase order not found"),
       );
-      router.push("/accountant/purchase-orders");
+      router.push(`/${role}/purchase-orders`);
     } finally {
       setIsLoading(false);
     }
@@ -96,6 +115,27 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
   useEffect(() => {
     if (id) fetchReviewDetail();
   }, [id, router, t]);
+
+  const executeApprove = async () => {
+    setIsApproving(true);
+    const isAccountant = role === "accountant";
+    try {
+      if (isAccountant) {
+        await accountantPurchaseOrderApi.approve(id);
+        toast.success(t("Pricing approved successfully by Accountant."));
+      } else {
+        await adminPurchaseOrderApi.approve(id);
+        toast.success(t("Purchase Order approved successfully by Admin."));
+      }
+
+      await fetchReviewDetail();
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.response?.data?.message || t("Failed to approve."));
+    } finally {
+      setIsApproving(false);
+    }
+  };
 
   const handleApprove = () => {
     const isAccountant = role === "accountant";
@@ -108,25 +148,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
         ? t("Are you sure you want to approve the pricing for this order?")
         : t("Are you sure you want to approve this purchase order?"),
       confirmLabel: t("Yes, Approve"),
-      onConfirm: async () => {
-        setIsApproving(true);
-        try {
-          if (isAccountant) {
-            await accountantPurchaseOrderApi.approve(id);
-            toast.success(t("Pricing approved successfully by Accountant."));
-          } else {
-            await adminPurchaseOrderApi.approve(id);
-            toast.success(t("Purchase Order approved successfully by Admin."));
-          }
-
-          await fetchReviewDetail();
-        } catch (error: any) {
-          console.error(error);
-          toast.error(error.response?.data?.message || t("Failed to approve."));
-        } finally {
-          setIsApproving(false);
-        }
-      },
+      onConfirm: () => setIsOtpModalOpen(true),
     });
   };
 
@@ -156,8 +178,6 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
       setIsRejecting(false);
     }
   };
-
-
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -408,6 +428,22 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
             </CardContent>
           </Card>
 
+          {(isAccountantRejected || isAdminRejected) && (
+            <Card className="border-rose-200 shadow-sm bg-rose-50 p-0">
+              <CardContent className="p-5 flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-rose-700 font-semibold mb-1">
+                  <AlertCircle className="w-5 h-5" />
+                  {t("Current Status: Rejected")}
+                </div>
+                <p className="text-sm text-slate-700">
+                  {t(
+                    "This PO has been rejected. Waiting for Purchasing to create a new revision.",
+                  )}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div className="lg:col-span-1 space-y-6">
               <Card className="border-slate-200 shadow-sm bg-white gap-0">
@@ -433,8 +469,24 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                       {t("Destination Project")}
                     </span>
                     <div className="flex items-center gap-2 text-slate-800 font-medium">
-                      <Building2 className="w-4 h-4 text-slate-400" />
+                      <FolderKanban className="w-4 h-4 text-slate-400" />
                       {order.projectName}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
+                      {t("Project Budget")}
+                    </span>
+                    <div className="flex items-center gap-2 text-slate-800 font-medium">
+                      <Landmark className="w-4 h-4 text-slate-400" />
+                      {formatCurrency(projectData?.budget)}
+                      <br />
+                      {projectData?.budgetUsed !== null &&
+                        t("Used: ") + formatCurrency(projectData?.budgetUsed)}
+                      {projectData?.budgetRemaining !== null &&
+                        t("Remaining: ") +
+                          formatCurrency(projectData?.budgetRemaining)}
                     </div>
                   </div>
 
@@ -443,6 +495,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                       {t("Created By")}
                     </span>
                     <div className="flex items-center gap-2 text-slate-800 font-medium">
+                      <User className="w-4 h-4 text-slate-400" />
                       {order.createdByName}
                     </div>
                   </div>
@@ -479,7 +532,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                         .map((rev) => (
                           <div
                             key={rev.poId}
-                            className="flex flex-col border-l-2 border-rose-200 pl-3 relative pb-4 last:pb-0" // Thêm pb-4 để cách các item ra cho đẹp
+                            className="flex flex-col border-l-2 border-rose-200 pl-3 relative pb-4 last:pb-0 mb-0"
                           >
                             <div className="absolute w-2 h-2 bg-rose-500 rounded-full -left-[5px] top-1.5" />
                             <div className="flex items-center justify-between">
@@ -506,23 +559,6 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                     </CardContent>
                   </Card>
                 )}
-
-              {/* Nếu phiên bản HIỆN TẠI đang bị Reject, hiển thị thông báo */}
-              {(isAccountantRejected || isAdminRejected) && (
-                <Card className="border-rose-200 shadow-sm bg-rose-50 p-0">
-                  <CardContent className="p-5 flex flex-col gap-2">
-                    <div className="flex items-center gap-2 text-rose-700 font-semibold mb-1">
-                      <AlertCircle className="w-5 h-5" />
-                      {t("Current Status: Rejected")}
-                    </div>
-                    <p className="text-sm text-slate-700">
-                      {t(
-                        "This PO has been rejected. Waiting for Purchasing to create a new revision.",
-                      )}
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
             </div>
 
             {/* BẢNG SO SÁNH GIÁ (CỘT PHẢI) */}
@@ -596,8 +632,13 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                               key={index}
                               className="hover:bg-slate-50/50 transition-colors"
                             >
-                              <TableCell className="pl-6 font-semibold text-slate-800">
-                                {item.materialName}
+                              <TableCell className="pl-6 text-slate-800">
+                                <CardTitle className="text-md font-bold flex items-center gap-2 text-slate-800">
+                                  {item.materialName}
+                                </CardTitle>
+                                <p className="text-xs text-slate-500 font-mono mt-1">
+                                  {order.items[index].materialCode}
+                                </p>
                               </TableCell>
                               <TableCell className="text-right text-slate-500">
                                 {formatCurrency(item.quotationPrice)}
@@ -764,6 +805,16 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <OtpVerificationModal
+        isOpen={isOtpModalOpen}
+        onClose={() => setIsOtpModalOpen(false)}
+        onSuccess={executeApprove}
+        title={t("Verify Approval")}
+        description={t(
+          "Please enter the OTP to confirm approving this purchase order.",
+        )}
+        submitText={t("Confirm Approve")}
+      />
     </div>
   );
 }

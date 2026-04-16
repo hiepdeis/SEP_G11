@@ -218,8 +218,6 @@ export default function SharedReceiptsListPage({
     router.push(`${basePath}/${id}`);
   };
 
-
-
   const pendingCloseCount = receipts.filter(
     (item) => item.status === "Stamped",
   ).length;
@@ -380,7 +378,7 @@ export default function SharedReceiptsListPage({
                         value={filterStatus}
                         onValueChange={(value) => setFilterStatus(value)}
                       >
-                        <SelectTrigger className="w-[170px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
+                        <SelectTrigger className="w-[200px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
                           <SelectValue placeholder={t("Filter by status")} />
                         </SelectTrigger>
 

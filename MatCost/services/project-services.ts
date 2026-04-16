@@ -9,21 +9,25 @@ export interface ProjectDto {
   endDate: string | null;
   status: string | null;
   budget: number | null;
+  budgetUsed: number | null;
+  budgetRemaining: number | null;
 }
 
 export const projectApi = {
-    getProjects: async (): Promise<ProjectDto[]> => {
-        const response = await axiosClient.get("/Projects");
-        return response.data;
-    },
+  getProjects: async (): Promise<ProjectDto[]> => {
+    const response = await axiosClient.get("/Projects");
+    return response.data;
+  },
 
-    getProjectById: async (projectId: number): Promise<ProjectDto> => {
-        const response = await axiosClient.get(`/Projects/${projectId}`);
-        return response.data;
-    },
+  getProjectById: async (projectId: number): Promise<ProjectDto> => {
+    const response = await axiosClient.get(`/Projects/${projectId}`);
+    return response.data;
+  },
 
-    createProject: async (project: Omit<ProjectDto, "projectId">): Promise<ProjectDto> => {
-        const response = await axiosClient.post("/Projects", project);
-        return response.data;
-    }
+  createProject: async (
+    project: Omit<ProjectDto, "projectId">,
+  ): Promise<ProjectDto> => {
+    const response = await axiosClient.post("/Projects", project);
+    return response.data;
+  },
 };

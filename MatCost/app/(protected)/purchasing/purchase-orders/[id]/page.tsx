@@ -18,7 +18,8 @@ import {
   X,
   RefreshCw,
   AlertCircle,
-  Construction, // Thêm icon cảnh báo
+  Construction,
+  Ticket, // Thêm icon cảnh báo
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -192,8 +193,6 @@ export default function PurchaseOrderDetailPage() {
       setIsConfirmingDelivery(false);
     }
   };
-
-
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -516,44 +515,38 @@ export default function PurchaseOrderDetailPage() {
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                       {t("Supplier")}
                     </span>
-                    <Badge
-                      variant="outline"
-                      className="text-md px-3 py-1 text-slate-600 bg-slate-50 border-slate-200"
-                    >
+                    <div className="flex items-center gap-2 text-slate-800 font-medium">
                       <Building2 className="w-3.5 h-3.5 text-slate-500" />
                       {order.supplierName}
-                    </Badge>
+                    </div>
                   </div>
 
                   <div className="space-y-1 flex flex-col">
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                       {t("Destination Project")}
                     </span>
-                    <Badge
-                      variant="outline"
-                      className="text-md px-3 py-1 text-slate-600 bg-slate-50 border-slate-200"
-                    >
+                    <div className="flex items-center gap-2 text-slate-800 font-medium">
                       <Construction className="w-3.5 h-3.5 text-slate-500" />
                       {order.projectName}
-                    </Badge>
+                    </div>
                   </div>
 
                   {order.requestId && (
                     <div className="space-y-1 flex flex-col">
                       <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-                        {t("Source PR ID")}
+                        {t("Source PR")}
                       </span>
-                      <Badge
-                        variant="outline"
-                        className="font-mono text-md px-3 py-1 text-indigo-600 bg-indigo-50 border-indigo-200 cursor-pointer hover:bg-indigo-100 transition-colors"
+                      <div
+                        className="flex items-center gap-2 text-slate-800 font-medium cursor-pointer hover:text-indigo-600 transition-colors underline"
                         onClick={() => {
                           router.push(
                             "/purchasing/purchase-request/" + order.requestId,
                           );
                         }}
                       >
+                        <Ticket className="w-3.5 h-3.5 text-slate-500" />
                         {order.requestCode}
-                      </Badge>
+                      </div>
                     </div>
                   )}
 

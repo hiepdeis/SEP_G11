@@ -1462,13 +1462,11 @@ namespace Backend.Domains.Admin.Services
             var status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : Normalize(request.Status);
 
             if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Code is required.");
-            if (request.SupplierId <= 0) throw new ArgumentException("Supplier is required.");
-            
-            if (request.EffectiveTo?.Date < DateTime.Now.Date)
-                throw new ArgumentException("EffectiveTo must be greater than or equal to today.");
 
-            if (request.EffectiveFrom.Date > request.EffectiveTo?.Date)
-                throw new ArgumentException("EffectiveFrom must be less than or equal to EffectiveTo.");
+            if (request.SupplierId <= 0) throw new ArgumentException("Supplier is required.");
+
+            if (request.EffectiveFrom.Date >= request.EffectiveTo?.Date)
+                throw new ArgumentException("Effective From must be less than Effective To.");
 
             var codeExists = await _db.SupplierContracts.AnyAsync(x => x.ContractCode.ToLower() == code.ToLower(), ct);
             if (codeExists) throw new ArgumentException("Contract code already exists.");
@@ -1504,13 +1502,11 @@ namespace Backend.Domains.Admin.Services
             var status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : Normalize(request.Status);
 
             if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Code is required.");
+
             if (request.SupplierId <= 0) throw new ArgumentException("Supplier is required.");
 
-            if (request.EffectiveTo?.Date < DateTime.Now.Date)
-                throw new ArgumentException("EffectiveTo must be greater than or equal to today.");
-
-            if (request.EffectiveFrom.Date > request.EffectiveTo?.Date)
-                throw new ArgumentException("EffectiveFrom must be less than or equal to EffectiveTo.");
+            if (request.EffectiveFrom.Date >= request.EffectiveTo?.Date)
+                throw new ArgumentException("Effective From must be less than Effective To.");
 
             var codeExists = await _db.SupplierContracts.AnyAsync(x => x.ContractCode.ToLower() == code.ToLower() && x.ContractId != id, ct);
             if (codeExists) throw new ArgumentException("Contract code already exists.");
@@ -1564,6 +1560,221 @@ namespace Backend.Domains.Admin.Services
                     Notes = contract.Notes,
                     SupplierId = contract.SupplierId,
                     SupplierName = contract.Supplier.Name
+                })
+                .ToListAsync(ct);
+        }
+
+        // =========================================================
+        // SUPPLIER QUOTATIONS
+        // =========================================================
+
+        public async Task<MasterDataPagedResult<SupplierQuotationDto>> GetSupplierQuotationsAsync(
+            MasterDataQueryDto query,
+            CancellationToken ct)
+        {
+            query.Page = query.Page <= 0 ? 1 : query.Page;
+            query.PageSize = query.PageSize <= 0 ? 10 : query.PageSize;
+
+            var q = _db.SupplierQuotations
+                .AsNoTracking()
+                .Include(x => x.Supplier)
+                .Include(x => x.Material)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(query.Keyword))
+            {
+                var keyword = query.Keyword.Trim().ToLower();
+                q = q.Where(x =>
+                    x.Supplier.Name.ToLower().Contains(keyword) ||
+                    x.Material.Code.ToLower().Contains(keyword) ||
+                    x.Material.Name.ToLower().Contains(keyword) ||
+                    (x.Currency != null && x.Currency.ToLower().Contains(keyword)));
+            }
+
+            if (query.IsActive.HasValue)
+            {
+                q = q.Where(x => x.IsActive == query.IsActive.Value);
+            }
+
+            var totalItems = await q.CountAsync(ct);
+
+            var items = await ApplyPaging(
+                    q.OrderByDescending(x => x.QuoteId)
+                     .Select(x => new SupplierQuotationDto
+                     {
+                         QuoteId = x.QuoteId,
+                         SupplierId = x.SupplierId,
+                         SupplierName = x.Supplier.Name,
+                         MaterialId = x.MaterialId,
+                         MaterialCode = x.Material.Code,
+                         MaterialName = x.Material.Name,
+                         Price = x.Price,
+                         Currency = x.Currency,
+                         ValidFrom = x.ValidFrom,
+                         ValidTo = x.ValidTo,
+                         IsActive = x.IsActive
+                     }),
+                    query.Page,
+                    query.PageSize)
+                .ToListAsync(ct);
+
+            return ToPagedResult(items, query.Page, query.PageSize, totalItems);
+        }
+
+        public async Task<SupplierQuotationDto?> GetSupplierQuotationByIdAsync(int id, CancellationToken ct)
+        {
+            return await _db.SupplierQuotations
+                .AsNoTracking()
+                .Include(x => x.Supplier)
+                .Include(x => x.Material)
+                .Where(x => x.QuoteId == id)
+                .Select(x => new SupplierQuotationDto
+                {
+                    QuoteId = x.QuoteId,
+                    SupplierId = x.SupplierId,
+                    SupplierName = x.Supplier.Name,
+                    MaterialId = x.MaterialId,
+                    MaterialCode = x.Material.Code,
+                    MaterialName = x.Material.Name,
+                    Price = x.Price,
+                    Currency = x.Currency,
+                    ValidFrom = x.ValidFrom,
+                    ValidTo = x.ValidTo,
+                    IsActive = x.IsActive
+                })
+                .FirstOrDefaultAsync(ct);
+        }
+
+        public async Task<int> CreateSupplierQuotationAsync(UpsertSupplierQuotationDto request, CancellationToken ct)
+        {
+            if (request.SupplierId <= 0)
+                throw new ArgumentException("Supplier is required.");
+
+            if (request.MaterialId <= 0)
+                throw new ArgumentException("Material is required.");
+
+            if (request.Price <= 0)
+                throw new ArgumentException("Price must be greater than 0.");
+
+            var supplierExists = await _db.Suppliers.AnyAsync(x => x.SupplierId == request.SupplierId, ct);
+            if (!supplierExists)
+                throw new ArgumentException("Supplier not found.");
+
+            var materialExists = await _db.Materials.AnyAsync(x => x.MaterialId == request.MaterialId, ct);
+            if (!materialExists)
+                throw new ArgumentException("Material not found.");
+
+            if (!request.ValidFrom.HasValue || !request.ValidTo.HasValue)
+                throw new ArgumentException("Valid From and Valid To must be provided together.");
+
+            if (request.ValidFrom.HasValue && request.ValidTo.HasValue && request.ValidTo.Value.Date <= request.ValidFrom.Value.Date)
+                throw new ArgumentException("Valid To must be greater than Valid From.");
+
+            // Check duplicate active quotation for same supplier + material
+            var duplicateExists = await _db.SupplierQuotations.AnyAsync(x =>
+                x.SupplierId == request.SupplierId &&
+                x.MaterialId == request.MaterialId &&
+                x.IsActive == true, ct);
+
+            if (duplicateExists)
+                throw new ArgumentException("An active quotation already exists for this supplier and material combination.");
+
+            var entity = new SupplierQuotation
+            {
+                SupplierId = request.SupplierId,
+                MaterialId = request.MaterialId,
+                Price = request.Price,
+                Currency = string.IsNullOrWhiteSpace(request.Currency) ? "VND" : Normalize(request.Currency).ToUpper(),
+                ValidFrom = request.ValidFrom,
+                ValidTo = request.ValidTo,
+                IsActive = request.IsActive ?? true
+            };
+
+            _db.SupplierQuotations.Add(entity);
+            await _db.SaveChangesAsync(ct);
+
+            return entity.QuoteId;
+        }
+
+        public async Task<bool> UpdateSupplierQuotationAsync(int id, UpsertSupplierQuotationDto request, CancellationToken ct)
+        {
+            var entity = await _db.SupplierQuotations.FirstOrDefaultAsync(x => x.QuoteId == id, ct);
+            if (entity == null) return false;
+
+            if (request.SupplierId <= 0)
+                throw new ArgumentException("Supplier is required.");
+
+            if (request.MaterialId <= 0)
+                throw new ArgumentException("Material is required.");
+
+            if (request.Price < 0)
+                throw new ArgumentException("Price must be greater than or equal to 0.");
+
+            var supplierExists = await _db.Suppliers.AnyAsync(x => x.SupplierId == request.SupplierId, ct);
+            if (!supplierExists)
+                throw new ArgumentException("Supplier not found.");
+
+            var materialExists = await _db.Materials.AnyAsync(x => x.MaterialId == request.MaterialId, ct);
+            if (!materialExists)
+                throw new ArgumentException("Material not found.");
+
+            if (request.ValidFrom.HasValue && request.ValidTo.HasValue && request.ValidTo.Value.Date <= request.ValidFrom.Value.Date)
+                throw new ArgumentException("Valid To must be greater than Valid From.");
+
+            // Check duplicate active quotation for same supplier + material (excluding current)
+            var duplicateExists = await _db.SupplierQuotations.AnyAsync(x =>
+                x.QuoteId != id &&
+                x.SupplierId == request.SupplierId &&
+                x.MaterialId == request.MaterialId &&
+                x.IsActive == true, ct);
+
+            if (duplicateExists && request.IsActive == true)
+                throw new ArgumentException("An active quotation already exists for this supplier and material combination.");
+
+            entity.SupplierId = request.SupplierId;
+            entity.MaterialId = request.MaterialId;
+            entity.Price = request.Price;
+            entity.Currency = string.IsNullOrWhiteSpace(request.Currency) ? "VND" : Normalize(request.Currency).ToUpper();
+            entity.ValidFrom = request.ValidFrom;
+            entity.ValidTo = request.ValidTo;
+            entity.IsActive = request.IsActive ?? true;
+
+            await _db.SaveChangesAsync(ct);
+            return true;
+        }
+
+        public async Task<bool> DeleteSupplierQuotationAsync(int id, CancellationToken ct)
+        {
+            var entity = await _db.SupplierQuotations.FirstOrDefaultAsync(x => x.QuoteId == id, ct);
+            if (entity == null) return false;
+
+            _db.SupplierQuotations.Remove(entity);
+            await _db.SaveChangesAsync(ct);
+
+            return true;
+        }
+
+        public async Task<List<SupplierQuotationDto>> GetSupplierQuotationsBySupplierIdAsync(int supplierId, CancellationToken ct)
+        {
+            return await _db.SupplierQuotations
+                .AsNoTracking()
+                .Include(x => x.Supplier)
+                .Include(x => x.Material)
+                .Where(x => x.SupplierId == supplierId)
+                .OrderByDescending(x => x.QuoteId)
+                .Select(x => new SupplierQuotationDto
+                {
+                    QuoteId = x.QuoteId,
+                    SupplierId = x.SupplierId,
+                    SupplierName = x.Supplier.Name,
+                    MaterialId = x.MaterialId,
+                    MaterialCode = x.Material.Code,
+                    MaterialName = x.Material.Name,
+                    Price = x.Price,
+                    Currency = x.Currency,
+                    ValidFrom = x.ValidFrom,
+                    ValidTo = x.ValidTo,
+                    IsActive = x.IsActive
                 })
                 .ToListAsync(ct);
         }
