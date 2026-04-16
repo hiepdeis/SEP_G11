@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { showConfirmToast } from "@/hooks/confirm-toast";
 import { useTranslation } from "react-i18next";
 import ReactSignatureCanvas from "react-signature-canvas";
+import { OtpVerificationModal } from "@/components/ui/custom/otp-modal";
+
 
 export default function StaffCountingPage() {
   const { t } = useTranslation();
@@ -40,6 +42,9 @@ export default function StaffCountingPage() {
   const [isSigned, setIsSigned] = useState(false);
   const [isSubmittingFinal, setIsSubmittingFinal] = useState(false);
   const sigCanvas = useRef<ReactSignatureCanvas>(null);
+  const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
+  const [signatureData, setSignatureData] = useState<string | null>(null);
+
 
   const loadTasks = async () => {
     try {
@@ -116,13 +121,19 @@ export default function StaffCountingPage() {
     if (!isSigned || !sigCanvas.current || sigCanvas.current.isEmpty()) {
        return toast.error(t("Please provide your signature before submitting"));
     }
+    
+    const signature = sigCanvas.current.toDataURL(); // Base64 signature
+    setSignatureData(signature);
+    
+    setIsSignatureModalOpen(false);
+    setIsOtpModalOpen(true);
+  };
 
+  const handleOtpSuccess = async () => {
+    if (!signatureData) return;
     try {
       setIsSubmittingFinal(true);
-      const signatureData = sigCanvas.current.toDataURL(); // Base64 signature
-      
       await auditService.signOff(stockTakeId, signatureData);
-      
       toast.success(t("Audit results submitted and signed successfully!"));
       router.push('/staff/audit');
     } catch (error: any) {
@@ -131,6 +142,7 @@ export default function StaffCountingPage() {
       setIsSubmittingFinal(false);
     }
   };
+
 
   const totalTasks = uncountedTasks.length + countedTasks.length;
   const progress = totalTasks > 0 ? Math.round((countedTasks.length / totalTasks) * 100) : 0;
@@ -344,7 +356,14 @@ export default function StaffCountingPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <OtpVerificationModal
+          isOpen={isOtpModalOpen}
+          onClose={() => setIsOtpModalOpen(false)}
+          onSuccess={handleOtpSuccess}
+        />
       </main>
+
     </div>
   );
 }

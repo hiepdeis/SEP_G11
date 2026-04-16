@@ -17,6 +17,8 @@ import { auditService, RecountCandidateDto, StockTakeReviewDetailDto, VarianceIt
 import { toast } from "sonner";
 import ReactSignatureCanvas, { SignatureCanvas } from "react-signature-canvas";
 import { useTranslation } from "react-i18next";
+import { OtpVerificationModal } from "@/components/ui/custom/otp-modal";
+
 
 type UserRole = "admin" | "manager" | "accountant" | "staff";
 
@@ -58,6 +60,11 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   const [prevIsAdminFinalizing, setPrevIsAdminFinalizing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(5);
+
+  // OTP State
+  const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
+  const [otpAction, setOtpAction] = useState<(() => Promise<void>) | null>(null);
+
 
   const canExport = ["accountant", "admin", "manager"].includes(role);
   const status = detailData?.status?.toLowerCase() || "";
@@ -146,13 +153,25 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   const handleManagerConfirm = async () => {
     if (!isSigned) return toast.error(t("Please sign before confirming"));
     const sigData = sigCanvas.current?.toDataURL();
-    try {
-      setIsSubmitting(true);
-      await auditService.managerConfirmResolution(stockTakeId, sigData);
-      toast.success(t("All resolutions confirmed! Awaiting accountant approval."));
-      await fetchData();
-    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); setIsManagerConfirming(false); handleClearSignature(); }
+    
+    setOtpAction(() => async () => {
+      try {
+        setIsSubmitting(true);
+        await auditService.managerConfirmResolution(stockTakeId, sigData);
+        toast.success(t("All resolutions confirmed! Awaiting accountant approval."));
+        await fetchData();
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || "Error");
+      } finally {
+        setIsSubmitting(false);
+      }
+    });
+
+    setIsManagerConfirming(false);
+    handleClearSignature();
+    setIsOtpModalOpen(true);
   };
+
 
   const handleRecountAll = async () => {
     try {
@@ -167,13 +186,25 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   const handleAccountantApprove = async () => {
     if (!isSigned) return toast.error(t("Please sign before completing"));
     const sigData = sigCanvas.current?.toDataURL();
-    try {
-      setIsSubmitting(true);
-      await auditService.accountantReview(stockTakeId, "Approve", sigData);
-      toast.success(t("Audit completed! All items matched."));
-      router.push(`/${role}/audit`);
-    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); setIsAccountantApproving(false); handleClearSignature(); }
+    
+    setOtpAction(() => async () => {
+      try {
+        setIsSubmitting(true);
+        await auditService.accountantReview(stockTakeId, "Approve", sigData);
+        toast.success(t("Audit completed! All items matched."));
+        router.push(`/${role}/audit`);
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || "Error");
+      } finally {
+        setIsSubmitting(false);
+      }
+    });
+
+    setIsAccountantApproving(false);
+    handleClearSignature();
+    setIsOtpModalOpen(true);
   };
+
 
   const handleAccountantForward = async () => {
     try {
@@ -187,24 +218,49 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   const handleAccountantApproveResolve = async () => {
     if (!isSigned) return toast.error(t("Please sign before approving"));
     const sigData = sigCanvas.current?.toDataURL();
-    try {
-      setIsSubmitting(true);
-      await auditService.accountantApproveResolve(stockTakeId, sigData);
-      toast.success(t("Resolution approved! Inventory updated."));
-      router.push(`/${role}/audit`);
-    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); setIsAccountantApprovingResolve(false); handleClearSignature(); }
+    
+    setOtpAction(() => async () => {
+      try {
+        setIsSubmitting(true);
+        await auditService.accountantApproveResolve(stockTakeId, sigData);
+        toast.success(t("Resolution approved! Inventory updated."));
+        router.push(`/${role}/audit`);
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || "Error");
+      } finally {
+        setIsSubmitting(false);
+      }
+    });
+
+    setIsAccountantApprovingResolve(false);
+    handleClearSignature();
+    setIsOtpModalOpen(true);
   };
+
 
   const handleAccountantRejectResolve = async () => {
     if (!isSigned) return toast.error(t("Please sign before rejecting"));
     const sigData = sigCanvas.current?.toDataURL();
-    try {
-      setIsSubmitting(true);
-      await auditService.accountantRejectResolve(stockTakeId, rejectNotes, sigData);
-      toast.success(t("Resolution rejected. Escalated to Admin."));
-      await fetchData();
-    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); setIsAccountantRejecting(false); setRejectNotes(""); handleClearSignature(); }
+    
+    setOtpAction(() => async () => {
+      try {
+        setIsSubmitting(true);
+        await auditService.accountantRejectResolve(stockTakeId, rejectNotes, sigData);
+        toast.success(t("Resolution rejected. Escalated to Admin."));
+        await fetchData();
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || "Error");
+      } finally {
+        setIsSubmitting(false);
+      }
+    });
+
+    setIsAccountantRejecting(false);
+    setRejectNotes("");
+    handleClearSignature();
+    setIsOtpModalOpen(true);
   };
+
 
   // === ADMIN ACTIONS ===
   const handleAdminFinalize = async () => {
@@ -213,20 +269,31 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
     
     const sigData = sigCanvas.current?.toDataURL();
 
-    try {
-      setIsSubmitting(true);
-      await auditService.adminFinalize(stockTakeId, {
-        penaltyReason,
-        penaltyAmount: Number(penaltyAmount),
-        penaltyNotes: penaltyNotes || undefined,
-        targetManagerUserId: Number(targetManagerId),
-        auditNotes: "Admin finalized with penalize",
-        signatureData: sigData
-      });
-      toast.success(t("Penalize issued and audit completed!"));
-      router.push(`/${role}/audit`);
-    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); setIsAdminFinalizing(false); handleClearSignature(); }
+    setOtpAction(() => async () => {
+      try {
+        setIsSubmitting(true);
+        await auditService.adminFinalize(stockTakeId, {
+          penaltyReason,
+          penaltyAmount: Number(penaltyAmount),
+          penaltyNotes: penaltyNotes || undefined,
+          targetManagerUserId: Number(targetManagerId),
+          auditNotes: "Admin finalized with penalize",
+          signatureData: sigData
+        });
+        toast.success(t("Penalize issued and audit completed!"));
+        router.push(`/${role}/audit`);
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || "Error");
+      } finally {
+        setIsSubmitting(false);
+      }
+    });
+
+    setIsAdminFinalizing(false);
+    handleClearSignature();
+    setIsOtpModalOpen(true);
   };
+
 
   // === OTHER ACTIONS ===
   const handleLockAudit = async () => {
@@ -652,6 +719,18 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <OtpVerificationModal
+        isOpen={isOtpModalOpen}
+        onClose={() => {
+          setIsOtpModalOpen(false);
+          setOtpAction(null);
+        }}
+        onSuccess={async () => {
+          if (otpAction) {
+            await otpAction();
+          }
+        }}
+      />
     </div>
   );
 }
