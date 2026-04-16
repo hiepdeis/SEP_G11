@@ -1,3 +1,7 @@
 Backend/Import_Subflows_ClassDiagrams_Refactored_UPDATED.puml
 Backend/Import_Subflows_ClassDiagrams_Refactored.puml
 Backend/Import_Subflows_ClassDiagrams.md
+
+.vs/
+.history/
+.gitignore
