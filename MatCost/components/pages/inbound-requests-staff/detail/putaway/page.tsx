@@ -175,6 +175,12 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
       return;
     }
 
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error(t("Image exceeds the 2MB limit."));
+      e.target.value = "";
+      return;
+    }
+
     try {
       const reader = new FileReader();
       reader.readAsDataURL(file);

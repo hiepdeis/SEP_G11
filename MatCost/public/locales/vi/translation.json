@@ -1308,5 +1308,9 @@
   "Pending Incident Review": "Chờ đánh giá sự cố",
   "Pending Supplementary Review": "Chờ đánh giá bổ sung",
   "Quantity & Quality & Damage": "Số lượng & Chất lượng & Hư hỏng",
-  "One or more receipt haven't been putaway yet. Cannot stamp receipt.": "Một hoặc nhiều phiếu nhập chưa được chuyển vào kho. Không thể đóng dấu phiếu nhập."
+  "One or more receipt haven't been putaway yet. Cannot stamp receipt.": "Một hoặc nhiều phiếu nhập chưa được chuyển vào kho. Không thể đóng dấu phiếu nhập.",
+  "Some images exceed the 2MB limit and were skipped.": "Một số hình ảnh vượt quá giới hạn 2MB và đã bị bỏ qua.",
+  "Maximum 5 images allowed per item.": "Tối đa 5 hình ảnh cho mỗi mục.",
+  "Maximum 5 images allowed. Extra images were skipped.": "Tối đa 5 hình ảnh cho mỗi mục. Hình ảnh thừa đã bị bỏ qua.",
+  "Duplicated images were skipped.": "Hình ảnh trùng lặp đã bị bỏ qua."
 }

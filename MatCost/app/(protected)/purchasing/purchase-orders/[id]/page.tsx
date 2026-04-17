@@ -149,8 +149,10 @@ export default function PurchaseOrderDetailPage() {
             `/purchasing/purchase-orders/recreate?requestId=${order.requestId}&parentPOId=${order.purchaseOrderId}`,
           );
         } catch (error: any) {
-          console.error(error);
-          toast.error(t("An error occurred while trying to recreate the PO."));
+          toast.error(
+            error.response?.data?.message ||
+              t("An error occurred while trying to recreate the PO."),
+          );
         } finally {
           setIsRecreating(false);
         }

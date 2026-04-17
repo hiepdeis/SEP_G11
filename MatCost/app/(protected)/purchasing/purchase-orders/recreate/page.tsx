@@ -141,9 +141,11 @@ export default function RecreatePurchaseOrderPage() {
             setIsLoadingHistory(false);
           }
         }
-      } catch (error) {
-        console.error("Failed to load original PO data", error);
-        toast.error(t("Failed to load original PO data."));
+      } catch (error: any) {
+        toast.error(
+          error.response?.data?.message ||
+            t("Failed to load original PO data."),
+        );
         router.back();
       } finally {
         setIsLoadingData(false);

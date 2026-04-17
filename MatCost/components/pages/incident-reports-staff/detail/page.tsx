@@ -460,14 +460,37 @@ export default function StaffIncidentPage({
       );
     }
 
-    if (imageFiles.length === 0) {
+    const validSizeFiles = imageFiles.filter((file) => file.size <= 2 * 1024 * 1024);
+
+    if (validSizeFiles.length < imageFiles.length) {
+      toast.warning(t("Some images exceed the 2MB limit and were skipped."));
+    }
+
+    if (validSizeFiles.length === 0) {
       e.target.value = "";
       return;
     }
 
+    const currentImages = incidentItems[index].evidenceImages || [];
+    const availableSlots = 5 - currentImages.length;
+
+    if (availableSlots <= 0) {
+      toast.warning(t("Maximum 5 images allowed per item."));
+      e.target.value = "";
+      return;
+    }
+
+    const filesToProcess = validSizeFiles.slice(0, availableSlots);
+
+    if (filesToProcess.length < validSizeFiles.length) {
+      toast.warning(
+        t("Maximum 5 images allowed. Extra images were skipped.")
+      );
+    }
+
     try {
       const base64Images = await Promise.all(
-        imageFiles.map((file) => {
+        filesToProcess.map((file) => {
           return new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
@@ -478,19 +501,19 @@ export default function StaffIncidentPage({
       );
 
       const newItems = [...incidentItems];
-      const currentImages = newItems[index].evidenceImages || [];
+      const existingImages = newItems[index].evidenceImages || [];
 
       const uniqueNewImages = base64Images.filter(
-        (base64) => !currentImages.includes(base64),
+        (base64) => !existingImages.includes(base64),
       );
 
       if (uniqueNewImages.length < base64Images.length) {
-        toast.info(t("Duplicated images."));
+        toast.info(t("Duplicated images were skipped."));
       }
 
       newItems[index] = {
         ...newItems[index],
-        evidenceImages: [...currentImages, ...uniqueNewImages],
+        evidenceImages: [...existingImages, ...uniqueNewImages].slice(0, 5),
       };
 
       setIncidentItems(newItems);

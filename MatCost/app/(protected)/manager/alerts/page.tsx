@@ -104,9 +104,11 @@ export default function StockShortageAlertListPage() {
       try {
         const res = await managerStockShortageAlertApi.getAlerts();
         setAlerts(res.data);
-      } catch (error) {
-        console.error("Failed to fetch alerts", error);
-        toast.error(t("Failed to fetch stock shortage alerts"));
+      } catch (error: any) {
+        toast.error(
+          error.response?.data?.message ||
+            t("Failed to fetch stock shortage alerts"),
+        );
       } finally {
         setIsLoading(false);
       }

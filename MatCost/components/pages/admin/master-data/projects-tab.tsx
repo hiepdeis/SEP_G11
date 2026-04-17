@@ -97,9 +97,10 @@ export function ProjectsTab({
         );
         setLoading(false);
       })
-      .catch((err) => {
-        console.error(err);
-        toast.error(t("Failed to load projects"));
+      .catch((err: any) => {
+        toast.error(
+          err.response?.data?.message || t("Failed to load projects"),
+        );
         setLoading(false);
       });
   }, [t]);
@@ -219,8 +220,8 @@ export function ProjectsTab({
         toast.success(t("Add New Successful"));
       }
       closeModal();
-    } catch (error) {
-      toast.error(t("Save Failed"));
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || t("Save Failed"));
     } finally {
       setSaving(false);
     }
@@ -236,8 +237,8 @@ export function ProjectsTab({
           await deleteProject(id);
           setItems((prev) => prev.filter((i) => i._id !== id));
           toast.success(t("Delete Successful"));
-        } catch (error) {
-          toast.error(t("Delete Failed"));
+        } catch (error: any) {
+          toast.error(error.response?.data?.message || t("Delete Failed"));
         } finally {
           setDeletingId(null);
         }

@@ -122,9 +122,10 @@ export default function PurchasingDashboardPage() {
         ]);
         setOrders(poRes.data);
         setRequests(prRes.data);
-      } catch (error) {
-        console.error("Failed to fetch data", error);
-        toast.error(t("Failed to fetch purchasing data"));
+      } catch (error: any) {
+        toast.error(
+          error.response?.data?.message || t("Failed to fetch purchasing data"),
+        );
       } finally {
         setIsLoading(false);
       }

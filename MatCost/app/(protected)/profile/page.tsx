@@ -108,9 +108,8 @@ export default function ProfilePage() {
       setOriginalUser(user);
 
       toast.success(t("Update success!"));
-    } catch (error) {
-      console.error("Update failed", error);
-      toast.error(t("Update failed!"));
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || t("Update failed!"));
     } finally {
       setIsSaving(false);
     }

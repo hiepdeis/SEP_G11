@@ -114,9 +114,10 @@ export function MaterialsTab({
           );
           setLoading(false);
         }
-      } catch (err) {
-        console.error(err);
-        toast.error(t("Failed to load materials data"));
+      } catch (err: any) {
+        toast.error(
+          err.response?.data?.message || t("Failed to load materials data"),
+        );
         if (mounted) setLoading(false);
       }
     };
@@ -218,8 +219,8 @@ export function MaterialsTab({
         toast.success(t("Add New Successful"));
       }
       closeModal();
-    } catch (error) {
-      toast.error(t("Save Failed"));
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || t("Save Failed"));
     } finally {
       setSaving(false);
     }

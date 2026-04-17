@@ -121,9 +121,10 @@ export default function AdminPurchaseManagementPage() {
         ]);
         setRequests(prRes.data);
         setAlerts(alertRes.data);
-      } catch (error) {
-        console.error("Failed to fetch data", error);
-        toast.error(t("Failed to load management data"));
+      } catch (error: any) {
+        toast.error(
+          error.response?.data?.message || t("Failed to load management data"),
+        );
       } finally {
         setIsLoading(false);
       }

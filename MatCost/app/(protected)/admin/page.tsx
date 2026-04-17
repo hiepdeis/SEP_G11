@@ -122,9 +122,10 @@ export default function DashboardPage() {
         // Data for approvals table
         setPendingAdminOrders(adminPoRes.data || []);
         setAdminRequests(adminPrRes.data || []);
-      } catch (error) {
-        console.error(error);
-        toast.error(t("Failed to load dashboard data"));
+      } catch (error: any) {
+        toast.error(
+          error.response?.data?.message || t("Failed to load dashboard data"),
+        );
       } finally {
         setLoading(false);
       }

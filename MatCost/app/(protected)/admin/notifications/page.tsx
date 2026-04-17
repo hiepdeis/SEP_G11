@@ -44,12 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { showConfirmToast } from "@/hooks/confirm-toast";
 import {
@@ -183,8 +178,8 @@ export default function NotificationsPage() {
           );
           await loadNotifications();
           toast.success(t("Delete Successful"));
-        } catch (e) {
-          toast.error(t("Failed to delete"));
+        } catch (e: any) {
+          toast.error(e.response?.data?.message || t("Failed to delete"));
         }
       },
     });
@@ -421,7 +416,8 @@ export default function NotificationsPage() {
                               onClick={() => markAsRead(n.notiId)}
                               className="h-7 px-3 bg-indigo-600 text-white text-[10px] font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all rounded-lg"
                             >
-                              <Check className="w-3 h-3 mr-1.5" /> {t("Mark as read")}
+                              <Check className="w-3 h-3 mr-1.5" />{" "}
+                              {t("Mark as read")}
                             </Button>
                           )}
                           <Button
@@ -619,7 +615,9 @@ export default function NotificationsPage() {
                             variant="outline"
                             className="text-[10px] font-bold uppercase tracking-wider border-none shadow-none px-0 text-indigo-600"
                           >
-                            {targetMode === "all" ? t("All Users") : getUserName(selectedUser)}
+                            {targetMode === "all"
+                              ? t("All Users")
+                              : getUserName(selectedUser)}
                           </Badge>
                           <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
                         </div>

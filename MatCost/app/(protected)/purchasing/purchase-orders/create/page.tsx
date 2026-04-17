@@ -93,9 +93,10 @@ export default function CreatePurchaseOrderPage() {
 
         setRequests(prRes.data);
         setSuppliers(suppliersRes.data);
-      } catch (error) {
-        console.error("Failed to load initial data", error);
-        toast.error(t("Failed to load initial data."));
+      } catch (error: any) {
+        toast.error(
+          error.response?.data?.message || t("Failed to load initial data."),
+        );
       } finally {
         setIsLoadingData(false);
       }

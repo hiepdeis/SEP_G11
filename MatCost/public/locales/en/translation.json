@@ -1290,5 +1290,22 @@
   "OTP code will reset in every 1 minute.": "OTP code will reset in every 1 minute.",
   "Verify Closure": "Verify Closure",
   "Confirm Closure": "Confirm Closure",
-  "Please enter the OTP to confirm closing this receipt. This action cannot be undone.": "Please enter the OTP to confirm closing this receipt. This action cannot be undone."
+  "Please enter the OTP to confirm closing this receipt. This action cannot be undone.": "Please enter the OTP to confirm closing this receipt. This action cannot be undone.",
+  "Failed to load initial data.": "Failed to load initial data.",
+  "Purchase Order draft created successfully.": "Purchase Order draft created successfully.",
+  "Pending Draft Creation": "Pending Draft Creation",
+  "PendingDraftCreation": "PendingDraftCreation",
+  "If you haven't setup OTP, ": "If you haven't setup OTP, ",
+  "setup here.": "setup here.",
+  "Verify Approval": "Verify Approval",
+  "Please enter the OTP to confirm approving this purchase order.": "Please enter the OTP to confirm approving this purchase order.",
+  "Confirm Approve": "Confirm Approve",
+  "Pending Incident Review": "Pending Incident Review",
+  "Pending Supplementary Review": "Pending Supplementary Review",
+  "Quantity & Quality & Damage": "Quantity & Quality & Damage",
+  "One or more receipt haven't been putaway yet. Cannot stamp receipt.": "One or more receipt haven't been putaway yet. Cannot stamp receipt.",
+  "Some images exceed the 2MB limit and were skipped.": "Some images exceed the 2MB limit and were skipped.",
+  "Maximum 5 images allowed per item.": "Maximum 5 images allowed per item.",
+  "Maximum 5 images allowed. Extra images were skipped.": "Maximum 5 images allowed. Extra images were skipped.",
+  "Duplicated images were skipped.": "Duplicated images were skipped."
 }

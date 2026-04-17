@@ -99,9 +99,10 @@ export default function CreatePurchaseRequestPage() {
             t("This alert might have already been resolved or doesn't exist."),
           );
         }
-      } catch (error) {
-        console.error("Failed to load initial data", error);
-        toast.error(t("Failed to load necessary data."));
+      } catch (error: any) {
+        toast.error(
+          error.response?.data?.message || t("Failed to load necessary data."),
+        );
       } finally {
         setIsLoadingData(false);
       }
