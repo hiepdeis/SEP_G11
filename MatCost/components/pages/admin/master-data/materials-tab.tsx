@@ -208,12 +208,12 @@ export function MaterialsTab({
       } else {
         const created = await createMaterial(payload);
         setItems((prev) => [
-          ...prev,
           {
             _id: created.materialId,
             materialId: created.materialId,
             ...payload,
           },
+          ...prev,
         ]);
         toast.success(t("Add New Successful"));
       }
@@ -520,6 +520,7 @@ export function MaterialsTab({
                     }
                     placeholder="EX: kg, cái..."
                     className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
+                    maxLength={10}
                   />
                   <div className="flex items-center space-x-2 pt-1">
                     <Checkbox
@@ -549,6 +550,7 @@ export function MaterialsTab({
                     onValueChange={(val) =>
                       setEditing((prev) => ({ ...prev!, massPerUnit: val }))
                     }
+                    maxLength={8}
                     placeholder={t("Enter mass...")}
                     className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
                   />

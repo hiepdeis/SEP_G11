@@ -976,7 +976,7 @@ export default function PurchasingDashboardPage() {
                                   }
                                 >
                                   {item.status == "Submitted"
-                                    ? "Pending Draft Creation"
+                                    ? t("Pending Draft Creation")
                                     : t(formatPascalCase(item.status))}
                                 </Badge>
                               </TableCell>

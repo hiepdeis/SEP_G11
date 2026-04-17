@@ -173,7 +173,19 @@ export default function ManagerReceiptDetailPage() {
             {canStamp && (
               <Button
                 className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-                onClick={() =>
+                onClick={() => {
+                  if (
+                    receipt.items.some(
+                      (item) => item.binAllocations.length === 0,
+                    )
+                  ) {
+                    toast.error(
+                      t(
+                        "One or more receipt haven't been putaway yet. Cannot stamp receipt.",
+                      ),
+                    );
+                    return;
+                  }
                   showConfirmToast({
                     title: t("Verify Stamping"),
                     description: t(
@@ -182,8 +194,8 @@ export default function ManagerReceiptDetailPage() {
                     confirmLabel: t("Confirm & Stamp"),
                     cancelLabel: t("Cancel"),
                     onConfirm: () => setIsOtpModalOpen(true),
-                  })
-                }
+                  });
+                }}
               >
                 <PackageCheck className="w-4 h-4 mr-2" />
                 {t("Stamp & Confirm Receipt")}

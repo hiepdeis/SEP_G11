@@ -150,10 +150,10 @@ export default function CreatePurchaseOrderPage() {
   const handleSubmit = () => {
     if (
       !selectedRequestId ||
-      requests.find(
+      !requests.find(
         (r) =>
           r.requestId.toString() === selectedRequestId &&
-          r.status === "DraftPO",
+          r.status !== "DraftPO",
       )
     ) {
       return toast.error(t("Please select a Purchase Request."));
@@ -406,7 +406,7 @@ export default function CreatePurchaseOrderPage() {
                             {t("Supplier")} *
                           </TableHead>
                           <TableHead className="w-[20%] text-right pr-6">
-                            {t("Unit Price (VND)")} *
+                            {t("Unit Price")} *
                           </TableHead>
                         </TableRow>
                       </TableHeader>

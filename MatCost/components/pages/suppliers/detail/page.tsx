@@ -683,7 +683,7 @@ export default function SupplierDetailPage({
                       <Label className="text-[10px] font-bold text-slate-400 uppercase block tracking-tighter">
                         {t("Tax Identification No.")}
                       </Label>
-                      <p className="text-lg font-bold text-slate-800 dark:text-slate-200 tracking-tight">
+                      <p className="text-lg font-bold text-slate-800 dark:text-slate-200 tracking-tight break-all">
                         {supplier.taxCode || t("Not Provided")}
                       </p>
                     </div>
@@ -695,7 +695,7 @@ export default function SupplierDetailPage({
                         <MapPin className="w-3.5 h-3.5" />{" "}
                         {t("Business Address")}
                       </div>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
+                      <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-medium break-all">
                         {supplier.address || t("No address registered")}
                       </p>
                     </div>
@@ -1146,6 +1146,7 @@ export default function SupplierDetailPage({
                     setCForm({ ...cForm, leadTimeDays: val })
                   }
                   className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
+                  maxLength={5}
                 />
               </div>
               <div className="col-span-1 space-y-2">
@@ -1185,6 +1186,7 @@ export default function SupplierDetailPage({
                   }
                   rows={2}
                   className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800 resize-none"
+                  maxLength={150}
                 />
               </div>
               <div className="space-y-2">
@@ -1198,6 +1200,7 @@ export default function SupplierDetailPage({
                   }
                   rows={2}
                   className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800 resize-none"
+                  maxLength={150}
                 />
               </div>
             </div>

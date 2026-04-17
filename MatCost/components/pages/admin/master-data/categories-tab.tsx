@@ -8,6 +8,7 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  Eye,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,7 @@ export function CategoriesTab({ viewOnly = false }: { viewOnly?: boolean }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<"add" | "edit" | "view">("add");
   const [editing, setEditing] = useState<Partial<Category> | null>(null);
   const [page, setPage] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -92,11 +94,19 @@ export function CategoriesTab({ viewOnly = false }: { viewOnly?: boolean }) {
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
 
   const openAdd = () => {
+    setModalMode("add");
     setEditing({});
     setModalOpen(true);
   };
 
   const openEdit = (item: Category) => {
+    setModalMode("edit");
+    setEditing({ ...item });
+    setModalOpen(true);
+  };
+
+  const openView = (item: Category) => {
+    setModalMode("view");
     setEditing({ ...item });
     setModalOpen(true);
   };
@@ -237,35 +247,44 @@ export function CategoriesTab({ viewOnly = false }: { viewOnly?: boolean }) {
                       {item.name}
                     </TableCell>
                     <TableCell className="px-5 py-3 text-sm text-gray-500">
-                      {item.description || "—"}
+                      {item.description.length > 50
+                        ? item.description.slice(0, 30) + "..."
+                        : item.description || "—"}
                     </TableCell>
                     <TableCell className="px-5 py-3 text-right">
-                      {!viewOnly ? (
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEdit(item)}
-                            disabled={deletingId === item._id}
-                            className="h-8 w-8 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => remove(item._id)}
-                            disabled={deletingId === item._id}
-                            className="h-8 w-8 text-gray-500 hover:text-red-600 hover:bg-red-50"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <span className="italic text-slate-400">
-                          {t("View Only")}
-                        </span>
-                      )}
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openView(item)}
+                          className="h-8 w-8 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                          title={t("View")}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        {!viewOnly && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEdit(item)}
+                              disabled={deletingId === item._id}
+                              className="h-8 w-8 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => remove(item._id)}
+                              disabled={deletingId === item._id}
+                              className="h-8 w-8 text-gray-500 hover:text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -305,7 +324,11 @@ export function CategoriesTab({ viewOnly = false }: { viewOnly?: boolean }) {
           <DialogContent className="sm:max-w-lg overflow-hidden flex flex-col max-h-[90vh] bg-white">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold text-gray-900">
-                {editing._id ? t("Edit") : t("Add New")}
+                {modalMode === "view"
+                  ? t("Category Details")
+                  : editing._id
+                    ? t("Edit")
+                    : t("Add New")}
               </DialogTitle>
             </DialogHeader>
 
@@ -317,6 +340,7 @@ export function CategoriesTab({ viewOnly = false }: { viewOnly?: boolean }) {
                       {t("Code")} *
                     </Label>
                     <Input
+                      disabled={modalMode === "view"}
                       value={editing.code || ""}
                       onChange={(e) =>
                         setEditing((prev) => ({
@@ -332,6 +356,7 @@ export function CategoriesTab({ viewOnly = false }: { viewOnly?: boolean }) {
                       {t("Name")} *
                     </Label>
                     <Input
+                      disabled={modalMode === "view"}
                       value={editing.name || ""}
                       onChange={(e) =>
                         setEditing((prev) => ({
@@ -348,6 +373,7 @@ export function CategoriesTab({ viewOnly = false }: { viewOnly?: boolean }) {
                     {t("Description")}
                   </Label>
                   <Textarea
+                    disabled={modalMode === "view"}
                     className="border-slate-300"
                     value={editing.description || ""}
                     onChange={(e) =>
@@ -364,15 +390,17 @@ export function CategoriesTab({ viewOnly = false }: { viewOnly?: boolean }) {
 
             <DialogFooter className="gap-2 border-t pt-4">
               <Button variant="outline" onClick={closeModal} disabled={saving}>
-                {t("Cancel")}
+                {modalMode === "view" ? t("Close") : t("Cancel")}
               </Button>
-              <Button
-                onClick={save}
-                disabled={saving}
-                className="bg-indigo-600 hover:bg-indigo-700"
-              >
-                {saving ? t("Saving...") : t("Save")}
-              </Button>
+              {modalMode !== "view" && (
+                <Button
+                  onClick={save}
+                  disabled={saving}
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                >
+                  {saving ? t("Saving...") : t("Save")}
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         )}

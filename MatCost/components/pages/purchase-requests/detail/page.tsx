@@ -36,7 +36,6 @@ import { formatPascalCase } from "@/lib/format-pascal-case";
 import { formatQuantity } from "@/lib/format-quantity";
 import { formatDateTime } from "@/lib/format-date-time";
 
-
 export default function PurchaseRequestDetailPage({ role = "admin" }) {
   const params = useParams();
   const router = useRouter();
@@ -68,8 +67,6 @@ export default function PurchaseRequestDetailPage({ role = "admin" }) {
       fetchRequestDetail();
     }
   }, [id, router, t]);
-
-
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -181,7 +178,7 @@ export default function PurchaseRequestDetailPage({ role = "admin" }) {
                       {request.createdByName}
                     </div>
                   </div>
-
+                  {/*                   
                   {request.alertId && (
                     <div className="pt-4 border-t border-slate-100">
                       <div className="bg-rose-50 text-rose-700 p-3 rounded-md flex flex-col gap-1 border border-rose-100">
@@ -199,7 +196,7 @@ export default function PurchaseRequestDetailPage({ role = "admin" }) {
                         </span>
                       </div>
                     </div>
-                  )}
+                  )} */}
                 </CardContent>
               </Card>
             </div>

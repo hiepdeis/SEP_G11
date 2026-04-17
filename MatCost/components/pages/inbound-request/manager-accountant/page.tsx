@@ -586,9 +586,7 @@ export default function SharedReceiptsListPage({
                           </TableHead>
 
                           <TableHead className="w-[20%]">
-                            {role === "manager"
-                              ? t("Supplier")
-                              : t("Warehouse")}
+                            {role === "manager" ? t("Supplier") : t("Supplier")}
                           </TableHead>
 
                           <TableHead className="w-[15%] text-center">
@@ -668,8 +666,8 @@ export default function SharedReceiptsListPage({
                                     {role === "manager"
                                       ? item.supplierName ||
                                         t("Unknown Supplier")
-                                      : item.warehouseName ||
-                                        t("Main Warehouse")}
+                                      : item.supplierName ||
+                                        t("Unknown Supplier")}
                                   </span>
                                 </div>
                               </TableCell>

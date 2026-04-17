@@ -391,6 +391,7 @@ export function BinsTab({
                           type: e.target.value,
                         }))
                       }
+                      maxLength={20}
                     />
                   </div>
                 </div>

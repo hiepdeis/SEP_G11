@@ -15,6 +15,7 @@ import { Loader2, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { otpApi } from "@/services/otpservices";
 import { useTranslation } from "react-i18next";
+import { useRouter } from "next/navigation";
 
 interface OtpVerificationModalProps {
   isOpen: boolean;
@@ -36,6 +37,7 @@ export function OtpVerificationModal({
   const { t } = useTranslation();
   const [otp, setOtp] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+  const router = useRouter();
 
   const displayTitle = title || t("OTP Security Verification");
   const displayDescription =
@@ -46,6 +48,8 @@ export function OtpVerificationModal({
   const displaySubmitText = submitText || t("Complete Approval");
 
   const handleConfirm = async () => {
+    if (isVerifying) return;
+
     if (otp.length !== 6) {
       toast.error(t("Please enter all 6 OTP digits."));
       return;
@@ -91,6 +95,11 @@ export function OtpVerificationModal({
             value={otp}
             onChange={setOtp}
             disabled={isVerifying}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleConfirm();
+              }
+            }}
             render={({ slots }) => (
               <div className="flex gap-2 sm:gap-3">
                 {slots.map((slot, index) => (
@@ -113,8 +122,19 @@ export function OtpVerificationModal({
               </div>
             )}
           />
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 m-0">
             {t("OTP code will reset in every 1 minute.")}
+          </p>
+          <p className="text-xs text-slate-500 cursor-pointer m-0">
+            <span>{t("If you haven't setup OTP, ")}</span>
+            <span
+              className="text-primary underline"
+              onClick={() => {
+                router.push("/security/2fa");
+              }}
+            >
+              {t("setup here.")}
+            </span>
           </p>
         </div>
 

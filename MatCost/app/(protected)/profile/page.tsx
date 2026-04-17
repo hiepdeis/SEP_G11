@@ -128,9 +128,7 @@ export default function ProfilePage() {
     user &&
     originalUser &&
     (user.fullName !== originalUser.fullName ||
-      (user.phoneNumber || "") !== (originalUser.phoneNumber || "") ||
-      (user.bio || "") !== (originalUser.bio || "") ||
-      (user.address || "") !== (originalUser.address || ""));
+      (user.phoneNumber || "") !== (originalUser.phoneNumber || ""));
 
   const hasErrors = Object.values(errors).some((error) => error.length > 0);
 
@@ -408,7 +406,7 @@ export default function ProfilePage() {
                       )}
                     </div>
 
-                    <div className="col-span-1 md:col-span-2 space-y-2">
+                    {/* <div className="col-span-1 md:col-span-2 space-y-2">
                       <div className="flex justify-between">
                         <LabelCharCount
                           className={errors.bio ? "text-red-500" : ""}
@@ -487,7 +485,7 @@ export default function ProfilePage() {
                           {errors.address}
                         </p>
                       )}
-                    </div>
+                    </div> */}
                   </div>
                 </Card>
 
