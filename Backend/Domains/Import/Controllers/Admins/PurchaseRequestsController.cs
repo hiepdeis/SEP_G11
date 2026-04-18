@@ -69,7 +69,7 @@ namespace Backend.Domains.Import.Controllers.Admins
                     Notes = i.Notes
                 }).ToList();
 
-                var request = await _service.CreateRequestFromAlertAsync(alertId, adminId, dto.ProjectId, items);
+                var request = await _service.CreateRequestFromAlertAsync(alertId, adminId, items);
                 var userNames = await LoadUserNamesAsync(new[] { request });
                 return CreatedAtAction(nameof(GetRequest), new { requestId = request.RequestId }, ToDto(request, userNames));
             }

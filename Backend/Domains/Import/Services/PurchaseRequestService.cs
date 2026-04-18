@@ -18,7 +18,7 @@ namespace Backend.Domains.Import.Services
             _logger = logger;
         }
 
-        public async Task<PurchaseRequest> CreateRequestFromAlertAsync(long alertId, int adminId, int projectId, List<PurchaseRequestItem> items)
+        public async Task<PurchaseRequest> CreateRequestFromAlertAsync(long alertId, int adminId, List<PurchaseRequestItem> items)
         {
             if (items == null)
                 items = new List<PurchaseRequestItem>();
@@ -36,9 +36,9 @@ namespace Backend.Domains.Import.Services
                 throw new InvalidOperationException(
                     $"Alert {alertId} must be ManagerConfirmed before creating PR. Current status: {alert.Status}");
 
-            var projectExists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
-            if (!projectExists)
-                throw new KeyNotFoundException($"Project with ID {projectId} not found");
+            // var projectExists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
+            // if (!projectExists)
+            //     throw new KeyNotFoundException($"Project with ID {projectId} not found");
 
             if (items.Count == 0)
             {
@@ -65,7 +65,7 @@ namespace Backend.Domains.Import.Services
             var request = new PurchaseRequest
             {
                 RequestCode = requestCode,
-                ProjectId = projectId,
+                // ProjectId = projectId,
                 AlertId = alertId,
                 CreatedBy = adminId,
                 CreatedAt = now,
