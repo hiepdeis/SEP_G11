@@ -36,7 +36,7 @@ namespace Backend.Domains.Import.Services
 
         public async Task<StockShortageDetectResultDto> DetectShortagesAsync(int? warehouseId = null)
         {
-            var activeStatuses = new[] { "Pending", "ManagerConfirmed", "PRCreated" };
+            var activeStatuses = new[] { "Pending", "ManagerConfirmed" };
 
             var activeAlerts = await _context.StockShortageAlerts
                 .Where(a => activeStatuses.Contains(a.Status))

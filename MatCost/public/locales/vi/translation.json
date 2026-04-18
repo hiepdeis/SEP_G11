@@ -1312,5 +1312,10 @@
   "Some images exceed the 2MB limit and were skipped.": "Một số hình ảnh vượt quá giới hạn 2MB và đã bị bỏ qua.",
   "Maximum 5 images allowed per item.": "Tối đa 5 hình ảnh cho mỗi mục.",
   "Maximum 5 images allowed. Extra images were skipped.": "Tối đa 5 hình ảnh cho mỗi mục. Hình ảnh thừa đã bị bỏ qua.",
-  "Duplicated images were skipped.": "Hình ảnh trùng lặp đã bị bỏ qua."
+  "Duplicated images were skipped.": "Hình ảnh trùng lặp đã bị bỏ qua.",
+  "Selected": "Đã chọn",
+  "Enter any notes here...": "Nhập bất kỳ ghi chú nào tại đây...",
+  "Notes (Optional)": "Ghi chú (Tùy chọn)",
+  "Are you sure you want to confirm these alerts? Adjusted Restock Quantity will be set to Suggested Quantity": "Bạn có chắc chắn muốn xác nhận các cảnh báo này? Số lượng bổ sung sẽ được đặt thành Số lượng đề xuất",
+  "Confirm Selected Alerts": "Xác nhận các cảnh báo đã chọn"
 }

@@ -110,6 +110,12 @@ export interface StockShortageAlertDto {
   isDecimalUnit?: boolean;
 }
 
+export interface BulkConfirmAlertItemDto {
+  alertId: number;
+  adjustedQuantity?: number;
+  notes?: string;
+}
+
 export interface ConfirmStockShortageAlertDto {
   adjustedQuantity?: number;
   notes?: string;
@@ -919,9 +925,15 @@ export const managerStockShortageAlertApi = {
       `/warehouse-manager/alerts/${alertId}`,
     );
   },
-  confirmAlert: (alertId: number, data: ConfirmStockShortageAlertDto) => {
-    return axiosClient.put<StockShortageAlertDto>(
-      `/warehouse-manager/alerts/${alertId}/confirm`,
+  // confirmAlert: (alertId: number, data: ConfirmStockShortageAlertDto) => {
+  //   return axiosClient.put<StockShortageAlertDto>(
+  //     `/warehouse-manager/alerts/${alertId}/confirm`,
+  //     data,
+  //   );
+  // },
+  bulkConfirmAlerts: (data: BulkConfirmAlertItemDto[]) => {
+    return axiosClient.put<StockShortageAlertDto[]>(
+      "/warehouse-manager/alerts/confirm-bulk",
       data,
     );
   },

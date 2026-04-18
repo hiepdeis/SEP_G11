@@ -48,7 +48,7 @@ export default function RoleGuard({ allowedRoles, children }: RoleGuardProps) {
 
   useEffect(() => {
     if (!isLoading && !hasAccess) {
-      router.replace(`/${user?.role?.toLowerCase() || "login"}`);
+      router.replace(`/${user?.role?.toLowerCase() || ""}`);
     }
   }, [isLoading, hasAccess, router, user]);
 
