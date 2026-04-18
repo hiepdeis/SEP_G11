@@ -133,11 +133,11 @@ namespace Backend.Domains.Import.Services
             if (newAlerts.Count > 0)
                 _context.StockShortageAlerts.AddRange(newAlerts);
 
-            if (newAlerts.Count > 0 || updatedAlerts > 0)
-                await _context.SaveChangesAsync();
-
             if (newAlerts.Count > 0)
                 await CreateManagerNotificationsAsync(newAlerts, materialMap, now);
+
+            if (newAlerts.Count > 0 || updatedAlerts > 0)
+                await _context.SaveChangesAsync();
 
             return new StockShortageDetectResultDto
             {
@@ -153,55 +153,118 @@ namespace Backend.Domains.Import.Services
             return DetectShortagesAsync(warehouseId);
         }
 
-        public async Task<List<StockShortageAlert>> GetPendingAlertsAsync()
+        // public async Task<List<StockShortageAlert>> GetPendingAlertsAsync()
+        // {
+        //     return await _context.StockShortageAlerts
+        //         .Include(a => a.Material)
+        //         .Include(a => a.Warehouse)
+        //         .Where(a => a.Status == "Pending")
+        //         .OrderByDescending(a => a.CreatedAt)
+        //         .AsNoTracking()
+        //         .ToListAsync();
+        // }
+
+        // public async Task<StockShortageAlert> ConfirmAlertAsync(long alertId, int managerId, decimal? adjustedQuantity, string? notes)
+        // {
+        //     var alert = await _context.StockShortageAlerts
+        //         .Include(a => a.Material)
+        //         .Include(a => a.Warehouse)
+        //         .FirstOrDefaultAsync(a => a.AlertId == alertId);
+
+        //     if (alert == null)
+        //         throw new KeyNotFoundException($"Alert with ID {alertId} not found");
+
+        //     if (alert.Status == "ManagerConfirmed")
+        //         throw new InvalidOperationException("Alert is already confirmed by manager");
+
+        //     if (adjustedQuantity.HasValue)
+        //     {
+        //         if (adjustedQuantity.Value <= 0)
+        //             throw new ArgumentException("Số lượng điều chỉnh phải lớn hơn 0");
+
+        //         if (adjustedQuantity.Value < alert.Material.MinStockLevel)
+        //             throw new ArgumentException("Số lượng điều chỉnh không được nhỏ hơn mức tồn tối thiểu của vật liệu");
+
+        //         if (alert.Material.MaxStockLevel.HasValue && (alert.CurrentQuantity + adjustedQuantity.Value) > alert.Material.MaxStockLevel.Value)
+        //         {
+        //             throw new ArgumentException($"Tổng số lượng tồn hiện tại và lượng cần mua vượt quá mức tồn tối đa ({alert.Material.MaxStockLevel.Value})");
+        //         }
+
+        //         alert.SuggestedQuantity = adjustedQuantity.Value;
+        //     }
+
+        //     alert.Status = "ManagerConfirmed";
+        //     alert.ConfirmedBy = managerId;
+        //     alert.ConfirmedAt = DateTime.UtcNow;
+
+        //     if (!string.IsNullOrWhiteSpace(notes))
+        //         alert.Notes = notes;
+
+        //     await CreateAdminNotificationsAsync(alert, DateTime.UtcNow);
+        //     await _context.SaveChangesAsync();
+
+        //     return alert;
+        // }
+
+        public async Task<List<StockShortageAlert>> BulkConfirmAlertsAsync(List<BulkConfirmAlertItemDto> requestItems, int managerId)
         {
-            return await _context.StockShortageAlerts
+            if (requestItems == null || requestItems.Count == 0)
+                return new List<StockShortageAlert>();
+
+            var alertIds = requestItems
+                .Select(x => x.AlertId)
+                .Distinct()
+                .ToList();
+
+            var alerts = await _context.StockShortageAlerts
                 .Include(a => a.Material)
                 .Include(a => a.Warehouse)
-                .Where(a => a.Status == "Pending")
-                .OrderByDescending(a => a.CreatedAt)
-                .AsNoTracking()
+                .Where(a => alertIds.Contains(a.AlertId) && a.Status == "Pending")
                 .ToListAsync();
-        }
 
-        public async Task<StockShortageAlert> ConfirmAlertAsync(long alertId, int managerId, decimal? adjustedQuantity, string? notes)
-        {
-            var alert = await _context.StockShortageAlerts
-                .Include(a => a.Material)
-                .Include(a => a.Warehouse)
-                .FirstOrDefaultAsync(a => a.AlertId == alertId);
+            var requestMap = requestItems
+                .GroupBy(x => x.AlertId)
+                .ToDictionary(g => g.Key, g => g.Last());
 
-            if (alert == null)
-                throw new KeyNotFoundException($"Alert with ID {alertId} not found");
+            var now = DateTime.UtcNow;
 
-            if (alert.Status == "ManagerConfirmed")
-                throw new InvalidOperationException("Alert is already confirmed by manager");
-
-            alert.Status = "ManagerConfirmed";
-            alert.ConfirmedBy = managerId;
-            alert.ConfirmedAt = DateTime.UtcNow;
-
-            if (adjustedQuantity.HasValue)
+            foreach (var alert in alerts)
             {
-                if (adjustedQuantity.Value <= 0)
-                    throw new ArgumentException("Số lượng điều chỉnh phải lớn hơn 0");
+                if (!requestMap.TryGetValue(alert.AlertId, out var requestItem))
+                    continue;
 
-                if (adjustedQuantity.Value < alert.Material.MinStockLevel)
-                    throw new ArgumentException("Số lượng điều chỉnh không được nhỏ hơn mức tồn tối thiểu của vật liệu");
+                if (requestItem.AdjustedQuantity.HasValue)
+                {
+                    var adjustedQuantity = requestItem.AdjustedQuantity.Value;
 
-                if (adjustedQuantity.Value > alert.Material.MaxStockLevel)
-                    throw new ArgumentException("Số lượng điều chỉnh không được lớn hơn mức tồn tối đa của vật liệu");
+                    if (adjustedQuantity <= 0)
+                        throw new ArgumentException("Số lượng điều chỉnh phải lớn hơn 0");
 
-                alert.SuggestedQuantity = adjustedQuantity.Value;
+                    if (alert.Material.MinStockLevel.HasValue && adjustedQuantity < alert.Material.MinStockLevel.Value)
+                    {
+                        throw new ArgumentException("Số lượng điều chỉnh không được nhỏ hơn mức tồn tối thiểu của vật liệu");
+                    }
+
+                    if (alert.Material.MaxStockLevel.HasValue && (alert.CurrentQuantity + adjustedQuantity) > alert.Material.MaxStockLevel.Value)
+                    {
+                        throw new ArgumentException($"Tổng số lượng tồn hiện tại và lượng cần mua vượt quá mức tồn tối đa ({alert.Material.MaxStockLevel.Value})");
+                    }
+
+                    alert.SuggestedQuantity = adjustedQuantity;
+                }
+
+                alert.Status = "ManagerConfirmed";
+                alert.ConfirmedBy = managerId;
+                alert.ConfirmedAt = now;
+
+                if (!string.IsNullOrWhiteSpace(requestItem.Notes))
+                    alert.Notes = requestItem.Notes;
             }
 
-            if (!string.IsNullOrWhiteSpace(notes))
-                alert.Notes = notes;
-
-            await CreateAdminNotificationsAsync(alert, DateTime.UtcNow);
+            await CreateAdminNotificationsAsync(alerts, now);
             await _context.SaveChangesAsync();
 
-            return alert;
+            return alerts;
         }
 
         private static decimal? CalculateSuggestedQuantity(Material material, decimal currentQuantity)
@@ -254,6 +317,8 @@ namespace Backend.Domains.Import.Services
             if (managerIds.Count == 0)
                 return;
 
+            var notifications = new List<Notification>();
+
             foreach (var alert in alerts)
             {
                 var materialName = materialMap.TryGetValue(alert.MaterialId, out var material)
@@ -266,7 +331,7 @@ namespace Backend.Domains.Import.Services
 
                 foreach (var managerId in managerIds)
                 {
-                    _context.Notifications.Add(new Notification
+                    notifications.Add(new Notification
                     {
                         UserId = managerId,
                         Message = message,
@@ -278,29 +343,75 @@ namespace Backend.Domains.Import.Services
                 }
             }
 
-            await _context.SaveChangesAsync();
+            if (notifications.Any())
+            {
+                _context.Notifications.AddRange(notifications);
+            }
         }
 
-        private async Task CreateAdminNotificationsAsync(StockShortageAlert alert, DateTime now)
+        // private async Task CreateAdminNotificationsAsync(StockShortageAlert alert, DateTime now)
+        // {
+        //     var adminIds = await GetUserIdsByRoleAsync("Admin");
+        //     if (adminIds.Count == 0)
+        //         return;
+
+        //     var materialName = alert.Material?.Name ?? $"Material {alert.MaterialId}";
+        //     var message = $"Alert {alert.AlertId} for {materialName} was confirmed by manager.";
+
+        //     var notifications = new List<Notification>();
+
+        //     foreach (var adminId in adminIds)
+        //     {
+        //         notifications.Add(new Notification
+        //         {
+        //             UserId = adminId,
+        //             Message = message,
+        //             RelatedEntityType = "StockShortageAlert",
+        //             RelatedEntityId = alert.AlertId,
+        //             IsRead = false,
+        //             CreatedAt = now
+        //         });
+        //     }
+
+        //     if (notifications.Any())
+        //     {
+        //         _context.Notifications.AddRange(notifications);
+        //     }
+        // }
+
+        private async Task CreateAdminNotificationsAsync(List<StockShortageAlert> alerts, DateTime now)
         {
+            if (alerts.Count == 0)
+                return;
+
             var adminIds = await GetUserIdsByRoleAsync("Admin");
             if (adminIds.Count == 0)
                 return;
 
-            var materialName = alert.Material?.Name ?? $"Material {alert.MaterialId}";
-            var message = $"Alert {alert.AlertId} for {materialName} was confirmed by manager.";
+            var notifications = new List<Notification>();
 
-            foreach (var adminId in adminIds)
+            foreach (var alert in alerts)
             {
-                _context.Notifications.Add(new Notification
+                var materialName = alert.Material?.Name ?? $"Material {alert.MaterialId}";
+                var message = $"Alert {alert.AlertId} for {materialName} was confirmed by manager.";
+
+                foreach (var adminId in adminIds)
                 {
-                    UserId = adminId,
-                    Message = message,
-                    RelatedEntityType = "StockShortageAlert",
-                    RelatedEntityId = alert.AlertId,
-                    IsRead = false,
-                    CreatedAt = now
-                });
+                    notifications.Add(new Notification
+                    {
+                        UserId = adminId,
+                        Message = message,
+                        RelatedEntityType = "StockShortageAlert",
+                        RelatedEntityId = alert.AlertId,
+                        IsRead = false,
+                        CreatedAt = now
+                    });
+                }
+            }
+
+            if (notifications.Any())
+            {
+                _context.Notifications.AddRange(notifications);
             }
         }
     }
