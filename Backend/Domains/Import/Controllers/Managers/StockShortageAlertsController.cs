@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Backend.Data;
+using Backend.Domains.Import.DTOs.Internal;
 using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
@@ -56,23 +57,44 @@ namespace Backend.Domains.Import.Controllers.Managers
             }
         }
 
-        [HttpPut("{alertId:long}/confirm")]
-        public async Task<IActionResult> ConfirmAlert(long alertId, [FromBody] ConfirmStockShortageAlertDto dto)
+        // [HttpPut("{alertId:long}/confirm")]
+        // public async Task<IActionResult> ConfirmAlert(long alertId, [FromBody] ConfirmStockShortageAlertDto dto)
+        // {
+        //     try
+        //     {
+        //         var managerId = 2; // TODO: replace with JWT claims
+        //         var alert = await _service.ConfirmAlertAsync(alertId, managerId, dto.AdjustedQuantity, dto.Notes);
+        //         var userNames = await LoadUserNamesAsync(new[] { alert });
+        //         return Ok(ToDto(alert, userNames));
+        //     }
+        //     catch (KeyNotFoundException ex)
+        //     {
+        //         return NotFound(new { message = ex.Message });
+        //     }
+        //     catch (InvalidOperationException ex)
+        //     {
+        //         return BadRequest(new { message = ex.Message });
+        //     }
+        //     catch (ArgumentException ex)
+        //     {
+        //         return BadRequest(new { message = ex.Message });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+        //     }
+        // }
+
+        [HttpPut("confirm-bulk")]
+        public async Task<IActionResult> BulkConfirmAlerts([FromBody] List<BulkConfirmAlertItemDto> requestItems)
         {
             try
             {
                 var managerId = 2; // TODO: replace with JWT claims
-                var alert = await _service.ConfirmAlertAsync(alertId, managerId, dto.AdjustedQuantity, dto.Notes);
-                var userNames = await LoadUserNamesAsync(new[] { alert });
-                return Ok(ToDto(alert, userNames));
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
+                var alerts = await _service.BulkConfirmAlertsAsync(requestItems, managerId);
+                var userNames = await LoadUserNamesAsync(alerts);
+                var result = alerts.Select(a => ToDto(a, userNames)).ToList();
+                return Ok(result);
             }
             catch (ArgumentException ex)
             {
