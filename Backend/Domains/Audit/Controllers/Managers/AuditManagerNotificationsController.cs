@@ -8,7 +8,7 @@ namespace Backend.Domains.Audit.Controllers.Managers
 {
     [ApiController]
     [Route("api/manager/audit-notifications")]
-    [Authorize(Roles = "Manager,manager")] 
+    [Authorize(Roles = "WarehouseManager")] 
     public class AuditManagerNotificationsController : ControllerBase
     {
         private readonly MyDbContext _db;

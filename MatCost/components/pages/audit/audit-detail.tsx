@@ -93,7 +93,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   useEffect(() => {
     if (isAdminFinalizing && !prevIsAdminFinalizing && detailData) {
       // 1. Find Manager from signatures
-      const managerSig = detailData.signatures?.find(s => s.role === "Manager");
+      const managerSig = detailData.signatures?.find(s => s.role === "WarehouseManager");
       if (managerSig) {
         setManagerInfo({ id: managerSig.userId, name: managerSig.fullName || `User #${managerSig.userId}` });
         setTargetManagerId(managerSig.userId.toString());

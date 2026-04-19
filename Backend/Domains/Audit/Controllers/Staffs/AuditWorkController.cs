@@ -7,7 +7,7 @@ namespace Backend.Domains.Audit.Controllers.Staffs;
 
 [ApiController]
 [Route("api/staff/audits")]
-[Authorize(Roles = "Staff")]
+[Authorize(Roles = "WarehouseStaff")]
 public class AuditWorkController : ControllerBase
 {
     private readonly IAuditTeamService _svc;

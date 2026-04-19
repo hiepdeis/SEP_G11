@@ -294,8 +294,8 @@ public sealed class AuditReportPdfDocument : IDocument
         // Staff → Trưởng ban kiểm kê (Inventory Team Leader)
         var adminSig = FindSignerWithData("Admin");
         var accountantSig = FindSignerWithData("Accountant");
-        var managerSig = FindSignerWithData("Manager");
-        var staffSig = FindSignerWithData("Staff");
+        var managerSig = FindSignerWithData("WarehouseManager");
+        var staffSig = FindSignerWithData("WarehouseStaff");
 
         container.Column(col =>
         {

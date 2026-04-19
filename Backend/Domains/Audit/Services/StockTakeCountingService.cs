@@ -458,7 +458,7 @@ namespace Backend.Domains.Audit.Services
                 .Include(x => x.Role)
                 .FirstOrDefaultAsync(x => x.UserId == managerUserId, ct);
 
-            if (manager == null || !string.Equals(manager.Role.RoleName, "Manager", StringComparison.OrdinalIgnoreCase))
+            if (manager == null || !string.Equals(manager.Role.RoleName, "WarehouseManager", StringComparison.OrdinalIgnoreCase))
                 return (false, "You do not have permission to update this audit.");
 
             var member = await _db.StockTakeTeamMembers

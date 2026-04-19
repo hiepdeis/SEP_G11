@@ -274,7 +274,7 @@ namespace Backend.Domains.Audit.Services
                 $"Kế hoạch Audit #{st.StockTakeId} ({st.Title}) đã được cập nhật thông tin.",
                 includeCreator: true,
                 includeTeamMembers: true,
-                roleNames: new[] { "Manager" },
+                roleNames: new[] { "WarehouseManager" },
                 extraUserIds: null,
                 excludeUserIds: null,
                 ct);

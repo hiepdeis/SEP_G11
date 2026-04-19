@@ -577,7 +577,7 @@ namespace Backend.Domains.Audit.Services
                 $"Chênh lệch cho vật tư #{detail.MaterialId} trong Audit #{st.StockTakeId} ({st.Title}) đã được xử lý với phương án {DescribeResolutionAction(normalizedAction)}.",
                 includeCreator: true,
                 includeTeamMembers: false,
-                roleNames: new[] { "Manager" },
+                roleNames: new[] { "WarehouseManager" },
                 extraUserIds: detail.CountedBy.HasValue ? new[] { detail.CountedBy.Value } : null,
                 excludeUserIds: new[] { resolvedByUserId },
                 ct);
@@ -621,7 +621,7 @@ namespace Backend.Domains.Audit.Services
                 return (false, "Manager signature is required.");
 
             // Save Manager signature
-            await AddSignatureIfNotExistsAsync(stockTakeId, managerUserId, "Manager", signatureData, ct);
+            await AddSignatureIfNotExistsAsync(stockTakeId, managerUserId, "WarehouseManager", signatureData, ct);
 
             // Transition to PendingAccountantApproval
             st.Status = "PendingAccountantApproval";
@@ -677,7 +677,7 @@ namespace Backend.Domains.Audit.Services
                 $"Lý do chênh lệch cho vật tư #{detail.MaterialId} trong Audit #{st.StockTakeId} ({st.Title}) đã được cập nhật.",
                 includeCreator: true,
                 includeTeamMembers: false,
-                roleNames: new[] { "Manager" },
+                roleNames: new[] { "WarehouseManager" },
                 extraUserIds: detail.CountedBy.HasValue ? new[] { detail.CountedBy.Value } : null,
                 excludeUserIds: null,
                 ct);
@@ -842,7 +842,7 @@ namespace Backend.Domains.Audit.Services
                 $"Audit #{st.StockTakeId} ({st.Title}) có yêu cầu kiểm kê lại cho vật tư #{detail.MaterialId} tại bin #{detail.BinId ?? 0}.",
                 includeCreator: true,
                 includeTeamMembers: true,
-                roleNames: new[] { "Manager" },
+                roleNames: new[] { "WarehouseManager" },
                 extraUserIds: detail.CountedBy.HasValue ? new[] { detail.CountedBy.Value } : null,
                 excludeUserIds: new[] { managerUserId },
                 ct);
@@ -1130,7 +1130,7 @@ namespace Backend.Domains.Audit.Services
             if (user == null)
                 return (false, "User not found.", null);
 
-            var isStaff = string.Equals(user.Role.RoleName, "Staff", StringComparison.OrdinalIgnoreCase);
+            var isStaff = string.Equals(user.Role.RoleName, "WarehouseStaff", StringComparison.OrdinalIgnoreCase);
 
             if (!isStaff)
                 return (false, "Only staff can use the sign-off flow. Use the dedicated workflow actions instead.", null);
@@ -1179,7 +1179,7 @@ namespace Backend.Domains.Audit.Services
             {
                 StockTakeId = stockTakeId,
                 UserId = userId,
-                Role = "Staff",
+                Role = "WarehouseStaff",
                 SignedAt = DateTime.UtcNow,
                 SignatureData = request.Notes?.Trim()
             };
@@ -1220,7 +1220,7 @@ namespace Backend.Domains.Audit.Services
             {
                 UserId = signature.UserId,
                 FullName = user.FullName,
-                Role = "Staff",
+                Role = "WarehouseStaff",
                 SignedAt = signature.SignedAt,
                 Notes = signature.SignatureData
             };
@@ -1263,7 +1263,7 @@ namespace Backend.Domains.Audit.Services
                     $"Audit #{st.StockTakeId} ({st.Title}) có chênh lệch. Kế toán đã chuyển xuống Manager để xem xét.",
                     includeCreator: true,
                     includeTeamMembers: false,
-                    roleNames: new[] { "Manager" },
+                    roleNames: new[] { "WarehouseManager" },
                     extraUserIds: null,
                     excludeUserIds: new[] { userId },
                     ct);

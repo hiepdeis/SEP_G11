@@ -1,4 +1,4 @@
-﻿using Backend.Data;
+using Backend.Data;
 using Backend.Domains.Audit.Interfaces;
 using Backend.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -117,7 +117,7 @@ namespace Backend.Domains.Audit.Services
                 $"Audit #{st.StockTakeId} ({st.Title}) đã được khóa phạm vi và bắt đầu kiểm kê.",
                 includeCreator: true,
                 includeTeamMembers: true,
-                roleNames: new[] { "Manager" },
+                roleNames: new[] { "WarehouseManager" },
                 extraUserIds: null,
                 excludeUserIds: new[] { userId },
                 ct);
@@ -174,7 +174,7 @@ namespace Backend.Domains.Audit.Services
                 $"Audit #{st.StockTakeId} ({st.Title}) đã được mở khóa phạm vi kiểm kê.",
                 includeCreator: true,
                 includeTeamMembers: true,
-                roleNames: new[] { "Manager" },
+                roleNames: new[] { "WarehouseManager" },
                 extraUserIds: null,
                 excludeUserIds: new[] { userId },
                 ct);
