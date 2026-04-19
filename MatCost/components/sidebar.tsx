@@ -49,7 +49,6 @@ export function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const { user: userDecode } = useAuth();
-
   const [showInboundMobile, setShowInboundMobile] = useState(false);
   const [showOutboundMobile, setShowOutboundMobile] = useState(false);
   const [showReportsMobile, setShowReportsMobile] = useState(false);
@@ -76,35 +75,58 @@ export function Sidebar() {
     };
   }, []);
 
+  const getRoleBasePath = (role?: string) => {
+    if (!role) return "";
+    const r = role.toLowerCase();
+    if (r.includes("admin")) return "/admin";
+    if (r.includes("accountant")) return "/accountant";
+    if (r.includes("manager")) return "/manager";
+    if (r.includes("staff")) return "/staff";
+    if (r.includes("construction")) return "/construction";
+    if (r.includes("purchasing")) return "/purchasing";
+    return `/${r}`;
+  };
+
+  const checkHasRole = (allowedRoles?: string[], currentRole?: string) => {
+    if (!allowedRoles || allowedRoles.length === 0) return true;
+    if (!currentRole) return false;
+    return allowedRoles.some((allowedRole) =>
+      currentRole.toLowerCase().includes(allowedRole.toLowerCase()),
+    );
+  };
+
+  const userRole = userDecode?.role ?? "";
+  const basePath = getRoleBasePath(userRole);
+
   const navItems = [
     {
       label: t("sidebar.dashboard"),
       icon: LayoutGrid,
-      href: `/${userDecode?.role.toLowerCase()}`,
+      href: basePath || "/", // Tận dụng basePath luôn
     },
     {
       label: t("sidebar.materials"),
       icon: BrickWall,
-      href: `/${userDecode?.role.toLowerCase()}/materials`,
+      href: `${basePath}/materials`, // Tự động nối thành /staff/materials hoặc /manager/materials
       roles: ["Manager", "Staff"],
     },
     {
       label: t("sidebar.warehouses"),
       icon: Warehouse,
-      href: `/${userDecode?.role.toLowerCase()}/warehouses`,
+      href: `${basePath}/warehouses`,
       roles: ["Manager", "Staff"],
     },
     {
       label: t("sidebar.suppliers"),
       icon: Cable,
-      href: `/${userDecode?.role.toLowerCase()}/suppliers`,
+      href: `${basePath}/suppliers`,
       roles: ["Purchasing", "Accountant"],
     },
     {
       label: t("sidebar.projects"),
       icon: FolderKanban,
-      href: `/${userDecode?.role.toLowerCase()}/projects`,
-      roles: ["Accountant"],
+      href: `${basePath}/projects`,
+      roles: ["Accountant", "Manager"],
     },
   ];
 
@@ -280,15 +302,10 @@ export function Sidebar() {
     },
   ];
 
-  const userRole = userDecode?.role ?? "";
-
   const filteredNavItems = useMemo(() => {
     if (devBypassRole) return navItems;
-    return navItems.filter((item) => {
-      if (!item.roles) return true;
-      return item.roles.includes(userRole);
-    });
-  }, [devBypassRole, userRole, t, userDecode]);
+    return navItems.filter((item) => checkHasRole(item.roles, userRole));
+  }, [devBypassRole, userRole, t, basePath]);
 
   type InboundTab = {
     label: string;
@@ -300,7 +317,7 @@ export function Sidebar() {
   const inboundTabs: InboundTab[] = useMemo(() => {
     if (devBypassRole) return allInboundTabs;
     return allInboundTabs
-      .filter((tab) => tab.roles.includes(userRole))
+      .filter((tab) => checkHasRole(tab.roles, userRole))
       .flatMap((tab) =>
         tab.subItems
           ? tab.subItems.map((sub) => ({ label: sub.label, href: sub.href }))
@@ -310,7 +327,7 @@ export function Sidebar() {
 
   const auditTabs = useMemo(() => {
     if (devBypassRole) return allAuditTabs;
-    return allAuditTabs.filter((tab) => tab.roles.includes(userRole));
+    return allAuditTabs.filter((tab) => checkHasRole(tab.roles, userRole));
   }, [devBypassRole, userRole, t]);
 
   type ReportTab = {
@@ -324,7 +341,7 @@ export function Sidebar() {
   const reportRoles: ReportTab[] = useMemo(() => {
     if (devBypassRole) return allReportRoles;
     return allReportRoles
-      .filter((r) => r.roles.includes(userRole))
+      .filter((r) => checkHasRole(r.roles, userRole))
       .flatMap((r) =>
         r.categories.map((cat) => ({ label: cat.label, href: cat.href })),
       );
@@ -929,52 +946,6 @@ export function Sidebar() {
                 );
               })}
 
-              {/* Outbound Accordion Mobile */}
-              <div className="space-y-1">
-                <button
-                  onClick={() => setShowOutboundMobile((v) => !v)}
-                  className={`
-                    flex items-center gap-4 px-4 py-3.5 rounded-xl w-full transition-all duration-200 group relative
-                    ${
-                      pathname.startsWith("/outbound")
-                        ? "bg-blue-50 text-blue-700 font-semibold shadow-sm"
-                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                    }
-                  `}
-                >
-                  <Upload
-                    className={`h-5 w-5 flex-shrink-0 transition-colors ${
-                      pathname.startsWith("/outbound")
-                        ? "text-blue-600"
-                        : "text-slate-400 group-hover:text-slate-600"
-                    }`}
-                  />
-                  <span className="text-base flex-1 text-left">Outbound</span>
-                  <ChevronDown
-                    className={`w-4 h-4 transition-transform duration-200 ${showOutboundMobile ? "rotate-180" : ""}`}
-                  />
-                </button>
-
-                {showOutboundMobile && (
-                  <div className="ml-10 flex flex-col gap-1 border-l-2 border-slate-100 pl-2">
-                    {outboundTabs.map((tab) => (
-                      <a
-                        key={tab.href}
-                        href={tab.href}
-                        onClick={() => setIsMobileOpen(false)}
-                        className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                          pathname === tab.href
-                            ? "bg-blue-100 text-blue-700 font-semibold"
-                            : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
-                        }`}
-                      >
-                        {tab.label}
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </div>
-
               {/* Inbound Accordion Mobile */}
               <div className="space-y-1">
                 <button
@@ -1045,6 +1016,54 @@ export function Sidebar() {
                         </a>
                       ),
                     )}
+                  </div>
+                )}
+              </div>
+
+              {/* Outbound Accordion Mobile */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setShowOutboundMobile((v) => !v)}
+                  className={`
+                    flex items-center gap-4 px-4 py-3.5 rounded-xl w-full transition-all duration-200 group relative
+                    ${
+                      pathname.startsWith("/outbound")
+                        ? "bg-blue-50 text-blue-700 font-semibold shadow-sm"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    }
+                  `}
+                >
+                  <Upload
+                    className={`h-5 w-5 flex-shrink-0 transition-colors ${
+                      pathname.startsWith("/outbound")
+                        ? "text-blue-600"
+                        : "text-slate-400 group-hover:text-slate-600"
+                    }`}
+                  />
+                  <span className="text-base flex-1 text-left">
+                    {t("sidebar.outbound")}
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform duration-200 ${showOutboundMobile ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {showOutboundMobile && (
+                  <div className="ml-10 flex flex-col gap-1 border-l-2 border-slate-100 pl-2">
+                    {outboundTabs.map((tab) => (
+                      <a
+                        key={tab.href}
+                        href={tab.href}
+                        onClick={() => setIsMobileOpen(false)}
+                        className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                          pathname === tab.href
+                            ? "bg-blue-100 text-blue-700 font-semibold"
+                            : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                        }`}
+                      >
+                        {tab.label}
+                      </a>
+                    ))}
                   </div>
                 )}
               </div>
@@ -1169,7 +1188,7 @@ export function Sidebar() {
                 )}
               </div>
 
-              <a
+              {/* <a
                 href="/security/2fa"
                 onClick={() => setIsMobileOpen(false)}
                 className={`
@@ -1192,7 +1211,7 @@ export function Sidebar() {
                   }`}
                 />
                 <span className="text-base flex-1 text-left">Bảo mật 2FA</span>
-              </a>
+              </a> */}
             </nav>
             <nav>
               <a

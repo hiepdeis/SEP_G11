@@ -550,6 +550,7 @@ export default function ManagerReceiptDetailPage() {
           "Please enter the OTP to confirm stamping this receipt. This action will notify the Accounting team.",
         )}
         submitText={t("Confirm & Stamp")}
+        requireSignature={true}
       />
     </div>
   );

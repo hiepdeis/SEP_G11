@@ -412,7 +412,7 @@ export default function ManagerIncidentDetailPage() {
                   {/* NÚT DUYỆT/TỪ CHỐI ĐỀN BÙ */}
                   {isSupplementaryPending && (
                     <CardFooter className="border-t border-indigo-100 p-4 flex justify-end gap-3">
-                      {/* <Button
+                      <Button
                         variant="outline"
                         className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700"
                         onClick={() => setRejectModalOpen(true)}
@@ -420,7 +420,7 @@ export default function ManagerIncidentDetailPage() {
                       >
                         <AlertCircle className="w-4 h-4 mr-2" />
                         {t("Reject Request")}
-                      </Button> */}
+                      </Button>
                       <Button
                         className="bg-indigo-600 hover:bg-indigo-700 text-white"
                         onClick={() => setIsApproveModalOpen(true)}
@@ -773,7 +773,7 @@ export default function ManagerIncidentDetailPage() {
                 setRejectModalOpen(false);
                 setRejectReason("");
               }}
-              className="text-slate-600 hover:bg-slate-100"
+              className="text-slate-600 hover:bg-slate-100 hover:text-slate-600"
               disabled={isRejecting}
             >
               {t("Cancel")}
