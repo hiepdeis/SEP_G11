@@ -18,7 +18,7 @@ public class PurchaseRequest
     public string RequestCode { get; set; } = null!;
 
     [Column("ProjectID")]
-    public int ProjectId { get; set; }
+    public int? ProjectId { get; set; }
 
     [Column("AlertID")]
     public long? AlertId { get; set; }
@@ -35,7 +35,7 @@ public class PurchaseRequest
 
     [ForeignKey("ProjectId")]
     [InverseProperty("PurchaseRequests")]
-    public virtual Project Project { get; set; } = null!;
+    public virtual Project? Project { get; set; }
 
     [ForeignKey("AlertId")]
     [InverseProperty("PurchaseRequests")]

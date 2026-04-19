@@ -211,7 +211,7 @@ namespace Backend.Domains.Import.Services
         {
             var query = ActivePOsOnly(_context.PurchaseOrders)
                 .Include(o => o.RejectionHistories)
-                .Include(o => o.Project)
+                // .Include(o => o.Project)
                 .Include(o => o.Supplier)
                 .Include(o => o.PurchaseRequest)
                 .Include(o => o.Items)
@@ -227,7 +227,7 @@ namespace Backend.Domains.Import.Services
         {
             return await _context.PurchaseOrders
                 .Include(o => o.RejectionHistories)
-                .Include(o => o.Project)
+                // .Include(o => o.Project)
                 .Include(o => o.Supplier)
                 .Include(o => o.PurchaseRequest)
                 .Include(o => o.Items)
@@ -258,7 +258,7 @@ namespace Backend.Domains.Import.Services
 
             purchaseOrder.TotalAmount = purchaseOrder.Items.Sum(i => i.OrderedQuantity * (i.UnitPrice ?? 0));
 
-            await EnsureBudgetAvailableAsync(purchaseOrder.ProjectId, purchaseOrder.TotalAmount ?? 0, purchaseOrder.PurchaseOrderId);
+            // await EnsureBudgetAvailableAsync(purchaseOrder.ProjectId, purchaseOrder.TotalAmount ?? 0, purchaseOrder.PurchaseOrderId);
 
             purchaseOrder.Status = "AccountantApproved";
             purchaseOrder.AccountantApprovedBy = accountantId;
@@ -673,39 +673,39 @@ namespace Backend.Domains.Import.Services
                 .ToDictionaryAsync(x => x.MaterialId, x => x.Price);
         }
 
-        private async Task EnsureBudgetAvailableAsync(int projectId, decimal currentPoAmount, long purchaseOrderId)
-        {
-            var project = await _context.Projects
-                .FirstOrDefaultAsync(p => p.ProjectId == projectId);
+        // private async Task EnsureBudgetAvailableAsync(int projectId, decimal currentPoAmount, long purchaseOrderId)
+        // {
+        //     var project = await _context.Projects
+        //         .FirstOrDefaultAsync(p => p.ProjectId == projectId);
 
-            if (project == null)
-                throw new KeyNotFoundException($"Project with ID {projectId} not found");
+        //     if (project == null)
+        //         throw new KeyNotFoundException($"Project with ID {projectId} not found");
 
-            if (!project.Budget.HasValue)
-                throw new InvalidOperationException("Project budget is not set");
+        //     if (!project.Budget.HasValue)
+        //         throw new InvalidOperationException("Project budget is not set");
 
-            var countedStatuses = new[]
-            {
-                "AccountantApproved",
-                "AdminApproved",
-                "SentToSupplier",
-                "GoodsReceived",
-                "FullyReceived",
-                "PartiallyReceived",
-                "OverReceived"
-            };
+        //     var countedStatuses = new[]
+        //     {
+        //         "AccountantApproved",
+        //         "AdminApproved",
+        //         "SentToSupplier",
+        //         "GoodsReceived",
+        //         "FullyReceived",
+        //         "PartiallyReceived",
+        //         "OverReceived"
+        //     };
 
-            var approvedTotal = await _context.PurchaseOrders
-                .Where(p => p.ProjectId == projectId)
-                .Where(p => p.PurchaseOrderId != purchaseOrderId)
-                .Where(p => countedStatuses.Contains(p.Status))
-                .SumAsync(p => p.TotalAmount ?? 0);
+        //     var approvedTotal = await _context.PurchaseOrders
+        //         .Where(p => p.ProjectId == projectId)
+        //         .Where(p => p.PurchaseOrderId != purchaseOrderId)
+        //         .Where(p => countedStatuses.Contains(p.Status))
+        //         .SumAsync(p => p.TotalAmount ?? 0);
 
-            var remaining = project.Budget.Value - approvedTotal;
-            if (currentPoAmount > remaining)
-                throw new InvalidOperationException(
-                    $"Project budget exceeded. Remaining: {remaining}, current PO: {currentPoAmount}");
-        }
+        //     var remaining = project.Budget.Value - approvedTotal;
+        //     if (currentPoAmount > remaining)
+        //         throw new InvalidOperationException(
+        //             $"Project budget exceeded. Remaining: {remaining}, current PO: {currentPoAmount}");
+        // }
 
         private async Task<List<int>> GetUserIdsByRoleAsync(string roleName)
         {
