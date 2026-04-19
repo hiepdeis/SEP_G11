@@ -41,7 +41,7 @@ builder.Configuration
 builder.Services.AddDbContext<MyDbContext>(options =>
               options.UseSqlServer(
                   builder.Configuration.GetConnectionString("DefaultConnection")
-                 //ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
+              //ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
               ));
 // Add services to the container.
 
@@ -167,6 +167,7 @@ using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<MyDbContext>();
     await SeedData.InitializeAsync(context);
+    await SeedData1.InitializeAsync(context);
 }
 
 
