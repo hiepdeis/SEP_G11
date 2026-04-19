@@ -827,7 +827,7 @@ export default function StaffIncidentPage({
                                           updateBreakdown(
                                             absoluteIdx,
                                             "quality",
-                                            e.target.value.slice(0, 9),
+                                            e.target.value.slice(0, 12),
                                           );
                                         }}
                                         disabled={isHistoryView}
@@ -864,7 +864,7 @@ export default function StaffIncidentPage({
                                           updateBreakdown(
                                             absoluteIdx,
                                             "damage",
-                                            e.target.value.slice(0, 9),
+                                            e.target.value.slice(0, 12),
                                           );
                                         }}
                                         disabled={isHistoryView}
