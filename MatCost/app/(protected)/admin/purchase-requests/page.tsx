@@ -641,9 +641,6 @@ export default function AdminPurchaseManagementPage() {
                               )}
                             </div>
                           </TableHead>
-                          <TableHead className="w-[25%]">
-                            {t("Project")}
-                          </TableHead>
                           <TableHead
                             className="cursor-pointer transition-colors w-[15%]"
                             onClick={() => handleSort("items")}
@@ -773,14 +770,6 @@ export default function AdminPurchaseManagementPage() {
                                   <span className="text-xs text-slate-400 flex items-center gap-1 mt-1">
                                     <CalendarDays className="w-3 h-3" />{" "}
                                     {formatDateTime(item.createdAt)}
-                                  </span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2 text-slate-600">
-                                  <Building2 className="w-4 h-4 text-indigo-500" />
-                                  <span className="font-medium text-slate-800">
-                                    {item.projectName}
                                   </span>
                                 </div>
                               </TableCell>

@@ -9,7 +9,7 @@ export interface PurchaseOrderDto {
   purchaseOrderCode: string;
   requestId?: number;
   requestCode?: string;
-  projectId: number;
+  projectId?: number;
   projectName: string;
   supplierId: number;
   supplierName: string;
@@ -59,7 +59,7 @@ export interface PriceReviewItemDto {
 export interface PurchaseRequestDto {
   requestId: number;
   requestCode: string;
-  projectId: number;
+  projectId?: number;
   projectName: string;
   alertId?: number;
   createdBy: number;
@@ -85,7 +85,7 @@ export interface PurchaseRequestItemInputDto {
 }
 
 export interface CreatePurchaseRequestFromAlertDto {
-  projectId: number;
+  projectId?: number;
   items: PurchaseRequestItemInputDto[];
 }
 

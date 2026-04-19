@@ -151,16 +151,6 @@ export default function PurchaseRequestDetailPage({ role = "admin" }) {
 
                   <div className="space-y-1">
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-                      {t("Project")}
-                    </span>
-                    <div className="flex items-center gap-2 text-slate-800 font-medium">
-                      <Building2 className="w-4 h-4 text-slate-400" />
-                      {request.projectName}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                       {t("Created Date")}
                     </span>
                     <div className="flex items-center gap-2 text-slate-800 font-medium">

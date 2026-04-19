@@ -637,9 +637,6 @@ export default function PurchasingDashboardPage() {
                           <TableHead className="w-[20%]">
                             {t("Supplier")}
                           </TableHead>
-                          <TableHead className="w-[15%]">
-                            {t("Project")}
-                          </TableHead>
                           <TableHead
                             className="cursor-pointer transition-colors w-[15%]"
                             onClick={() => handleSort("amount")}
@@ -682,9 +679,6 @@ export default function PurchasingDashboardPage() {
                                 <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50 hover:text-indigo-600" />
                               )}
                             </div>
-                          </TableHead>
-                          <TableHead className="w-[25%]">
-                            {t("Project")}
                           </TableHead>
                           <TableHead
                             className="cursor-pointer transition-colors w-[15%]"
@@ -783,14 +777,6 @@ export default function PurchasingDashboardPage() {
                                   </span>
                                   <span className="text-xs text-slate-500 mt-0.5">
                                     {item.items?.length || 0} {t("items")}
-                                  </span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2 text-slate-600 text-sm">
-                                  <Building2 className="w-4 h-4 text-indigo-500 shrink-0" />
-                                  <span className="truncate">
-                                    {item.projectName}
                                   </span>
                                 </div>
                               </TableCell>
@@ -950,14 +936,6 @@ export default function PurchasingDashboardPage() {
                                   <span className="text-xs text-slate-400 flex items-center gap-1 mt-1">
                                     <CalendarDays className="w-3 h-3" />{" "}
                                     {formatDateTime(item.createdAt)}
-                                  </span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2 text-slate-600">
-                                  <Building2 className="w-4 h-4 text-indigo-500" />
-                                  <span className="font-medium text-slate-800">
-                                    {item.projectName}
                                   </span>
                                 </div>
                               </TableCell>

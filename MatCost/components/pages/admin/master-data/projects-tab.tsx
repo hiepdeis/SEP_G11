@@ -182,7 +182,8 @@ export function ProjectsTab({
       return;
     }
 
-    if (!budgetUsed || !budget) {
+    if (!budget || budgetUsed === null) {
+      console.log(budgetUsed, budget);
       toast.error(t("Budget used and budget cannot be empty"));
       return;
     }
@@ -545,26 +546,43 @@ export function ProjectsTab({
                   </div>
                   <div className="space-y-2">
                     <Label>{t("Budget Used")}</Label>
-                    <CurrencyInput
+                    <Input
+                      type="number"
                       disabled={modalMode === "view"}
-                      value={editing.budgetUsed}
-                      onValueChange={(val) =>
-                        setEditing((prev) => ({ ...prev!, budgetUsed: val }))
-                      }
+                      value={editing?.budgetUsed ?? ""}
+                      onChange={(e) => {
+                        let val = e.target.value;
+                        val = val.replace(/^0+(?=\d)/, "");
+                        val = val.replace(/[^\d]/g, "");
+                        val = val.slice(0, 12);
+                        e.target.value = val;
+                        setEditing((prev) => ({
+                          ...prev!,
+                          budgetUsed: val === "" ? null : Number(val),
+                        }));
+                      }}
+                      className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>{t("Over Budget Allowance (%)")}</Label>
-                  <QuantityInput
+                  <Label>{t("Over Budget Allowance")}</Label>
+                  <Input
+                    type="number"
                     disabled={modalMode === "view"}
-                    value={Number(editing.overBudgetAllowance ?? "")}
-                    onValueChange={(val) =>
+                    value={editing?.overBudgetAllowance ?? ""}
+                    onChange={(e) => {
+                      let val = e.target.value;
+                      val = val.replace(/^0+(?=\d)/, "");
+                      val = val.replace(/[^\d]/g, "");
+                      val = val.slice(0, 12);
+                      e.target.value = val;
                       setEditing((prev) => ({
-                        ...prev,
-                        overBudgetAllowance: val,
-                      }))
-                    }
+                        ...prev!,
+                        overBudgetAllowance: val === "" ? null : Number(val),
+                      }));
+                    }}
+                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
               </div>

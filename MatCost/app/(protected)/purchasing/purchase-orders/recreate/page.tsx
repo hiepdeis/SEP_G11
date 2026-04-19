@@ -359,19 +359,6 @@ export default function RecreatePurchaseOrderPage() {
                         </span>
                       </Badge>
                     </div>
-
-                    <div>
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                        {t("Project Name")}
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className="text-md px-3 py-1 text-slate-600 bg-slate-50 border-slate-200"
-                      >
-                        <Construction className="w-3.5 h-3.5 text-slate-500" />
-                        {originalOrder?.projectName}
-                      </Badge>
-                    </div>
                   </div>
 
                   <div className="space-y-2 pt-4 border-t border-slate-100">

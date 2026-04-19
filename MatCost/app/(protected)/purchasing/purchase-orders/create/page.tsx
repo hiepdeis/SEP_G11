@@ -330,10 +330,6 @@ export default function CreatePurchaseOrderPage() {
                                 <span className="font-medium text-slate-800 group-focus:text-white">
                                   {r.requestCode}
                                 </span>
-                                <span className="text-xs text-slate-500 mt-0.5 group-focus:text-indigo-100">
-                                  {t("Project")}: {r.projectName} | {t("Items")}
-                                  : {r.items?.length || 0}
-                                </span>
                               </div>
                             </SelectItem>
                           ))}

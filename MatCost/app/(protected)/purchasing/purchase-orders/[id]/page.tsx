@@ -522,17 +522,6 @@ export default function PurchaseOrderDetailPage() {
                       {order.supplierName}
                     </div>
                   </div>
-
-                  <div className="space-y-1 flex flex-col">
-                    <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-                      {t("Destination Project")}
-                    </span>
-                    <div className="flex items-center gap-2 text-slate-800 font-medium">
-                      <Construction className="w-3.5 h-3.5 text-slate-500" />
-                      {order.projectName}
-                    </div>
-                  </div>
-
                   {order.requestId && (
                     <div className="space-y-1 flex flex-col">
                       <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">

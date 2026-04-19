@@ -1317,5 +1317,13 @@
   "Enter any notes here...": "Nhập bất kỳ ghi chú nào tại đây...",
   "Notes (Optional)": "Ghi chú (Tùy chọn)",
   "Are you sure you want to confirm these alerts? Adjusted Restock Quantity will be set to Suggested Quantity": "Bạn có chắc chắn muốn xác nhận các cảnh báo này? Số lượng bổ sung sẽ được đặt thành Số lượng đề xuất",
-  "Confirm Selected Alerts": "Xác nhận các cảnh báo đã chọn"
+  "Confirm Selected Alerts": "Xác nhận các cảnh báo đã chọn",
+  "Member": "Thành viên",
+  "Advanced Filters": "Bộ lọc nâng cao",
+  "Date Range": "Khoảng thời gian",
+  "Year Range": "Khoảng năm",
+  "From": "Từ",
+  "To": "Đến",
+  "From Year": "Từ năm",
+  "To Year": "Đến năm"
 }

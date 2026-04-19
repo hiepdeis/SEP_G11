@@ -209,8 +209,6 @@ export default function AccountantPurchaseOrderListPage({
     }
   };
 
-
-
   const formatPlus = (num: number) => (num > 999 ? "999+" : num);
 
   const pendingCount = orders.filter(
@@ -442,7 +440,6 @@ export default function AccountantPurchaseOrderListPage({
                         </div>
                       </TableHead>
                       <TableHead className="w-[20%]">{t("Supplier")}</TableHead>
-                      <TableHead className="w-[15%]">{t("Project")}</TableHead>
                       <TableHead
                         className="cursor-pointer transition-colors w-[15%]"
                         onClick={() => handleSort("amount")}
@@ -517,15 +514,6 @@ export default function AccountantPurchaseOrderListPage({
                               </span>
                               <span className="text-xs text-slate-500 mt-0.5">
                                 {item.items?.length || 0} {t("items")}
-                              </span>
-                            </div>
-                          </TableCell>
-
-                          <TableCell>
-                            <div className="flex items-center gap-2 text-slate-600 text-sm">
-                              <Building2 className="w-4 h-4 text-indigo-500 shrink-0" />
-                              <span className="truncate">
-                                {item.projectName}
                               </span>
                             </div>
                           </TableCell>

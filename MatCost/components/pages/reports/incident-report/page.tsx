@@ -162,14 +162,13 @@ export default function IncidentReportsPage({
     setSortConfig({ key, direction });
   };
 
-  // Fetch Staff List for Manager
   useEffect(() => {
     const fetchStaffs = async () => {
-      if (role?.toLowerCase() === "manager") {
+      if (role?.toLowerCase() === "manager" || role?.toLowerCase() === "admin") {
         try {
           const res = await userApi.getAll(1, 100);
           const staffs = res.data.users.filter(
-            (u) => u.roleName.toLowerCase() === "staff",
+            (u) => u.roleName.toLowerCase() === "staff" || u.roleName.toLowerCase() === "manager",
           );
           setStaffList(staffs);
         } catch (error) {
@@ -262,7 +261,7 @@ export default function IncidentReportsPage({
     let matchesStaff = true;
     if (role?.toLowerCase() === "staff") {
       matchesStaff = item.creatorId === user?.id;
-    } else if (role?.toLowerCase() === "manager" && selectedStaffId !== "All") {
+    } else if ((role?.toLowerCase() === "manager" || role?.toLowerCase() === "admin") && selectedStaffId !== "All") {
       matchesStaff = item.creatorId.toString() === selectedStaffId;
     }
 
@@ -448,33 +447,7 @@ export default function IncidentReportsPage({
             </SelectContent>
           </Select>
 
-          {role?.toLowerCase() === "manager" && (
-            <Select value={selectedStaffId} onValueChange={setSelectedStaffId}>
-              <SelectTrigger className="w-[180px] bg-white border-slate-200 shadow-sm h-9 cursor-pointer">
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-slate-500" />
-                  <span className="truncate">
-                    {selectedStaffId === "All"
-                      ? t("All Staffs")
-                      : staffList.find(
-                          (s) => s.id.toString() === selectedStaffId,
-                        )?.fullName || t("Unknown")}
-                  </span>
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">{t("All Staffs")}</SelectItem>
-                {staffList.map((staff) => (
-                  <SelectItem key={staff.id} value={staff.id.toString()}>
-                    {staff.fullName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
           <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
-            {/* Filter Popover */}
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -516,7 +489,6 @@ export default function IncidentReportsPage({
                     </Button>
                   </div>
 
-                  {/* Date Range Group */}
                   <div className="space-y-2">
                     <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
                       {t("Date Range")}
@@ -529,7 +501,6 @@ export default function IncidentReportsPage({
                     </div>
                   </div>
 
-                  {/* Year Range Group */}
                   <div className="space-y-2">
                     <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
                       {t("Year Range")}
@@ -540,11 +511,10 @@ export default function IncidentReportsPage({
                     />
                   </div>
 
-                  {/* Staff Group (Managers only) */}
-                  {role?.toLowerCase() === "manager" && (
+                  {(role?.toLowerCase() === "manager" || role?.toLowerCase() === "admin") && (
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-                        {t("Staff Member")}
+                        {t("Member")}
                       </label>
                       <Select
                         value={selectedStaffId}
@@ -555,7 +525,7 @@ export default function IncidentReportsPage({
                             <User className="w-4 h-4 text-slate-500" />
                             <span className="truncate">
                               {selectedStaffId === "All"
-                                ? t("All Staffs")
+                                ? t("All")
                                 : staffList.find(
                                     (s) => s.id.toString() === selectedStaffId,
                                   )?.fullName || t("Unknown")}
@@ -563,7 +533,7 @@ export default function IncidentReportsPage({
                           </div>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="All">{t("All Staffs")}</SelectItem>
+                          <SelectItem value="All">{t("All")}</SelectItem>
                           {staffList.map((staff) => (
                             <SelectItem
                               key={staff.id}
