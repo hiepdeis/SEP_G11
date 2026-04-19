@@ -11,7 +11,8 @@ export interface MaterialBatchDto { materialId: number; materialName: string; ba
 export interface UpsertCountRequest { materialId: number; binCode: string; batchCode: string; countQty: number; reason?: string; }
 export interface AuditMetricsDto { totalItems: number; countedItems: number; matchedItems: number; discrepancyItems: number; countingProgress: number; }
 export interface VarianceItemDto { id: number; materialName: string; binCode: string; batchCode: string; systemQty: number; countQty: number; variance: number; discrepancyStatus: string; resolutionAction?: string; countRound?: number; unitPrice: number; }
-export interface StockTakeReviewDetailDto { stockTakeId: number; title: string; status: string; warehouseId: number; warehouseName: string; notes?: string; metrics: AuditMetricsDto; signatures?: SignatureInfoDto[]; timeline?: any; teamMembers?: any; }
+export interface StockTakeReviewDetailDto { stockTakeId: number; title: string; status: string; warehouseId: number; warehouseName: string; notes?: string; metrics: AuditMetricsDto; signatures?: SignatureInfoDto[]; timeline?: any; teamMembers?: any; varianceSummary?: any; penalty?: PenaltyInfoDto; }
+export interface PenaltyInfoDto { penaltyId: number; reason: string; amount: number; notes?: string; issuedByUserId: number; issuedByName?: string; targetUserId: number; targetUserName?: string; createdAt: string; }
 export interface SignatureInfoDto { userId: number; fullName: string; role: string; signedAt: string; notes?: string; }
 export interface RecountCandidateDto { userId: number; fullName: string; isActive: boolean; assignedAt: string; removedAt?: string; }
 
@@ -91,14 +92,23 @@ export const auditService = {
     const response = await axiosClient.get<{items: VarianceItemDto[]}>(`/manager/audits/${stockTakeId}/variances/details`);
     return response.data.items;
   },
-  resolveVariance: async (stockTakeId: number, detailId: number, resolutionAction: string, adjustmentReasonId?: number, signatureData?: string) => {
-    const payload = { resolutionAction, adjustmentReasonId, signatureData };
+  resolveVariance: async (stockTakeId: number, detailId: number, resolutionAction: string, adjustmentReasonId?: number, signatureData?: string, notes?: string) => {
+    const payload = { resolutionAction, adjustmentReasonId, signatureData, notes };
     const response = await axiosClient.put(`/manager/audits/${stockTakeId}/variances/${detailId}/resolve`, payload);
     return response.data;
   },
   requestRecount: async (stockTakeId: number, detailId: number, reasonId: number, note: string = "") => {
     const payload = { reasonId, note };
     const response = await axiosClient.put(`/manager/audits/${stockTakeId}/variances/${detailId}/request-recount`, payload);
+    return response.data;
+  },
+  requestRecountAll: async (stockTakeId: number, reasonId: number, note: string = "") => {
+    const payload = { reasonId, note };
+    const response = await axiosClient.post(`/manager/audits/${stockTakeId}/request-recount-all`, payload);
+    return response.data;
+  },
+  managerConfirmResolution: async (stockTakeId: number, signatureData?: string) => {
+    const response = await axiosClient.post(`/manager/audits/${stockTakeId}/confirm-resolution`, { signatureData });
     return response.data;
   },
   
@@ -140,8 +150,8 @@ export const auditService = {
   },
 
   /** Accountant rejects Manager's resolution → escalate to Admin */
-  accountantRejectResolve: async (stockTakeId: number, notes: string = "") => {
-    const response = await axiosClient.post(`/accountants/audits/${stockTakeId}/reject-resolve`, { notes });
+  accountantRejectResolve: async (stockTakeId: number, notes: string = "", signatureData?: string) => {
+    const response = await axiosClient.post(`/accountants/audits/${stockTakeId}/reject-resolve`, { notes, signatureData });
     return response.data;
   },
 

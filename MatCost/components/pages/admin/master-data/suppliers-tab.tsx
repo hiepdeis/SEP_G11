@@ -47,7 +47,13 @@ import {
   matchesContracts,
 } from "@/lib/master-data-utils";
 
-export function SuppliersTab() {
+export function SuppliersTab({
+  viewOnly = false,
+  role = "admin",
+}: {
+  viewOnly?: boolean;
+  role?: string;
+}) {
   const { t } = useTranslation();
   const router = useRouter();
   const [items, setItems] = useState<SupplierItem[]>([]);
@@ -228,12 +234,17 @@ export function SuppliersTab() {
               setPage(1);
             }}
             placeholder={t("Search...")}
-            className="pl-10 m-2 bg-white"
+            className="pl-10 m-2 bg-white w-[99%]"
           />
         </div>
-        <Button onClick={openAdd} className="bg-indigo-600 hover:bg-indigo-700">
-          <Plus className="w-4 h-4 mr-2" /> {t("Add New")}
-        </Button>
+        {!viewOnly && (
+          <Button
+            onClick={openAdd}
+            className="bg-indigo-600 hover:bg-indigo-700 mr-2"
+          >
+            <Plus className="w-4 h-4 mr-2" /> {t("Add New")}
+          </Button>
+        )}
       </div>
 
       <div className="flex-grow flex flex-col bg-white rounded-xl border border-gray-100 overflow-hidden min-h-0">
@@ -280,16 +291,7 @@ export function SuppliersTab() {
                       </Badge>
                     </TableCell>
                     <TableCell className="px-5 py-3 text-sm">
-                      <span
-                        className="font-medium hover:text-indigo-600 cursor-pointer"
-                        onClick={() =>
-                          router.push(
-                            `/admin/master-data/suppliers/${item._id}`,
-                          )
-                        }
-                      >
-                        {item.name}
-                      </span>
+                      {item.name}
                     </TableCell>
                     <TableCell className="px-5 py-3 text-sm">
                       {item.taxCode || "—"}
@@ -303,32 +305,38 @@ export function SuppliersTab() {
                           variant="ghost"
                           size="icon"
                           onClick={() =>
-                            router.push(
-                              `/admin/master-data/suppliers/${item._id}`,
-                            )
+                            role === "admin"
+                              ? router.push(
+                                  `/admin/master-data/suppliers/${item._id}`,
+                                )
+                              : router.push(`/${role}/suppliers/${item._id}`)
                           }
                           className="h-8 w-8 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEdit(item)}
-                          disabled={deletingId === item._id}
-                          className="h-8 w-8 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => remove(item._id)}
-                          disabled={deletingId === item._id}
-                          className="h-8 w-8 text-gray-500 hover:text-red-600 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {!viewOnly && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEdit(item)}
+                              disabled={deletingId === item._id}
+                              className="h-8 w-8 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => remove(item._id)}
+                              disabled={deletingId === item._id}
+                              className="h-8 w-8 text-gray-500 hover:text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

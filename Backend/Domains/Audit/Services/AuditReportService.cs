@@ -1,4 +1,4 @@
-﻿using Backend.Data;
+using Backend.Data;
 using Backend.Domains.Audit.DTOs.Accountants;
 
 using Backend.Domains.Audit.Interfaces;
@@ -124,7 +124,8 @@ public sealed class AuditReportService : IAuditReportService
                 Role = s.Role,
                 UserId = s.UserId,
                 FullName = u.FullName,
-                SignedAt = s.SignedAt
+                SignedAt = s.SignedAt,
+                SignatureData = s.SignatureData
             }
         ).ToListAsync(ct);
 

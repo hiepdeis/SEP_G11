@@ -17,8 +17,8 @@ export default function LoginSuccess() {
         // Cookie HttpOnly sẽ tự động được gửi kèm request này.
         const res = await authApi.getMe();
 
-        const  accessToken  = res.data.accessToken;
-        console.log("Received access token:", accessToken);
+        const accessToken = res.data.accessToken;
+        // console.log("Received access token:", accessToken);
         if (!accessToken) throw new Error("Không nhận được access token");
 
         // 1. Lưu token vào Memory (Biến trong axios-client)
@@ -36,13 +36,14 @@ export default function LoginSuccess() {
         console.error("Error", error);
         // Lấy message lỗi từ Backend
         let msg = "Login failed. Please try again.";
-        
+
         if (error.response) {
-            // Backend trả về lỗi 403 (Forbid) kèm message
-            if (error.response.data) msg = error.response.data;
-            if (error.response.status === 403) msg = "Your account has been deactivated.";
+          // Backend trả về lỗi 403 (Forbid) kèm message
+          if (error.response.data) msg = error.response.data;
+          if (error.response.status === 403)
+            msg = "Your account has been deactivated.";
         } else if (error.request) {
-            msg = "Network error. Cannot connect to server.";
+          msg = "Network error. Cannot connect to server.";
         }
 
         router.replace(`/login-error?message=${encodeURIComponent(msg)}`);

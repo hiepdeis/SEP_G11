@@ -21,7 +21,7 @@ export function FullPageSpinner({
     >
       <div className="flex flex-col items-center gap-2">
         <div className="w-12 h-12 border-4 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-sm font-medium text-slate-500">{t(text)}</p>
+        <p className="text-sm font-medium text-slate-500">{text}</p>
       </div>
     </div>
   );

@@ -106,6 +106,8 @@ export interface StockShortageAlertDto {
   confirmedBy?: number;
   confirmedByName?: number;
   notes?: string;
+  unit?: string;
+  isDecimalUnit?: boolean;
 }
 
 export interface ConfirmStockShortageAlertDto {
@@ -258,6 +260,7 @@ export interface ManagerIncidentSummaryDto {
   receiptId: number;
   receiptCode?: string;
   submittedAt: string;
+  status?: string;
   items: ManagerIncidentItemSummaryDto[];
 }
 
@@ -398,6 +401,7 @@ export interface PurchasingIncidentSummaryDto {
   receiptId: number;
   receiptCode?: string;
   createdAt: string;
+  status?: string;
   items: PurchasingIncidentItemSummaryDto[];
 }
 
@@ -718,6 +722,7 @@ export interface IncidentReportSummaryDto {
   receiptCode?: string | null;
   warehouseName?: string | null;
   createdAt: string;
+  createdBy: number;
   createdByName?: string | null;
   description: string;
   status: string;
@@ -1108,6 +1113,11 @@ export const staffReceiptsApi = {
   getPendingPurchaseOrders: () => {
     return axiosClient.get<PendingPurchaseOrderDto[]>(
       "/staff/receipts/pending-pos",
+    );
+  },
+  getPendingPurchaseOrderDetail: (purchaseOrderId: number) => {
+    return axiosClient.get<PendingPurchaseOrderDto>(
+      `/staff/receipts/pending-pos/${purchaseOrderId}`,
     );
   },
   getPendingSupplementaryReceiptDetail: (supplementaryReceiptId: number) => {

@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { showConfirmToast } from "@/hooks/confirm-toast";
 import { formatDateTime } from "@/lib/format-date-time";
+import { formatQuantity } from "@/lib/format-quantity";
 
 export default function AlertDetailPage({ role = "manager" }) {
   const params = useParams();
@@ -268,7 +269,7 @@ export default function AlertDetailPage({ role = "manager" }) {
                         {t("Current Stock")}
                       </span>
                       <div className="text-2xl font-bold text-rose-600">
-                        {alert.currentQuantity.toLocaleString("vi-VN")}
+                        {formatQuantity(alert.currentQuantity)} {alert.unit}
                       </div>
                     </div>
                     <div className="space-y-1">
@@ -276,7 +277,7 @@ export default function AlertDetailPage({ role = "manager" }) {
                         {t("Min Level")}
                       </span>
                       <div className="text-2xl font-bold text-slate-700">
-                        {alert.minStockLevel?.toLocaleString("vi-VN") || 0}
+                        {formatQuantity(alert.minStockLevel || 0)} {alert.unit}
                       </div>
                     </div>
                   </div>
@@ -316,8 +317,7 @@ export default function AlertDetailPage({ role = "manager" }) {
                       <p className="text-xs text-indigo-700 mt-1">
                         {t("The system recommends restocking")}{" "}
                         <strong className="text-lg mx-1">
-                          {alert.suggestedQuantity?.toLocaleString("vi-VN") ||
-                            0}
+                          {formatQuantity(alert.suggestedQuantity) || 0}
                         </strong>{" "}
                         {t("units to reach safe inventory levels.")}
                       </p>
@@ -334,11 +334,25 @@ export default function AlertDetailPage({ role = "manager" }) {
                       min="1"
                       className="text-lg font-semibold h-12 focus-visible:ring-indigo-600"
                       value={adjustedQuantity}
-                      onChange={(e) =>
-                        setAdjustedQuantity(
-                          e.target.value.replace(/-/g, "").slice(0, 12),
-                        )
-                      }
+                      onChange={(e) => {
+                        let val = e.target.value;
+                        val = val.replace(/-/g, "");
+                        if (
+                          val.length > 1 &&
+                          val.startsWith("0") &&
+                          val[1] !== "."
+                        ) {
+                          val = val.replace(/^0+/, "") || "0";
+                        }
+                        if (!alert.isDecimalUnit) {
+                          val = val.replace(/\./g, "");
+                        } else if (val.includes(".")) {
+                          const parts = val.split(".");
+                          val = parts[0] + "." + parts[1].slice(0, 3);
+                        }
+                        e.target.value = val.slice(0, 12);
+                        setAdjustedQuantity(e.target.value);
+                      }}
                       disabled={!isPending}
                       placeholder={t("Enter quantity to restock...")}
                     />

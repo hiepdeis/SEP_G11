@@ -310,11 +310,9 @@ export default function InboundReceiptsPage({
     }
   };
 
-
-
   const innerContent = (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="bg-white border-slate-200 shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg">

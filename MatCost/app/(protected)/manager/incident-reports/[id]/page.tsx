@@ -276,7 +276,7 @@ export default function ManagerIncidentDetailPage() {
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                       {t("Incident Code")}
                     </span>
-                    <div className="flex items-center gap-2 text-amber-700 font-medium bg-amber-50 w-fit px-2 py-1 rounded border border-amber-100">
+                    <div className="flex items-center gap-2 text-amber-700 font-medium">
                       <FileWarning className="w-4 h-4 text-amber-500" />
                       {incident.incidentCode}
                     </div>
@@ -286,7 +286,7 @@ export default function ManagerIncidentDetailPage() {
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                       {t("Related Receipt")}
                     </span>
-                    <div className="flex items-center gap-2 text-indigo-700 font-medium bg-indigo-50 w-fit px-2 py-1 rounded border border-indigo-100">
+                    <div className="flex items-center gap-2 text-indigo-700 font-medium">
                       <Receipt className="w-4 h-4 text-indigo-500" />
                       {incident.receiptCode || `#${incident.receiptId}`}
                     </div>
@@ -412,7 +412,7 @@ export default function ManagerIncidentDetailPage() {
                   {/* NÚT DUYỆT/TỪ CHỐI ĐỀN BÙ */}
                   {isSupplementaryPending && (
                     <CardFooter className="border-t border-indigo-100 p-4 flex justify-end gap-3">
-                      <Button
+                      {/* <Button
                         variant="outline"
                         className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700"
                         onClick={() => setRejectModalOpen(true)}
@@ -420,7 +420,7 @@ export default function ManagerIncidentDetailPage() {
                       >
                         <AlertCircle className="w-4 h-4 mr-2" />
                         {t("Reject Request")}
-                      </Button>
+                      </Button> */}
                       <Button
                         className="bg-indigo-600 hover:bg-indigo-700 text-white"
                         onClick={() => setIsApproveModalOpen(true)}

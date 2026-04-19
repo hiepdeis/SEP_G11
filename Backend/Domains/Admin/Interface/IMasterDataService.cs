@@ -1,4 +1,4 @@
-﻿using Backend.Domains.Admin.Dtos;
+using Backend.Domains.Admin.Dtos;
 
 namespace Backend.Domains.Admin.Interface
 {
@@ -62,6 +62,14 @@ namespace Backend.Domains.Admin.Interface
         Task<bool> UpdateSupplierContractAsync(int id, UpsertSupplierContractDto request, CancellationToken ct);
         Task<bool> DeleteSupplierContractAsync(int id, CancellationToken ct);
         Task<List<SupplierContractDto>> GetSupplierContractsBySupplierIdAsync(int supplierId, CancellationToken ct);
+
+        // Supplier Quotations
+        Task<MasterDataPagedResult<SupplierQuotationDto>> GetSupplierQuotationsAsync(MasterDataQueryDto query, CancellationToken ct);
+        Task<SupplierQuotationDto?> GetSupplierQuotationByIdAsync(int id, CancellationToken ct);
+        Task<int> CreateSupplierQuotationAsync(UpsertSupplierQuotationDto request, CancellationToken ct);
+        Task<bool> UpdateSupplierQuotationAsync(int id, UpsertSupplierQuotationDto request, CancellationToken ct);
+        Task<bool> DeleteSupplierQuotationAsync(int id, CancellationToken ct);
+        Task<List<SupplierQuotationDto>> GetSupplierQuotationsBySupplierIdAsync(int supplierId, CancellationToken ct);
     
     }
 }

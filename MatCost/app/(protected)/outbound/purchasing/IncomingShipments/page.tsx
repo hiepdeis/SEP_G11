@@ -1,14 +1,18 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, MapPin, Calendar, Package, Truck, CheckCircle2, Factory } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2, Search, MapPin, Calendar, Package, Truck, CheckCircle2, Factory, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { directPurchaseApi } from "@/services/directPurchase-service";
 import { issueSlipApi } from '@/services/issueslip-service';
 import axiosClient from "@/lib/axios-client";
+import { Sidebar } from '@/components/sidebar';
+import { Header } from '@/components/ui/custom/header';
+
 export default function IncomingShipments() {
   const [shipments, setShipments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,10 +57,10 @@ export default function IncomingShipments() {
         await axiosClient.post(`/DirectPurchase/${shipment.recordId}/confirm-receipt`);
       }
 
-      toast.success(`Đã xác nhận nhận chuyến xe ${shipment.licensePlate} thành công!`);
+      toast.success(`Đã xác nhận nhận chuyến xe ${shipment.licensePlate || shipment.code} thành công!`);
       
       // Xóa chuyến xe khỏi danh sách chờ
-      setShipments(prev => prev.filter(s => (s.recordId || s.id) !== targetId));
+      setShipments(prev => prev.filter(s => (s.recordId || s.id) !== shipment.recordId));
     } catch (error) {
       toast.error("Lỗi khi xác nhận nhận hàng!");
     } finally {
@@ -70,95 +74,126 @@ export default function IncomingShipments() {
     s.sourceName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (loading) return <div className="p-10 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-indigo-500"/></div>;
-
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-6">
-      
-      {/* HEADER & THANH TÌM KIẾM */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 sticky top-4 z-10">
-        <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-4">
-          <Truck className="w-6 h-6 text-indigo-600" /> Hàng Chờ Nhận Tại Cổng
-        </h1>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-          <Input 
-            className="pl-10 h-12 text-lg bg-slate-50 border-slate-300 focus-visible:ring-indigo-500 rounded-lg"
-            placeholder="Nhập biển số xe (VD: 29C) hoặc tên NCC..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {/* DANH SÁCH CHUYẾN XE */}
-      <div className="space-y-4 pb-20">
-        {filteredShipments.length === 0 ? (
-          <div className="text-center p-10 text-slate-500 bg-white rounded-xl border border-dashed border-slate-300">
-            Không có chuyến xe nào đang chờ.
+    <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
+      <Sidebar />
+      <main className="flex-grow flex flex-col overflow-hidden relative z-10">
+        <Header title="Incoming Shipments" />
+        
+        <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
+          <div className="flex justify-between items-center">
+            <div className="flex flex-col gap-1">
+               <h1 className="text-2xl font-bold tracking-tight text-slate-900">Incoming Shipments</h1>
+               <p className="text-sm text-slate-500">Manage and confirm incoming shipments and delivery trucks.</p>
+            </div>
           </div>
-        ) : (
-          filteredShipments.map((shipment) => {
-            const isInternal = shipment.type === 'Issue_Slip';
 
-            return (
-              <Card key={shipment.code} className={`border-l-4 shadow-sm ${isInternal ? 'border-l-emerald-500' : 'border-l-indigo-500'}`}>
-                <CardHeader className="p-4 pb-2 flex flex-row justify-between items-start bg-slate-50/50">
-                  <div>
-                    <Badge variant="outline" className={`mb-2 font-bold ${isInternal ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-indigo-700 bg-indigo-50 border-indigo-200'}`}>
-                      {isInternal ? 'Xuất từ Kho' : 'Mua Mới (NCC)'}
-                    </Badge>
-                    <h3 className="text-lg font-bold text-slate-800 tracking-tight">{shipment.code}</h3>
+           <Card className="border-slate-200 shadow-sm bg-white flex flex-col gap-0 pb-0">
+             <CardHeader className="border-b border-slate-100 pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
+                  <div className="flex items-center gap-2">
+                     <span className="text-sm font-medium text-slate-700">Total:</span>
+                     <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200">{filteredShipments.length} shipments</Badge>
                   </div>
-                  {shipment.licensePlate && (
-                    <div className="bg-yellow-400 text-yellow-900 font-bold px-3 py-1 rounded border border-yellow-500 text-lg shadow-sm">
-                      {shipment.licensePlate}
-                    </div>
-                  )}
-                </CardHeader>
-                
-                <CardContent className="p-4 pt-2 space-y-3">
-                  <div className="flex items-center gap-2 text-slate-700 text-base font-medium">
-                    {isInternal ? <Factory className="w-5 h-5 text-slate-400"/> : <MapPin className="w-5 h-5 text-slate-400"/>}
-                    {shipment.sourceName}
+                  <div className="relative w-full sm:w-72 flex-shrink-0">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                    <Input 
+                       placeholder="Search by code, license plate or source..." 
+                       className="pl-9 bg-white shadow-sm h-9" 
+                       value={searchQuery} 
+                       onChange={(e) => setSearchQuery(e.target.value)} 
+                    />
                   </div>
-                  
-                  <div className="flex items-start gap-2 text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <Package className="w-5 h-5 text-slate-400 mt-0.5 shrink-0"/>
-                    <span className="line-clamp-2">{shipment.itemsSummary}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-sm text-slate-500 pt-1">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4" /> 
-                      {shipment.expectedDate ? new Date(shipment.expectedDate).toLocaleString('vi-VN', {hour: '2-digit', minute:'2-digit', day: '2-digit', month: '2-digit'}) : 'Chưa có lịch'}
-                    </div>
-                    <span className="text-amber-600 font-medium flex items-center gap-1">
-                      <Truck className="w-4 h-4"/> {shipment.status}
-                    </span>
-                  </div>
-                </CardContent>
-
-                <CardFooter className="p-4 pt-0">
-                  <Button 
-                    size="lg" 
-                    className="w-full h-14 text-lg font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md transition-transform active:scale-[0.98]"
-                    onClick={() => handleConfirmReceipt(shipment)}
-                    disabled={processingId === shipment.code}
-                  >
-                    {processingId === shipment.code ? (
-                      <Loader2 className="w-6 h-6 mr-2 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="w-6 h-6 mr-2" />
-                    )}
-                    XÁC NHẬN ĐỦ HÀNG
-                  </Button>
-                </CardFooter>
-              </Card>
-            );
-          })
-        )}
-      </div>
+                </div>
+             </CardHeader>
+             
+             <CardContent className="p-0 flex flex-col">
+               <div className="w-full [&>div]:max-h-[calc(100vh-280px)] [&>div]:overflow-y-auto">
+                 <Table className="w-full min-w-[900px] table-fixed">
+                   <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
+                     <TableRow className="bg-slate-50 hover:bg-slate-50">
+                       <TableHead className="pl-6 w-[20%] text-slate-800 font-bold">Shipment Info</TableHead>
+                       <TableHead className="w-[20%] text-slate-800 font-bold">Source & License</TableHead>
+                       <TableHead className="w-[22%] text-slate-800 font-bold">Contents</TableHead>
+                       <TableHead className="w-[15%] text-slate-800 font-bold">Expected Time</TableHead>
+                       <TableHead className="w-[8%] text-center text-slate-800 font-bold">Status</TableHead>
+                       <TableHead className="w-[15%] text-right pr-6 text-slate-800 font-bold">Action</TableHead>
+                     </TableRow>
+                   </TableHeader>
+                   <TableBody>
+                     {loading ? (
+                        <TableRow><TableCell colSpan={6} className="h-32 text-center"><div className="flex justify-center items-center gap-2 text-indigo-600"><Loader2 className="w-6 h-6 animate-spin" /> Loading shipments...</div></TableCell></TableRow>
+                     ) : filteredShipments.length === 0 ? (
+                        <TableRow><TableCell colSpan={6} className="h-32 text-center text-slate-500 border-b-0"><div className="flex flex-col items-center justify-center gap-2"><Truck className="w-8 h-8 text-slate-300" /><p>No incoming shipments currently.</p></div></TableCell></TableRow>
+                     ) : (
+                       filteredShipments.map((shipment) => {
+                         const isInternal = shipment.type === 'Issue_Slip';
+                         return (
+                           <TableRow key={shipment.code} className="hover:bg-slate-50/50 transition-colors">
+                             <TableCell className="pl-6">
+                               <div className="flex justify-start">
+                                 <Badge variant="outline" className={`mb-1 font-bold ${isInternal ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-indigo-700 bg-indigo-50 border-indigo-200'}`}>
+                                   {isInternal ? 'Internal' : 'Supplier'}
+                                 </Badge>
+                               </div>
+                               <div className="font-bold text-slate-800 truncate" title={shipment.code}>{shipment.code}</div>
+                             </TableCell>
+                             <TableCell>
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700 truncate" title={shipment.sourceName}>
+                                     {isInternal ? <Factory className="w-4 h-4 text-slate-400 shrink-0"/> : <MapPin className="w-4 h-4 text-slate-400 shrink-0"/>}
+                                     {shipment.sourceName}
+                                  </div>
+                                  {shipment.licensePlate && (
+                                     <div className="inline-flex items-center gap-1 w-fit bg-yellow-100 text-yellow-800 font-bold px-2 py-0.5 rounded border border-yellow-300 text-xs shadow-sm">
+                                        <Truck className="w-3 h-3" /> {shipment.licensePlate}
+                                     </div>
+                                  )}
+                                </div>
+                             </TableCell>
+                             <TableCell>
+                                <div className="flex items-start gap-2 text-slate-600 bg-slate-50 p-2 rounded-md border border-slate-100 max-h-[60px] overflow-hidden">
+                                  <Package className="w-4 h-4 text-slate-400 mt-0.5 shrink-0"/>
+                                  <span className="text-xs line-clamp-2" title={shipment.itemsSummary}>{shipment.itemsSummary}</span>
+                                </div>
+                             </TableCell>
+                             <TableCell>
+                               <span className="text-sm text-slate-500 flex items-center gap-1.5">
+                                 <Calendar className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />
+                                 {shipment.expectedDate ? new Date(shipment.expectedDate).toLocaleString('vi-VN', {hour: '2-digit', minute:'2-digit', day: '2-digit', month: '2-digit'}) : 'Unscheduled'}
+                               </span>
+                             </TableCell>
+                             <TableCell className="text-center">
+                               <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 gap-1 border-none font-medium whitespace-nowrap">
+                                  <Truck className="w-3 h-3" /> {shipment.status}
+                               </Badge>
+                             </TableCell>
+                             <TableCell className="text-right pr-6">
+                               <Button 
+                                  size="sm" 
+                                  className="font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all"
+                                  onClick={() => handleConfirmReceipt(shipment)}
+                                  disabled={processingId === shipment.code}
+                                >
+                                  {processingId === shipment.code ? (
+                                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                                  ) : (
+                                    <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                                  )}
+                                  Confirm Receipt
+                                </Button>
+                             </TableCell>
+                           </TableRow>
+                         );
+                       })
+                     )}
+                   </TableBody>
+                 </Table>
+               </div>
+             </CardContent>
+           </Card>
+        </div>
+      </main>
     </div>
   );
 }

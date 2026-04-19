@@ -1,11 +1,11 @@
 "use client";
 
-import ManagerMaterialManagement from "@/components/pages/materials/materials";
+import MaterialManagementPage from "@/components/pages/materials/materials";
 
 export default function StaffMaterialManagementPage() {
   return (
     <>
-      <ManagerMaterialManagement />
+      <MaterialManagementPage role="staff" />
     </>
   );
 }

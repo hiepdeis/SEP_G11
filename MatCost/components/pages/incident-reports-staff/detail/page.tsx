@@ -278,15 +278,22 @@ export default function StaffIncidentPage({
 
     const invalidBreakdownItem = incidentItems.find((i) => {
       const failQuantityQuantity = Math.max(
-        i.orderedQuantity - i.actualQuantity,
+        Number(formatQuantity(i.orderedQuantity)) -
+          Number(formatQuantity(i.actualQuantity)),
         0,
       );
 
       const totalFail =
-        i.orderedQuantity - i.passQuantity - failQuantityQuantity;
-      const sum = i.breakdown.quality + i.breakdown.damage;
+        Number(formatQuantity(i.orderedQuantity)) -
+        Number(formatQuantity(i.passQuantity)) -
+        failQuantityQuantity;
+      const sum =
+        Number(formatQuantity(i.breakdown.quality)) +
+        Number(formatQuantity(i.breakdown.damage));
       return Math.abs(sum - totalFail) > 0.0001;
     });
+
+    // console.log(invalidBreakdownItem);
 
     if (invalidBreakdownItem) {
       return toast.error(
@@ -337,9 +344,10 @@ export default function StaffIncidentPage({
               };
             }),
           };
-          await staffReceiptsApi.createIncidentReport(id, payload);
+          const res = await staffReceiptsApi.createIncidentReport(id, payload);
           toast.success(t("Incident Report created successfully!"));
           await initData();
+          handleSubmitToManager(res.data.incidentId);
         } catch (error: any) {
           toast.error(
             error.response?.data?.message ||
@@ -415,33 +423,23 @@ export default function StaffIncidentPage({
     });
   };
 
-  const handleSubmitToManager = () => {
-    if (!historicalIncidentData?.incidentId) return;
+  const handleSubmitToManager = async (idFromCreate?: number) => {
+    const targetIncidentId = idFromCreate || historicalIncidentData?.incidentId;
+    if (!targetIncidentId) return;
 
-    showConfirmToast({
-      title: t("Submit for Manager Review?"),
-      description: t(
-        "Are you sure you want to forward this incident report to the Warehouse Manager?",
-      ),
-      confirmLabel: t("Yes, Submit"),
-      onConfirm: async () => {
-        setIsSubmittingToManager(true);
-        try {
-          await staffIncidentApi.submitToManager(
-            historicalIncidentData.incidentId,
-          );
-          toast.success(t("Report submitted to manager successfully!"));
+    setIsSubmittingToManager(true);
+    try {
+      await staffIncidentApi.submitToManager(targetIncidentId);
+      toast.success(t("Report submitted to manager successfully!"));
 
-          router.push(`/${rolePath}/incident-reports`);
-        } catch (error: any) {
-          toast.error(
-            error.response?.data?.message || t("Failed to submit report"),
-          );
-        } finally {
-          setIsSubmittingToManager(false);
-        }
-      },
-    });
+      router.push(`/${rolePath}/incident-reports`);
+    } catch (error: any) {
+      toast.error(
+        error.response?.data?.message || t("Failed to submit report"),
+      );
+    } finally {
+      setIsSubmittingToManager(false);
+    }
   };
 
   const handleImageUpload = async (
@@ -558,42 +556,46 @@ export default function StaffIncidentPage({
                 )}
               </div>
             </div>
-
-            {!isHistoryView ? (
-              <Button
-                className="bg-red-600 hover:bg-red-700 text-white min-w-[150px] shadow-sm"
-                onClick={handleSubmitIncident}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            {role !== "view-only" && (
+              <>
+                {!isHistoryView ? (
+                  <Button
+                    className="bg-red-600 hover:bg-red-700 text-white min-w-[150px] shadow-sm"
+                    onClick={handleSubmitIncident}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <FileWarning className="w-4 h-4 mr-2" />
+                    )}
+                    {t("Submit Report")}
+                  </Button>
+                ) : isHistoryView &&
+                  historicalIncidentData?.status === "Open" ? (
+                  <div className="flex flex-col gap-2 items-end">
+                    {/* <Button
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md min-w-[200px]"
+                      onClick={handleSubmitToManager}
+                      disabled={isSubmittingToManager}
+                    >
+                      {isSubmittingToManager ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <Send className="w-4 h-4 mr-2" />
+                      )}
+                      {t("Submit for Manager Review")}
+                    </Button> */}
+                    <span className="text-xs text-slate-500 italic">
+                      {t(
+                        "Note: The incident report will be sent to the manager for review and approval.",
+                      )}
+                    </span>
+                  </div>
                 ) : (
-                  <FileWarning className="w-4 h-4 mr-2" />
+                  <></>
                 )}
-                {t("Submit Report")}
-              </Button>
-            ) : isHistoryView && historicalIncidentData?.status === "Open" ? (
-              <div className="flex flex-col gap-2 items-end">
-                <Button
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md min-w-[200px]"
-                  onClick={handleSubmitToManager}
-                  disabled={isSubmittingToManager}
-                >
-                  {isSubmittingToManager ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Send className="w-4 h-4 mr-2" />
-                  )}
-                  {t("Submit for Manager Review")}
-                </Button>
-                <span className="text-xs text-slate-500 italic">
-                  {t(
-                    "Note: The incident report will be sent to the manager for review and approval.",
-                  )}
-                </span>
-              </div>
-            ) : (
-              <></>
+              </>
             )}
           </div>
 

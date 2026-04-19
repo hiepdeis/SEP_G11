@@ -148,7 +148,14 @@ export default function CreatePurchaseOrderPage() {
   };
 
   const handleSubmit = () => {
-    if (!selectedRequestId) {
+    if (
+      !selectedRequestId ||
+      requests.find(
+        (r) =>
+          r.requestId.toString() === selectedRequestId &&
+          r.status === "DraftPO",
+      )
+    ) {
       return toast.error(t("Please select a Purchase Request."));
     }
 
@@ -365,9 +372,9 @@ export default function CreatePurchaseOrderPage() {
                         )}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="text-xs text-slate-500 mt-1 italic">
                       {t(
-                        "Leave blank if you want to select different suppliers per item.",
+                        "Supplier only appear if they have active contract and can provide all listed material quotations. Leave blank if you want to select different suppliers per item.",
                       )}
                     </p>
                   </div>

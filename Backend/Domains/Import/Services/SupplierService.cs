@@ -15,16 +15,28 @@ namespace Backend.Domains.Import.Services
         }
         public Task<List<SupplierWithMaterialDto>> GetSuppliersAsync()
         {
-            return _context.Suppliers.Select(s => new SupplierWithMaterialDto
-            {
-                SupplierId = s.SupplierId,
-                Name = s.Name,
-                MaterialIds = s.SupplierQuotations
-                .Where(sq => sq.SupplierId == s.SupplierId && sq.IsActive == true) 
-                .Select(sq => sq.MaterialId)
-                .Distinct()
-                .ToList()
-            }).ToListAsync();
+            var now = DateTime.UtcNow;
+
+            return _context.Suppliers
+                .Where(s => s.SupplierContracts.Any(sc => 
+                    sc.IsActive && 
+                    sc.Status == "Active" && 
+                    sc.EffectiveFrom <= now && 
+                    (sc.EffectiveTo == null || sc.EffectiveTo >= now)))
+                .Select(s => new SupplierWithMaterialDto
+                {
+                    SupplierId = s.SupplierId,
+                    Name = s.Name,
+                    MaterialIds = s.SupplierQuotations
+                        .Where(sq => sq.IsActive == true && 
+                                     (sq.ValidFrom == null || sq.ValidFrom <= now) && 
+                                     (sq.ValidTo == null || sq.ValidTo >= now))
+                        .Select(sq => sq.MaterialId)
+                        .Distinct()
+                        .ToList()
+                })
+                .Where(dto => dto.MaterialIds.Any())
+                .ToListAsync();
         }
     }
 }
