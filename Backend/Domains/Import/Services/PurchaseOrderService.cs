@@ -186,7 +186,7 @@ namespace Backend.Domains.Import.Services
             {
                 PurchaseOrderCode = poCode,
                 RequestId = requestId,
-                // ProjectId = request.ProjectId,
+                ProjectId = request.ProjectId,
                 SupplierId = supplierId,
                 CreatedBy = purchasingId,
                 CreatedAt = now,

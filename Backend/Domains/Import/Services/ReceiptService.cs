@@ -2475,8 +2475,8 @@ namespace Backend.Domains.Import.Services
         public async Task<AccountantReceiptDetailDto> GetReceiptForAccountantAsync(long receiptId)
         {
             var receipt = await _context.Receipts
-                .Include(r => r.PurchaseOrder)
-                    .ThenInclude(o => o!.Project)
+                // .Include(r => r.PurchaseOrder)
+                //     .ThenInclude(o => o!.Project)
                 .Include(r => r.PurchaseOrder)
                     .ThenInclude(o => o!.Supplier)
                 .Include(r => r.PurchaseOrder)
