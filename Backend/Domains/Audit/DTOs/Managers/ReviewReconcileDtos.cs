@@ -87,6 +87,7 @@ public sealed class ResolveVarianceRequest
     public string? ResolutionAction { get; set; } // e.g., "Accept", "AdjustSystem", "Investigate"
     public int? AdjustmentReasonId { get; set; }
     public string? SignatureData { get; set; }
+    public string? Notes { get; set; }
 }
 
 public sealed class UpdateVarianceReasonRequest
@@ -167,6 +168,22 @@ public sealed class StockTakeReviewDetailDto
 
     // === Signatures ===
     public List<SignatureInfoDto> Signatures { get; set; } = new();
+
+    // === Penalty (if issued by Admin) ===
+    public PenaltyInfoDto? Penalty { get; set; }
+}
+
+public sealed class PenaltyInfoDto
+{
+    public int PenaltyId { get; set; }
+    public string Reason { get; set; } = null!;
+    public decimal Amount { get; set; }
+    public string? Notes { get; set; }
+    public int IssuedByUserId { get; set; }
+    public string? IssuedByName { get; set; }
+    public int TargetUserId { get; set; }
+    public string? TargetUserName { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
 
 public sealed class SignatureInfoDto

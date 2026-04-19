@@ -936,7 +936,46 @@ export default function CommonIssueSlipDetail() {
                   </CardContent>
                 </Card>
               )}
-
+              
+              {/* TRACKING DÀNH CHO ĐỘI THI CÔNG: DANH SÁCH PHIẾU ĐÃ PHÂN BỔ */}
+              {role === "ConstructionTeam" && detail.trackingSlips && detail.trackingSlips.length > 0 && (
+                <Card className="border-indigo-200 shadow-sm bg-indigo-50/20 gap-0">
+                  <CardHeader className="border-b border-indigo-100 pt-4 pb-3">
+                    <CardTitle className="text-base font-semibold flex items-center gap-2 text-indigo-800">
+                      <PackageSearch className="w-5 h-5" /> Đơn hàng đang xử lý
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-4 flex flex-col gap-3">
+                    <p className="text-xs text-slate-500 mb-1">
+                      Yêu cầu của bạn đã được tách thành các đơn xử lý dưới đây. Bấm vào mã đơn để xem chi tiết tiến độ.
+                    </p>
+                    <ul className="space-y-3">
+                      {/* @ts-ignore - Ignore tạm nếu file service chưa kịp update type */}
+                      {detail.trackingSlips.map((slip: any) => (
+                        <li key={slip.slipId} className="flex justify-between items-center p-3 bg-white border border-indigo-100 rounded-md shadow-sm hover:border-indigo-300 hover:shadow-md transition-all">
+                          <div className="flex flex-col">
+                            {/* BẤM VÀO ĐÂY ĐỂ NAVIGATE SANG TRANG DETAIL CỦA PHIẾU CON */}
+                            <span 
+                              className="font-bold text-indigo-600 cursor-pointer hover:underline flex items-center gap-1.5 text-sm"
+                              onClick={() => router.push(`/issueslips/${slip.slipId}`)}
+                            >
+                              {slip.slipType === "Phiếu xuất kho" ? "📦" : "🛒"} {slip.slipCode}
+                            </span>
+                            <span className="text-[11px] text-slate-500 mt-0.5 font-medium uppercase tracking-wider">
+                              {slip.slipType}
+                            </span>
+                          </div>
+                          
+                          {/* Trạng thái đã được dịch sang tiếng Anh từ API Service */}
+                          <Badge className="bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 text-xs font-semibold">
+                            {slip.status}
+                          </Badge>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}  
               {/* 2. Admin duyệt xuất lố (Over Budget) */}
               {role === "Admin" && detail.status?.toLowerCase() === "pending_admin_approval" && (
                 <Card className="border-rose-200 shadow-sm bg-rose-50/50 gap-0">

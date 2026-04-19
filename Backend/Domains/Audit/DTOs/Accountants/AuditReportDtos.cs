@@ -1,4 +1,4 @@
-﻿namespace Backend.Domains.Audit.DTOs.Accountants
+namespace Backend.Domains.Audit.DTOs.Accountants
 {
     public sealed class AuditReportDto
     {
@@ -68,6 +68,7 @@
         public int UserId { get; set; }
         public string? FullName { get; set; }
         public DateTime SignedAt { get; set; }
+        public string? SignatureData { get; set; }
     }
 
     public sealed class AuditReportAdjustmentDto

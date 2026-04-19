@@ -363,10 +363,10 @@ export default function IssueMaterialPage() {
           </div>
 
           <Card className="border-slate-200 shadow-sm gap-0 flex flex-col min-h-[400px]">
-            <CardHeader className="bg-white border-b border-slate-100 py-4 flex flex-row items-center justify-between">
+            <CardHeader className="bg-white border-b border-slate-100 flex flex-row items-center justify-between">
               <CardTitle className="text-base font-semibold text-slate-800">{t("Materials List")}</CardTitle>
               <div className="flex gap-2">
-                <Button variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 h-9" onClick={() => setIsImportModalOpen(true)}><UploadCloud className="w-4 h-4 mr-2" /> {t("Import Excel")}</Button>
+                <Button variant="outline" className="text-emerald-700 hover:bg-emerald-500 h-9" onClick={() => setIsImportModalOpen(true)}><UploadCloud className="w-4 h-4 mr-2" /> {t("Import Excel")}</Button>
                 <Button variant="secondary" className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 h-9" onClick={addRow}><Plus className="w-4 h-4 mr-2" /> {t("Add Item")}</Button>
               </div>
             </CardHeader>
@@ -424,15 +424,15 @@ export default function IssueMaterialPage() {
                           <TableCell className="text-center">
                             <div className="flex justify-center gap-1">
                               {item.isEditing ? (
-                                <Button size="icon" variant="ghost" className="h-8 w-8 text-emerald-600 hover:bg-emerald-50" onClick={() => handleSaveRow(item.id)}>
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-emerald-600 hover:bg-emerald-500" onClick={() => handleSaveRow(item.id)}>
                                   <CheckCircle2 className="w-4 h-4" />
                                 </Button>
                               ) : (
-                                <Button size="icon" variant="ghost" className="h-8 w-8 text-indigo-600 hover:bg-indigo-50" onClick={() => toggleEdit(item.id)}>
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-indigo-600 hover:bg-indigo-500" onClick={() => toggleEdit(item.id)}>
                                   <PenLine className="w-4 h-4" />
                                 </Button>
                               )}
-                              <Button size="icon" variant="ghost" className="h-8 w-8 text-rose-500 hover:bg-rose-50" onClick={() => deleteRow(item.id)}><Trash2 className="w-4 h-4" /></Button>
+                              <Button size="icon" variant="ghost" className="h-8 w-8 text-rose-500 hover:bg-rose-500" onClick={() => deleteRow(item.id)}><Trash2 className="w-4 h-4" /></Button>
                             </div>
                           </TableCell>
                         </TableRow>

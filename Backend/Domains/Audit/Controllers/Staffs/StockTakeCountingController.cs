@@ -8,7 +8,7 @@ namespace Backend.Controllers
 {
     [ApiController]
     [Route("api/staff/audits")]
-    [Authorize(Roles = "Staff")]
+    [Authorize(Roles = "WarehouseStaff")]
     public class StockTakeCountingController : ControllerBase
     {
         private readonly IStockTakeCountingService _stockTakeCountingService;

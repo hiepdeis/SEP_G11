@@ -50,7 +50,12 @@ export interface FifoBatch {
   unitPrice: number;
   lineTotal: number;
 }
-
+export interface TrackingSlipInfo {
+  slipId: number;
+  slipCode: string;
+  status: string;
+  slipType: string; 
+}
 export interface IssueSlipDetail {
   issueId: number;
   issueCode: string;
@@ -74,6 +79,7 @@ export interface IssueSlipDetail {
     poCode: string;
     poSent: boolean;
   } | null;
+  trackingSlips?: TrackingSlipInfo[] | null;
   projectInfo: {
     projectId: number;
     name: string;
@@ -156,10 +162,73 @@ export interface warehousestaffuser {
 
 } 
 
+// dto cho kế toán
+export interface AccountingReconciliationDto {
+  parentIssueId: number;
+  parentIssueCode: string;
+  projectName: string;
+  projectBudgetTotal: number;
+  projectBudgetUsedBefore: number;
+  totalFinalCost: number;
+  projectBudgetUsedAfter: number;
+  childSlips: ChildSlipAccountingDto[];
+}
+
+export interface ChildSlipAccountingDto {
+  slipId: number;
+  slipCode: string;
+  slipType: string; // "Internal_IS" | "Direct_PO"
+  status: string;
+  actualTotal: number;
+  liabilities: SupplierLiabilityDto[];
+  details: AccountingDetailItemDto[];
+}
+
+export interface SupplierLiabilityDto {
+  supplierId?: number;
+  supplierName: string;
+  amount: number;
+}
+
+export interface AccountingDetailItemDto {
+  materialName: string;
+  unit: string;
+  requestedQty: number;
+  finalUnitPrice: number;
+  lineTotal: number;
+  supplierName: string;
+}
+
 export const issueSlipApi = {
+  
   getIssueSlips: async (): Promise<IssueSlip[]> => {
     const response = await axiosClient.get("/IssueSlips");
-    return response.data;
+    let data = response.data; 
+    const role = sessionStorage.getItem("role");
+    if (role === 'ConstructionTeam') {
+       const statusMap: Record<string, string> = {
+        'Pending_Review': 'Request Submitted',
+        'Pending_Admin_Approval': 'Processing',
+        'Admin_Approved': 'Processing',
+        'Pending_Warehouse_Approval': 'Processing',
+        'Processed': 'Processing',
+        'Draft_Issue_Note': 'Processing',
+        'Forwarded_To_Purchasing': 'Purchasing',
+        'Draft_Direct_PO': 'Purchasing',
+        'Picking_In_Progress': 'Preparing Goods',
+        'Ready_For_Delivery': 'In Transit',
+        'Completed': 'Completed',
+        'Rejected': 'Rejected',
+        'Rejected_By_Admin': 'Rejected',
+        'Cancelled': 'Cancelled'
+      };
+      
+      data = data.map(item => ({
+        ...item,
+        status: statusMap[item.status] || item.status 
+      }));
+    }
+   return data; 
   },
 
   createIssueSlip: async (data: IssueSlipDto) => {
@@ -181,7 +250,34 @@ export const issueSlipApi = {
 
   getIssueSlipDetail: async (issueId: number): Promise<IssueSlipDetail> => {
     const response = await axiosClient.get(`/IssueSlips/${issueId}/details`);
-    return response.data;
+    let data = response.data;
+    const role = sessionStorage.getItem("role");
+    if (role === 'ConstructionTeam' && data) {
+      const statusMap: Record<string, string> = {
+        'Pending_Review': 'Request Submitted',
+        'Pending_Admin_Approval': 'Processing',
+        'Admin_Approved': 'Processing',
+        'Pending_Warehouse_Approval': 'Processing',
+        'Processed': 'Processing',
+        'Draft_Issue_Note': 'Processing',
+        'Forwarded_To_Purchasing': 'Purchasing',
+        'Draft_Direct_PO': 'Purchasing',
+        'Picking_In_Progress': 'Preparing Goods',
+        'Ready_For_Delivery': 'In Transit',
+        'Completed': 'Completed',
+        'Rejected': 'Rejected',
+        'Rejected_By_Admin': 'Rejected',
+        'Cancelled': 'Cancelled'
+      };
+      data.status = statusMap[data.status] || data.status;
+      if (data.generatedSlips && Array.isArray(data.generatedSlips)) {
+        data.generatedSlips = data.generatedSlips.map((slip: any) => ({
+          ...slip,
+          status: statusMap[slip.status] || slip.status
+        }));
+      }
+    }
+    return data;
   },
 
   
@@ -234,6 +330,15 @@ export const issueSlipApi = {
     return response.data;
   },
   
+  getAccountingReconciliation: async (issueId: number): Promise<AccountingReconciliationDto> => {
+    const response = await axiosClient.get(`/IssueSlips/${issueId}/accounting-reconciliation`);
+    return response.data;
+  },
+  
+  finalizeAccounting: async (id: number, payload: { voucherNo: string; accountingDate: string; finalTotalAmount?: number }) => {
+    const response = await axiosClient.post(`/IssueSlips/${id}/finalize-accounting`, payload);
+    return response.data;
+  }
 };
 
 

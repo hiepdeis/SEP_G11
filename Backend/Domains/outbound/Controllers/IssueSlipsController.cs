@@ -1,4 +1,6 @@
 ﻿using Backend.Data;
+using Backend.Domains.auth.Interfaces;
+using Backend.Domains.auth.Services;
 using Backend.Domains.outbound.Dtos;
 using Backend.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -16,10 +18,12 @@ namespace Backend.Domains.outbound.Controllers
     public class IssueSlipsController : ControllerBase
     {
         private readonly MyDbContext _context;
+        private readonly IAuthService _authService;
 
-        public IssueSlipsController(MyDbContext context)
+        public IssueSlipsController(MyDbContext context, IAuthService auth)
         {
             _context = context;
+            _authService = auth;
         }
 
         [HttpGet("{id:long}")]
@@ -37,7 +41,8 @@ namespace Backend.Domains.outbound.Controllers
         public async Task<IActionResult> GetAllIssueSlips()
         {
             var issueSlips = await _context.IssueSlips
-                .Include(x => x.Project) 
+                .Include(x => x.Project)
+                .OrderByDescending(x => x.IssueDate)
                 .Select(x => new
                 {
                     x.IssueId,
@@ -113,7 +118,7 @@ namespace Backend.Domains.outbound.Controllers
                     Step = "Admin",
                     StepOrder = 2,
                     Status = "Pending",
-                    IsActive = false // ❗ mặc định tắt
+                    IsActive = false 
                 },
                 new IssueSlipApproval
                 {
@@ -251,6 +256,22 @@ namespace Backend.Domains.outbound.Controllers
                 poCode = poSlip?.IssueCode,
                 poSent = poSlip != null && poSlip.Status != "Draft_Direct_PO"
             } : null;
+
+            // 5. LẤY DANH SÁCH PHIẾU CON (Dạng List linh hoạt)
+            object trackingSlipList = null;
+            if (issue.Status == "Processed" && childSlips.Any())
+            {
+                // Dùng luôn cái childSlips đã query ở trên cho đỡ tốn 1 vòng vào DB
+                trackingSlipList = childSlips.Select(s => new
+                {
+                    SlipId = s.IssueId,
+                    SlipCode = s.IssueCode,
+                    Status = s.Status,
+                    SlipType = s.IssueCode.StartsWith("IS-") ? "Phiếu xuất kho" :
+                               s.IssueCode.StartsWith("PO-") ? "Đơn mua ngoài" : "Phiếu liên quan"
+                }).ToList();
+            }
+
             // 5. Trả về DTO cho Frontend
             var response = new
             {
@@ -281,8 +302,9 @@ namespace Backend.Domains.outbound.Controllers
                     IsOverBudget = isOverBudget
                 },
 
-                // [BỔ SUNG] Ném cụm phiếu con này vào JSON trả về
+               
                 GeneratedSlips = generatedSlips,
+                TrackingSlips = trackingSlipList,
                 Details = issue.IssueDetails.Select(d =>
                 {
                     decimal availableStock = inventoryData.ContainsKey(d.MaterialId) ? inventoryData[d.MaterialId] : 0;
@@ -554,13 +576,13 @@ namespace Backend.Domains.outbound.Controllers
                         };
                     }
 
-                    // [SỬA Ở ĐÂY] 1. Tạo biến mới để chứa Chi tiết xuất kho
+                   
                     var newDetail = new IssueDetail
                     {
                         MaterialId = detail.MaterialId,
                         Quantity = stockToTake,
                         UnitPrice = detail.UnitPrice,
-                        PickingLists = new List<PickingList>() // Mở giỏ chuẩn bị đựng PickingList
+                        PickingLists = new List<PickingList>() 
                     };
 
                     // TIẾN HÀNH GIỮ CHỖ TỒN KHO THỰC TẾ & TẠO CHECKLIST NHẶT HÀNG
@@ -588,7 +610,7 @@ namespace Backend.Domains.outbound.Controllers
                         }
                     }
 
-                    // [SỬA Ở ĐÂY] 2. Ném toàn bộ cục Detail (đã ngậm sẵn PickingList bên trong) vào Slip
+                   
                     newInventorySlip.IssueDetails.Add(newDetail);
 
                 }
@@ -610,7 +632,7 @@ namespace Backend.Domains.outbound.Controllers
                             Department = originalIssue.Department,
                             DeliveryLocation = originalIssue.DeliveryLocation,
 
-                            // NỐI DÂY RỐN VỀ PHIẾU GỐC
+                           
                             ReferenceCode = originalIssue.IssueCode,
                             // MÃ PHIẾU MỚI: PO (Purchase Order)
                             IssueCode = "PO-" + DateTime.Now.ToString("yyMMdd") + "-" + new Random().Next(1000, 9999),
@@ -664,8 +686,8 @@ namespace Backend.Domains.outbound.Controllers
         {
             public string Action { get; set; } // Trạng thái muốn chuyển tới
             public string Reason { get; set; } // Ghi chú thêm (nếu có)
-
             public int? AssignedPickerId { get; set; }
+
         }
 
         [HttpPost("{id}/change-status")]
@@ -725,22 +747,39 @@ namespace Backend.Domains.outbound.Controllers
                     break;
 
                 case "Picking_In_Progress":
-                    // Sau này Thủ kho giao việc cho Nhân viên đi nhặt hàng
+                    if (!request.AssignedPickerId.HasValue)
+                    {
+                        return BadRequest("Vui lòng chọn nhân viên kho để phân công nhiệm vụ.");
+                    }
+                    slip.AssignedPickerId = request.AssignedPickerId.Value;
                     slip.Status = "Picking_In_Progress";
+                    slip.Description += $"\n(Kho: Quản lý kho đã phân công phiếu này cho nhân viên ID: {request.AssignedPickerId} lúc {DateTime.Now:HH:mm}).";
                     break;
 
                 case "Ready_For_Delivery":
                     if (slip.Status != "Picking_In_Progress")
                         return BadRequest("Phiếu chưa ở trạng thái đang nhặt hàng.");
+                    
+                    var refreshToken = Request.Cookies["refreshToken"];
+                    if (string.IsNullOrEmpty(refreshToken))
+                    {
+                        return Unauthorized();
+                    }
+
+                    var userFromDb = await _authService.GetUserByRefreshTokenAsync(refreshToken);
+                    if (userFromDb == null)
+                    {
+                        return Unauthorized();
+                    }
 
                     // TIẾN HÀNH TRỪ TỒN KHO VẬT LÝ
                     foreach (var detail in slip.IssueDetails)
                     {
                         foreach (var pick in detail.PickingLists)
                         {
-                            // Chỉ trừ những món nhân viên đã thực sự tick chọn (isPicked = true)
-                            if (pick.IsPicked)
-                            {
+                           
+                                pick.IsPicked = true;
+                                pick.ActualPickerId = userFromDb.UserId;
                                 var inventoryRecord = await _context.InventoryCurrents
                                     .FirstOrDefaultAsync(ic => ic.WarehouseId == slip.WarehouseId
                                                             && ic.MaterialId == detail.MaterialId
@@ -754,12 +793,12 @@ namespace Backend.Domains.outbound.Controllers
 
                                     // 2. Giải phóng tồn kho giữ chỗ
                                     inventoryRecord.QuantityAllocated = (inventoryRecord.QuantityAllocated ?? 0) - pick.QtyToPick;
-
+                                    inventoryRecord.LastUpdated = DateTime.Now;
                                     // Đảm bảo không bị âm số (Safe check)
                                     if (inventoryRecord.QuantityAllocated < 0) inventoryRecord.QuantityAllocated = 0;
                                     if (inventoryRecord.QuantityOnHand < 0) inventoryRecord.QuantityOnHand = 0;
                                 }
-                            }
+                            
                         }
                     }
 
@@ -785,8 +824,32 @@ namespace Backend.Domains.outbound.Controllers
                     }
                     slip.Description += $"\n(Hiện trường: Kỹ sư đã xác nhận nhận đủ hàng vào lúc {DateTime.Now:dd/MM/yyyy HH:mm}).";
                     break;
+                case "Closed": // Bước cuối: Kế toán chốt sổ công nợ & chi phí
+                    if (slip.Status != "Completed")
+                        return BadRequest("Phiếu phải được xác nhận nhận đủ hàng trước khi đóng.");
+                    // 1. Thực hiện ghi nhận chi phí vào DB (nếu bác có bảng hạch toán riêng)
+                    slip.Status = "Closed";
+                    slip.Description += $"\n(Kế toán: Đã kiểm tra chứng từ và chốt sổ tài chính lúc {DateTime.Now:dd/MM/yyyy HH:mm}).";
+                    // 2. Logic tự động Đóng phiếu cha (Parent Slip)
+                    if (slip.ParentIssueId.HasValue)
+                    {
+                        // Kiểm tra xem tất cả các "anh em" (child slips) của phiếu này đã Closed hết chưa
+                        var siblingStatus = await _context.IssueSlips
+                            .Where(s => s.ParentIssueId == slip.ParentIssueId && s.IssueId != slip.IssueId)
+                            .Select(s => s.Status)
+                            .ToListAsync();
 
-                // ... Bạn có thể nhét thêm 100 trạng thái khác vào đây mà không cần viết thêm API mới ...
+                        if (siblingStatus.All(s => s == "Closed"))
+                        {
+                            var parentSlip = await _context.IssueSlips.FindAsync(slip.ParentIssueId);
+                            if (parentSlip != null)
+                            {
+                                parentSlip.Status = "Closed";
+                                parentSlip.Description += $"\n(Hệ thống: Toàn bộ các phiếu con đã hoàn tất. Đóng phiếu yêu cầu gốc).";
+                            }
+                        }
+                    }
+                    break;
 
                 default:
                     return BadRequest("Trạng thái không hợp lệ.");
@@ -921,6 +984,209 @@ namespace Backend.Domains.outbound.Controllers
             return Ok(response);
         }
 
+        [HttpGet("{id}/accounting-reconciliation")]
+        [Authorize(Roles = "Accountant, Admin")]
+        public async Task<IActionResult> GetAccountingReconciliation(long id)
+        {
+            var parentSlip = await _context.IssueSlips
+                .Include(x => x.Project)
+                .FirstOrDefaultAsync(x => x.IssueId == id);
 
+            if (parentSlip == null) return NotFound("Không tìm thấy phiếu gốc.");
+
+            var result = new AccountingReconciliationDto
+            {
+                ParentIssueId = parentSlip.IssueId,
+                ParentIssueCode = parentSlip.IssueCode,
+                ProjectName = parentSlip.Project.Name,
+                ProjectBudgetTotal = parentSlip.Project.Budget ?? 0,
+                ProjectBudgetUsedBefore = parentSlip.Project.BudgetUsed ?? 0
+            };
+
+            // 1. XỬ LÝ PHIẾU XUẤT KHO NỘI BỘ (IS)
+            var internalSlips = await _context.IssueSlips
+                .Include(s => s.IssueDetails).ThenInclude(d => d.Material)
+                .Where(s => s.ReferenceCode == parentSlip.IssueCode && s.IssueCode.StartsWith("IS-"))
+                .ToListAsync();
+
+            foreach (var isSlip in internalSlips)
+            {
+                result.ChildSlips.Add(new ChildSlipAccountingDto
+                {
+                    SlipId = isSlip.IssueId,
+                    SlipCode = isSlip.IssueCode,
+                    SlipType = "Internal_IS",
+                    Status = isSlip.Status,
+                    ActualTotal = isSlip.IssueDetails.Sum(d => d.Quantity * (d.UnitPrice ?? 0)),
+                    Details = isSlip.IssueDetails.Select(d => new AccountingDetailItemDto
+                    {
+                        MaterialName = d.Material.Name,
+                        Unit = d.Material.Unit,
+                        RequestedQty = d.Quantity,
+                        FinalUnitPrice = d.UnitPrice ?? 0,
+                        LineTotal = d.Quantity * (d.UnitPrice ?? 0),
+                        SupplierName = "Kho Nội Bộ" // Hàng xuất kho thì ko nợ NCC
+                    }).ToList()
+                });
+            }
+
+            // 2. XỬ LÝ ĐƠN MUA NGOÀI (DPO) VÀ CHIA TÁCH CÔNG NỢ
+            var directPOs = await _context.DirectPurchaseOrders
+                .Include(p => p.DirectPurchaseDetails).ThenInclude(d => d.Material)
+                .Include(p => p.DirectPurchaseDetails).ThenInclude(d => d.Supplier) // <--- Join thẳng vào Supplier của Detail
+                .Where(p => p.ReferenceCode == parentSlip.IssueCode)
+                .ToListAsync();
+
+            foreach (var dpo in directPOs)
+            {
+                var dpoDto = new ChildSlipAccountingDto
+                {
+                    SlipId = dpo.DpoId,
+                    SlipCode = dpo.DpoCode,
+                    SlipType = "Direct_PO",
+                    Status = dpo.Status,
+                    ActualTotal = dpo.TotalAmount,
+                    Details = dpo.DirectPurchaseDetails.Select(d => new AccountingDetailItemDto
+                    {
+                        MaterialName = d.Material.Name,
+                        Unit = d.Material.Unit,
+                        RequestedQty = d.Quantity,
+                        FinalUnitPrice = d.NegotiatedUnitPrice, // Lấy giá đã thương lượng
+                        LineTotal = d.LineTotal ?? (d.Quantity * d.NegotiatedUnitPrice),
+                        SupplierName = d.Supplier?.Name ?? "Chưa gán NCC" // Tên NCC của từng dòng
+                    }).ToList()
+                };
+
+                // [LOGIC ĂN TIỀN]: Gom nhóm tổng tiền nợ theo từng Nhà cung cấp trong phiếu này
+                dpoDto.Liabilities = dpo.DirectPurchaseDetails
+                    .GroupBy(d => new { d.SupplierId, SupplierName = d.Supplier?.Name })
+                    .Select(g => new SupplierLiabilityDto
+                    {
+                        SupplierId = g.Key.SupplierId,
+                        SupplierName = g.Key.SupplierName ?? "Chưa gán NCC",
+                        Amount = g.Sum(d => d.LineTotal ?? (d.Quantity * d.NegotiatedUnitPrice))
+                    }).ToList();
+
+                result.ChildSlips.Add(dpoDto);
+            }
+
+            // 3. Tính tổng tiền chi phí thực tế của toàn bộ luồng
+            result.TotalFinalCost = result.ChildSlips.Sum(s => s.ActualTotal);
+
+            return Ok(result);
+        }
+
+        [HttpPost("{id}/finalize-accounting")]
+        [Authorize(Roles = "Accountant, Admin")]
+        public async Task<IActionResult> FinalizeAccounting(long id, [FromBody] CloseIssueSlipRequest request)
+        {
+            // 1. Lấy phiếu con (IS hoặc PO) kèm theo dự án để cập nhật Budget
+            var slip = await _context.IssueSlips
+                .Include(x => x.Project)
+                .FirstOrDefaultAsync(x => x.IssueId == id);
+
+            if (slip == null) return NotFound("Không tìm thấy phiếu.");
+
+            // Chỉ phiếu đã nhận hàng mới được chốt sổ
+            if (slip.Status != "Completed")
+                return BadRequest("Phiếu phải ở trạng thái Completed (Kỹ sư đã nhận) mới được hạch toán.");
+
+            // 2. Cập nhật trạng thái và thông tin kế toán
+            slip.Status = "Closed";
+
+            // Lưu vết chứng từ vào Description hoặc tạo bảng AccountingLog riêng
+            string accountingInfo = $"\n[CHỐT SỔ] Số CT: {request.VoucherNo} | Ngày HT: {request.AccountingDate:dd/MM/yyyy}";
+            slip.Description += accountingInfo;
+            if (!string.IsNullOrEmpty(request.Note)) slip.Description += $" | Ghi chú: {request.Note}";
+
+            // 3. Nếu kế toán có điều chỉnh lại tổng tiền (do hao hụt, hỏng hóc khi nhận)
+            if (request.FinalTotalAmount.HasValue)
+            {
+                // Tính chênh lệch để cập nhật lại BudgetUsed của dự án cho chính xác
+                decimal estimateCost = slip.IssueDetails?.Sum(d => d.Quantity * (d.UnitPrice ?? 0)) ?? 0;
+                decimal adjustment = request.FinalTotalAmount.Value - estimateCost;
+
+                if (slip.Project != null)
+                {
+                    slip.Project.BudgetUsed = (slip.Project.BudgetUsed ?? 0) + adjustment;
+                }
+            }
+
+            // 4. LUỒNG TỰ ĐỘNG ĐÓNG PHIẾU GỐC (Recursive Check)
+            if (slip.ParentIssueId.HasValue)
+            {
+                // Tìm các "anh em" khác của phiếu này dưới cùng 1 phiếu gốc
+                var otherChildren = await _context.IssueSlips
+                    .Where(s => s.ParentIssueId == slip.ParentIssueId && s.IssueId != id)
+                    .ToListAsync();
+
+                // Nếu tất cả các phiếu con (cả Xuất kho và Mua ngoài) đều đã 'Closed'
+                if (otherChildren.All(s => s.Status == "Closed"))
+                {
+                    var parentSlip = await _context.IssueSlips.FindAsync(slip.ParentIssueId);
+                    if (parentSlip != null && parentSlip.Status != "Closed")
+                    {
+                        parentSlip.Status = "Closed";
+                        parentSlip.Description += $"\n(Hệ thống: Tự động đóng phiếu gốc sau khi hoàn tất hạch toán toàn bộ các phiếu con).";
+                    }
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Hạch toán thành công và đã đóng phiếu.", slipCode = slip.IssueCode });
+        }
+    }
+    public class CloseIssueSlipRequest
+    {
+        public string VoucherNo { get; set; } = null!; // Số chứng từ kế toán
+        public DateTime AccountingDate { get; set; } // Ngày vào sổ hạch toán
+        public string? Note { get; set; } // Ghi chú thêm của kế toán
+
+        public decimal? FinalTotalAmount { get; set; }
+    }
+
+    public class AccountingReconciliationDto
+    {
+        public long ParentIssueId { get; set; }
+        public string ParentIssueCode { get; set; }
+        public string ProjectName { get; set; }
+        public decimal ProjectBudgetTotal { get; set; }
+        public decimal ProjectBudgetUsedBefore { get; set; }
+        public decimal TotalFinalCost { get; set; }
+        public decimal ProjectBudgetUsedAfter => ProjectBudgetUsedBefore + TotalFinalCost;
+        public List<ChildSlipAccountingDto> ChildSlips { get; set; } = new();
+    }
+
+    public class ChildSlipAccountingDto
+    {
+        public long SlipId { get; set; }
+        public string SlipCode { get; set; }
+        public string SlipType { get; set; } // "Internal_IS" hoặc "Direct_PO"
+        public string Status { get; set; }
+        public decimal ActualTotal { get; set; }
+
+        // [MỚI] Danh sách công nợ được nhóm theo Nhà cung cấp
+        public List<SupplierLiabilityDto> Liabilities { get; set; } = new();
+        public List<AccountingDetailItemDto> Details { get; set; } = new();
+    }
+
+    // [MỚI] Class gom nhóm công nợ
+    public class SupplierLiabilityDto
+    {
+        public int? SupplierId { get; set; }
+        public string SupplierName { get; set; }
+        public decimal Amount { get; set; }
+    }
+
+    public class AccountingDetailItemDto
+    {
+        public string MaterialName { get; set; }
+        public string Unit { get; set; }
+        public decimal RequestedQty { get; set; }
+        public decimal FinalUnitPrice { get; set; }
+        public decimal LineTotal { get; set; }
+
+        // [MỚI] Tên NCC cung cấp riêng món vật tư này
+        public string SupplierName { get; set; }
     }
 }

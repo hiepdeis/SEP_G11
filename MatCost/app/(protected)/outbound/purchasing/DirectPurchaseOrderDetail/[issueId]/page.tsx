@@ -7,11 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, Building2, Calendar, MapPin, DollarSign, ShoppingCart } from "lucide-react";
+import { Loader2, CheckCircle2, Building2, Calendar, MapPin, DollarSign, ShoppingCart, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import axiosClient from "@/lib/axios-client"; // Đổi theo config axios của bạn
 import { directPurchaseApi } from '@/services/directPurchase-service';
 import { supplierApi } from '@/services/supplier-service';
+import { DateTimePicker } from "@/components/ui/custom/date-time-picker";
 
 import { useTranslation } from "react-i18next"; 
 import { Sidebar } from '@/components/sidebar';
@@ -20,6 +21,7 @@ import { Header } from '@/components/ui/custom/header';
 
 
 export default function DirectPurchaseOrderDetail() {
+  const router = useRouter();
   const params = useParams();
   const issueId = Array.isArray(params.issueId) ? params.issueId[0] : params.issueId;
   const { t } = useTranslation();
@@ -30,7 +32,7 @@ export default function DirectPurchaseOrderDetail() {
   const [itemSuppliers, setItemSuppliers] = useState<Record<number, string>>({});
   // States cho Form chốt đơn
 
-  const [deliveryDate, setDeliveryDate] = useState<string>("");
+  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(undefined);
   const [deliveryAddress, setDeliveryAddress] = useState<string>("");
   
   // State quản lý đơn giá (Lưu theo DpoDetailId) để nhập liệu realtime
@@ -91,7 +93,7 @@ export default function DirectPurchaseOrderDetail() {
       setSubmitting(true);
 
       const payload = {
-        expectedDeliveryDate: deliveryDate ? new Date(deliveryDate).toISOString() : null,
+        expectedDeliveryDate: deliveryDate ? deliveryDate.toISOString() : null,
         deliveryAddress: deliveryAddress,
         items: dpoDetail.details.map((item: any) => ({
           dpoDetailId: item.dpoDetailId,
@@ -121,32 +123,40 @@ export default function DirectPurchaseOrderDetail() {
   const currentTotal = calculateTotal();
 
   return (
-   <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
-      {/* SIDEBAR LUÔN CỐ ĐỊNH BÊN TRÁI */}
+    <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
+      {/* SIDEBAR CỐ ĐỊNH BÊN TRÁI */}
       <Sidebar />
-
 
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
         
         {/* HEADER CỐ ĐỊNH PHÍA TRÊN */}
-        <Header title={t("Direct Purchase Order Processing")} />
-         <div className="flex justify-between items-center bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <ShoppingCart className="w-6 h-6 text-indigo-600" /> {t("Direct Purchase Order Processing")}
-          </h1>
-          <div className="text-sm text-slate-500 mt-1 flex items-center gap-3">
-            <span>{t("Reference Code")}: <strong className="text-slate-700">{dpoDetail.referenceCode}</strong></span>
-            <span>•</span>
-            <span>{t("Purchase Code")}: <strong className="text-indigo-700">{dpoDetail.dpoCode}</strong></span>
+        <Header title={`${t("Direct Purchase Order Processing")} #${dpoDetail.dpoCode}`} />
+        
+        <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
+          <div className="flex items-center justify-between">
+             <Button variant="ghost" onClick={() => router.back()} className="pl-0 hover:bg-transparent hover:text-indigo-600">
+               <ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}
+             </Button>
           </div>
-        </div>
-        <Badge className={`text-sm py-1.5 px-3 border-none ${isReadOnly ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-          {dpoDetail.status}
-        </Badge>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-1">
+                <ShoppingCart className="w-6 h-6 text-indigo-600" /> {t("Direct Purchase Order")}
+              </h1>
+              <div className="text-sm text-slate-500 flex items-center gap-3">
+                <span>{t("Reference Code")}: <strong className="text-slate-700">{dpoDetail.referenceCode}</strong></span>
+                <span>•</span>
+                <span>{t("Purchase Code")}: <strong className="text-indigo-700">{dpoDetail.dpoCode}</strong></span>
+              </div>
+            </div>
+            <Badge className={`px-4 py-2 border-none font-bold text-sm flex items-center gap-2 ${isReadOnly ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+              {isReadOnly && <CheckCircle2 className="w-4 h-4"/>}
+              {dpoDetail.status === "Pending_Supplier_Selection" ? t("Pending Supplier") : dpoDetail.status}
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
       
         {/* CỘT PHẢI: BẢNG VẬT TƯ & ÉP GIÁ */}
@@ -158,15 +168,15 @@ export default function DirectPurchaseOrderDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0 flex-1 overflow-x-auto">
-              <Table className="min-w-[600px]">
-                <TableHeader>
-                  <TableRow className="bg-slate-50/50">
-                    <TableHead className="w-[50px] text-center pl-4">STT</TableHead>
-                    <TableHead>{t("Material Code / Name")}</TableHead>
-                    <TableHead className="text-right">{t("Quantity Needed")}</TableHead>
-                    <TableHead className="text-right w-[180px]">{t("Actual Unit Price (VND)")}</TableHead>
-                    <TableHead className="w-[200px]">{t("Supplier")}</TableHead>
-                    <TableHead className="text-right pr-4">{t("Line Total (VND)")}</TableHead>
+              <Table className="min-w-[700px] w-full table-fixed">
+                <TableHeader className="bg-slate-50 outline outline-1 outline-slate-200 z-10 relative">
+                  <TableRow className="bg-slate-50 hover:bg-slate-50">
+                    <TableHead className="w-[8%] text-center pl-4 font-bold text-slate-800 uppercase text-[11px] tracking-wider">STT</TableHead>
+                    <TableHead className="w-[24%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Material Code / Name")}</TableHead>
+                    <TableHead className="text-right w-[12%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Quantity Needed")}</TableHead>
+                    <TableHead className="text-right w-[18%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Actual Unit Price (VND)")}</TableHead>
+                    <TableHead className="w-[20%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Supplier")}</TableHead>
+                    <TableHead className="text-right pr-4 w-[18%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Line Total (VND)")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -241,12 +251,11 @@ export default function DirectPurchaseOrderDetail() {
                 <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
                   <Calendar className="w-4 h-4 text-slate-400"/> {t("Expected Delivery Date")}
                 </label>
-                <Input 
-                  type="datetime-local"
+                <DateTimePicker 
+                  value={deliveryDate}
+                  onChange={(date) => setDeliveryDate(date)}
                   disabled={isReadOnly}
-                  className="bg-white"
-                  value={deliveryDate} 
-                  onChange={(e) => setDeliveryDate(e.target.value)} 
+                  disablePastDates
                 />
               </div>
 
@@ -288,8 +297,8 @@ export default function DirectPurchaseOrderDetail() {
         </div>
             
       </div>
-        </main>
-     
+        </div>
+      </main>
     </div>
   );
 }

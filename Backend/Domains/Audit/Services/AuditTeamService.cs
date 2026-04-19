@@ -1,4 +1,4 @@
-﻿using Backend.Data;
+using Backend.Data;
 using Backend.Domains.Audit.DTOs.Managers;
 using Backend.Domains.Audit.Interfaces;
 using Backend.Entities;
@@ -91,7 +91,7 @@ public class AuditTeamService : IAuditTeamService
         var q =
             from u in _db.Users.AsNoTracking()
             join r in _db.Roles.AsNoTracking() on u.RoleId equals r.RoleId
-            where r.RoleName == "Staff"
+            where r.RoleName == "WarehouseStaff"
             where u.Status == true
             where !assignedIds.Contains(u.UserId)
             where !busyIds.Contains(u.UserId)            // NEW
@@ -125,7 +125,7 @@ public class AuditTeamService : IAuditTeamService
             join r in _db.Roles.AsNoTracking() on u.RoleId equals r.RoleId
             where distinctIds.Contains(u.UserId)
                   && u.Status
-                  && r.RoleName == "Staff"
+                  && r.RoleName == "WarehouseStaff"
             select u.UserId
         ).ToListAsync(ct);
 

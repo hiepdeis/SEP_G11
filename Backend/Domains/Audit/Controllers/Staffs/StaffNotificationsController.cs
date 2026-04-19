@@ -8,7 +8,7 @@ namespace Backend.Domains.Notifications.Controllers.Staffs;
 
 [ApiController]
 [Route("api/staff/notifications")]
-[Authorize(Roles = "Staff")]
+[Authorize(Roles = "WarehouseStaff")]
 public class StaffNotificationsController : ControllerBase
 {
     private readonly MyDbContext _db;

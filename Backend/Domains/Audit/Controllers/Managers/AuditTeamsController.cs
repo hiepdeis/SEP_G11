@@ -8,7 +8,7 @@ namespace Backend.Domains.Audit.Controllers.Managers;
 
 [ApiController]
 [Route("api/manager/audits")]
-[Authorize(Roles = "Manager")]
+[Authorize(Roles = "WarehouseManager")]
 public class AuditTeamsController : ControllerBase
 {
     private readonly IAuditTeamService _svc;

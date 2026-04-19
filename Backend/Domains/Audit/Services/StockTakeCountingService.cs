@@ -343,7 +343,8 @@ namespace Backend.Domains.Audit.Services
                 .AsNoTracking()
                 .Where(x =>
                     x.StockTakeId == stockTakeId &&
-                    x.DiscrepancyStatus == "RecountRequested");
+                    (x.DiscrepancyStatus == "RecountRequested" || 
+                     (x.CountRound >= 2 && (x.DiscrepancyStatus == "Matched" || x.DiscrepancyStatus == "Recounted"))));
 
             if (!isWarehouseScopeAudit)
             {
@@ -457,7 +458,7 @@ namespace Backend.Domains.Audit.Services
                 .Include(x => x.Role)
                 .FirstOrDefaultAsync(x => x.UserId == managerUserId, ct);
 
-            if (manager == null || !string.Equals(manager.Role.RoleName, "Manager", StringComparison.OrdinalIgnoreCase))
+            if (manager == null || !string.Equals(manager.Role.RoleName, "WarehouseManager", StringComparison.OrdinalIgnoreCase))
                 return (false, "You do not have permission to update this audit.");
 
             var member = await _db.StockTakeTeamMembers
@@ -655,7 +656,20 @@ namespace Backend.Domains.Audit.Services
                     x.BatchId == batchId, ct);
 
             if (ic == null)
+            {
+                // Check if item exists in other bins (user entered wrong bin)
+                var existsInOtherBin = await _db.InventoryCurrents
+                    .AsNoTracking()
+                    .AnyAsync(x =>
+                        x.WarehouseId == st.WarehouseId &&
+                        x.MaterialId == request.MaterialId &&
+                        x.BatchId == batchId, ct);
+
+                if (existsInOtherBin)
+                    return (false, "Incorrect Bin Code for this item. Please check and try again.");
+
                 return (false, "InventoryCurrent row not found for this material/bin/batch.");
+            }
 
             var systemQty = ic.QuantityOnHand ?? 0m;
             var variance = request.CountQty - systemQty;
@@ -806,10 +820,39 @@ namespace Backend.Domains.Audit.Services
                     x.BinId == binId, ct);
 
             if (detail == null)
+            {
+                // Check if item exists with a DIFFERENT bin (user entered wrong bin code)
+                var existsWithOtherBin = await _db.StockTakeDetails
+                    .AsNoTracking()
+                    .AnyAsync(x =>
+                        x.StockTakeId == stockTakeId &&
+                        x.MaterialId == request.MaterialId &&
+                        x.BatchId == batchId &&
+                        x.DiscrepancyStatus == "RecountRequested", ct);
+
+                if (existsWithOtherBin)
+                    return (false, "Incorrect Bin Code for this item. Please check and try again.");
+
                 return (false, "Recount item not found.");
+            }
 
             if (!string.Equals(detail.DiscrepancyStatus, "RecountRequested", StringComparison.OrdinalIgnoreCase))
+            {
+                // Check if there's a RecountRequested version with a different bin
+                var correctBin = await _db.StockTakeDetails
+                    .AsNoTracking()
+                    .AnyAsync(x =>
+                        x.StockTakeId == stockTakeId &&
+                        x.MaterialId == request.MaterialId &&
+                        x.BatchId == batchId &&
+                        x.BinId != binId &&
+                        x.DiscrepancyStatus == "RecountRequested", ct);
+
+                if (correctBin)
+                    return (false, "Incorrect Bin Code for this item. Please check and try again.");
+
                 return (false, "This item has not been requested for recount.");
+            }
 
             var systemQty = ic.QuantityOnHand ?? 0m;
             var variance = request.CountQty - systemQty;

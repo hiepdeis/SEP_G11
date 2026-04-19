@@ -55,7 +55,7 @@ builder.Services.AddScoped<IAuditNotificationService, AuditNotificationService>(
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-//builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<GoogleOAuthService>();
 //builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuditPlanService, AuditPlanService>();

@@ -53,6 +53,20 @@ namespace Backend.Domains.Audit.Interfaces
             int managerUserId,
             CancellationToken ct);
 
+        /// <summary>Request recount for ALL pending discrepancy items (round 1) at once</summary>
+        Task<(bool success, string message)> RequestRecountAllAsync(
+            int stockTakeId,
+            RequestRecountRequest request,
+            int managerUserId,
+            CancellationToken ct);
+
+        /// <summary>Manager confirms all resolutions with a single signature → transitions to PendingAccountantApproval</summary>
+        Task<(bool success, string message)> ManagerConfirmResolutionAsync(
+            int stockTakeId,
+            int managerUserId,
+            string? signatureData,
+            CancellationToken ct);
+
         Task<StockTakeReviewDetailDto> GetReviewDetailAsync(int stockTakeId, CancellationToken ct);
 
         Task<(bool success, string message, SignatureInfoDto? signature)> SignOffAsync(
@@ -89,6 +103,7 @@ namespace Backend.Domains.Audit.Interfaces
             int stockTakeId,
             int userId,
             string? notes,
+            string? signatureData,
             CancellationToken ct);
 
         /// <summary>Admin issues penalty + signs → complete + update inventory</summary>
