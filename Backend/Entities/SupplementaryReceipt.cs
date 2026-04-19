@@ -13,6 +13,11 @@ public class SupplementaryReceipt
     [Column("SupplementaryReceiptID")]
     public long SupplementaryReceiptId { get; set; }
 
+    [Column("ParentReceiptID")]
+    public long? ParentReceiptId { get; set; }
+
+    public int RevisionNumber { get; set; } = 1;
+
     [Column("PurchaseOrderID")]
     public long PurchaseOrderId { get; set; }
 
@@ -48,9 +53,19 @@ public class SupplementaryReceipt
     [InverseProperty("SupplementaryReceipts")]
     public virtual IncidentReport IncidentReport { get; set; } = null!;
 
+    [ForeignKey("ParentReceiptId")]
+    [InverseProperty("ChildRevisions")]
+    public virtual SupplementaryReceipt? ParentReceipt { get; set; }
+
     [InverseProperty("SupplementaryReceipt")]
     public virtual ICollection<SupplementaryReceiptItem> Items { get; set; } = new List<SupplementaryReceiptItem>();
 
     [InverseProperty("SupplementaryReceipt")]
     public virtual ICollection<Receipt> Receipts { get; set; } = new List<Receipt>();
+
+    [InverseProperty("SupplementaryReceipt")]
+    public virtual ICollection<ReceiptRejectionHistory> RejectionHistories { get; set; } = new List<ReceiptRejectionHistory>();
+
+    [InverseProperty("ParentReceipt")]
+    public virtual ICollection<SupplementaryReceipt> ChildRevisions { get; set; } = new List<SupplementaryReceipt>();
 }

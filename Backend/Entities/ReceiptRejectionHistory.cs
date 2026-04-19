@@ -13,6 +13,8 @@ public class ReceiptRejectionHistory
 
     public long? PurchaseOrderId { get; set; }
 
+    public long? SupplementaryReceiptId { get; set; }
+
     [Required]
     public int RejectedBy { get; set; }
 
@@ -28,6 +30,9 @@ public class ReceiptRejectionHistory
 
     [ForeignKey("PurchaseOrderId")]
     public virtual PurchaseOrder? PurchaseOrder { get; set; }
+
+    [ForeignKey("SupplementaryReceiptId")]
+    public virtual SupplementaryReceipt? SupplementaryReceipt { get; set; }
 
     [ForeignKey("RejectedBy")]
     public virtual User Rejector { get; set; } = null!;

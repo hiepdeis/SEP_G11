@@ -718,13 +718,14 @@ namespace Backend.Domains.Import.Services
         private async Task CreateRoleNotificationsAsync(string roleName, string message, string entityType, long? entityId)
         {
             var userIds = await GetUserIdsByRoleAsync(roleName);
-            if (userIds.Count == 0)
-                return;
+            if (userIds.Count == 0) return;
 
             var now = DateTime.UtcNow;
+            var notifications = new List<Notification>();
+
             foreach (var userId in userIds)
             {
-                _context.Notifications.Add(new Notification
+                notifications.Add(new Notification
                 {
                     UserId = userId,
                     Message = message,
@@ -735,6 +736,7 @@ namespace Backend.Domains.Import.Services
                 });
             }
 
+            _context.Notifications.AddRange(notifications);
             await _context.SaveChangesAsync();
         }
     }
