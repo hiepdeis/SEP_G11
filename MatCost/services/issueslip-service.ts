@@ -50,7 +50,12 @@ export interface FifoBatch {
   unitPrice: number;
   lineTotal: number;
 }
-
+export interface TrackingSlipInfo {
+  slipId: number;
+  slipCode: string;
+  status: string;
+  slipType: string; 
+}
 export interface IssueSlipDetail {
   issueId: number;
   issueCode: string;
@@ -74,6 +79,7 @@ export interface IssueSlipDetail {
     poCode: string;
     poSent: boolean;
   } | null;
+  trackingSlips?: TrackingSlipInfo[] | null;
   projectInfo: {
     projectId: number;
     name: string;
@@ -155,6 +161,43 @@ export interface warehousestaffuser {
   fullName?: string;
 
 } 
+
+// dto cho kế toán
+export interface AccountingReconciliationDto {
+  parentIssueId: number;
+  parentIssueCode: string;
+  projectName: string;
+  projectBudgetTotal: number;
+  projectBudgetUsedBefore: number;
+  totalFinalCost: number;
+  projectBudgetUsedAfter: number;
+  childSlips: ChildSlipAccountingDto[];
+}
+
+export interface ChildSlipAccountingDto {
+  slipId: number;
+  slipCode: string;
+  slipType: string; // "Internal_IS" | "Direct_PO"
+  status: string;
+  actualTotal: number;
+  liabilities: SupplierLiabilityDto[];
+  details: AccountingDetailItemDto[];
+}
+
+export interface SupplierLiabilityDto {
+  supplierId?: number;
+  supplierName: string;
+  amount: number;
+}
+
+export interface AccountingDetailItemDto {
+  materialName: string;
+  unit: string;
+  requestedQty: number;
+  finalUnitPrice: number;
+  lineTotal: number;
+  supplierName: string;
+}
 
 export const issueSlipApi = {
   
@@ -287,6 +330,15 @@ export const issueSlipApi = {
     return response.data;
   },
   
+  getAccountingReconciliation: async (issueId: number): Promise<AccountingReconciliationDto> => {
+    const response = await axiosClient.get(`/IssueSlips/${issueId}/accounting-reconciliation`);
+    return response.data;
+  },
+  
+  finalizeAccounting: async (id: number, payload: { voucherNo: string; accountingDate: string; finalTotalAmount?: number }) => {
+    const response = await axiosClient.post(`/IssueSlips/${id}/finalize-accounting`, payload);
+    return response.data;
+  }
 };
 
 
