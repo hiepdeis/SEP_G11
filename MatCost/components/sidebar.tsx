@@ -40,7 +40,7 @@ import { UserDropdown } from "@/components/user-dropdown";
 import { useAuth } from "@/components/providers/auth-provider";
 import { userApi } from "@/services/user-service";
 import { useTranslation } from "react-i18next";
-import IncomingShipments from "@/app/(protected)/outbound/purchasing/IncomingShipments/page";
+import IncomingShipments from "@/app/(protected)/outbound/contruction/IncomingShipments/page";
 
 export function Sidebar() {
   const { t } = useTranslation();
@@ -115,7 +115,7 @@ export function Sidebar() {
     },
     {
       label: t("sidebar.roles.construction"),
-      href: "/outbound/purchasing/IncomingShipments",
+      href: "/outbound/contruction/IncomingShipments",
     },
     // { label: t("sidebar.roles.accountant"), href: "/outbound/account" },
     // { label: t("sidebar.roles.manager"), href: "/outbound/manager" },
