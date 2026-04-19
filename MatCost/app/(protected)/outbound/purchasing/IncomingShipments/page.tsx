@@ -26,7 +26,7 @@ export default function IncomingShipments() {
         setLoading(true);
         // Tạm thời dùng mock data để bác test UI, sau này nối với API Hợp nhất của C#
        const data = await directPurchaseApi.getIncomingShipments();
-       const mappedData = data.map((item: any) => ({
+        const mappedData = data.map((item: any) => ({
           recordId: item.recordId, 
           code: item.code,         
           type: item.type,
@@ -34,8 +34,9 @@ export default function IncomingShipments() {
           expectedDate: item.expectedDate,
           status: item.status,
           itemsSummary: item.itemsSummary,
-          licensePlate: item.licensePlate
-      }));
+          extraInfo: item.licensePlate,
+          licensePlate: item.type === 'Direct_PO' ? '' : (item.licensePlate?.length < 15 ? item.licensePlate : '')
+        }));
         setShipments(mappedData);
       } catch (error) {
         toast.error("Lỗi khi tải danh sách chuyến xe.");
@@ -129,61 +130,76 @@ export default function IncomingShipments() {
                        filteredShipments.map((shipment) => {
                          const isInternal = shipment.type === 'Issue_Slip';
                          return (
-                           <TableRow key={shipment.code} className="hover:bg-slate-50/50 transition-colors">
-                             <TableCell className="pl-6">
-                               <div className="flex justify-start">
-                                 <Badge variant="outline" className={`mb-1 font-bold ${isInternal ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-indigo-700 bg-indigo-50 border-indigo-200'}`}>
-                                   {isInternal ? 'Internal' : 'Supplier'}
-                                 </Badge>
-                               </div>
-                               <div className="font-bold text-slate-800 truncate" title={shipment.code}>{shipment.code}</div>
-                             </TableCell>
-                             <TableCell>
-                                <div className="flex flex-col gap-1">
-                                  <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700 truncate" title={shipment.sourceName}>
-                                     {isInternal ? <Factory className="w-4 h-4 text-slate-400 shrink-0"/> : <MapPin className="w-4 h-4 text-slate-400 shrink-0"/>}
-                                     {shipment.sourceName}
+                           <React.Fragment key={shipment.code}>
+                             <TableRow className="hover:bg-slate-50/50 transition-colors border-b-0">
+                               <TableCell className="pl-6">
+                                 <div className="flex justify-start">
+                                   <Badge variant="outline" className={`mb-1 font-bold ${isInternal ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-indigo-700 bg-indigo-50 border-indigo-200'}`}>
+                                     {isInternal ? 'Internal' : 'Supplier'}
+                                   </Badge>
+                                 </div>
+                                 <div className="font-bold text-slate-800 truncate" title={shipment.code}>{shipment.code}</div>
+                               </TableCell>
+                               <TableCell>
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700 truncate" title={shipment.sourceName}>
+                                       {isInternal ? <Factory className="w-4 h-4 text-slate-400 shrink-0"/> : <MapPin className="w-4 h-4 text-slate-400 shrink-0"/>}
+                                       {shipment.sourceName}
+                                    </div>
+                                    {shipment.licensePlate && (
+                                       <div className="inline-flex items-center gap-1 w-fit bg-yellow-100 text-yellow-800 font-bold px-2 py-0.5 rounded border border-yellow-300 text-xs shadow-sm">
+                                          <Truck className="w-3 h-3 shrink-0" /> {shipment.licensePlate}
+                                       </div>
+                                    )}
                                   </div>
-                                  {shipment.licensePlate && (
-                                     <div className="inline-flex items-center gap-1 w-fit bg-yellow-100 text-yellow-800 font-bold px-2 py-0.5 rounded border border-yellow-300 text-xs shadow-sm">
-                                        <Truck className="w-3 h-3" /> {shipment.licensePlate}
+                               </TableCell>
+                               <TableCell>
+                                  <div className="flex items-start gap-2 text-slate-600 bg-slate-50 p-2 rounded-md border border-slate-100 max-h-[60px] overflow-hidden">
+                                    <Package className="w-4 h-4 text-slate-400 mt-0.5 shrink-0"/>
+                                    <span className="text-xs line-clamp-2" title={shipment.itemsSummary}>{shipment.itemsSummary}</span>
+                                  </div>
+                               </TableCell>
+                               <TableCell>
+                                 <span className="text-sm text-slate-500 flex items-center gap-1.5">
+                                   <Calendar className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />
+                                   {shipment.expectedDate ? new Date(shipment.expectedDate).toLocaleString('vi-VN', {hour: '2-digit', minute:'2-digit', day: '2-digit', month: '2-digit'}) : 'Unscheduled'}
+                                 </span>
+                               </TableCell>
+                               <TableCell className="text-center">
+                                 <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 gap-1 border-none font-medium whitespace-nowrap">
+                                    <Truck className="w-3 h-3" /> {shipment.status}
+                                 </Badge>
+                               </TableCell>
+                               <TableCell className="text-right pr-6">
+                                 <Button 
+                                    size="sm" 
+                                    className="font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all"
+                                    onClick={() => handleConfirmReceipt(shipment)}
+                                    disabled={processingId === shipment.code}
+                                  >
+                                    {processingId === shipment.code ? (
+                                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                                    ) : (
+                                      <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                                    )}
+                                    Confirm Receipt
+                                  </Button>
+                               </TableCell>
+                             </TableRow>
+                             {shipment.extraInfo && (
+                               <TableRow className="bg-white hover:bg-slate-50/50 border-t-0">
+                                 <TableCell colSpan={6} className="pl-6 pr-6 pb-4 pt-0">
+                                   <div className="flex items-start gap-2.5 text-[11px] bg-amber-50 text-amber-900 px-3.5 py-2.5 rounded-lg border border-amber-100 w-full">
+                                     {isInternal ? <ClipboardList className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" /> : <MapPin className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />}
+                                     <div className="flex-1 min-w-0 font-medium leading-relaxed whitespace-normal break-words">
+                                       <span className="font-bold uppercase text-[10px] mr-1.5 opacity-70 shrink-0">{isInternal ? "Ghi chú hệ thống:" : "Địa chỉ giao hàng:"}</span>
+                                       {shipment.extraInfo}
                                      </div>
-                                  )}
-                                </div>
-                             </TableCell>
-                             <TableCell>
-                                <div className="flex items-start gap-2 text-slate-600 bg-slate-50 p-2 rounded-md border border-slate-100 max-h-[60px] overflow-hidden">
-                                  <Package className="w-4 h-4 text-slate-400 mt-0.5 shrink-0"/>
-                                  <span className="text-xs line-clamp-2" title={shipment.itemsSummary}>{shipment.itemsSummary}</span>
-                                </div>
-                             </TableCell>
-                             <TableCell>
-                               <span className="text-sm text-slate-500 flex items-center gap-1.5">
-                                 <Calendar className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />
-                                 {shipment.expectedDate ? new Date(shipment.expectedDate).toLocaleString('vi-VN', {hour: '2-digit', minute:'2-digit', day: '2-digit', month: '2-digit'}) : 'Unscheduled'}
-                               </span>
-                             </TableCell>
-                             <TableCell className="text-center">
-                               <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 gap-1 border-none font-medium whitespace-nowrap">
-                                  <Truck className="w-3 h-3" /> {shipment.status}
-                               </Badge>
-                             </TableCell>
-                             <TableCell className="text-right pr-6">
-                               <Button 
-                                  size="sm" 
-                                  className="font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all"
-                                  onClick={() => handleConfirmReceipt(shipment)}
-                                  disabled={processingId === shipment.code}
-                                >
-                                  {processingId === shipment.code ? (
-                                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                                  ) : (
-                                    <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                                  )}
-                                  Confirm Receipt
-                                </Button>
-                             </TableCell>
-                           </TableRow>
+                                   </div>
+                                 </TableCell>
+                               </TableRow>
+                             )}
+                           </React.Fragment>
                          );
                        })
                      )}
