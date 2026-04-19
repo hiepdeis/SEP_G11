@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import axiosClient from "@/lib/axios-client"; // Đổi theo config axios của bạn
 import { directPurchaseApi } from '@/services/directPurchase-service';
 import { supplierApi } from '@/services/supplier-service';
+import { DateTimePicker } from "@/components/ui/custom/date-time-picker";
 
 import { useTranslation } from "react-i18next"; 
 import { Sidebar } from '@/components/sidebar';
@@ -31,7 +32,7 @@ export default function DirectPurchaseOrderDetail() {
   const [itemSuppliers, setItemSuppliers] = useState<Record<number, string>>({});
   // States cho Form chốt đơn
 
-  const [deliveryDate, setDeliveryDate] = useState<string>("");
+  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(undefined);
   const [deliveryAddress, setDeliveryAddress] = useState<string>("");
   
   // State quản lý đơn giá (Lưu theo DpoDetailId) để nhập liệu realtime
@@ -92,7 +93,7 @@ export default function DirectPurchaseOrderDetail() {
       setSubmitting(true);
 
       const payload = {
-        expectedDeliveryDate: deliveryDate ? new Date(deliveryDate).toISOString() : null,
+        expectedDeliveryDate: deliveryDate ? deliveryDate.toISOString() : null,
         deliveryAddress: deliveryAddress,
         items: dpoDetail.details.map((item: any) => ({
           dpoDetailId: item.dpoDetailId,
@@ -250,12 +251,11 @@ export default function DirectPurchaseOrderDetail() {
                 <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
                   <Calendar className="w-4 h-4 text-slate-400"/> {t("Expected Delivery Date")}
                 </label>
-                <Input 
-                  type="datetime-local"
+                <DateTimePicker 
+                  value={deliveryDate}
+                  onChange={(date) => setDeliveryDate(date)}
                   disabled={isReadOnly}
-                  className="bg-white"
-                  value={deliveryDate} 
-                  onChange={(e) => setDeliveryDate(e.target.value)} 
+                  disablePastDates
                 />
               </div>
 
