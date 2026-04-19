@@ -28,6 +28,11 @@ public sealed class SmtpEmailSender : IEmailSender
             ? null
             : _options.Username.Trim();
 
+    private bool RequiresCredentials =>
+        !string.IsNullOrWhiteSpace(NormalizedUsername) ||
+        !string.IsNullOrWhiteSpace(NormalizedPassword) ||
+        NormalizedHost.Equals("smtp.gmail.com", StringComparison.OrdinalIgnoreCase);
+
     private string? NormalizedPassword
     {
         get
@@ -48,7 +53,10 @@ public sealed class SmtpEmailSender : IEmailSender
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(NormalizedHost) &&
         _options.Port > 0 &&
-        IsValidEmailAddress(NormalizedFromAddress);
+        IsValidEmailAddress(NormalizedFromAddress) &&
+        (!RequiresCredentials ||
+         (!string.IsNullOrWhiteSpace(NormalizedUsername) &&
+          !string.IsNullOrWhiteSpace(NormalizedPassword)));
 
     public async Task SendAsync(EmailMessage message, CancellationToken ct)
     {
@@ -74,7 +82,8 @@ public sealed class SmtpEmailSender : IEmailSender
         using var client = new SmtpClient(NormalizedHost, _options.Port)
         {
             EnableSsl = _options.EnableSsl,
-            DeliveryMethod = SmtpDeliveryMethod.Network
+            DeliveryMethod = SmtpDeliveryMethod.Network,
+            Timeout = 30000
         };
 
         if (!string.IsNullOrWhiteSpace(NormalizedUsername))

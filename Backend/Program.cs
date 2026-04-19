@@ -15,6 +15,7 @@ using Backend.Entities;
 using Backend.Filters;
 using Backend.Options;
 using Backend.Services.Email;
+using Backend.Services.Notifications;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -51,6 +52,7 @@ builder.Services.Configure<EmailOptions>(
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 builder.Services.AddScoped<IAuditReportService, AuditReportService>();
+builder.Services.AddScoped<INotificationDispatcher, NotificationDispatchService>();
 builder.Services.AddScoped<IAuditNotificationService, AuditNotificationService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

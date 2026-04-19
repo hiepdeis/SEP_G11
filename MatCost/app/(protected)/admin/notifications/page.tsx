@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -58,6 +59,7 @@ import {
   markNotificationAsRead,
   deleteNotificationById,
   NotificationItem,
+  NotificationCreateResult,
 } from "@/services/admin-notifications";
 import { getUsers, UserItem } from "@/services/admin-users";
 import axiosClient from "@/lib/axios-client";
@@ -85,6 +87,13 @@ const TEMPLATES = [
   "New document requires signature. Please check immediately.",
 ];
 
+const hasUsableRecipientEmail = (email?: string | null) => {
+  if (!email) return false;
+
+  const normalizedEmail = email.trim().toLowerCase();
+  return normalizedEmail.length > 0 && !normalizedEmail.endsWith(".local");
+};
+
 export default function NotificationsPage() {
   const { t, i18n } = useTranslation();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -104,6 +113,7 @@ export default function NotificationsPage() {
   const [targetMode, setTargetMode] = useState<"single" | "all">("single");
   const [selectedUser, setSelectedUser] = useState<number>(0);
   const [message, setMessage] = useState("");
+  const [sendEmail, setSendEmail] = useState(true);
   const [charCount, setCharCount] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
 
@@ -129,15 +139,14 @@ export default function NotificationsPage() {
   const addNotification = async (
     target: number | "all",
     msg: string,
-    allIds: number[],
-  ) => {
+  ): Promise<NotificationCreateResult> => {
     try {
-      await createNotifications({
+      return await createNotifications({
         targetMode: target === "all" ? "all" : "single",
         userId: target === "all" ? undefined : target,
         message: msg,
+        sendEmail,
       });
-      await loadNotifications();
     } catch (e) {
       throw e;
     }
@@ -156,7 +165,7 @@ export default function NotificationsPage() {
 
   const markAllAsRead = async () => {
     try {
-      await axiosClient.patch(`/admin/notifications/read-all`);
+      await axiosClient.patch(`/admin/notifications/mark-all-read`, {});
       await loadNotifications();
     } catch (e) {
       throw e;
@@ -214,6 +223,48 @@ export default function NotificationsPage() {
     users.find((u) => u.userId === userId)?.fullName ??
     `User #${userId}`;
 
+  const getUserEmail = (userId: number) =>
+    activeUsers.find((u) => u.userId === userId)?.email ??
+    users.find((u) => u.userId === userId)?.email ??
+    "";
+
+  const buildSendToastMessage = (result: NotificationCreateResult) => {
+    if (!result.emailRequested) {
+      return {
+        type: "success" as const,
+        message: "Notification saved in the system only.",
+      };
+    }
+
+    if (!result.emailConfigured) {
+      return {
+        type: "warning" as const,
+        message: "Notification saved, but Gmail SMTP is not configured on the server.",
+      };
+    }
+
+    if (result.emailFailedCount > 0 || result.emailMissingAddressCount > 0) {
+      return {
+        type: "warning" as const,
+        message:
+          `Notification saved. Email sent: ${result.emailSentCount}, ` +
+          `failed: ${result.emailFailedCount}, invalid/missing email: ${result.emailMissingAddressCount}.`,
+      };
+    }
+
+    if (result.emailSentCount > 0) {
+      return {
+        type: "success" as const,
+        message: `Notification and email sent successfully (${result.emailSentCount}).`,
+      };
+    }
+
+    return {
+      type: "warning" as const,
+      message: "Notification saved, but no email was sent.",
+    };
+  };
+
   useEffect(() => {
     if (!selectedUser && activeUsers.length > 0) {
       setSelectedUser(activeUsers[0].userId);
@@ -259,14 +310,28 @@ export default function NotificationsPage() {
       toast.error(t("Please select a recipient"));
       return;
     }
+
+    if (
+      sendEmail &&
+      targetMode === "single" &&
+      !hasUsableRecipientEmail(getUserEmail(selectedUser))
+    ) {
+      toast.error("The selected user does not have a real email address for Gmail delivery.");
+      return;
+    }
+
     try {
-      const allIds = activeUsers.map((u) => u.userId);
-      await addNotification(
+      const result = await addNotification(
         targetMode === "all" ? "all" : selectedUser,
         message.trim(),
-        allIds,
       );
-      toast.success(t("Notification sent"));
+      await loadNotifications();
+      const toastResult = buildSendToastMessage(result);
+      if (toastResult.type === "warning") {
+        toast.warning(toastResult.message);
+      } else {
+        toast.success(toastResult.message);
+      }
       setModalOpen(false);
     } catch (err) {
       toast.error(t("Failed to send"));
@@ -533,6 +598,11 @@ export default function NotificationsPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="mt-2 text-xs text-gray-500">
+                    {hasUsableRecipientEmail(getUserEmail(selectedUser))
+                      ? `Email: ${getUserEmail(selectedUser)}`
+                      : "This user is missing a deliverable email address for Gmail notifications."}
+                  </p>
                 </TabsContent>
                 <TabsContent value="all" className="pt-3">
                   <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 rounded-xl border border-amber-100">
@@ -546,6 +616,18 @@ export default function NotificationsPage() {
             </div>
 
             <div className="space-y-3">
+              <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3">
+                <div>
+                  <Label className="text-sm font-semibold text-gray-900">
+                    Send Gmail email
+                  </Label>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Turn this off if you only want an in-app notification.
+                  </p>
+                </div>
+                <Switch checked={sendEmail} onCheckedChange={setSendEmail} />
+              </div>
+
               <div className="flex justify-between items-end">
                 <Label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block ml-1">
                   {t("Notification Content")}
