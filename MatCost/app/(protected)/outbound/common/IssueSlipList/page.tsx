@@ -186,7 +186,7 @@ export default function CommonIssueSlipList() {
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("Issue Slips")}</h1>
             <p className="text-sm text-slate-500">{t("Manage all material release requests and outbound slips.")}</p>
           </div>
-          {(role === "Construction" || role === "Admin") && (
+          {(role === "ConstructionTeam" || role === "Admin") && (
             <Button
               className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
               onClick={() =>
