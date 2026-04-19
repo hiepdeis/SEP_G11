@@ -114,9 +114,10 @@ export function MaterialsTab({
           );
           setLoading(false);
         }
-      } catch (err) {
-        console.error(err);
-        toast.error(t("Failed to load materials data"));
+      } catch (err: any) {
+        toast.error(
+          err.response?.data?.message || t("Failed to load materials data"),
+        );
         if (mounted) setLoading(false);
       }
     };
@@ -208,18 +209,18 @@ export function MaterialsTab({
       } else {
         const created = await createMaterial(payload);
         setItems((prev) => [
-          ...prev,
           {
             _id: created.materialId,
             materialId: created.materialId,
             ...payload,
           },
+          ...prev,
         ]);
         toast.success(t("Add New Successful"));
       }
       closeModal();
-    } catch (error) {
-      toast.error(t("Save Failed"));
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || t("Save Failed"));
     } finally {
       setSaving(false);
     }
@@ -520,6 +521,7 @@ export function MaterialsTab({
                     }
                     placeholder="EX: kg, cái..."
                     className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
+                    maxLength={10}
                   />
                   <div className="flex items-center space-x-2 pt-1">
                     <Checkbox
@@ -549,6 +551,7 @@ export function MaterialsTab({
                     onValueChange={(val) =>
                       setEditing((prev) => ({ ...prev!, massPerUnit: val }))
                     }
+                    maxLength={8}
                     placeholder={t("Enter mass...")}
                     className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
                   />

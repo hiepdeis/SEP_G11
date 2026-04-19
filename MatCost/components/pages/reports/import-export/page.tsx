@@ -49,15 +49,12 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/components/providers/auth-provider";
 import { userApi, UserDto } from "@/services/user-service";
-// CÁC IMPORT CẦN THIẾT CHO DATE FILTER
-import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
-import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { formatDateTime } from "@/lib/format-date-time";
 import {
@@ -80,7 +77,7 @@ import { ExportPdfButton } from "@/components/ui/custom/export-pdf";
 import { DateRangePicker } from "@/components/ui/custom/date-range-picker";
 
 interface Props {
-  role?: "staff" | "manager";
+  role?: "staff" | "manager" | "admin";
 }
 
 export default function WarehouseCardPage({ role = "staff" }: Props) {
@@ -150,12 +147,12 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
 
   useEffect(() => {
     const fetchStaffs = async () => {
-      if (role?.toLowerCase() === "manager") {
+      if (role?.toLowerCase() === "manager" || role?.toLowerCase() === "admin") {
         try {
           const res = await userApi.getAll(1, 100);
 
           const staffs = res.data.users.filter(
-            (u) => u.roleName.toLowerCase() === "staff",
+            (u) => u.roleName.toLowerCase() === "staff" || u.roleName.toLowerCase() === "manager",
           );
 
           setStaffList(staffs);
@@ -173,7 +170,6 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
     }
   }, [user, role]);
 
-  // Reset page khi có bất kỳ filter nào thay đổi
   useEffect(() => {
     setCurrentPage(1);
   }, [
@@ -194,7 +190,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
     let matchesStaff = true;
     if (role?.toLowerCase() === "staff") {
       matchesStaff = item.createdBy === user?.id;
-    } else if (role?.toLowerCase() === "manager" && selectedStaffId !== "All") {
+    } else if ((role?.toLowerCase() === "manager" || role?.toLowerCase() === "admin") && selectedStaffId !== "All") {
       matchesStaff = item.createdBy.toString() === selectedStaffId;
     }
 
@@ -282,7 +278,6 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
   const endIndex = isAll ? filteredData.length : startIndex + itemsPerPage;
   const paginatedData = filteredData.slice(startIndex, endIndex);
 
-  // Tính toán KPI dựa trên mảng sau khi lọc
   const importCards = filteredData.filter(
     (c) => c.transactionType.toLowerCase() === "import",
   );
@@ -305,7 +300,6 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
       { date: string; import: number; export: number }
     > = {};
 
-    // Sắp xếp dữ liệu theo ngày tăng dần để biểu đồ hiển thị đúng timeline
     const sortedData = [...filteredData].sort(
       (a, b) =>
         new Date(a.transactionDate).getTime() -
@@ -327,13 +321,11 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
       }
     });
 
-    // Lấy tối đa 14 ngày gần nhất để biểu đồ không bị quá chật
     return Object.values(dataMap).slice(-14);
   };
 
   const trendChartData = processChartData();
 
-  // DỮ LIỆU CHO BIỂU ĐỒ TRÒN (TỶ TRỌNG)
   const pieChartData = [
     { name: t("Import"), value: totalImportQty, color: "#10b981" }, // emerald-500
     { name: t("Export"), value: totalExportQty, color: "#f43f5e" }, // rose-500
@@ -341,7 +333,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
 
   const handleViewDetail = (e: React.MouseEvent, item: WarehouseCardDto) => {
     e.stopPropagation();
-    router.push(`/${role}/reports/import-export/${item.cardId}`);
+    router.push(`import-export/${item.cardId}`);
   };
 
   return (
@@ -536,11 +528,10 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                           />
                         </div>
 
-                        {/* Staff Group (Managers only) */}
-                        {role?.toLowerCase() === "manager" && (
+                        {(role?.toLowerCase() === "manager" || role?.toLowerCase() === "admin") && (
                           <div className="space-y-2">
                             <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-                              {t("Staff Member")}
+                              {t("Member")}
                             </label>
                             <Select
                               value={selectedStaffId}
@@ -551,7 +542,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                                   <User className="w-4 h-4 text-slate-500" />
                                   <span className="truncate">
                                     {selectedStaffId === "All"
-                                      ? t("All Staffs")
+                                      ? t("All")
                                       : staffList.find(
                                           (s) =>
                                             s.id.toString() === selectedStaffId,
@@ -561,7 +552,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="All">
-                                  {t("All Staffs")}
+                                  {t("All")}
                                 </SelectItem>
                                 {staffList.map((staff) => (
                                   <SelectItem
@@ -778,7 +769,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                         className="text-center w-[120px]"
                         onClick={() => handleSort("change")}
                       >
-                        <div className="flex items-center gap-1.5 select-none">
+                        <div className="flex items-center justify-center gap-1.5 select-none">
                           {t("Change")}
                           {sortConfig?.key === "change" ? (
                             sortConfig.direction === "asc" ? (
@@ -916,8 +907,8 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                             </Badge>
                           </TableCell>
 
-                          <TableCell className="text-right pr-6 py-3">
-                            <div className="flex flex-col items-end gap-0.5">
+                          <TableCell className="py-3">
+                            <div className="flex flex-col items-start gap-0.5">
                               <span className="font-bold text-slate-800 text-md">
                                 {formatQuantity(item.quantityAfter)}
                               </span>
@@ -930,7 +921,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-2 w-[100px]"
+                              className="h-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-2 w-[150px]"
                               onClick={(e) => handleViewDetail(e, item)}
                             >
                               <FileText className="w-4 h-4 mr-1.5" />

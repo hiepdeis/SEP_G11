@@ -2,7 +2,7 @@ namespace Backend.Domains.Import.DTOs.Admins
 {
     public class CreatePurchaseRequestFromAlertDto
     {
-        public int ProjectId { get; set; }
+        // public int ProjectId { get; set; }
         public List<PurchaseRequestItemInputDto> Items { get; set; } = new();
     }
 
@@ -17,7 +17,7 @@ namespace Backend.Domains.Import.DTOs.Admins
     {
         public long RequestId { get; set; }
         public string RequestCode { get; set; } = string.Empty;
-        public int ProjectId { get; set; }
+        public int? ProjectId { get; set; }
         public string ProjectName { get; set; } = string.Empty;
         public long? AlertId { get; set; }
         public int CreatedBy { get; set; }

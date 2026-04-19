@@ -40,7 +40,6 @@ import {
   adminStockShortageAlertApi,
   StockShortageAlertDto,
 } from "@/services/import-service";
-import { projectApi, ProjectDto } from "@/services/project-services";
 import { materialApi, MaterialDto } from "@/services/material-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -64,13 +63,11 @@ export default function CreatePurchaseRequestPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
-  const [projectId, setProjectId] = useState<string>("");
   const [selectedAlertId, setSelectedAlertId] = useState<string>(
     urlAlertId || "",
   );
   const [items, setItems] = useState<RequestItemInput[]>([]);
 
-  const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [materials, setMaterials] = useState<MaterialDto[]>([]);
   const [alerts, setAlerts] = useState<StockShortageAlertDto[]>([]);
 
@@ -81,13 +78,11 @@ export default function CreatePurchaseRequestPage() {
     const fetchInitialData = async () => {
       setIsLoadingData(true);
       try {
-        const [projRes, matRes, alertsRes] = await Promise.all([
-          projectApi.getProjects(),
+        const [matRes, alertsRes] = await Promise.all([
           materialApi.getAll(),
           adminStockShortageAlertApi.getConfirmedAlerts(),
         ]);
 
-        setProjects(projRes);
         setMaterials(matRes.data);
         setAlerts(alertsRes.data);
 
@@ -99,9 +94,10 @@ export default function CreatePurchaseRequestPage() {
             t("This alert might have already been resolved or doesn't exist."),
           );
         }
-      } catch (error) {
-        console.error("Failed to load initial data", error);
-        toast.error(t("Failed to load necessary data."));
+      } catch (error: any) {
+        toast.error(
+          error.response?.data?.message || t("Failed to load necessary data."),
+        );
       } finally {
         setIsLoadingData(false);
       }
@@ -189,10 +185,6 @@ export default function CreatePurchaseRequestPage() {
   };
 
   const handleSubmit = () => {
-    if (!projectId) {
-      return toast.error(t("Please select a project."));
-    }
-
     if (!selectedAlertId) {
       return toast.error(t("Please select an active alert to resolve."));
     }
@@ -218,7 +210,6 @@ export default function CreatePurchaseRequestPage() {
           const alertOriginalItem = items.find((i) => i.isFromAlert);
 
           const payload = {
-            projectId: Number(projectId),
             finalQuantity: alertOriginalItem
               ? Number(alertOriginalItem.quantity)
               : undefined,
@@ -372,44 +363,6 @@ export default function CreatePurchaseRequestPage() {
                       </Select>
                       <p className="text-xs text-slate-500 mt-1">
                         {t("Only Manager-confirmed alerts appear here.")}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-slate-200 shadow-sm bg-white gap-0">
-                <CardHeader className="border-b border-slate-100 pb-4 pt-2">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
-                    <Building2 className="w-5 h-5 text-indigo-600" />
-                    {t("Project Allocation")}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">
-                        {t("Destination Project")}{" "}
-                        <span className="text-red-500">*</span>
-                      </label>
-                      <Select value={projectId} onValueChange={setProjectId}>
-                        <SelectTrigger className="w-full bg-slate-50 border-slate-200 h-10">
-                          <SelectValue placeholder={t("Select a project...")} />
-                        </SelectTrigger>
-                        <SelectContent showSearch>
-                          {projects.map((p) => (
-                            <SelectItem
-                              key={p.projectId}
-                              value={p.projectId.toString()}
-                            >
-                              <span className="font-medium">[{p.code}]</span>{" "}
-                              {p.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-slate-500 mt-1">
-                        {t("Select the project that requires this material.")}
                       </p>
                     </div>
                   </div>

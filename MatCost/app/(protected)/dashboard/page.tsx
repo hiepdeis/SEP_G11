@@ -11,20 +11,34 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (user?.role) {
-      router.push(`/${user.role.toLowerCase()}`);
-    }
-  }, [user]);
+      const role = user.role.toLowerCase();
 
-  //chuyển logic 2fa sang MatCost\components\pages\dashboard\page.tsx để dùng chung
+      if (role.includes("admin")) {
+        router.push("/admin");
+      } else if (role.includes("accountant")) {
+        router.push("/accountant");
+      } else if (role.includes("manager")) {
+        router.push("/manager");
+      } else if (role.includes("staff")) {
+        router.push("/staff");
+      } else if (role.includes("construction")) {
+        router.push("/construction");
+      } else if (role.includes("purchasing")) {
+        router.push("/purchasing");
+      } else {
+        router.push(`/${role}`);
+      }
+    }
+  }, [user, router]);
 
   if (isLoading) {
     return (
-      <>
+      <div className="flex h-screen w-full items-center justify-center gap-2 bg-slate-50">
         <Loader2 className="w-5 h-5 animate-spin text-orange-600" />
-        <span className="text-slate-700">Authenticating...</span>
-      </>
+        <span className="text-slate-700 font-medium">Authenticating...</span>
+      </div>
     );
   }
 
-  return <></>;
+  return null;
 }

@@ -21,7 +21,7 @@ public class PurchaseOrder
     public long? RequestId { get; set; }
 
     [Column("ProjectID")]
-    public int ProjectId { get; set; }
+    public int? ProjectId { get; set; }
 
     [Column("SupplierID")]
     public int SupplierId { get; set; }
@@ -70,7 +70,7 @@ public class PurchaseOrder
 
     [ForeignKey("ProjectId")]
     [InverseProperty("PurchaseOrders")]
-    public virtual Project Project { get; set; } = null!;
+    public virtual Project? Project { get; set; }
 
     [ForeignKey("SupplierId")]
     [InverseProperty("PurchaseOrders")]

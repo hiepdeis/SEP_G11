@@ -64,10 +64,7 @@ const getRoleName = (roleId: number, roles: RoleItem[]) =>
 const isAdminRole = (role: RoleItem) =>
   role.roleName.trim().toLowerCase() === "admin";
 
-const getAdminRoleId = (roles: RoleItem[]) => roles.find(isAdminRole)?.roleId;
-
-const getVisibleRoles = (roles: RoleItem[]) =>
-  roles.filter((role) => !isAdminRole(role));
+const getVisibleRoles = (roles: RoleItem[]) => roles;
 
 const emptyForm: Omit<UserItem, "userId"> = {
   username: "",
@@ -109,8 +106,8 @@ export default function UsersPage() {
         const defaultRole =
           rolesData.find((r) => !isAdminRole(r)) ?? rolesData[0];
         setForm((f) => ({ ...f, roleId: defaultRole?.roleId ?? 0 }));
-      } catch (err) {
-        toast.error(t("Failed to load data"));
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || t("Failed to load data"));
       } finally {
         setLoading(false);
       }
@@ -119,13 +116,11 @@ export default function UsersPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    const adminId = getAdminRoleId(roles);
     let res = users.filter((u) => {
-      if (adminId !== undefined && u.roleId === adminId) return false;
       const matchSearch =
-        u.fullName.toLowerCase().includes(search.toLowerCase()) ||
-        u.username.toLowerCase().includes(search.toLowerCase()) ||
-        u.email.toLowerCase().includes(search.toLowerCase());
+        u.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+        u.username?.toLowerCase().includes(search.toLowerCase()) ||
+        u.email?.toLowerCase().includes(search.toLowerCase());
       const matchStatus =
         filterStatus === "all" ||
         (filterStatus === "active" ? u.status : !u.status);
@@ -183,8 +178,8 @@ export default function UsersPage() {
         toast.success(t("Update Successful"));
       }
       setModalOpen(false);
-    } catch (e) {
-      toast.error(t("Update Failed"));
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || t("Update Failed"));
     }
   };
 
@@ -211,7 +206,7 @@ export default function UsersPage() {
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-3 mt-6">
+            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-3 mt-6">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
                 <Input
@@ -221,7 +216,7 @@ export default function UsersPage() {
                     setPage(1);
                   }}
                   placeholder={t("Search by name, username, email...")}
-                  className="pl-10 h-10 rounded-xl"
+                  className="pl-10 rounded-xl"
                 />
               </div>
               <div className="flex gap-2">
@@ -232,7 +227,7 @@ export default function UsersPage() {
                     setPage(1);
                   }}
                 >
-                  <SelectTrigger className="w-[140px] h-10 rounded-xl">
+                  <SelectTrigger className="w-[140px] rounded-xl border-slate-300">
                     <SelectValue placeholder={t("All status")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -249,7 +244,7 @@ export default function UsersPage() {
                     setPage(1);
                   }}
                 >
-                  <SelectTrigger className="w-[160px] h-10 rounded-xl">
+                  <SelectTrigger className="w-[160px] rounded-xl border-slate-300">
                     <SelectValue placeholder={t("All roles")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -264,7 +259,7 @@ export default function UsersPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mt-6">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden mt-6">
               <Table>
                 <TableHeader className="bg-gray-50/50">
                   <TableRow>
@@ -341,14 +336,14 @@ export default function UsersPage() {
                       <TableCell className="px-6 py-4">
                         <Badge
                           variant={u.status ? "default" : "secondary"}
-                          className={`text-[10px] font-bold uppercase tracking-wider ${
+                          className={`text-[10px] font-bold uppercase tracking-wider align-center ${
                             u.status
                               ? "bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100"
                               : "bg-gray-100 text-gray-500 border-gray-200"
                           }`}
                         >
                           <span
-                            className={`w-1 h-1 rounded-full mr-1.5 ${
+                            className={`w-1 h-1 rounded-xl mr-1.5 ${
                               u.status ? "bg-emerald-500" : "bg-gray-400"
                             }`}
                           />
@@ -382,7 +377,7 @@ export default function UsersPage() {
                     size="icon"
                     disabled={page === 1}
                     onClick={() => setPage(page - 1)}
-                    className="h-8 w-8 rounded-lg"
+                    className="h-8 w-8 rounded-xl"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
@@ -394,7 +389,7 @@ export default function UsersPage() {
                     size="icon"
                     disabled={page >= totalPages}
                     onClick={() => setPage(page + 1)}
-                    className="h-8 w-8 rounded-lg"
+                    className="h-8 w-8 rounded-xl"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </Button>
@@ -409,7 +404,7 @@ export default function UsersPage() {
         <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden border-0 shadow-lg bg-white">
           <DialogHeader className="px-8 py-6 border-b border-gray-100 bg-gray-50/50">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
                 <UserCog className="w-6 h-6" />
               </div>
               <div>

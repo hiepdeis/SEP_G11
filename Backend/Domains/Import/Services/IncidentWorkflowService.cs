@@ -160,7 +160,6 @@ namespace Backend.Domains.Import.Services
             var incidents = await _context.IncidentReports
                 .Include(i => i.Receipt)
                 .Include(i => i.IncidentReportDetails)
-                    .ThenInclude(d => d.EvidenceImages)
                 .Include(i => i.QCCheck)
                     .ThenInclude(q => q!.QCCheckDetails)
                         .ThenInclude(d => d.ReceiptDetail)
@@ -190,7 +189,6 @@ namespace Backend.Domains.Import.Services
                         FailQuantityQuality = d.FailQuantityQuality,
                         FailQuantityDamage = d.FailQuantityDamage,
                         FailReason = d.FailReason,
-                        EvidenceImages = d.EvidenceImages
                     })
                     .ToList()
             }).ToList();

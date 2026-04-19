@@ -1,4 +1,4 @@
-﻿using Backend.Data;
+using Backend.Data;
 using Backend.Domains.Admin.Dtos;
 using Backend.Domains.Admin.Interface;
 using Backend.Entities;
@@ -127,7 +127,6 @@ namespace Backend.Domains.Admin.Services
             var q =
                 from u in _db.Users.AsNoTracking()
                 join r in _db.Roles.AsNoTracking() on u.RoleId equals r.RoleId
-                where r.RoleName.ToLower() != AdminRoleName.ToLower()
                 select new UserListItemDto
                 {
                     UserId = u.UserId,
@@ -252,6 +251,10 @@ namespace Backend.Domains.Admin.Services
         {
             var user = await _db.Users.FirstOrDefaultAsync(x => x.UserId == userId, ct);
             if (user == null) return false;
+
+            var adminRoleId = await GetAdminRoleIdAsync(ct);
+            if (adminRoleId.HasValue && user.RoleId == adminRoleId.Value)
+                throw new ArgumentException("Không thể cập nhật tài khoản Admin.");
 
             var roleExists = await _db.Roles.AnyAsync(x => x.RoleId == request.RoleId, ct);
             if (!roleExists)

@@ -122,9 +122,10 @@ export default function PurchasingDashboardPage() {
         ]);
         setOrders(poRes.data);
         setRequests(prRes.data);
-      } catch (error) {
-        console.error("Failed to fetch data", error);
-        toast.error(t("Failed to fetch purchasing data"));
+      } catch (error: any) {
+        toast.error(
+          error.response?.data?.message || t("Failed to fetch purchasing data"),
+        );
       } finally {
         setIsLoading(false);
       }
@@ -636,9 +637,6 @@ export default function PurchasingDashboardPage() {
                           <TableHead className="w-[20%]">
                             {t("Supplier")}
                           </TableHead>
-                          <TableHead className="w-[15%]">
-                            {t("Project")}
-                          </TableHead>
                           <TableHead
                             className="cursor-pointer transition-colors w-[15%]"
                             onClick={() => handleSort("amount")}
@@ -681,9 +679,6 @@ export default function PurchasingDashboardPage() {
                                 <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50 hover:text-indigo-600" />
                               )}
                             </div>
-                          </TableHead>
-                          <TableHead className="w-[25%]">
-                            {t("Project")}
                           </TableHead>
                           <TableHead
                             className="cursor-pointer transition-colors w-[15%]"
@@ -782,14 +777,6 @@ export default function PurchasingDashboardPage() {
                                   </span>
                                   <span className="text-xs text-slate-500 mt-0.5">
                                     {item.items?.length || 0} {t("items")}
-                                  </span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2 text-slate-600 text-sm">
-                                  <Building2 className="w-4 h-4 text-indigo-500 shrink-0" />
-                                  <span className="truncate">
-                                    {item.projectName}
                                   </span>
                                 </div>
                               </TableCell>
@@ -954,14 +941,6 @@ export default function PurchasingDashboardPage() {
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2 text-slate-600">
-                                  <Building2 className="w-4 h-4 text-indigo-500" />
-                                  <span className="font-medium text-slate-800">
-                                    {item.projectName}
-                                  </span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2 text-slate-600">
                                   <Package className="w-4 h-4 text-slate-400" />
                                   {item.items?.length || 0} {t("items")}
                                 </div>
@@ -976,7 +955,7 @@ export default function PurchasingDashboardPage() {
                                   }
                                 >
                                   {item.status == "Submitted"
-                                    ? "Pending Draft Creation"
+                                    ? t("Pending Draft Creation")
                                     : t(formatPascalCase(item.status))}
                                 </Badge>
                               </TableCell>

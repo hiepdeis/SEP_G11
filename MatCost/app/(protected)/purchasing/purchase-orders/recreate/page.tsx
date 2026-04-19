@@ -141,9 +141,11 @@ export default function RecreatePurchaseOrderPage() {
             setIsLoadingHistory(false);
           }
         }
-      } catch (error) {
-        console.error("Failed to load original PO data", error);
-        toast.error(t("Failed to load original PO data."));
+      } catch (error: any) {
+        toast.error(
+          error.response?.data?.message ||
+            t("Failed to load original PO data."),
+        );
         router.back();
       } finally {
         setIsLoadingData(false);
@@ -355,19 +357,6 @@ export default function RecreatePurchaseOrderPage() {
                           {originalOrder?.requestCode ||
                             `PR ID: ${originalOrder?.requestId}`}
                         </span>
-                      </Badge>
-                    </div>
-
-                    <div>
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                        {t("Project Name")}
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className="text-md px-3 py-1 text-slate-600 bg-slate-50 border-slate-200"
-                      >
-                        <Construction className="w-3.5 h-3.5 text-slate-500" />
-                        {originalOrder?.projectName}
                       </Badge>
                     </div>
                   </div>

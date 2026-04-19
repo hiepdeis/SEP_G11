@@ -16,7 +16,7 @@ export function CurrencyInput({
   value,
   onValueChange,
   onKeyDown,
-  maxLength = 15,
+  maxLength = 12,
   ...props
 }: CurrencyInputProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

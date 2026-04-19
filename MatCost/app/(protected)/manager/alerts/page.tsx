@@ -56,6 +56,15 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { formatDateTime } from "@/lib/format-date-time";
+import { ColumnDef, DataTable } from "@/components/ui/custom/data-table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function StockShortageAlertListPage() {
   const router = useRouter();
@@ -63,8 +72,16 @@ export default function StockShortageAlertListPage() {
 
   const [alerts, setAlerts] = useState<StockShortageAlertDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isBulkConfirming, setIsBulkConfirming] = useState(false);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [confirmNote, setConfirmNote] = useState("");
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const [bulkActionData, setBulkActionData] = useState<{
+    items: { alertId: number; adjustedQuantity: number }[];
+    clear: () => void;
+  } | null>(null);
 
   const [filterStatus, setFilterStatus] = useState<
     "All" | "Pending" | "ManagerConfirmed" | "PRCreated"
@@ -104,9 +121,11 @@ export default function StockShortageAlertListPage() {
       try {
         const res = await managerStockShortageAlertApi.getAlerts();
         setAlerts(res.data);
-      } catch (error) {
-        console.error("Failed to fetch alerts", error);
-        toast.error(t("Failed to fetch stock shortage alerts"));
+      } catch (error: any) {
+        toast.error(
+          error.response?.data?.message ||
+            t("Failed to fetch stock shortage alerts"),
+        );
       } finally {
         setIsLoading(false);
       }
@@ -250,6 +269,155 @@ export default function StockShortageAlertListPage() {
     }
   };
 
+  const columns: ColumnDef<StockShortageAlertDto>[] = [
+    {
+      // Cột 1: Date & Alert ID (Có Sort)
+      header: (
+        <div
+          className="flex items-center gap-1.5 select-none cursor-pointer"
+          onClick={() => handleSort("date")}
+        >
+          {t("Date & Alert ID")}
+          {sortConfig?.key === "date" ? (
+            sortConfig.direction === "asc" ? (
+              <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
+            ) : (
+              <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+            )
+          ) : (
+            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50 hover:text-indigo-600" />
+          )}
+        </div>
+      ),
+      className: "pl-6 transition-colors",
+      cell: (item) => (
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-slate-700">
+              #{item.alertId}
+            </span>
+            {item.status === "Pending" && (
+              <span className="flex h-2 w-2 rounded-full bg-rose-500" />
+            )}
+          </div>
+          <span className="text-xs text-slate-400 flex items-center gap-1 mt-1">
+            <CalendarDays className="w-3 h-3" />{" "}
+            {formatDateTime(item.createdAt)}
+          </span>
+        </div>
+      ),
+    },
+    {
+      // Cột 2: Material Info
+      header: <div className="">{t("Material Info")}</div>,
+      cell: (item) => (
+        <div className="flex flex-col text-left">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-slate-800">
+              {item.materialName}
+            </span>
+            {getPriorityBadge(item.priority)}
+          </div>
+          <span className="text-xs text-slate-500 font-mono mt-0.5">
+            {item.materialCode}
+          </span>
+          <span className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+            <Package className="w-3 h-3" />{" "}
+            {item.warehouseName || t("Main Warehouse")}
+          </span>
+        </div>
+      ),
+    },
+    {
+      // Cột 3: Current Stock (Có Sort)
+      header: (
+        <div
+          className="flex items-center justify-end gap-1.5 select-none cursor-pointer"
+          onClick={() => handleSort("quantity")}
+        >
+          {t("Current Stock")}
+          {sortConfig?.key === "quantity" ? (
+            sortConfig.direction === "asc" ? (
+              <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
+            ) : (
+              <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+            )
+          ) : (
+            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50 hover:text-indigo-600" />
+          )}
+        </div>
+      ),
+      className: "text-right transition-colors",
+      cell: (item) => (
+        <div className="flex flex-col items-end">
+          <span className="font-bold text-rose-600">
+            {item.currentQuantity}
+          </span>
+          <span className="text-[11px] text-slate-500 mt-0.5">
+            Min: {item.minStockLevel}
+          </span>
+        </div>
+      ),
+    },
+    {
+      // Cột 4: Suggested Quantity
+      header: <div className="text-center">{t("Suggested Quantity")}</div>,
+      className: "text-center",
+      cell: (item) => (
+        <span className="font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100">
+          +{item.suggestedQuantity || 0}
+        </span>
+      ),
+    },
+    {
+      // Cột 5: Status
+      header: <div className="text-center">{t("Status")}</div>,
+      className: "text-center",
+      cell: (item) => (
+        <Badge variant="outline" className={getStatusBadge(item.status)}>
+          {item.status == "PRCreated"
+            ? t("PR Created")
+            : item.status == "ManagerConfirmed"
+              ? t("Confirmed")
+              : t(item.status)}
+        </Badge>
+      ),
+    },
+    {
+      // Cột 6: Action
+      header: <div className="text-right pr-6">{t("Action")}</div>,
+      className: "text-right pr-6",
+      cell: (item) => (
+        <Button
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation(); // Ngăn việc click nút này lại trigger onClick của cả dòng Row
+            handleReview(item.alertId);
+          }}
+          disabled={loadingId === item.alertId}
+          variant={item.status === "Pending" ? "default" : "outline"}
+          className={
+            item.status === "Pending"
+              ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[200px]"
+              : "text-indigo-600 border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 w-[200px]"
+          }
+        >
+          {loadingId === item.alertId ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : item.status === "Pending" ? (
+            <>
+              {t("Review")} <ArrowRight className="w-4 h-4 ml-1.5" />
+            </>
+          ) : (
+            <>
+              {t("View")} <Eye className="w-4 h-4 ml-1.5" />
+            </>
+          )}
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
@@ -342,14 +510,6 @@ export default function StockShortageAlertListPage() {
                       <SelectValue placeholder={t("Filter by status")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="All">
-                        <Badge
-                          variant="outline"
-                          className="bg-slate-50 text-slate-700 border-slate-200"
-                        >
-                          {t("All")}
-                        </Badge>
-                      </SelectItem>
                       <SelectItem value="Pending">
                         <Badge
                           variant="outline"
@@ -375,6 +535,14 @@ export default function StockShortageAlertListPage() {
                           className="bg-emerald-50 text-emerald-700 border-emerald-200"
                         >
                           {t("PR Created")}
+                        </Badge>
+                      </SelectItem>
+                      <SelectItem value="All">
+                        <Badge
+                          variant="outline"
+                          className="bg-slate-50 text-slate-700 border-slate-200"
+                        >
+                          {t("All")}
                         </Badge>
                       </SelectItem>
                     </SelectContent>
@@ -472,197 +640,134 @@ export default function StockShortageAlertListPage() {
               </div>
             </CardHeader>
             <CardContent className="p-0 flex flex-col justify-between flex-1">
-              <div className="[&>div]:max-h-[350px] [&>div]:min-h-[350px] [&>div]:overflow-y-auto">
-                <Table>
-                  <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
-                    <TableRow className="bg-slate-50">
-                      <TableHead
-                        className="pl-6 cursor-pointer transition-colors w-[20%]"
-                        onClick={() => handleSort("date")}
+              <DataTable
+                data={paginatedData}
+                columns={columns}
+                getRowId={(item) => item.alertId}
+                enableSelection={filterStatus === "Pending"}
+                renderBulkAction={(selectedIds, clearSelection) => (
+                  <div className="bg-indigo-50 border border-indigo-200 text-indigo-700 px-4 py-2 mx-4 mt-4 rounded-md flex items-center justify-between text-sm shadow-sm animate-in fade-in slide-in-from-top-1">
+                    <span>
+                      {t("Selected")}:{" "}
+                      <strong className="font-semibold">
+                        {selectedIds.length}
+                      </strong>
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-100"
+                        onClick={clearSelection}
                       >
-                        <div className="flex items-center gap-1.5 select-none">
-                          {t("Date & Alert ID")}
-                          {sortConfig?.key === "date" ? (
-                            sortConfig.direction === "asc" ? (
-                              <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
-                            ) : (
-                              <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
-                            )
-                          ) : (
-                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50 hover:text-indigo-600" />
-                          )}
-                        </div>
-                      </TableHead>
-
-                      <TableHead className="w-[30%]">
-                        {t("Material Info")}
-                      </TableHead>
-
-                      <TableHead
-                        className="cursor-pointer transition-colors w-[15%] text-right"
-                        onClick={() => handleSort("quantity")}
+                        {t("Cancel")}
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 shadow-sm"
+                        onClick={() => {
+                          const items = (selectedIds as number[]).map((id) => {
+                            const alert = alerts.find((a) => a.alertId === id);
+                            return {
+                              alertId: id,
+                              adjustedQuantity: alert?.suggestedQuantity || 0,
+                            };
+                          });
+                          setBulkActionData({
+                            items,
+                            clear: clearSelection,
+                          });
+                          setIsConfirmDialogOpen(true);
+                        }}
                       >
-                        <div className="flex items-center justify-end gap-1.5 select-none">
-                          {t("Current Stock")}
-                          {sortConfig?.key === "quantity" ? (
-                            sortConfig.direction === "asc" ? (
-                              <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
-                            ) : (
-                              <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
-                            )
-                          ) : (
-                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-50 hover:text-indigo-600" />
-                          )}
-                        </div>
-                      </TableHead>
+                        {t("Confirm")}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              />
 
-                      <TableHead className="w-[15%] text-center">
-                        {t("Suggested Quantity")}
-                      </TableHead>
-                      <TableHead className="w-[15%] text-center">
-                        {t("Status")}
-                      </TableHead>
-                      <TableHead className="text-right pr-6 w-[10%]">
-                        {t("Action")}
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="h-32 text-center">
-                          <div className="flex justify-center items-center gap-2 text-indigo-600">
-                            <Loader2 className="w-6 h-6 animate-spin" />{" "}
-                            {t("Loading alerts...")}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : paginatedData.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={6}
-                          className="h-32 text-center text-slate-500"
-                        >
-                          {t("No alerts found.")}
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      paginatedData.map((item) => (
-                        <TableRow
-                          key={item.alertId}
-                          className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
-                          onClick={() => {
-                            const selection = window.getSelection();
-                            if (selection && selection.toString().length > 0) {
-                              return;
-                            }
-                            handleReview(item.alertId);
-                          }}
-                        >
-                          <TableCell className="pl-6">
-                            <div className="flex flex-col">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-slate-700">
-                                  #{item.alertId}
-                                </span>
-                                {item.status === "Pending" && (
-                                  <span className="flex h-2 w-2 rounded-full bg-rose-500" />
-                                )}
-                              </div>
-                              <span className="text-xs text-slate-400 flex items-center gap-1 mt-1">
-                                <CalendarDays className="w-3 h-3" />{" "}
-                                {formatDateTime(item.createdAt)}
-                              </span>
-                            </div>
-                          </TableCell>
-
-                          <TableCell>
-                            <div className="flex flex-col text-left">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-slate-800">
-                                  {item.materialName}
-                                </span>
-                                {getPriorityBadge(item.priority)}
-                              </div>
-                              <span className="text-xs text-slate-500 font-mono mt-0.5">
-                                {item.materialCode}
-                              </span>
-                              <span className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                                <Package className="w-3 h-3" />{" "}
-                                {item.warehouseName || t("Main Warehouse")}
-                              </span>
-                            </div>
-                          </TableCell>
-
-                          <TableCell className="text-right">
-                            <div className="flex flex-col items-end">
-                              <span className="font-bold text-rose-600">
-                                {item.currentQuantity.toLocaleString("vi-VN")}
-                              </span>
-                              <span className="text-[11px] text-slate-500 mt-0.5">
-                                Min: {item.minStockLevel}
-                              </span>
-                            </div>
-                          </TableCell>
-
-                          <TableCell className="text-center">
-                            <span className="font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100">
-                              +
-                              {item.suggestedQuantity?.toLocaleString(
-                                "vi-VN",
-                              ) || 0}
-                            </span>
-                          </TableCell>
-
-                          <TableCell className="text-center">
-                            <Badge
-                              variant="outline"
-                              className={getStatusBadge(item.status)}
-                            >
-                              {item.status == "PRCreated"
-                                ? t("PR Created")
-                                : item.status == "ManagerConfirmed"
-                                  ? t("Confirmed")
-                                  : t(item.status)}
-                            </Badge>
-                          </TableCell>
-
-                          <TableCell className="text-right pr-6">
-                            <Button
-                              size="sm"
-                              onClick={() => handleReview(item.alertId)}
-                              disabled={loadingId === item.alertId}
-                              variant={
-                                item.status === "Pending"
-                                  ? "default"
-                                  : "outline"
-                              }
-                              className={
-                                item.status === "Pending"
-                                  ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm w-[200px]"
-                                  : "text-indigo-600 border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 w-[200px]"
-                              }
-                            >
-                              {loadingId === item.alertId ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : item.status === "Pending" ? (
-                                <>
-                                  {t("Review")}{" "}
-                                  <ArrowRight className="w-4 h-4 ml-1.5" />
-                                </>
-                              ) : (
-                                <>
-                                  {t("View")} <Eye className="w-4 h-4 ml-1.5" />
-                                </>
-                              )}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
+              <Dialog
+                open={isConfirmDialogOpen}
+                onOpenChange={setIsConfirmDialogOpen}
+              >
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>{t("Confirm Selected Alerts")}</DialogTitle>
+                  </DialogHeader>
+                  <span>
+                    {t("Selected")} :{" "}
+                    {bulkActionData?.items
+                      .map((item) => item.alertId)
+                      .join(", ")}
+                  </span>
+                  <span className="text-sm text-slate-500 italic">
+                    {t(
+                      "Are you sure you want to confirm these alerts? Adjusted Restock Quantity will be set to Suggested Quantity",
                     )}
-                  </TableBody>
-                </Table>
-              </div>
+                  </span>
+                  <div className="py-2">
+                    <label className="text-sm font-medium text-slate-700 mb-2 block">
+                      {t("Notes (Optional)")}
+                    </label>
+                    <Textarea
+                      placeholder={t("Enter any notes here...")}
+                      value={confirmNote}
+                      onChange={(e) => setConfirmNote(e.target.value)}
+                      rows={4}
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsConfirmDialogOpen(false)}
+                      disabled={isBulkConfirming}
+                    >
+                      {t("Cancel")}
+                    </Button>
+                    <Button
+                      disabled={isBulkConfirming}
+                      onClick={async () => {
+                        if (!bulkActionData) return;
+                        setIsBulkConfirming(true);
+                        try {
+                          const data = bulkActionData.items.map((item) => ({
+                            alertId: item.alertId,
+                            adjustedQuantity: item.adjustedQuantity,
+                            notes: confirmNote,
+                          }));
+                          await managerStockShortageAlertApi.bulkConfirmAlerts(
+                            data,
+                          );
+                          toast.success(
+                            t("Stock shortage alerts confirmed successfully"),
+                          );
+                          setIsConfirmDialogOpen(false);
+                          setConfirmNote("");
+                          bulkActionData.clear();
+                          setIsLoading(true);
+                          const res =
+                            await managerStockShortageAlertApi.getAlerts();
+                          setAlerts(res.data);
+                        } catch (error: any) {
+                          toast.error(
+                            error.response?.data?.message ||
+                              t("Failed to confirm stock shortage alerts"),
+                          );
+                        } finally {
+                          setIsBulkConfirming(false);
+                          setIsLoading(false);
+                        }
+                      }}
+                    >
+                      {isBulkConfirming && (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      )}
+                      {t("Confirm")}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               {!isLoading && filteredData.length > 0 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 gap-4 mt-auto">

@@ -122,9 +122,10 @@ export default function DashboardPage() {
         // Data for approvals table
         setPendingAdminOrders(adminPoRes.data || []);
         setAdminRequests(adminPrRes.data || []);
-      } catch (error) {
-        console.error(error);
-        toast.error(t("Failed to load dashboard data"));
+      } catch (error: any) {
+        toast.error(
+          error.response?.data?.message || t("Failed to load dashboard data"),
+        );
       } finally {
         setLoading(false);
       }
@@ -162,10 +163,14 @@ export default function DashboardPage() {
       .slice(0, 6);
   }, [pendingOrders]);
 
-  const projectData = useMemo(() => {
+  const materialData = useMemo(() => {
     const map: Record<string, number> = {};
     purchaseRequests.forEach((pr) => {
-      map[pr.projectName] = (map[pr.projectName] || 0) + 1;
+      pr.items?.forEach((item) => {
+        if (item.materialName) {
+          map[item.materialName] = (map[item.materialName] || 0) + 1;
+        }
+      });
     });
     return Object.entries(map)
       .map(([name, value]) => ({ name, value }))
@@ -399,10 +404,10 @@ export default function DashboardPage() {
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
                   <CardTitle className="text-lg font-black tracking-tight">
-                    {t("Project Distribution")}
+                    {t("Material Distribution")}
                   </CardTitle>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                    {t("Request focus by project")}
+                    {t("Top requested materials")}
                   </p>
                 </div>
                 <PieChartIcon className="w-5 h-5 text-slate-400" />
@@ -412,7 +417,7 @@ export default function DashboardPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={projectData}
+                        data={materialData}
                         cx="50%"
                         cy="50%"
                         innerRadius={60}
@@ -421,7 +426,7 @@ export default function DashboardPage() {
                         dataKey="value"
                         nameKey="name"
                       >
-                        {projectData.map((entry, index) => (
+                        {materialData.map((entry, index) => (
                           <Cell
                             key={`cell-${index}`}
                             fill={COLORS[index % COLORS.length]}
@@ -434,24 +439,32 @@ export default function DashboardPage() {
                           border: "none",
                           boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
                         }}
+                        formatter={(value: number) => [
+                          `${value} ${t("Requests")}`,
+                          t("Frequency"),
+                        ]}
+                        labelFormatter={() => ""}
                       />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
                 <div className="w-full mt-6 space-y-2">
-                  {projectData.map((p, i) => (
+                  {materialData.map((p, i) => (
                     <div key={i} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div
                           className="w-2 h-2 rounded-full shrink-0"
                           style={{ backgroundColor: COLORS[i % COLORS.length] }}
                         />
-                        <span className="text-[11px] font-bold text-slate-600 truncate max-w-[120px]">
+                        <span
+                          className="text-[11px] font-bold text-slate-600 truncate max-w-[120px]"
+                          title={p.name}
+                        >
                           {p.name}
                         </span>
                       </div>
                       <span className="text-[11px] font-black text-slate-900">
-                        {p.value} PRs
+                        {p.value} {t("requests")}
                       </span>
                     </div>
                   ))}

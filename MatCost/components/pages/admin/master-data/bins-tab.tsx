@@ -93,9 +93,8 @@ export function BinsTab({
         );
         setLoading(false);
       })
-      .catch((err) => {
-        console.error(err);
-        toast.error(t("Failed to load bins"));
+      .catch((err: any) => {
+        toast.error(err.response?.data?.message || t("Failed to load bins"));
         setLoading(false);
       });
   }, [t]);
@@ -166,8 +165,8 @@ export function BinsTab({
         toast.success(t("Add New Successful"));
       }
       closeModal();
-    } catch (error) {
-      toast.error(t("Save Failed"));
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || t("Save Failed"));
     } finally {
       setSaving(false);
     }
@@ -391,6 +390,7 @@ export function BinsTab({
                           type: e.target.value,
                         }))
                       }
+                      maxLength={20}
                     />
                   </div>
                 </div>

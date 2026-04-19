@@ -244,10 +244,12 @@ namespace Backend.Domains.Admin.Services
 
             var contracts = await _db.PurchaseOrders
                 .AsNoTracking()
-                .Where(order => projectIds.Contains(order.ProjectId) && order.SupplierContractId.HasValue)
+                .Where(order => order.ProjectId.HasValue
+                    && projectIds.Contains(order.ProjectId.Value)
+                    && order.SupplierContractId.HasValue)
                 .GroupBy(order => new
                 {
-                    order.ProjectId,
+                    ProjectId = order.ProjectId!.Value,
                     ContractId = order.SupplierContractId!.Value,
                     order.SupplierContract!.ContractCode,
                     order.SupplierContract.ContractNumber,
@@ -280,10 +282,12 @@ namespace Backend.Domains.Admin.Services
 
             var materials = await _db.PurchaseOrders
                 .AsNoTracking()
-                .Where(order => projectIds.Contains(order.ProjectId) && order.SupplierContractId.HasValue)
+                .Where(order => order.ProjectId.HasValue
+                    && projectIds.Contains(order.ProjectId.Value)
+                    && order.SupplierContractId.HasValue)
                 .SelectMany(order => order.Items.Select(item => new
                 {
-                    order.ProjectId,
+                    ProjectId = order.ProjectId!.Value,
                     ContractId = order.SupplierContractId!.Value,
                     item.MaterialId,
                     MaterialCode = item.Material.Code,
@@ -1462,8 +1466,10 @@ namespace Backend.Domains.Admin.Services
             var status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : Normalize(request.Status);
 
             if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Code is required.");
-
             if (request.SupplierId <= 0) throw new ArgumentException("Supplier is required.");
+
+            if (request.EffectiveTo?.Date < DateTime.Now.Date)
+                throw new ArgumentException("EffectiveTo must be greater than or equal to today.");
 
             if (request.EffectiveFrom.Date >= request.EffectiveTo?.Date)
                 throw new ArgumentException("Effective From must be less than Effective To.");

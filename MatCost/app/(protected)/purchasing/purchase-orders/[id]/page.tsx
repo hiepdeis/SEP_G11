@@ -19,7 +19,7 @@ import {
   RefreshCw,
   AlertCircle,
   Construction,
-  Ticket, // Thêm icon cảnh báo
+  Ticket,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -149,8 +149,10 @@ export default function PurchaseOrderDetailPage() {
             `/purchasing/purchase-orders/recreate?requestId=${order.requestId}&parentPOId=${order.purchaseOrderId}`,
           );
         } catch (error: any) {
-          console.error(error);
-          toast.error(t("An error occurred while trying to recreate the PO."));
+          toast.error(
+            error.response?.data?.message ||
+              t("An error occurred while trying to recreate the PO."),
+          );
         } finally {
           setIsRecreating(false);
         }
@@ -520,17 +522,6 @@ export default function PurchaseOrderDetailPage() {
                       {order.supplierName}
                     </div>
                   </div>
-
-                  <div className="space-y-1 flex flex-col">
-                    <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-                      {t("Destination Project")}
-                    </span>
-                    <div className="flex items-center gap-2 text-slate-800 font-medium">
-                      <Construction className="w-3.5 h-3.5 text-slate-500" />
-                      {order.projectName}
-                    </div>
-                  </div>
-
                   {order.requestId && (
                     <div className="space-y-1 flex flex-col">
                       <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">

@@ -93,9 +93,10 @@ export default function CreatePurchaseOrderPage() {
 
         setRequests(prRes.data);
         setSuppliers(suppliersRes.data);
-      } catch (error) {
-        console.error("Failed to load initial data", error);
-        toast.error(t("Failed to load initial data."));
+      } catch (error: any) {
+        toast.error(
+          error.response?.data?.message || t("Failed to load initial data."),
+        );
       } finally {
         setIsLoadingData(false);
       }
@@ -150,10 +151,10 @@ export default function CreatePurchaseOrderPage() {
   const handleSubmit = () => {
     if (
       !selectedRequestId ||
-      requests.find(
+      !requests.find(
         (r) =>
           r.requestId.toString() === selectedRequestId &&
-          r.status === "DraftPO",
+          r.status !== "DraftPO",
       )
     ) {
       return toast.error(t("Please select a Purchase Request."));
@@ -329,10 +330,6 @@ export default function CreatePurchaseOrderPage() {
                                 <span className="font-medium text-slate-800 group-focus:text-white">
                                   {r.requestCode}
                                 </span>
-                                <span className="text-xs text-slate-500 mt-0.5 group-focus:text-indigo-100">
-                                  {t("Project")}: {r.projectName} | {t("Items")}
-                                  : {r.items?.length || 0}
-                                </span>
                               </div>
                             </SelectItem>
                           ))}
@@ -406,7 +403,7 @@ export default function CreatePurchaseOrderPage() {
                             {t("Supplier")} *
                           </TableHead>
                           <TableHead className="w-[20%] text-right pr-6">
-                            {t("Unit Price (VND)")} *
+                            {t("Unit Price")} *
                           </TableHead>
                         </TableRow>
                       </TableHeader>

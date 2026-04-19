@@ -84,9 +84,10 @@ export function SuppliersTab({
           setLoading(false);
         }
       })
-      .catch((err) => {
-        console.error(err);
-        toast.error(t("Failed to load suppliers"));
+      .catch((err: any) => {
+        toast.error(
+          err.response?.data?.message || t("Failed to load suppliers"),
+        );
         if (mounted) setLoading(false);
       });
     return () => {
@@ -168,8 +169,8 @@ export function SuppliersTab({
         toast.success(t("Add New Successful"));
       }
       closeModal();
-    } catch (error) {
-      toast.error(t("Save Failed"));
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || t("Save Failed"));
     } finally {
       setSaving(false);
     }
@@ -185,8 +186,8 @@ export function SuppliersTab({
           await deleteSupplier(id);
           setItems((prev) => prev.filter((i) => i._id !== id));
           toast.success(t("Delete Successful"));
-        } catch (error) {
-          toast.error(t("Delete Failed"));
+        } catch (error: any) {
+          toast.error(error.response?.data?.message || t("Delete Failed"));
         } finally {
           setDeletingId(null);
         }

@@ -460,14 +460,37 @@ export default function StaffIncidentPage({
       );
     }
 
-    if (imageFiles.length === 0) {
+    const validSizeFiles = imageFiles.filter((file) => file.size <= 2 * 1024 * 1024);
+
+    if (validSizeFiles.length < imageFiles.length) {
+      toast.warning(t("Some images exceed the 2MB limit and were skipped."));
+    }
+
+    if (validSizeFiles.length === 0) {
       e.target.value = "";
       return;
     }
 
+    const currentImages = incidentItems[index].evidenceImages || [];
+    const availableSlots = 5 - currentImages.length;
+
+    if (availableSlots <= 0) {
+      toast.warning(t("Maximum 5 images allowed per item."));
+      e.target.value = "";
+      return;
+    }
+
+    const filesToProcess = validSizeFiles.slice(0, availableSlots);
+
+    if (filesToProcess.length < validSizeFiles.length) {
+      toast.warning(
+        t("Maximum 5 images allowed. Extra images were skipped.")
+      );
+    }
+
     try {
       const base64Images = await Promise.all(
-        imageFiles.map((file) => {
+        filesToProcess.map((file) => {
           return new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
@@ -478,19 +501,19 @@ export default function StaffIncidentPage({
       );
 
       const newItems = [...incidentItems];
-      const currentImages = newItems[index].evidenceImages || [];
+      const existingImages = newItems[index].evidenceImages || [];
 
       const uniqueNewImages = base64Images.filter(
-        (base64) => !currentImages.includes(base64),
+        (base64) => !existingImages.includes(base64),
       );
 
       if (uniqueNewImages.length < base64Images.length) {
-        toast.info(t("Duplicated images."));
+        toast.info(t("Duplicated images were skipped."));
       }
 
       newItems[index] = {
         ...newItems[index],
-        evidenceImages: [...currentImages, ...uniqueNewImages],
+        evidenceImages: [...existingImages, ...uniqueNewImages].slice(0, 5),
       };
 
       setIncidentItems(newItems);
@@ -509,8 +532,13 @@ export default function StaffIncidentPage({
 
   if (isLoading)
     return (
-      <div className="h-screen flex items-center justify-center">
-        <Loader2 className="animate-spin text-indigo-600" />
+      <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-2 text-indigo-600">
+          <Loader2 className="w-8 h-8 animate-spin" />
+          <p className="text-sm font-medium">
+            {t("Loading incident details...")}
+          </p>
+        </div>
       </div>
     );
 
@@ -776,19 +804,33 @@ export default function StaffIncidentPage({
                                       <Input
                                         type="number"
                                         min="0"
+                                        className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-white min-w-[150px]"
                                         value={item.breakdown.quality}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
+                                          let val = e.target.value;
+                                          val = val.replace(/-/g, "");
+                                          if (
+                                            val.length > 1 &&
+                                            val.startsWith("0") &&
+                                            val[1] !== "."
+                                          ) {
+                                            val = val.replace(/^0+/, "") || "0";
+                                          }
+                                          if (val.includes(".")) {
+                                            const parts = val.split(".");
+                                            val =
+                                              parts[0] +
+                                              "." +
+                                              parts[1].slice(0, 3);
+                                          }
+                                          e.target.value = val.slice(0, 12);
                                           updateBreakdown(
                                             absoluteIdx,
                                             "quality",
-                                            e.target.value.slice(0, 9),
-                                          )
-                                        }
+                                            e.target.value.slice(0, 12),
+                                          );
+                                        }}
                                         disabled={isHistoryView}
-                                        step={
-                                          item.isDecimalUnit ? "0.001" : "1"
-                                        }
-                                        className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-white min-w-[150px]"
                                       />
                                     </div>
 
@@ -799,19 +841,33 @@ export default function StaffIncidentPage({
                                       <Input
                                         type="number"
                                         min="0"
+                                        className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-white min-w-[150px]"
                                         value={item.breakdown.damage}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
+                                          let val = e.target.value;
+                                          val = val.replace(/-/g, "");
+                                          if (
+                                            val.length > 1 &&
+                                            val.startsWith("0") &&
+                                            val[1] !== "."
+                                          ) {
+                                            val = val.replace(/^0+/, "") || "0";
+                                          }
+                                          if (val.includes(".")) {
+                                            const parts = val.split(".");
+                                            val =
+                                              parts[0] +
+                                              "." +
+                                              parts[1].slice(0, 3);
+                                          }
+                                          e.target.value = val.slice(0, 12);
                                           updateBreakdown(
                                             absoluteIdx,
                                             "damage",
-                                            e.target.value.slice(0, 9),
-                                          )
-                                        }
+                                            e.target.value.slice(0, 12),
+                                          );
+                                        }}
                                         disabled={isHistoryView}
-                                        step={
-                                          item.isDecimalUnit ? "0.001" : "1"
-                                        }
-                                        className="h-7 w-16 text-center text-xs focus-visible:ring-indigo-600 px-1 font-medium bg-white min-w-[150px]"
                                       />
                                     </div>
                                   </div>
@@ -868,6 +924,7 @@ export default function StaffIncidentPage({
                                         onRemove={(imgIdx) =>
                                           removeImage(absoluteIdx, imgIdx)
                                         }
+                                        maxVisible={5}
                                       />
                                     )}
                                   </div>

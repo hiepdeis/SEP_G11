@@ -9,7 +9,7 @@ export interface PurchaseOrderDto {
   purchaseOrderCode: string;
   requestId?: number;
   requestCode?: string;
-  projectId: number;
+  projectId?: number;
   projectName: string;
   supplierId: number;
   supplierName: string;
@@ -59,7 +59,7 @@ export interface PriceReviewItemDto {
 export interface PurchaseRequestDto {
   requestId: number;
   requestCode: string;
-  projectId: number;
+  projectId?: number;
   projectName: string;
   alertId?: number;
   createdBy: number;
@@ -85,7 +85,7 @@ export interface PurchaseRequestItemInputDto {
 }
 
 export interface CreatePurchaseRequestFromAlertDto {
-  projectId: number;
+  projectId?: number;
   items: PurchaseRequestItemInputDto[];
 }
 
@@ -108,6 +108,12 @@ export interface StockShortageAlertDto {
   notes?: string;
   unit?: string;
   isDecimalUnit?: boolean;
+}
+
+export interface BulkConfirmAlertItemDto {
+  alertId: number;
+  adjustedQuantity?: number;
+  notes?: string;
 }
 
 export interface ConfirmStockShortageAlertDto {
@@ -919,9 +925,15 @@ export const managerStockShortageAlertApi = {
       `/warehouse-manager/alerts/${alertId}`,
     );
   },
-  confirmAlert: (alertId: number, data: ConfirmStockShortageAlertDto) => {
-    return axiosClient.put<StockShortageAlertDto>(
-      `/warehouse-manager/alerts/${alertId}/confirm`,
+  // confirmAlert: (alertId: number, data: ConfirmStockShortageAlertDto) => {
+  //   return axiosClient.put<StockShortageAlertDto>(
+  //     `/warehouse-manager/alerts/${alertId}/confirm`,
+  //     data,
+  //   );
+  // },
+  bulkConfirmAlerts: (data: BulkConfirmAlertItemDto[]) => {
+    return axiosClient.put<StockShortageAlertDto[]>(
+      "/warehouse-manager/alerts/confirm-bulk",
       data,
     );
   },

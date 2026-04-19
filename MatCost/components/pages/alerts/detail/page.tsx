@@ -100,10 +100,13 @@ export default function AlertDetailPage({ role = "manager" }) {
       onConfirm: async () => {
         setIsConfirming(true);
         try {
-          await managerStockShortageAlertApi.confirmAlert(id, {
-            adjustedQuantity: Number(Number(adjustedQuantity).toFixed(3)),
-            notes: notes.trim() || undefined,
-          });
+          await managerStockShortageAlertApi.bulkConfirmAlerts([
+            {
+              alertId: id,
+              adjustedQuantity: Number(Number(adjustedQuantity).toFixed(3)),
+              notes: notes.trim() || undefined,
+            },
+          ]);
 
           toast.success(t("Stock shortage alert confirmed successfully."));
 

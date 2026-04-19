@@ -43,14 +43,19 @@ export default function RoleGuard({ allowedRoles, children }: RoleGuardProps) {
   }, []);
 
   const isAuthorized =
-    isAuthenticated && user && allowedRoles.includes(user.role);
+    isAuthenticated &&
+    user &&
+    allowedRoles.some((allowedRole) =>
+      user.role.toLowerCase().includes(allowedRole.toLowerCase()),
+    );
+
   const hasAccess = isAuthorized || isBypassed;
 
   useEffect(() => {
     if (!isLoading && !hasAccess) {
-      router.replace(`/${user?.role?.toLowerCase() || "login"}`);
+      router.replace("/");
     }
-  }, [isLoading, hasAccess, router, user]);
+  }, [isLoading, hasAccess, router]);
 
   if (isLoading) {
     return <FullPageSpinner />;

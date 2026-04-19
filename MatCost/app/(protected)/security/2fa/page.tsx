@@ -241,7 +241,7 @@ export default function TwoFactorAuthPage() {
                 </div>
                 
                 <div className="flex justify-between items-center pt-4 border-t border-slate-100">
-                  <Button variant="ghost" onClick={() => setStep(2)} className="text-indigo-600 border-indigo-200 hover:bg-indigo-700 mt-4 font-semibold">Quay lại</Button>
+                  <Button variant="ghost" onClick={() => setStep(2)} className="text-indigo-600 border-indigo-200 hover:bg-indigo-700 font-semibold">Quay lại</Button>
                   <Button onClick={() => setStep(4)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">Tiếp theo <ChevronRight className="w-4 h-4 ml-1"/></Button>
                 </div>
               </CardContent>
@@ -291,7 +291,7 @@ export default function TwoFactorAuthPage() {
                 </div>
                 
                 <div className="flex justify-between items-center pt-4 border-t border-slate-100">
-                  <Button variant="ghost" onClick={() => setStep(3)} className="text-indigo-600 border-indigo-200 hover:bg-indigo-700 mt-4 font-semibold">Quay lại</Button>
+                  <Button variant="ghost" onClick={() => setStep(3)} className="text-indigo-600 border-indigo-200 hover:bg-indigo-700 font-semibold">Quay lại</Button>
                   <Button 
                     onClick={handleVerify} 
                     disabled={code.length < 6 || isVerifying}

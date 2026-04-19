@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  Eye,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +55,7 @@ import {
 } from "@/lib/master-data-utils";
 import { formatMoney } from "@/lib/master-data-utils";
 import { formatCurrency } from "@/lib/format-currency";
+import { QuantityInput } from "@/components/ui/custom/quantity-input";
 
 export function ProjectsTab({
   viewOnly = false,
@@ -67,6 +69,7 @@ export function ProjectsTab({
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<"add" | "edit" | "view">("add");
   const [editing, setEditing] = useState<Partial<ProjectItem> | null>(null);
   const [page, setPage] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -94,9 +97,10 @@ export function ProjectsTab({
         );
         setLoading(false);
       })
-      .catch((err) => {
-        console.error(err);
-        toast.error(t("Failed to load projects"));
+      .catch((err: any) => {
+        toast.error(
+          err.response?.data?.message || t("Failed to load projects"),
+        );
         setLoading(false);
       });
   }, [t]);
@@ -132,6 +136,7 @@ export function ProjectsTab({
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
 
   const openAdd = () => {
+    setModalMode("add");
     setEditing({
       status: "Planned",
       startDate: "",
@@ -142,6 +147,13 @@ export function ProjectsTab({
   };
 
   const openEdit = (item: ProjectItem) => {
+    setModalMode("edit");
+    setEditing({ ...item });
+    setModalOpen(true);
+  };
+
+  const openView = (item: ProjectItem) => {
+    setModalMode("view");
     setEditing({ ...item });
     setModalOpen(true);
   };
@@ -170,7 +182,8 @@ export function ProjectsTab({
       return;
     }
 
-    if (!budgetUsed || !budget) {
+    if (!budget || budgetUsed === null) {
+      console.log(budgetUsed, budget);
       toast.error(t("Budget used and budget cannot be empty"));
       return;
     }
@@ -208,8 +221,8 @@ export function ProjectsTab({
         toast.success(t("Add New Successful"));
       }
       closeModal();
-    } catch (error) {
-      toast.error(t("Save Failed"));
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || t("Save Failed"));
     } finally {
       setSaving(false);
     }
@@ -225,8 +238,8 @@ export function ProjectsTab({
           await deleteProject(id);
           setItems((prev) => prev.filter((i) => i._id !== id));
           toast.success(t("Delete Successful"));
-        } catch (error) {
-          toast.error(t("Delete Failed"));
+        } catch (error: any) {
+          toast.error(error.response?.data?.message || t("Delete Failed"));
         } finally {
           setDeletingId(null);
         }
@@ -337,7 +350,16 @@ export function ProjectsTab({
                         </TableCell>
                         <TableCell className="px-5 py-3 text-right">
                           <div className="flex justify-end gap-1">
-                            {!viewOnly ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openView(item)}
+                              className="h-8 w-8 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                              title={t("View")}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            {!viewOnly && (
                               <>
                                 <Button
                                   variant="ghost"
@@ -358,10 +380,6 @@ export function ProjectsTab({
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
                               </>
-                            ) : (
-                              <span className="text-xs text-gray-400 italic px-2 py-1">
-                                {t("View Only")}
-                              </span>
                             )}
                           </div>
                         </TableCell>
@@ -405,7 +423,11 @@ export function ProjectsTab({
           <DialogContent className="sm:max-w-lg overflow-hidden flex flex-col max-h-[90vh] bg-white">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold text-gray-900">
-                {editing._id ? t("Edit Project") : t("Add New Project")}
+                {modalMode === "view"
+                  ? t("Project Details")
+                  : editing._id
+                    ? t("Edit Project")
+                    : t("Add New Project")}
               </DialogTitle>
             </DialogHeader>
 
@@ -415,6 +437,7 @@ export function ProjectsTab({
                   <div className="space-y-2">
                     <Label>{t("Project Code")} *</Label>
                     <Input
+                      disabled={modalMode === "view"}
                       value={editing.code || ""}
                       onChange={(e) =>
                         setEditing((prev) => ({
@@ -427,6 +450,7 @@ export function ProjectsTab({
                   <div className="space-y-2">
                     <Label>{t("Status")}</Label>
                     <Select
+                      disabled={modalMode === "view"}
                       value={editing.status || "Active"}
                       onValueChange={(val) =>
                         setEditing((prev) => ({
@@ -454,6 +478,7 @@ export function ProjectsTab({
                 <div className="space-y-2">
                   <Label>{t("Project Name")} *</Label>
                   <Input
+                    disabled={modalMode === "view"}
                     value={editing.name || ""}
                     onChange={(e) =>
                       setEditing((prev) => ({
@@ -467,6 +492,7 @@ export function ProjectsTab({
                   <div className="space-y-2">
                     <Label>{t("Start Date")}</Label>
                     <DateTimePicker
+                      disabled={modalMode === "view"}
                       value={
                         editing.startDate
                           ? new Date(editing.startDate)
@@ -478,12 +504,15 @@ export function ProjectsTab({
                           startDate: date ? date.toISOString() : "",
                         }))
                       }
-                      placeholder={t("Pick start date")}
+                      placeholder={
+                        modalMode === "view" ? "" : t("Pick start date")
+                      }
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>{t("End Date")}</Label>
                     <DateTimePicker
+                      disabled={modalMode === "view"}
                       value={
                         editing.endDate ? new Date(editing.endDate) : undefined
                       }
@@ -498,7 +527,9 @@ export function ProjectsTab({
                           ? new Date(editing.startDate)
                           : undefined
                       }
-                      placeholder={t("Pick end date")}
+                      placeholder={
+                        modalMode === "view" ? "" : t("Pick end date")
+                      }
                     />
                   </div>
                 </div>
@@ -506,6 +537,7 @@ export function ProjectsTab({
                   <div className="space-y-2">
                     <Label>{t("Limit Budget")}</Label>
                     <CurrencyInput
+                      disabled={modalMode === "view"}
                       value={editing.budget}
                       onValueChange={(val) =>
                         setEditing((prev) => ({ ...prev!, budget: val }))
@@ -514,27 +546,43 @@ export function ProjectsTab({
                   </div>
                   <div className="space-y-2">
                     <Label>{t("Budget Used")}</Label>
-                    <CurrencyInput
-                      value={editing.budgetUsed}
-                      onValueChange={(val) =>
-                        setEditing((prev) => ({ ...prev!, budgetUsed: val }))
-                      }
+                    <Input
+                      type="number"
+                      disabled={modalMode === "view"}
+                      value={editing?.budgetUsed ?? ""}
+                      onChange={(e) => {
+                        let val = e.target.value;
+                        val = val.replace(/^0+(?=\d)/, "");
+                        val = val.replace(/[^\d]/g, "");
+                        val = val.slice(0, 12);
+                        e.target.value = val;
+                        setEditing((prev) => ({
+                          ...prev!,
+                          budgetUsed: val === "" ? null : Number(val),
+                        }));
+                      }}
+                      className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>{t("Over Budget Allowance (%)")}</Label>
+                  <Label>{t("Over Budget Allowance")}</Label>
                   <Input
                     type="number"
-                    value={editing.overBudgetAllowance ?? ""}
-                    onChange={(e) =>
+                    disabled={modalMode === "view"}
+                    value={editing?.overBudgetAllowance ?? ""}
+                    onChange={(e) => {
+                      let val = e.target.value;
+                      val = val.replace(/^0+(?=\d)/, "");
+                      val = val.replace(/[^\d]/g, "");
+                      val = val.slice(0, 12);
+                      e.target.value = val;
                       setEditing((prev) => ({
-                        ...prev,
-                        overBudgetAllowance: e.target.value
-                          ? Number(e.target.value)
-                          : null,
-                      }))
-                    }
+                        ...prev!,
+                        overBudgetAllowance: val === "" ? null : Number(val),
+                      }));
+                    }}
+                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
               </div>
@@ -542,15 +590,17 @@ export function ProjectsTab({
 
             <DialogFooter className="gap-2 border-t pt-4">
               <Button variant="outline" onClick={closeModal} disabled={saving}>
-                {t("Cancel")}
+                {modalMode === "view" ? t("Close") : t("Cancel")}
               </Button>
-              <Button
-                onClick={save}
-                disabled={saving}
-                className="bg-indigo-600 hover:bg-indigo-700"
-              >
-                {saving ? t("Saving...") : t("Save")}
-              </Button>
+              {modalMode !== "view" && (
+                <Button
+                  onClick={save}
+                  disabled={saving}
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                >
+                  {saving ? t("Saving...") : t("Save")}
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         )}

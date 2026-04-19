@@ -537,7 +537,7 @@ export default function MaterialDetailPage({
                       <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
                         {t("Specification")}
                       </label>
-                      <p className="text-sm text-gray-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed">
+                      <p className="text-sm text-gray-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed break-all">
                         {material.specification || t("No information")}
                       </p>
                     </div>
@@ -907,13 +907,12 @@ export default function MaterialDetailPage({
                 <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                   {t("On Hand")}
                 </Label>
-                <Input
-                  type="number"
+                <QuantityInput
                   value={invForm.quantityOnHand}
-                  onChange={(e) =>
+                  onValueChange={(val) =>
                     setInvForm({
                       ...invForm,
-                      quantityOnHand: Number(e.target.value),
+                      quantityOnHand: Number(val),
                     })
                   }
                   className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
@@ -923,13 +922,12 @@ export default function MaterialDetailPage({
                 <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                   {t("Allocated")}
                 </Label>
-                <Input
-                  type="number"
+                <QuantityInput
                   value={invForm.quantityAllocated}
-                  onChange={(e) =>
+                  onValueChange={(val) =>
                     setInvForm({
                       ...invForm,
-                      quantityAllocated: Number(e.target.value),
+                      quantityAllocated: Number(val),
                     })
                   }
                   className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
@@ -1063,6 +1061,7 @@ export default function MaterialDetailPage({
                         unit: e.target.value,
                       }))
                     }
+                    maxLength={10}
                     className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
                   />
                   <div className="flex items-center space-x-2 pt-1">
@@ -1094,6 +1093,7 @@ export default function MaterialDetailPage({
                       setEditForm((prev) => ({ ...prev!, massPerUnit: val }))
                     }
                     className="bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800"
+                    maxLength={8}
                   />
                 </div>
                 <div className="space-y-2">

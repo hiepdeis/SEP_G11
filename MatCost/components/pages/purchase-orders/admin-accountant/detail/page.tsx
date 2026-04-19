@@ -51,7 +51,6 @@ import { useTranslation } from "react-i18next";
 import { formatPascalCase } from "@/lib/format-pascal-case";
 import { formatCurrency } from "@/lib/format-currency";
 import { formatDateTime } from "@/lib/format-date-time";
-import { projectApi, ProjectDto } from "@/services/project-services";
 
 import { showConfirmToast } from "@/hooks/confirm-toast";
 import {
@@ -72,7 +71,6 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
   const id = Number(params.id);
 
   const [data, setData] = useState<PurchaseOrderReviewResponseDto | null>(null);
-  const [projectData, setProjectData] = useState<ProjectDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const [isApproving, setIsApproving] = useState(false);
@@ -90,17 +88,6 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
     try {
       const res = await accountantPurchaseOrderApi.getReview(id);
       setData(res.data);
-
-      if (res.data.order.projectId) {
-        try {
-          const projectRes = await projectApi.getProjectById(
-            res.data.order.projectId,
-          );
-          setProjectData(projectRes);
-        } catch (projErr) {
-          console.error("Failed to fetch project details", projErr);
-        }
-      }
     } catch (error: any) {
       console.error("Failed to fetch review details", error);
       toast.error(
@@ -466,37 +453,11 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
 
                   <div className="space-y-1">
                     <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-                      {t("Destination Project")}
-                    </span>
-                    <div className="flex items-center gap-2 text-slate-800 font-medium">
-                      <FolderKanban className="w-4 h-4 text-slate-400" />
-                      {order.projectName}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-                      {t("Project Budget")}
-                    </span>
-                    <div className="flex items-center gap-2 text-slate-800 font-medium">
-                      <Landmark className="w-4 h-4 text-slate-400" />
-                      {formatCurrency(projectData?.budget)}
-                      <br />
-                      {projectData?.budgetUsed !== null &&
-                        t("Used: ") + formatCurrency(projectData?.budgetUsed)}
-                      {projectData?.budgetRemaining !== null &&
-                        t("Remaining: ") +
-                          formatCurrency(projectData?.budgetRemaining)}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
                       {t("Created By")}
                     </span>
                     <div className="flex items-center gap-2 text-slate-800 font-medium">
                       <User className="w-4 h-4 text-slate-400" />
-                      {order.createdByName}
+                      {order.createdByName} - {formatDateTime(order.createdAt)}
                     </div>
                   </div>
 

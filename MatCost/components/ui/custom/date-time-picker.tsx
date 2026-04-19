@@ -20,6 +20,7 @@ interface DateTimePickerProps {
   placeholder?: string;
   disablePastDates?: boolean;
   minDate?: Date;
+  disabled?: boolean;
 }
 
 export function DateTimePicker({
@@ -28,6 +29,7 @@ export function DateTimePicker({
   placeholder,
   disablePastDates = false,
   minDate,
+  disabled = false,
 }: DateTimePickerProps) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = React.useState(false);
@@ -93,12 +95,15 @@ export function DateTimePicker({
             "group w-full justify-start text-left font-normal bg-white",
             !value && "text-slate-500",
           )}
+          disabled={disabled}
         >
           <CalendarIcon className="mr-2 h-4 w-4 text-indigo-600 group-hover:text-white" />
           {value ? (
             format(value, "dd/MM/yyyy HH:mm")
           ) : (
-            <span>{placeholder || t("Pick a date and time")}</span>
+            <span>
+              {disabled ? "-" : placeholder || t("Pick a date and time")}
+            </span>
           )}
         </Button>
       </PopoverTrigger>

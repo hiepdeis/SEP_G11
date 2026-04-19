@@ -23,7 +23,7 @@ namespace Backend.Domains.Import.DTOs.Purchasing
         public string PurchaseOrderCode { get; set; } = string.Empty;
         public long? RequestId { get; set; }
         public string? RequestCode { get; set; }
-        public int ProjectId { get; set; }
+        public int? ProjectId { get; set; }
         public string ProjectName { get; set; } = string.Empty;
         public int SupplierId { get; set; }
         public string SupplierName { get; set; } = string.Empty;

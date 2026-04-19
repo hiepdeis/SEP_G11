@@ -175,6 +175,12 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
       return;
     }
 
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error(t("Image exceeds the 2MB limit."));
+      e.target.value = "";
+      return;
+    }
+
     try {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -275,6 +281,12 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
       if (!item.batch.expiryDate.trim()) {
         return toast.error(
           `${t("Please enter a Expiry Date for")} ${item.materialName}`,
+        );
+      }
+
+      if (item.batch.expiryDate <= item.batch.mfgDate) {
+        return toast.error(
+          `${t("Expiry Date must be after Manufactured Date for")} ${item.materialName}`,
         );
       }
 
@@ -380,7 +392,7 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
-        <Header title={`${t("Putaway")} Receipt #${receipt.receiptCode}`} />
+        <Header title={`${t("Putaway")} #${receipt.receiptCode}`} />
 
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 mx-auto w-full space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -691,19 +703,31 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                                                 >
                                                   {binLocations
                                                     .filter(
-                                                      (bin) =>
-                                                        bin.warehouse
+                                                      (locBin) =>
+                                                        locBin.warehouse
                                                           .warehouseId ===
                                                         receipt.warehouseId,
                                                     )
-                                                    .map((location) => (
-                                                      <SelectItem
-                                                        key={location.binId}
-                                                        value={location.binId.toString()}
-                                                      >
-                                                        {location.code}
-                                                      </SelectItem>
-                                                    ))}
+                                                    .map((location) => {
+                                                      const isSelectedElsewhere =
+                                                        item.binAllocations.some(
+                                                          (b) =>
+                                                            Number(b.binId) ===
+                                                              location.binId &&
+                                                            b.id !== bin.id,
+                                                        );
+                                                      return (
+                                                        <SelectItem
+                                                          key={location.binId}
+                                                          value={location.binId.toString()}
+                                                          disabled={
+                                                            isSelectedElsewhere
+                                                          }
+                                                        >
+                                                          {location.code}
+                                                        </SelectItem>
+                                                      );
+                                                    })}
                                                 </SelectContent>
                                               </Select>
                                             </div>
