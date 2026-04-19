@@ -11,19 +11,23 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (user?.role) {
-      const rolePathMap: Record<string, string> = {
-        Admin: "/admin",
-        Accountant: "/accountant",
-        WarehouseManager: "/manager",
-        ConstructionTeam: "/construction",
-        WarehouseStaff: "/staff",
-        Purchasing: "/purchasing",
-      };
+      const role = user.role.toLowerCase();
 
-      const targetPath =
-        rolePathMap[user.role] || `/${user.role.toLowerCase()}`;
-
-      router.push(targetPath);
+      if (role.includes("admin")) {
+        router.push("/admin");
+      } else if (role.includes("accountant")) {
+        router.push("/accountant");
+      } else if (role.includes("manager")) {
+        router.push("/manager");
+      } else if (role.includes("staff")) {
+        router.push("/staff");
+      } else if (role.includes("construction")) {
+        router.push("/construction");
+      } else if (role.includes("purchasing")) {
+        router.push("/purchasing");
+      } else {
+        router.push(`/${role}`);
+      }
     }
   }, [user, router]);
 
