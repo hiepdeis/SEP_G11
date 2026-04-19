@@ -157,9 +157,35 @@ export interface warehousestaffuser {
 } 
 
 export const issueSlipApi = {
+  
   getIssueSlips: async (): Promise<IssueSlip[]> => {
     const response = await axiosClient.get("/IssueSlips");
-    return response.data;
+    let data = response.data; 
+    const role = sessionStorage.getItem("role");
+    if (role === 'ConstructionTeam') {
+       const statusMap: Record<string, string> = {
+        'Pending_Review': 'Request Submitted',
+        'Pending_Admin_Approval': 'Processing',
+        'Admin_Approved': 'Processing',
+        'Pending_Warehouse_Approval': 'Processing',
+        'Processed': 'Processing',
+        'Draft_Issue_Note': 'Processing',
+        'Forwarded_To_Purchasing': 'Purchasing',
+        'Draft_Direct_PO': 'Purchasing',
+        'Picking_In_Progress': 'Preparing Goods',
+        'Ready_For_Delivery': 'In Transit',
+        'Completed': 'Completed',
+        'Rejected': 'Rejected',
+        'Rejected_By_Admin': 'Rejected',
+        'Cancelled': 'Cancelled'
+      };
+      
+      data = data.map(item => ({
+        ...item,
+        status: statusMap[item.status] || item.status 
+      }));
+    }
+   return data; 
   },
 
   createIssueSlip: async (data: IssueSlipDto) => {
@@ -181,7 +207,34 @@ export const issueSlipApi = {
 
   getIssueSlipDetail: async (issueId: number): Promise<IssueSlipDetail> => {
     const response = await axiosClient.get(`/IssueSlips/${issueId}/details`);
-    return response.data;
+    let data = response.data;
+    const role = sessionStorage.getItem("role");
+    if (role === 'ConstructionTeam' && data) {
+      const statusMap: Record<string, string> = {
+        'Pending_Review': 'Request Submitted',
+        'Pending_Admin_Approval': 'Processing',
+        'Admin_Approved': 'Processing',
+        'Pending_Warehouse_Approval': 'Processing',
+        'Processed': 'Processing',
+        'Draft_Issue_Note': 'Processing',
+        'Forwarded_To_Purchasing': 'Purchasing',
+        'Draft_Direct_PO': 'Purchasing',
+        'Picking_In_Progress': 'Preparing Goods',
+        'Ready_For_Delivery': 'In Transit',
+        'Completed': 'Completed',
+        'Rejected': 'Rejected',
+        'Rejected_By_Admin': 'Rejected',
+        'Cancelled': 'Cancelled'
+      };
+      data.status = statusMap[data.status] || data.status;
+      if (data.generatedSlips && Array.isArray(data.generatedSlips)) {
+        data.generatedSlips = data.generatedSlips.map((slip: any) => ({
+          ...slip,
+          status: statusMap[slip.status] || slip.status
+        }));
+      }
+    }
+    return data;
   },
 
   

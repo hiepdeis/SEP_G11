@@ -48,7 +48,7 @@ export default function IncomingShipments() {
       setProcessingId(shipment.code);
       // Phân luồng gọi API tùy theo loại phiếu (Sẽ code Backend ở bước sau)
       if (shipment.type === 'Issue_Slip') {
-        await issueSlipApi.changeStatus(shipment.recordId, { action: 'Completed' });
+        await issueSlipApi.changeStatus(shipment.recordId, { action: 'Completed' ,  "reason": "Done"});
       } else {
         await axiosClient.post(`/DirectPurchase/${shipment.recordId}/confirm-receipt`);
       }

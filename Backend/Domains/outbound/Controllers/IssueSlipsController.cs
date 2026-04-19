@@ -1,4 +1,6 @@
 ﻿using Backend.Data;
+using Backend.Domains.auth.Interfaces;
+using Backend.Domains.auth.Services;
 using Backend.Domains.outbound.Dtos;
 using Backend.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -16,10 +18,12 @@ namespace Backend.Domains.outbound.Controllers
     public class IssueSlipsController : ControllerBase
     {
         private readonly MyDbContext _context;
+        private readonly IAuthService _authService;
 
-        public IssueSlipsController(MyDbContext context)
+        public IssueSlipsController(MyDbContext context, IAuthService auth)
         {
             _context = context;
+            _authService = auth;
         }
 
         [HttpGet("{id:long}")]
@@ -37,7 +41,8 @@ namespace Backend.Domains.outbound.Controllers
         public async Task<IActionResult> GetAllIssueSlips()
         {
             var issueSlips = await _context.IssueSlips
-                .Include(x => x.Project) 
+                .Include(x => x.Project)
+                .OrderByDescending(x => x.IssueDate)
                 .Select(x => new
                 {
                     x.IssueId,
@@ -113,7 +118,7 @@ namespace Backend.Domains.outbound.Controllers
                     Step = "Admin",
                     StepOrder = 2,
                     Status = "Pending",
-                    IsActive = false // ❗ mặc định tắt
+                    IsActive = false 
                 },
                 new IssueSlipApproval
                 {
@@ -554,13 +559,13 @@ namespace Backend.Domains.outbound.Controllers
                         };
                     }
 
-                    // [SỬA Ở ĐÂY] 1. Tạo biến mới để chứa Chi tiết xuất kho
+                   
                     var newDetail = new IssueDetail
                     {
                         MaterialId = detail.MaterialId,
                         Quantity = stockToTake,
                         UnitPrice = detail.UnitPrice,
-                        PickingLists = new List<PickingList>() // Mở giỏ chuẩn bị đựng PickingList
+                        PickingLists = new List<PickingList>() 
                     };
 
                     // TIẾN HÀNH GIỮ CHỖ TỒN KHO THỰC TẾ & TẠO CHECKLIST NHẶT HÀNG
@@ -588,7 +593,7 @@ namespace Backend.Domains.outbound.Controllers
                         }
                     }
 
-                    // [SỬA Ở ĐÂY] 2. Ném toàn bộ cục Detail (đã ngậm sẵn PickingList bên trong) vào Slip
+                   
                     newInventorySlip.IssueDetails.Add(newDetail);
 
                 }
@@ -610,7 +615,7 @@ namespace Backend.Domains.outbound.Controllers
                             Department = originalIssue.Department,
                             DeliveryLocation = originalIssue.DeliveryLocation,
 
-                            // NỐI DÂY RỐN VỀ PHIẾU GỐC
+                           
                             ReferenceCode = originalIssue.IssueCode,
                             // MÃ PHIẾU MỚI: PO (Purchase Order)
                             IssueCode = "PO-" + DateTime.Now.ToString("yyMMdd") + "-" + new Random().Next(1000, 9999),
@@ -664,8 +669,8 @@ namespace Backend.Domains.outbound.Controllers
         {
             public string Action { get; set; } // Trạng thái muốn chuyển tới
             public string Reason { get; set; } // Ghi chú thêm (nếu có)
-
             public int? AssignedPickerId { get; set; }
+
         }
 
         [HttpPost("{id}/change-status")]
@@ -725,22 +730,39 @@ namespace Backend.Domains.outbound.Controllers
                     break;
 
                 case "Picking_In_Progress":
-                    // Sau này Thủ kho giao việc cho Nhân viên đi nhặt hàng
+                    if (!request.AssignedPickerId.HasValue)
+                    {
+                        return BadRequest("Vui lòng chọn nhân viên kho để phân công nhiệm vụ.");
+                    }
+                    slip.AssignedPickerId = request.AssignedPickerId.Value;
                     slip.Status = "Picking_In_Progress";
+                    slip.Description += $"\n(Kho: Quản lý kho đã phân công phiếu này cho nhân viên ID: {request.AssignedPickerId} lúc {DateTime.Now:HH:mm}).";
                     break;
 
                 case "Ready_For_Delivery":
                     if (slip.Status != "Picking_In_Progress")
                         return BadRequest("Phiếu chưa ở trạng thái đang nhặt hàng.");
+                    
+                    var refreshToken = Request.Cookies["refreshToken"];
+                    if (string.IsNullOrEmpty(refreshToken))
+                    {
+                        return Unauthorized();
+                    }
+
+                    var userFromDb = await _authService.GetUserByRefreshTokenAsync(refreshToken);
+                    if (userFromDb == null)
+                    {
+                        return Unauthorized();
+                    }
 
                     // TIẾN HÀNH TRỪ TỒN KHO VẬT LÝ
                     foreach (var detail in slip.IssueDetails)
                     {
                         foreach (var pick in detail.PickingLists)
                         {
-                            // Chỉ trừ những món nhân viên đã thực sự tick chọn (isPicked = true)
-                            if (pick.IsPicked)
-                            {
+                           
+                                pick.IsPicked = true;
+                                pick.ActualPickerId = userFromDb.UserId;
                                 var inventoryRecord = await _context.InventoryCurrents
                                     .FirstOrDefaultAsync(ic => ic.WarehouseId == slip.WarehouseId
                                                             && ic.MaterialId == detail.MaterialId
@@ -754,12 +776,12 @@ namespace Backend.Domains.outbound.Controllers
 
                                     // 2. Giải phóng tồn kho giữ chỗ
                                     inventoryRecord.QuantityAllocated = (inventoryRecord.QuantityAllocated ?? 0) - pick.QtyToPick;
-
+                                    inventoryRecord.LastUpdated = DateTime.Now;
                                     // Đảm bảo không bị âm số (Safe check)
                                     if (inventoryRecord.QuantityAllocated < 0) inventoryRecord.QuantityAllocated = 0;
                                     if (inventoryRecord.QuantityOnHand < 0) inventoryRecord.QuantityOnHand = 0;
                                 }
-                            }
+                            
                         }
                     }
 
@@ -785,8 +807,7 @@ namespace Backend.Domains.outbound.Controllers
                     }
                     slip.Description += $"\n(Hiện trường: Kỹ sư đã xác nhận nhận đủ hàng vào lúc {DateTime.Now:dd/MM/yyyy HH:mm}).";
                     break;
-
-                // ... Bạn có thể nhét thêm 100 trạng thái khác vào đây mà không cần viết thêm API mới ...
+ 
 
                 default:
                     return BadRequest("Trạng thái không hợp lệ.");
