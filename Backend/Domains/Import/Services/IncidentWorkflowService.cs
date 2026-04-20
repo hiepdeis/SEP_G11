@@ -358,9 +358,27 @@ namespace Backend.Domains.Import.Services
             }
 
             // STEP 4: create supplementary receipt and update incident status
+            var rejectedParent = await _context.SupplementaryReceipts
+                .AsNoTracking()
+                .Where(s => s.IncidentId == incidentId)
+                .Where(s => s.Status == "Rejected")
+                .OrderByDescending(s => s.RevisionNumber)
+                .ThenByDescending(s => s.SupplementaryReceiptId)
+                .Select(s => new
+                {
+                    s.SupplementaryReceiptId,
+                    s.RevisionNumber
+                })
+                .FirstOrDefaultAsync();
+
+            var parentReceiptId = rejectedParent?.SupplementaryReceiptId;
+            var nextRevisionNumber = rejectedParent == null ? 1 : rejectedParent.RevisionNumber + 1;
+
             var now = DateTime.UtcNow;
             var supplementaryReceipt = new SupplementaryReceipt
             {
+                ParentReceiptId = parentReceiptId,
+                RevisionNumber = nextRevisionNumber,
                 PurchaseOrderId = purchaseOrder.PurchaseOrderId,
                 IncidentId = incidentId,
                 Status = "PendingManagerApproval",
@@ -406,7 +424,10 @@ namespace Backend.Domains.Import.Services
             var supplementaryReceipt = await _context.SupplementaryReceipts
                 .Include(s => s.Items)
                     .ThenInclude(i => i.Material)
-                .FirstOrDefaultAsync(s => s.IncidentId == incidentId);
+                .Where(s => s.IncidentId == incidentId)
+                .OrderByDescending(s => s.RevisionNumber)
+                .ThenByDescending(s => s.SupplementaryReceiptId)
+                .FirstOrDefaultAsync();
 
             if (supplementaryReceipt == null)
                 throw new KeyNotFoundException($"Supplementary receipt for incident {incidentId} not found");
@@ -452,12 +473,13 @@ namespace Backend.Domains.Import.Services
                 throw new InvalidOperationException(
                     $"Cannot approve supplementary receipt for incident {incidentId} with status '{incident.Status}'");
 
-            var supplementaryReceipt = await _context.SupplementaryReceipts
-                .Include(s => s.Items)
-                .FirstOrDefaultAsync(s => s.IncidentId == incidentId);
+            var supplementaryReceipt = await LoadLatestSupplementaryReceiptForDecisionAsync(incidentId);
 
-            if (supplementaryReceipt == null)
-                throw new KeyNotFoundException($"Supplementary receipt for incident {incidentId} not found");
+            await EnsureLatestSupplementaryRevisionAsync(supplementaryReceipt.SupplementaryReceiptId);
+
+            if (supplementaryReceipt.Status != "PendingManagerApproval")
+                throw new InvalidOperationException(
+                    $"Cannot approve supplementary receipt {supplementaryReceipt.SupplementaryReceiptId}. Current status: '{supplementaryReceipt.Status}'");
 
             if (incident.Receipt.PurchaseOrderId == null)
                 throw new InvalidOperationException("Incident receipt is not linked to a purchase order");
@@ -515,45 +537,165 @@ namespace Backend.Domains.Import.Services
             int managerId,
             string reason)
         {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
             // STEP 1: validate input
             if (string.IsNullOrWhiteSpace(reason))
                 throw new ArgumentException("Reason is required", nameof(reason));
 
-            // STEP 2: load incident and supplementary receipt
-            var incident = await _context.IncidentReports
-                .FirstOrDefaultAsync(i => i.IncidentId == incidentId);
+            try
+            {
+                // STEP 2: load incident and supplementary receipt
+                var incident = await _context.IncidentReports
+                    .FirstOrDefaultAsync(i => i.IncidentId == incidentId);
 
-            if (incident == null)
-                throw new KeyNotFoundException($"Incident with ID {incidentId} not found");
+                if (incident == null)
+                    throw new KeyNotFoundException($"Incident with ID {incidentId} not found");
 
-            if (incident.Status != "PendingManagerApproval")
-                throw new InvalidOperationException(
-                    $"Cannot reject supplementary receipt for incident {incidentId} with status '{incident.Status}'");
+                if (incident.Status != "PendingManagerApproval")
+                    throw new InvalidOperationException(
+                        $"Cannot reject supplementary receipt for incident {incidentId} with status '{incident.Status}'");
 
+                var supplementaryReceipt = await LoadLatestSupplementaryReceiptForDecisionAsync(incidentId);
+
+                await EnsureLatestSupplementaryRevisionAsync(supplementaryReceipt.SupplementaryReceiptId);
+
+                if (supplementaryReceipt.Status != "PendingManagerApproval")
+                    throw new InvalidOperationException(
+                        $"Cannot reject supplementary receipt {supplementaryReceipt.SupplementaryReceiptId}. Current status: '{supplementaryReceipt.Status}'");
+
+                // STEP 3: update statuses
+                var now = DateTime.UtcNow;
+                incident.Status = "PendingPurchasingAction";
+                supplementaryReceipt.Status = "Rejected";
+                supplementaryReceipt.ApprovedByManagerId = managerId;
+                supplementaryReceipt.ApprovedAt = now;
+
+                var rejection = new ReceiptRejectionHistory
+                {
+                    SupplementaryReceiptId = supplementaryReceipt.SupplementaryReceiptId,
+                    RejectedBy = managerId,
+                    RejectedAt = now,
+                    RejectionReason = reason
+                };
+                _context.ReceiptRejectionHistories.Add(rejection);
+                supplementaryReceipt.RejectionHistories.Add(rejection);
+
+                await _context.SaveChangesAsync();
+
+                // Notify purchasing to revise with supplier (fallback to Admin)
+                await CreateRoleNotificationsAsync(
+                    "Purchasing",
+                    $"Supplementary receipt {supplementaryReceipt.SupplementaryReceiptId} rejected. Reason: {reason}",
+                    "SupplementaryReceipt",
+                    supplementaryReceipt.SupplementaryReceiptId,
+                    fallbackRoleName: "Admin");
+
+                await transaction.CommitAsync();
+
+                return new ManagerSupplementaryRejectResultDto
+                {
+                    Status = incident.Status
+                };
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        private async Task<SupplementaryReceipt> LoadLatestSupplementaryReceiptForDecisionAsync(long incidentId)
+        {
             var supplementaryReceipt = await _context.SupplementaryReceipts
-                .FirstOrDefaultAsync(s => s.IncidentId == incidentId);
+                .Include(s => s.Items)
+                .Where(s => s.IncidentId == incidentId)
+                .OrderByDescending(s => s.RevisionNumber)
+                .ThenByDescending(s => s.SupplementaryReceiptId)
+                .FirstOrDefaultAsync();
 
             if (supplementaryReceipt == null)
-                throw new KeyNotFoundException($"Supplementary receipt for incident {incidentId} not found");
+                throw new KeyNotFoundException($"Supplementary receipt cho incident {incidentId} không tìm thấy!");
 
-            // STEP 3: update statuses
-            incident.Status = "PendingPurchasingAction";
-            supplementaryReceipt.Status = "Rejected";
+            return supplementaryReceipt;
+        }
 
-            await _context.SaveChangesAsync();
+        private async Task EnsureLatestSupplementaryRevisionAsync(long supplementaryReceiptId)
+        {
+            var hasChildRevision = await _context.SupplementaryReceipts
+                .AnyAsync(s => s.ParentReceiptId == supplementaryReceiptId);
 
-            // Notify purchasing to revise with supplier (fallback to Admin)
-            await CreateRoleNotificationsAsync(
-                "Purchasing",
-                $"Supplementary receipt {supplementaryReceipt.SupplementaryReceiptId} rejected. Reason: {reason}",
-                "SupplementaryReceipt",
-                supplementaryReceipt.SupplementaryReceiptId,
-                fallbackRoleName: "Admin");
+            if (hasChildRevision)
+                throw new InvalidOperationException("Chỉ Phiếu bổ sung revision mới nhất mới được phép xử lý");
+        }
 
-            return new ManagerSupplementaryRejectResultDto
+        // For purchasing view revision history of supplementary receipts for an incident
+        public async Task<List<SupplementaryRevisionHistoryItemDto>> GetSupplementaryRevisionHistoryAsync(long supplementaryReceiptId)
+        {
+            // 1. Lấy toàn bộ chuỗi phiên bản từ Database
+            var chain = await LoadSupplementaryRevisionChainAsync(supplementaryReceiptId);
+
+            // 2. Map sang DTO và sắp xếp theo thứ tự Revision từ cũ đến mới (1 -> 2 -> 3)
+            return chain
+                .OrderBy(s => s.RevisionNumber)
+                .Select(s =>
+                {
+                    // Lấy lý do từ chối mới nhất của phiên bản này (nếu có)
+                    var latestRejection = s.RejectionHistories
+                        .OrderByDescending(r => r.RejectedAt)
+                        .FirstOrDefault();
+
+                    // Ưu tiên lấy FullName, nếu không có thì lấy Username
+                    var rejectedBy = latestRejection?.Rejector?.FullName;
+                    if (string.IsNullOrWhiteSpace(rejectedBy))
+                        rejectedBy = latestRejection?.Rejector?.Username ?? string.Empty;
+
+                    return new SupplementaryRevisionHistoryItemDto
+                    {
+                        SupplementaryReceiptId = s.SupplementaryReceiptId,
+                        RevisionNumber = s.RevisionNumber,
+                        Status = s.Status,
+                        RejectedBy = rejectedBy,
+                        RejectedAt = latestRejection?.RejectedAt,
+                        RejectionReason = latestRejection?.RejectionReason,
+                        TotalSupplementaryQty = s.Items.Sum(i => i.SupplementaryQuantity),
+                        CreatedAt = s.CreatedAt
+                    };
+                })
+                .ToList();
+        }
+
+        // Hàm đệ quy đi ngược từ Phiếu hiện tại lên các Phiếu cha
+        private async Task<List<SupplementaryReceipt>> LoadSupplementaryRevisionChainAsync(long receiptId)
+        {
+            var chain = new List<SupplementaryReceipt>();
+
+            var current = await _context.SupplementaryReceipts
+                .Include(s => s.Items)
+                .Include(s => s.RejectionHistories)
+                    .ThenInclude(r => r.Rejector) // Dùng để lấy tên người từ chối
+                .FirstOrDefaultAsync(s => s.SupplementaryReceiptId == receiptId);
+
+            if (current == null)
+                throw new KeyNotFoundException($"Không tìm thấy Phiếu bổ sung ID {receiptId}");
+
+            // Vòng lặp truy ngược về nguồn cội (Parent)
+            while (current != null)
             {
-                Status = incident.Status
-            };
+                chain.Add(current);
+
+                // Nếu không có Parent nữa (đây là Rev 1) thì dừng lại
+                if (!current.ParentReceiptId.HasValue)
+                    break;
+
+                current = await _context.SupplementaryReceipts
+                    .Include(s => s.Items)
+                    .Include(s => s.RejectionHistories)
+                        .ThenInclude(r => r.Rejector)
+                    .FirstOrDefaultAsync(s => s.SupplementaryReceiptId == current.ParentReceiptId.Value);
+            }
+
+            return chain;
         }
 
         private async Task<List<int>> GetUserIdsByRoleAsync(string roleName)

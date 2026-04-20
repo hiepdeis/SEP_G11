@@ -186,6 +186,7 @@ namespace Backend.Domains.Import.Services
                 }
 
                 var shortageList = new List<(int MaterialId, int? SupplierId, decimal ShortageQuantity, decimal? UnitPrice)>();
+                var costUpdateItems = new List<MaterialCostUpdateItem>();
 
                 foreach (var item in dto.Items)
                 {
@@ -254,6 +255,16 @@ namespace Backend.Domains.Import.Services
                         };
                         _context.WarehouseCards.Add(warehouseCard);
                         // 
+                    }
+
+                    if (item.ActualQuantity > 0)
+                    {
+                        costUpdateItems.Add(new MaterialCostUpdateItem
+                        {
+                            MaterialId = detail.MaterialId,
+                            ActualQuantity = item.ActualQuantity,
+                            UnitPrice = detail.UnitPrice ?? 0m
+                        });
                     }
 
                     // Check shortage
@@ -335,6 +346,10 @@ namespace Backend.Domains.Import.Services
                 receipt.ConfirmedAt = today;
 
                 await _context.SaveChangesAsync();
+
+                if (costUpdateItems.Count > 0)
+                    await UpdateMaterialAverageCostAsync(costUpdateItems);
+
                 await transaction.CommitAsync();
             }
             catch
@@ -934,6 +949,7 @@ namespace Backend.Domains.Import.Services
                     .ToDictionaryAsync(b => b.BinId, b => b);
 
                 var summary = new List<ReceiptPutawaySummaryDto>();
+                var costUpdateItems = new List<MaterialCostUpdateItem>();
                 var today = DateTime.UtcNow;
                 var cardPrefix = $"WC-{today:yyyyMMdd}-";
                 var cardSeq = await GetNextWarehouseCardSequenceAsync(today);
@@ -953,6 +969,16 @@ namespace Backend.Domains.Import.Services
                         var materialName = receiptDetail.Material?.Name ?? $"Material {item.MaterialId}";
                         throw new InvalidOperationException(
                             $"Tong so luong xep ke ({totalAllocation}) khac voi so luong QC Pass ({passQty}) cua {materialName}");
+                    }
+
+                    if (totalAllocation > 0)
+                    {
+                        costUpdateItems.Add(new MaterialCostUpdateItem
+                        {
+                            MaterialId = item.MaterialId,
+                            ActualQuantity = totalAllocation,
+                            UnitPrice = receiptDetail.UnitPrice ?? 0m
+                        });
                     }
 
                     foreach (var allocation in item.BinAllocations)
@@ -1127,6 +1153,10 @@ namespace Backend.Domains.Import.Services
                 }
 
                 await _context.SaveChangesAsync();
+
+                if (costUpdateItems.Count > 0)
+                    await UpdateMaterialAverageCostAsync(costUpdateItems);
+
                 await transaction.CommitAsync();
 
                 if (receipt.Status == "ReadyForStamp")
@@ -2663,6 +2693,99 @@ namespace Backend.Domains.Import.Services
         #endregion
 
         #region Helper Methods
+
+        private sealed class MaterialCostUpdateItem
+        {
+            public int MaterialId { get; init; }
+            public decimal ActualQuantity { get; init; }
+            public decimal UnitPrice { get; init; }
+        }
+
+        private async Task UpdateMaterialAverageCostAsync(IEnumerable<MaterialCostUpdateItem> importedItems)
+        {
+            if (importedItems == null)
+                throw new ArgumentNullException(nameof(importedItems));
+
+            var groupedItems = importedItems
+                .Where(i => i.MaterialId > 0 && i.ActualQuantity > 0)
+                .GroupBy(i => i.MaterialId)
+                .Select(g => new
+                {
+                    MaterialId = g.Key,
+                    TotalImportedQuantity = g.Sum(x => x.ActualQuantity),
+                    TotalImportedValue = g.Sum(x => x.ActualQuantity * x.UnitPrice)
+                })
+                .Where(x => x.TotalImportedQuantity > 0)
+                .ToList();
+
+            if (!groupedItems.Any())
+                return;
+
+            var materialIds = groupedItems.Select(x => x.MaterialId).ToList();
+
+            var ownsTransaction = _context.Database.CurrentTransaction == null;
+            await using var localTransaction = ownsTransaction
+                ? await _context.Database.BeginTransactionAsync()
+                : null;
+
+            try
+            {
+                var materialMap = await _context.Materials
+                    .Where(m => materialIds.Contains(m.MaterialId))
+                    .ToDictionaryAsync(m => m.MaterialId, m => m);
+
+                var inventoryTotals = await _context.InventoryCurrents
+                    .Where(i => materialIds.Contains(i.MaterialId))
+                    .GroupBy(i => i.MaterialId)
+                    .Select(g => new
+                    {
+                        MaterialId = g.Key,
+                        QuantityOnHand = g.Sum(x => x.QuantityOnHand ?? 0m)
+                    })
+                    .ToDictionaryAsync(x => x.MaterialId, x => x.QuantityOnHand);
+
+                foreach (var item in groupedItems)
+                {
+                    if (!materialMap.TryGetValue(item.MaterialId, out var material))
+                        throw new KeyNotFoundException($"Material with ID {item.MaterialId} not found");
+
+                    var stockAfterImport = inventoryTotals.TryGetValue(item.MaterialId, out var qty)
+                        ? qty
+                        : 0m;
+
+                    var currentStock = stockAfterImport - item.TotalImportedQuantity;
+                    if (currentStock < 0)
+                        currentStock = 0;
+
+                    // TODO: Rename UnitPrice if your Material average cost column uses a different name (e.g., AveragePrice).
+                    var currentAverageCost = material.UnitPrice ?? 0m;
+                    var oldTotalValue = currentStock * currentAverageCost;
+                    var newTotalValue = item.TotalImportedValue;
+                    var totalQuantity = currentStock + item.TotalImportedQuantity;
+
+                    if (totalQuantity <= 0)
+                        continue;
+
+                    var newAverageCost = (oldTotalValue + newTotalValue) / totalQuantity;
+
+                    // TODO: Rename UnitPrice if your schema stores moving average cost under another field.
+                    material.UnitPrice = newAverageCost;
+
+                    // TODO: If Material stores on-hand quantity directly, add item.TotalImportedQuantity here.
+                }
+
+                await _context.SaveChangesAsync();
+
+                if (ownsTransaction && localTransaction != null)
+                    await localTransaction.CommitAsync();
+            }
+            catch
+            {
+                if (ownsTransaction && localTransaction != null)
+                    await localTransaction.RollbackAsync();
+                throw;
+            }
+        }
 
         private async Task<Dictionary<int, string>> BuildUserNameMapAsync(params int?[] userIds)
         {
