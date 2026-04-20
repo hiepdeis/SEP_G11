@@ -226,7 +226,7 @@ export default function DashboardPage() {
           {/* Welcome Section */}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <div className="space-y-1">
-              <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">
+              <p className="text-[10px] font-black text-indigo-500 uppercase">
                 {t("Welcome Back")}
               </p>
               <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-slate-100">
@@ -293,7 +293,7 @@ export default function DashboardPage() {
                   <p className="text-2xl font-black tracking-tighter text-slate-900 dark:text-slate-100">
                     {stat.val}
                   </p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">
                     {stat.label}
                   </p>
                 </CardContent>
@@ -309,7 +309,7 @@ export default function DashboardPage() {
                   <CardTitle className="text-lg font-black tracking-tight">
                     {t("Procurement Trend")}
                   </CardTitle>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">
                     {t("Orders vs Requests Volume")}
                   </p>
                 </div>
@@ -406,7 +406,7 @@ export default function DashboardPage() {
                   <CardTitle className="text-lg font-black tracking-tight">
                     {t("Material Distribution")}
                   </CardTitle>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">
                     {t("Top requested materials")}
                   </p>
                 </div>
@@ -480,7 +480,7 @@ export default function DashboardPage() {
                 <CardTitle className="text-lg font-black tracking-tight">
                   {t("Top Suppliers")}
                 </CardTitle>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">
                   {t("Spending by partner")}
                 </p>
               </CardHeader>
@@ -520,7 +520,7 @@ export default function DashboardPage() {
                       <CardTitle className="text-lg font-black tracking-tight">
                         {t("Pending Approvals")}
                       </CardTitle>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">
                         {activeTab === "orders"
                           ? t("Critical Purchase Orders")
                           : t("Critical Purchase Requests")}
@@ -602,7 +602,7 @@ export default function DashboardPage() {
                         </div>
                       ))
                     ) : (
-                      <div className="flex items-center justify-center p-12 text-slate-400 text-xs font-bold uppercase tracking-widest">
+                      <div className="flex items-center justify-center p-12 text-slate-400 text-xs font-bold uppercase">
                         {t("No pending orders")}
                       </div>
                     )
@@ -645,7 +645,7 @@ export default function DashboardPage() {
                       </div>
                     ))
                   ) : (
-                    <div className="flex items-center justify-center p-12 text-slate-400 text-xs font-bold uppercase tracking-widest">
+                    <div className="flex items-center justify-center p-12 text-slate-400 text-xs font-bold uppercase">
                       {t("No pending requests")}
                     </div>
                   )}
