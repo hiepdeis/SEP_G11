@@ -544,6 +544,16 @@ export default function IncidentsListPage({
                                       <span className="font-bold text-slate-800">
                                         {item.incidentCode}
                                       </span>
+                                      {item.supplementaryRevisionHistory
+                                        ?.length > 0 && (
+                                        <Badge
+                                          variant="outline"
+                                          className="bg-amber-50 text-amber-700 border-amber-200"
+                                        >
+                                          <AlertTriangle className="w-3 h-3 mr-1" />
+                                          {t("Rejected")}
+                                        </Badge>
+                                      )}
                                     </div>
                                     <span className="text-xs text-slate-500 flex items-center gap-1 mt-1">
                                       <CalendarDays className="w-3.5 h-3.5" />{" "}

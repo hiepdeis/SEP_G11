@@ -461,7 +461,6 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                     </div>
                   </div>
 
-                  {/* HIỂN THỊ REVISION NOTE CỦA PURCHASING NẾU CÓ */}
                   {data.revisionNote && (
                     <div className="space-y-1 pt-3 border-t border-slate-100">
                       <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
@@ -476,7 +475,6 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                 </CardContent>
               </Card>
 
-              {/* THẺ LỊCH SỬ TỪ CHỐI (CHỈ HIỆN KHI CÓ DỮ LIỆU) */}
               {data.revisionHistory &&
                 data.revisionHistory.length > 0 &&
                 data.revisionHistory[0].rejectedAt !== null && (
@@ -490,6 +488,7 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                     <CardContent className="p-5 space-y-4">
                       {data.revisionHistory
                         .filter((rev) => rev.rejectedAt)
+                        .slice(-5)
                         .map((rev) => (
                           <div
                             key={rev.poId}
@@ -522,7 +521,6 @@ export default function PurchaseOrderReviewPage({ role = "accountant" }) {
                 )}
             </div>
 
-            {/* BẢNG SO SÁNH GIÁ (CỘT PHẢI) */}
             <div className="lg:col-span-3 space-y-6">
               <Card className="border-indigo-200 shadow-sm bg-indigo-50/50 p-0">
                 <CardContent className="p-5 flex flex-col gap-2">

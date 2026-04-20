@@ -21,6 +21,21 @@ namespace Backend.Domains.Import.Controllers.Purchasing
             try
             {
                 var incidents = await _service.GetPurchasingIncidentsAsync();
+                
+                foreach (var incident in incidents)
+                {
+                    try
+                    {
+                        var supplementaryReceipt = await _service.GetSupplementaryReceiptAsync(incident.IncidentId);
+                        incident.SupplementaryRevisionHistory = await _service
+                            .GetSupplementaryRevisionHistoryAsync(supplementaryReceipt.SupplementaryReceiptId);
+                    }
+                    catch (KeyNotFoundException)
+                    {
+                        incident.SupplementaryRevisionHistory = new List<SupplementaryRevisionHistoryItemDto>();
+                    }
+                }
+
                 return Ok(incidents);
             }
             catch (Exception ex)

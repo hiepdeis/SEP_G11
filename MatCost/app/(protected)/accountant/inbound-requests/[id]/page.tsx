@@ -626,6 +626,7 @@ export default function AccountantReceiptDetailPage() {
           "Please enter the OTP to confirm closing this receipt. This action cannot be undone.",
         )}
         submitText={t("Confirm Closure")}
+        requireSignature={true}
       />
     </div>
   );

@@ -249,12 +249,12 @@ namespace Backend.Domains.Import.Services
             if (purchaseOrder.Items.Count == 0)
                 throw new InvalidOperationException("Cannot approve PO without items");
 
-            var priceReview = await ReviewPriceAsync(purchaseOrderId);
+            // var priceReview = await ReviewPriceAsync(purchaseOrderId);
 
-            if (priceReview.Any(r => r.PoUnitPrice > r.QuotationPrice))
-            {
-                throw new InvalidOperationException("One or more items exceed the reference quotation price");
-            }
+            // if (priceReview.Any(r => r.PoUnitPrice > r.QuotationPrice))
+            // {
+            //     throw new InvalidOperationException("One or more items exceed the reference quotation price");
+            // }
 
             purchaseOrder.TotalAmount = purchaseOrder.Items.Sum(i => i.OrderedQuantity * (i.UnitPrice ?? 0));
 

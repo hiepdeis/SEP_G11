@@ -12,6 +12,7 @@ namespace Backend.Domains.Import.DTOs.Purchasing
         public string? ReceiptCode { get; set; }
         public DateTime CreatedAt { get; set; }
         public List<PurchasingIncidentItemSummaryDto> Items { get; set; } = new();
+        public List<SupplementaryRevisionHistoryItemDto> SupplementaryRevisionHistory { get; set; } = new();
     }
 
     public class PurchasingIncidentItemSummaryDto

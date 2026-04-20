@@ -127,7 +127,7 @@ export default function PurchaseOrderDetailPage() {
     });
   };
 
-  const handleRecreatePO = () => {
+  const handleRecreatePO = async () => {
     if (!order?.requestId) {
       toast.error(
         t("Cannot recreate PO: Missing original Purchase Request ID."),
@@ -135,29 +135,20 @@ export default function PurchaseOrderDetailPage() {
       return;
     }
 
-    showConfirmToast({
-      title: t("Recreate Purchase Order?"),
-      description: t(
-        "Are you sure you want to recreate this rejected Purchase Order? You will be redirected to draft a new one based on the original request.",
-      ),
-      confirmLabel: t("Yes, Recreate"),
-      onConfirm: async () => {
-        setIsRecreating(true);
-        try {
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          router.push(
-            `/purchasing/purchase-orders/recreate?requestId=${order.requestId}&parentPOId=${order.purchaseOrderId}`,
-          );
-        } catch (error: any) {
-          toast.error(
-            error.response?.data?.message ||
-              t("An error occurred while trying to recreate the PO."),
-          );
-        } finally {
-          setIsRecreating(false);
-        }
-      },
-    });
+    setIsRecreating(true);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      router.push(
+        `/purchasing/purchase-orders/recreate?requestId=${order.requestId}&parentPOId=${order.purchaseOrderId}`,
+      );
+    } catch (error: any) {
+      toast.error(
+        error.response?.data?.message ||
+          t("An error occurred while trying to recreate the PO."),
+      );
+    } finally {
+      setIsRecreating(false);
+    }
   };
 
   const handleConfirmDelivery = async () => {
@@ -328,14 +319,21 @@ export default function PurchaseOrderDetailPage() {
 
           {/* HIỂN THỊ KHUNG CẢNH BÁO LÝ DO TỪ CHỐI */}
           {isRejected && order.rejectionReason && (
-            <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-start gap-3 shadow-sm">
+            <div className="relative bg-rose-50/80 border border-rose-100 border-l-4 border-l-rose-500 rounded-r-lg rounded-l-sm p-4 shadow-sm flex items-start gap-3 transition-all">
               <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-              <div className="flex flex-col gap-1">
-                <p className="text-sm font-semibold text-rose-900">
-                  {t("Order Rejected")}
-                </p>
-                <p className="text-sm text-rose-700 leading-relaxed">
-                  <span className="font-medium">{t("Reason")}:</span>{" "}
+              <div className="flex flex-col w-full">
+                <div className="flex items-center justify-between gap-4 mb-1">
+                  <h3 className="text-sm font-semibold text-rose-900">
+                    {t("Order Rejected")}
+                  </h3>
+                  <span className="text-[11px] font-medium text-rose-700 bg-rose-100/80 px-2 py-0.5 rounded-full border border-rose-200/60 whitespace-nowrap">
+                    {t("Revision")} #{order.revisionNumber}
+                  </span>
+                </div>
+                <p className="text-sm text-rose-700/90 leading-relaxed">
+                  <span className="font-medium text-rose-800 mr-1.5">
+                    {t("Reason")}:
+                  </span>
                   {order.rejectionReason}
                 </p>
               </div>
