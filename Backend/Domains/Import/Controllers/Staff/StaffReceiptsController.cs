@@ -111,6 +111,10 @@ namespace Backend.Domains.Import.Controllers.Staff
             {
                 var staffId = 4; // TODO: replace with JWT claims
                 var result = await _receiptService.PutawayAsync(receiptId, dto, staffId);
+                // trung bình giá cập lại bảng materials, theo totalamount của phiếu nahapj 
+                // totalamount của phiếu nhập = totalamount của nhiều material id trong phiếu nhập = totalamoutn trong kho 
+                // tổng số lượng vật tư quantity onhand những cái trùng materialid  
+
                 return Ok(result);
             }
             catch (KeyNotFoundException ex)

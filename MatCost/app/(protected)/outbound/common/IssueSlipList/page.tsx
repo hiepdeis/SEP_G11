@@ -72,11 +72,7 @@ export default function CommonIssueSlipList() {
     if (role === "Accountant" && status?.toLowerCase() === "completed") {
       router.push(`/outbound/accountant/accountantReconciliation/${issueId}`);
       return;
-    }
-
-    if(role === "accountant"){
-      router.push(`/accountant/outbound/issueSlip/checkInventory/${issueId}`);
-    } else if(role === "Purchasing"){
+    }else if(role === "Purchasing"){
       router.push(`/outbound/purchasing/DirectPurchaseOrderDetail/${issueId}`);
     } else {
       router.push(`/outbound/common/IssueSlipDetail/${issueId}`); 

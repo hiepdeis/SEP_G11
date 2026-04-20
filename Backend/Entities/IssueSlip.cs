@@ -78,5 +78,8 @@ public partial class IssueSlip
 
     public int? AssignedPickerId { get; set; }
 
-  
+    [StringLength(50)]
+    public string? VoucherNo { get; set; }
+
+
 }
