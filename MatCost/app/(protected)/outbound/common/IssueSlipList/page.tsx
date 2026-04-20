@@ -65,9 +65,15 @@ export default function CommonIssueSlipList() {
     setCurrentPage(1);
   }, [searchTerm, filterStatus, datePreset, fromDate, toDate, itemsPerPage, sortConfig]);
 
-  const navigateToDetail = (issueId: number) => {
+  const navigateToDetail = (issueId: number, status?: string) => {
     const role = sessionStorage.getItem("role");
-    console.log("Navigating to detail for issueId:", issueId, "with role:", role);
+    console.log("Navigating to detail for issueId:", issueId, "with role:", role, "status:", status);
+    
+    if (role === "Accountant" && status?.toLowerCase() === "completed") {
+      router.push(`/outbound/accountant/accountantReconciliation/${issueId}`);
+      return;
+    }
+
     if(role === "accountant"){
       router.push(`/accountant/outbound/issueSlip/checkInventory/${issueId}`);
     } else if(role === "Purchasing"){
@@ -75,7 +81,6 @@ export default function CommonIssueSlipList() {
     } else {
       router.push(`/outbound/common/IssueSlipDetail/${issueId}`); 
     }
-
   };
 
   const getStatusBadge = (status: string) => {
@@ -186,7 +191,7 @@ export default function CommonIssueSlipList() {
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("Issue Slips")}</h1>
             <p className="text-sm text-slate-500">{t("Manage all material release requests and outbound slips.")}</p>
           </div>
-          {(role === "Construction" || role === "Admin") && (
+          {(role === "ConstructionTeam" || role === "Admin") && (
             <Button
               className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
               onClick={() =>
@@ -341,7 +346,7 @@ export default function CommonIssueSlipList() {
                       <TableRow><TableCell colSpan={6} className="h-32 text-center text-slate-500"><div className="flex flex-col items-center justify-center gap-2"><FileText className="w-8 h-8 text-slate-300" /><p>{t("No issue slips found.")}</p></div></TableCell></TableRow>
                     ) : (
                       paginatedData.map((slip) => (
-                        <TableRow key={slip.issueId} className="group hover:bg-slate-50/50 transition-colors">
+                        <TableRow key={slip.issueId} className="group hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => navigateToDetail(slip.issueId, slip.status)}>
                           <TableCell className="pl-6 font-semibold text-slate-700">{slip.issueCode}</TableCell>
                           <TableCell className="text-slate-600">{slip.projectId || t("N/A")}</TableCell>
                           <TableCell className="text-slate-600">{slip.projectName || t("N/A")}</TableCell>
@@ -349,8 +354,17 @@ export default function CommonIssueSlipList() {
                           <TableCell>{getStatusBadge(slip.status)}</TableCell>
                           <TableCell className="text-sm text-slate-500 max-w-[200px] truncate" title={slip.description}>{slip.description || "—"}</TableCell>
                           <TableCell className="text-right pr-6">
-                            <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm" onClick={() => navigateToDetail(slip.issueId)}>
-                               {t("Detail")}
+                            <Button 
+                              size="sm" 
+                              className={`${role === 'Accountant' && slip.status?.toLowerCase() === 'completed' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700'} text-white shadow-sm font-medium`} 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigateToDetail(slip.issueId, slip.status);
+                              }}
+                            >
+                               {role === 'Accountant' && slip.status?.toLowerCase() === 'completed' ? (
+                                 <><FileOutput className="w-3.5 h-3.5 mr-1.5" /> {t("Record Cost")}</>
+                               ) : t("Detail")}
                             </Button>
                           </TableCell>
                         </TableRow>

@@ -331,13 +331,61 @@ export const issueSlipApi = {
   },
   
   getAccountingReconciliation: async (issueId: number): Promise<AccountingReconciliationDto> => {
-    const response = await axiosClient.get(`/IssueSlips/${issueId}/accounting-reconciliation`);
-    return response.data;
+    // const response = await axiosClient.get(`/IssueSlips/${issueId}/accounting-reconciliation`);
+    // return response.data;
+
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          parentIssueId: issueId || 1,
+          parentIssueCode: `REQ-2026-${issueId?.toString().padStart(4, '0') || '0089'}`,
+          projectName: "Dự án Nâng cấp Hầm Thủ Thiêm - Giai đoạn 2",
+          projectBudgetTotal: 1500000000,
+          projectBudgetUsedBefore: 850000000,
+          totalFinalCost: 112500000,
+          projectBudgetUsedAfter: 962500000,
+          childSlips: [
+            {
+              slipId: 101,
+              slipCode: "DPO-2026-1102",
+              slipType: "Direct_PO",
+              status: "Đã nhận hàng",
+              actualTotal: 75000000,
+              liabilities: [
+                { supplierName: "Công ty Thép Hòa Phát", amount: 45000000 },
+                { supplierName: "Xi măng Hà Tiên", amount: 30000000 }
+              ],
+              details: [
+                { materialName: "Thép Hòa Phát D10", unit: "Tấn", requestedQty: 2, finalUnitPrice: 22500000, lineTotal: 45000000, supplierName: "Công ty Thép Hòa Phát" },
+                { materialName: "Xi măng PC40", unit: "Bao", requestedQty: 300, finalUnitPrice: 100000, lineTotal: 30000000, supplierName: "Xi măng Hà Tiên" }
+              ]
+            },
+            {
+              slipId: 102,
+              slipCode: "IIS-2026-2204",
+              slipType: "Internal_IS",
+              status: "Đã xuất kho",
+              actualTotal: 37500000,
+              liabilities: [],
+              details: [
+                { materialName: "Bản mã thép 200x200", unit: "Cái", requestedQty: 50, finalUnitPrice: 750000, lineTotal: 37500000, supplierName: "Kho Nội Bộ" }
+              ]
+            }
+          ]
+        });
+      }, 500);
+    });
   },
   
   finalizeAccounting: async (id: number, payload: { voucherNo: string; accountingDate: string; finalTotalAmount?: number }) => {
-    const response = await axiosClient.post(`/IssueSlips/${id}/finalize-accounting`, payload);
-    return response.data;
+    // const response = await axiosClient.post(`/IssueSlips/${id}/finalize-accounting`, payload);
+    // return response.data;
+    
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({ success: true, message: "Hạch toán thành công (Simulated)" });
+      }, 800);
+    });
   }
 };
 
