@@ -862,7 +862,7 @@ namespace Backend.Domains.Audit.Services
 
             detail.SystemQty = systemQty;
             detail.CountQty = request.CountQty;
-            detail.CountRound = detail.CountRound <= 0 ? 2 : detail.CountRound + 1;
+            detail.CountRound = 2;
             detail.Variance = variance;
             detail.CountedBy = userId;
             detail.CountedAt = DateTime.UtcNow;

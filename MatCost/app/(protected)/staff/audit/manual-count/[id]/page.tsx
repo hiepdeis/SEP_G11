@@ -99,11 +99,9 @@ export default function StaffCountingPage() {
         };
 
         if (recountData && recountData.length > 0) {
-            // Separate items that are still pending recount vs already recounted
             recountData.forEach((item: any) => {
-                const isPendingRecount = item.discrepancyStatus === "RecountRequested";
-                // For pending recount items: blank out qty for blind counting
-                const qty = isPendingRecount ? "" : (item.countQty !== undefined && item.countQty !== null ? String(item.countQty) : "");
+                const isPending = item.discrepancyStatus === "RecountRequested";
+                const qty = isPending ? "" : (item.countQty !== undefined && item.countQty !== null ? String(item.countQty) : "");
                 const nTask: NormalizedTask = {
                     id: `${item.materialId}-${item.batchId}-${item.binId || item.binCode}`,
                     materialId: item.materialId,
@@ -114,8 +112,8 @@ export default function StaffCountingPage() {
                     binCode: item.binCode || "",
                     countQty: qty,
                     originalQty: qty,
-                    isRecount: isPendingRecount, // only truly pending items use recount endpoint
-                    status: isPendingRecount ? "uncounted" : "counted"
+                    isRecount: isPending,
+                    status: isPending ? "uncounted" : "counted"
                 };
                 if (!merged.find(x => x.id === nTask.id)) {
                     merged.push(nTask);
@@ -313,6 +311,7 @@ export default function StaffCountingPage() {
   const totalTasks = tasks.length;
   const countedItems = tasks.filter(t => t.status === "counted").length;
   const progress = totalTasks > 0 ? Math.round((countedItems / totalTasks) * 100) : 0;
+  const isRecountMode = tasks.some(t => t.isRecount);
 
   return (
     <div className="flex flex-row h-screen w-screen bg-slate-50/50">
@@ -341,15 +340,15 @@ export default function StaffCountingPage() {
                   <div className="text-sm font-medium text-slate-500">Audit ID: <span className="text-slate-900 font-bold">#{stockTakeId}</span></div>
               </div>
               
-              <div className="bg-indigo-600 rounded-xl p-6 text-white shadow-md relative overflow-hidden">
+              <div className={`${isRecountMode ? "bg-amber-600" : "bg-indigo-600"} rounded-xl p-6 text-white shadow-md relative overflow-hidden`}>
                   <div className="flex justify-between items-end mb-4">
                     <div>
                         <h2 className="text-2xl font-bold">{t("Your Progress")}</h2>
-                        <p className="text-indigo-100 text-sm mt-1">{t("Blind Counting Approach")}</p>
+                        <p className={`${isRecountMode ? "text-amber-100" : "text-indigo-100"} text-sm mt-1`}>{isRecountMode ? t("Recount - Round 2") : t("Round 1")}</p>
                     </div>
                     <div className="text-4xl font-black">{progress}%</div>
                   </div>
-                  <div className="w-full bg-indigo-900/40 h-2.5 rounded-full overflow-hidden">
+                  <div className={`w-full ${isRecountMode ? "bg-amber-900/40" : "bg-indigo-900/40"} h-2.5 rounded-full overflow-hidden`}>
                       <div className="bg-emerald-400 h-full rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
                   </div>
               </div>
