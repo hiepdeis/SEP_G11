@@ -5,6 +5,7 @@ using Backend.Domains.Import.DTOs.Purchasing;
 using Backend.Domains.Import.DTOs.Staff;
 using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
+using Backend.Services.Notifications;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Domains.Import.Services
@@ -12,9 +13,11 @@ namespace Backend.Domains.Import.Services
     public class ReceiptService : IReceiptService
     {
         private readonly MyDbContext _context;
-        public ReceiptService(MyDbContext context)
+        private readonly INotificationDispatcher _notificationDispatcher;
+        public ReceiptService(MyDbContext context, INotificationDispatcher notificationDispatcher)
         {
             _context = context;
+            _notificationDispatcher = notificationDispatcher;
         }
 
 
@@ -1161,11 +1164,17 @@ namespace Backend.Domains.Import.Services
 
                 if (receipt.Status == "ReadyForStamp")
                 {
-                    await CreateRoleNotificationsAsync(
-                        "Manager",
-                        $"Phiếu nhập {receipt.ReceiptCode} sẵn sàng để đóng dấu",
-                        "Receipt",
-                        receiptId);
+                    await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
+                    {
+                        RoleName = "WarehouseManager",
+                        FallbackRoleName = "Admin",
+                        OnlyActiveUsers = true,
+                        Message = $"Phiếu nhập kho {receipt.ReceiptCode} đã sẵn sàng để đóng dấu",
+                        RelatedEntityType = "Receipt",
+                        RelatedEntityId = receipt.ReceiptId,
+                        SendEmail = true,
+                        SaveChanges = true
+                    }, CancellationToken.None);
                 }
 
                 return new ReceiptPutawayResultDto
@@ -1613,14 +1622,21 @@ namespace Backend.Domains.Import.Services
 
             await _context.SaveChangesAsync();
 
-            await CreateRoleNotificationsAsync(
-                "Accountant",
-                $"Phiếu nhập {receipt.ReceiptCode} đã được Thủ kho xác nhận. Vui lòng hạch toán.",
-                "Receipt",
-                receiptId);
-
+            // Notify Kế toán về phiếu đã được đóng dấu
             var userMap = await BuildUserNameMapAsync(managerId);
             var managerName = ResolveUserName(userMap, managerId);
+
+            await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
+            {
+                RoleName = "Accountant",
+                FallbackRoleName = "Admin",
+                OnlyActiveUsers = true,
+                Message = $"Phiếu nhập kho {receipt.ReceiptCode} đã được đóng dấu bởi {managerName}",
+                RelatedEntityType = "Receipt",
+                RelatedEntityId = receipt.ReceiptId,
+                SendEmail = true,
+                SaveChanges = true
+            }, CancellationToken.None);
 
             return new ManagerReceiptStampResultDto
             {

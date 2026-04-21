@@ -1,11 +1,14 @@
 using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.Interfaces;
+using Backend.Extensions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Domains.Import.Controllers.Managers
 {
     [ApiController]
     [Route("api/manager/incidents")]
+    [Authorize(Roles = "WarehouseManager", Policy = "ActiveUserOnly")]
     public class ManagerIncidentsController : ControllerBase
     {
         private readonly IIncidentWorkflowService _service;
@@ -13,6 +16,11 @@ namespace Backend.Domains.Import.Controllers.Managers
         public ManagerIncidentsController(IIncidentWorkflowService service)
         {
             _service = service;
+        }
+
+        private int GetManagerId()
+        {
+            return User.GetRequiredUserId();
         }
 
         [HttpGet]
@@ -52,7 +60,7 @@ namespace Backend.Domains.Import.Controllers.Managers
         {
             try
             {
-                var managerId = 2; // TODO: replace with JWT claims
+                var managerId = GetManagerId();
                 var incident = await _service.ApproveIncidentAsync(incidentId, managerId, dto.Notes);
 
                 return Ok(new
@@ -107,7 +115,7 @@ namespace Backend.Domains.Import.Controllers.Managers
         {
             try
             {
-                var managerId = 2; // TODO: replace with JWT claims
+                var managerId = GetManagerId();
                 var result = await _service.ApproveSupplementaryReceiptAsync(incidentId, managerId, dto.Notes);
                 return Ok(result);
             }
@@ -136,7 +144,7 @@ namespace Backend.Domains.Import.Controllers.Managers
         {
             try
             {
-                var managerId = 2; // TODO: replace with JWT claims
+                var managerId = GetManagerId();
                 var result = await _service.RejectSupplementaryReceiptAsync(incidentId, managerId, dto.Reason);
                 return Ok(result);
             }

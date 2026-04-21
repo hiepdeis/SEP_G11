@@ -7,6 +7,7 @@ using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Backend.Services.Notifications;
 
 namespace Backend.Domains.Import.Services
 {
@@ -14,11 +15,13 @@ namespace Backend.Domains.Import.Services
     {
         private readonly MyDbContext _context;
         private readonly ILogger<PurchaseOrderService> _logger;
+        private readonly INotificationDispatcher _notificationDispatcher; // Inject notification dispatcher
 
-        public PurchaseOrderService(MyDbContext context, ILogger<PurchaseOrderService> logger)
+        public PurchaseOrderService(MyDbContext context, ILogger<PurchaseOrderService> logger, INotificationDispatcher notificationDispatcher)
         {
             _context = context;
             _logger = logger;
+            _notificationDispatcher = notificationDispatcher;
         }
 
         public async Task<List<PurchaseOrder>> CreateDraftsAsync(long requestId, int purchasingId, CreatePurchaseOrderDraftDto dto)
@@ -298,8 +301,18 @@ namespace Backend.Domains.Import.Services
 
             await _context.SaveChangesAsync();
 
-            var message = $"PO {purchaseOrder.PurchaseOrderCode} bi ke toan tu choi: {reason}";
-            await CreateRoleNotificationsAsync("Purchasing", message, "PurchaseOrder", purchaseOrder.PurchaseOrderId);
+            var message = $"PO {purchaseOrder.PurchaseOrderCode} bị Kế Toán từ chối với lí do: {reason}";
+            await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
+            {
+                RoleName = "Purchasing",
+                FallbackRoleName = "Admin",
+                OnlyActiveUsers = true,
+                Message = message,
+                RelatedEntityType = "PurchaseOrder",
+                RelatedEntityId = purchaseOrder.PurchaseOrderId,
+                SendEmail = true,
+                SaveChanges = true
+            }, CancellationToken.None);
 
             return purchaseOrder;
         }
@@ -353,8 +366,18 @@ namespace Backend.Domains.Import.Services
 
             await _context.SaveChangesAsync();
 
-            var message = $"PO {purchaseOrder.PurchaseOrderCode} bi admin tu choi: {reason}";
-            await CreateRoleNotificationsAsync("Purchasing", message, "PurchaseOrder", purchaseOrder.PurchaseOrderId);
+            var message = $"PO {purchaseOrder.PurchaseOrderCode} bị Admin từ chối với lí do: {reason}";
+            await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
+            {
+                RoleName = "Purchasing",
+                FallbackRoleName = "Admin",
+                OnlyActiveUsers = true,
+                Message = message,
+                RelatedEntityType = "PurchaseOrder",
+                RelatedEntityId = purchaseOrder.PurchaseOrderId,
+                SendEmail = true,
+                SaveChanges = true
+            }, CancellationToken.None);
 
             return purchaseOrder;
         }
@@ -479,12 +502,32 @@ namespace Backend.Domains.Import.Services
                     return $"{materialName} — {i.OrderedQuantity} {unit}".Trim();
                 }));
 
-            var message =
-                $"PO {purchaseOrder.PurchaseOrderCode} du kien ve luc {expectedDeliveryDate:yyyy-MM-dd HH:mm}. " +
-                $"NCC: {supplierName}. Mat hang: {itemSummary}";
+            var message = $"Đơn mua hàng {purchaseOrder.PurchaseOrderCode} đã được xác nhận giao hàng dự kiến vào {expectedDeliveryDate:yyyy-MM-dd}. Vui lòng chuẩn bị nhận hàng."
+                + (string.IsNullOrWhiteSpace(supplierNote) ? string.Empty : $" Ghi chú từ nhà cung cấp: {supplierNote}");
 
-            await CreateRoleNotificationsAsync("Staff", message, "PurchaseOrder", purchaseOrder.PurchaseOrderId);
-            await CreateRoleNotificationsAsync("Manager", message, "PurchaseOrder", purchaseOrder.PurchaseOrderId);
+            await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
+            {
+                RoleName = "WarehouseStaff",
+                FallbackRoleName = "Admin",
+                OnlyActiveUsers = true,
+                Message = message,
+                RelatedEntityType = "PurchaseOrder",
+                RelatedEntityId = purchaseOrder.PurchaseOrderId,
+                SendEmail = true,
+                SaveChanges = true
+            }, CancellationToken.None);
+
+            await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
+            {
+                RoleName = "WarehouseManager",
+                FallbackRoleName = "Admin",
+                OnlyActiveUsers = true,
+                Message = message,
+                RelatedEntityType = "PurchaseOrder",
+                RelatedEntityId = purchaseOrder.PurchaseOrderId,
+                SendEmail = true,
+                SaveChanges = true
+            }, CancellationToken.None);
 
             return purchaseOrder;
         }

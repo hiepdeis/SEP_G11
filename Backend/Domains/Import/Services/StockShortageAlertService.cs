@@ -2,6 +2,7 @@ using Backend.Data;
 using Backend.Domains.Import.DTOs.Internal;
 using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
+using Backend.Services.Notifications;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Domains.Import.Services
@@ -9,10 +10,12 @@ namespace Backend.Domains.Import.Services
     public class StockShortageAlertService : IStockShortageAlertService
     {
         private readonly MyDbContext _context;
+        private readonly INotificationDispatcher _notificationDispatcher;
 
-        public StockShortageAlertService(MyDbContext context)
+        public StockShortageAlertService(MyDbContext context, INotificationDispatcher notificationDispatcher)
         {
             _context = context;
+            _notificationDispatcher = notificationDispatcher;
         }
 
         public async Task<List<StockShortageAlert>> GetStockShortageAlertsAsync()
@@ -134,7 +137,14 @@ namespace Backend.Domains.Import.Services
                 _context.StockShortageAlerts.AddRange(newAlerts);
 
             if (newAlerts.Count > 0)
-                await CreateManagerNotificationsAsync(newAlerts, materialMap, now);
+                await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
+                {
+                    RoleName = "WarehouseManager",
+                    FallbackRoleName = "Admin",
+                    Message = "Hệ thống phát hiện có vật liệu sắp hết hàng. Vui lòng kiểm tra và xử lý kịp thời!",
+                    RelatedEntityType = "StockShortageAlert",
+                    SendEmail = true
+                }, CancellationToken.None);
 
             if (newAlerts.Count > 0 || updatedAlerts > 0)
                 await _context.SaveChangesAsync();
@@ -240,9 +250,9 @@ namespace Backend.Domains.Import.Services
                     if (adjustedQuantity <= 0)
                         throw new ArgumentException("Số lượng điều chỉnh phải lớn hơn 0");
 
-                    if (alert.Material.MinStockLevel.HasValue && adjustedQuantity < alert.Material.MinStockLevel.Value)
+                    if (alert.Material.MinStockLevel.HasValue && (adjustedQuantity + alert.CurrentQuantity) < alert.Material.MinStockLevel.Value)
                     {
-                        throw new ArgumentException("Số lượng điều chỉnh không được nhỏ hơn mức tồn tối thiểu của vật liệu");
+                        throw new ArgumentException("Tổng số lượng điều chỉnh và tồn kho hiện tại không được nhỏ hơn mức tồn tối thiểu của vật liệu");
                     }
 
                     if (alert.Material.MaxStockLevel.HasValue && (alert.CurrentQuantity + adjustedQuantity) > alert.Material.MaxStockLevel.Value)
@@ -261,9 +271,19 @@ namespace Backend.Domains.Import.Services
                     alert.Notes = requestItem.Notes;
             }
 
-            await CreateAdminNotificationsAsync(alerts, now);
-            await _context.SaveChangesAsync();
+            // await CreateAdminNotificationsAsync(alerts, now);
+            if (alerts.Count > 0)
+            {
+                await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
+                {
+                    RoleName = "Admin",
+                    Message = $"Có {alerts.Count} alert về thiếu hụt tồn kho đã được xác nhận bởi manager. Vui lòng kiểm tra và xử lý kịp thời!",
+                    RelatedEntityType = "StockShortageAlert",
+                    SendEmail = true
+                }, CancellationToken.None);
 
+                await _context.SaveChangesAsync();
+            }
             return alerts;
         }
 

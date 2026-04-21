@@ -1,11 +1,14 @@
 using Backend.Domains.Import.DTOs.Accountants;
 using Backend.Domains.Import.Interfaces;
+using Backend.Extensions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Domains.Import.Controllers.Accountants
 {
     [ApiController]
     [Route("api/accountant/receipts")]
+    [Authorize(Roles = "Accountant", Policy = "ActiveUserOnly")]
     public class ReceiptAccountantController : ControllerBase
     {
         private readonly IReceiptService _service;
@@ -13,6 +16,11 @@ namespace Backend.Domains.Import.Controllers.Accountants
         public ReceiptAccountantController(IReceiptService service)
         {
             _service = service;
+        }
+
+        private int GetAccountantId()
+        {
+            return User.GetRequiredUserId();
         }
 
         [HttpGet]
@@ -52,7 +60,7 @@ namespace Backend.Domains.Import.Controllers.Accountants
         {
             try
             {
-                var accountantId = 1; // TODO: replace with JWT claims
+                var accountantId = GetAccountantId();
                 var result = await _service.CloseReceiptAsync(receiptId, dto, accountantId);
                 return Ok(result);
             }

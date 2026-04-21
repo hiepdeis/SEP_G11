@@ -1,11 +1,14 @@
 using Backend.Domains.Import.DTOs.Purchasing;
 using Backend.Domains.Import.Interfaces;
+using Backend.Extensions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Domains.Import.Controllers.Purchasing
 {
     [ApiController]
     [Route("api/purchasing/incidents")]
+    [Authorize(Roles = "Purchasing", Policy = "ActiveUserOnly")]
     public class PurchasingIncidentsController : ControllerBase
     {
         private readonly IIncidentWorkflowService _service;
@@ -13,6 +16,11 @@ namespace Backend.Domains.Import.Controllers.Purchasing
         public PurchasingIncidentsController(IIncidentWorkflowService service)
         {
             _service = service;
+        }
+
+        private int GetPurchasingId()
+        {
+            return User.GetRequiredUserId();
         }
 
         [HttpGet]
@@ -64,7 +72,7 @@ namespace Backend.Domains.Import.Controllers.Purchasing
         {
             try
             {
-                var purchasingId = 1; // TODO: replace with JWT claims
+                var purchasingId = GetPurchasingId();
                 var result = await _service.CreateSupplementaryReceiptAsync(incidentId, purchasingId, dto);
                 return Ok(result);
             }
