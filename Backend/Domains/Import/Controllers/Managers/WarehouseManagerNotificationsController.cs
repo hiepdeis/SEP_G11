@@ -1,4 +1,6 @@
 using Backend.Data;
+using Backend.Extensions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,6 +8,7 @@ namespace Backend.Domains.Import.Controllers.Managers
 {
     [ApiController]
     [Route("api/warehouse-manager/notifications")]
+    [Authorize(Roles = "WarehouseManager", Policy = "ActiveUserOnly")]
     public class WarehouseManagerNotificationsController : ControllerBase
     {
         private readonly MyDbContext _db;
@@ -17,7 +20,7 @@ namespace Backend.Domains.Import.Controllers.Managers
 
         private int GetManagerId()
         {
-            return 2; // TODO: replace with JWT claims
+            return User.GetRequiredUserId();
         }
 
         [HttpGet]

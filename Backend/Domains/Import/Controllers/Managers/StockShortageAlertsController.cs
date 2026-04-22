@@ -1,10 +1,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using Backend.Data;
+using Backend.Extensions;
 using Backend.Domains.Import.DTOs.Internal;
 using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,6 +14,7 @@ namespace Backend.Domains.Import.Controllers.Managers
 {
     [ApiController]
     [Route("api/warehouse-manager/alerts")]
+    [Authorize(Roles = "WarehouseManager", Policy = "ActiveUserOnly")]
     public class StockShortageAlertsController : ControllerBase
     {
         private readonly IStockShortageAlertService _service;
@@ -21,6 +24,11 @@ namespace Backend.Domains.Import.Controllers.Managers
         {
             _service = service;
             _context = context;
+        }
+
+        private int GetManagerId()
+        {
+            return User.GetRequiredUserId();
         }
 
         [HttpGet]
@@ -62,7 +70,7 @@ namespace Backend.Domains.Import.Controllers.Managers
         // {
         //     try
         //     {
-        //         var managerId = 2; // TODO: replace with JWT claims
+        //         var managerId = GetManagerId();
         //         var alert = await _service.ConfirmAlertAsync(alertId, managerId, dto.AdjustedQuantity, dto.Notes);
         //         var userNames = await LoadUserNamesAsync(new[] { alert });
         //         return Ok(ToDto(alert, userNames));
@@ -90,7 +98,7 @@ namespace Backend.Domains.Import.Controllers.Managers
         {
             try
             {
-                var managerId = 2; // TODO: replace with JWT claims
+                var managerId = GetManagerId();
                 var alerts = await _service.BulkConfirmAlertsAsync(requestItems, managerId);
                 var userNames = await LoadUserNamesAsync(alerts);
                 var result = alerts.Select(a => ToDto(a, userNames)).ToList();

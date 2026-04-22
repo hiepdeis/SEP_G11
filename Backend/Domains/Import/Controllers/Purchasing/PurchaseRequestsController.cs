@@ -4,6 +4,7 @@ using Backend.Data;
 using Backend.Domains.Import.DTOs.Admins;
 using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +12,7 @@ namespace Backend.Domains.Import.Controllers.Purchasing
 {
     [ApiController]
     [Route("api/purchasing/purchase-requests")]
+    [Authorize(Roles = "Purchasing", Policy = "ActiveUserOnly")]
     public class PurchaseRequestsController : ControllerBase
     {
         private readonly IPurchaseRequestService _service;

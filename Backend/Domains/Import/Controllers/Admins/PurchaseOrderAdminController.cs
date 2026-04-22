@@ -1,9 +1,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using Backend.Data;
+using Backend.Extensions;
 using Backend.Domains.Import.DTOs.Purchasing;
 using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +13,7 @@ namespace Backend.Domains.Import.Controllers.Admins
 {
     [ApiController]
     [Route("api/admin/purchase-orders")]
+    [Authorize(Roles = "Admin", Policy = "ActiveUserOnly")]
     public class PurchaseOrderAdminController : ControllerBase
     {
         private readonly IPurchaseOrderService _service;
@@ -20,6 +23,11 @@ namespace Backend.Domains.Import.Controllers.Admins
         {
             _service = service;
             _context = context;
+        }
+
+        private int GetAdminId()
+        {
+            return User.GetRequiredUserId();
         }
 
         [HttpGet]
@@ -50,7 +58,7 @@ namespace Backend.Domains.Import.Controllers.Admins
         {
             try
             {
-                var adminId = 1; // TODO: replace with JWT claims
+                var adminId = GetAdminId();
                 var order = await _service.AdminApproveAsync(purchaseOrderId, adminId);
                 var userNames = await LoadUserNamesAsync(new[] { order });
                 return Ok(PurchaseOrderMapper.ToDto(order, userNames));
@@ -78,7 +86,7 @@ namespace Backend.Domains.Import.Controllers.Admins
         {
             try
             {
-                var adminId = 1; // TODO: replace with JWT claims
+                var adminId = GetAdminId();
                 var order = await _service.AdminRejectAsync(purchaseOrderId, adminId, dto.Reason);
                 var userNames = await LoadUserNamesAsync(new[] { order });
                 return Ok(PurchaseOrderMapper.ToDto(order, userNames));

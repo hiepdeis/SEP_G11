@@ -1,10 +1,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using Backend.Data;
+using Backend.Extensions;
 using Backend.Domains.Import.DTOs.Accountants;
 using Backend.Domains.Import.DTOs.Purchasing;
 using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,6 +14,7 @@ namespace Backend.Domains.Import.Controllers.Accountants
 {
     [ApiController]
     [Route("api/accountant/purchase-orders")]
+    [Authorize(Roles = "Accountant", Policy = "ActiveUserOnly")]
     public class PurchaseOrderAccountantController : ControllerBase
     {
         private readonly IPurchaseOrderService _service;
@@ -21,6 +24,11 @@ namespace Backend.Domains.Import.Controllers.Accountants
         {
             _service = service;
             _context = context;
+        }
+
+        private int GetAccountantId()
+        {
+            return User.GetRequiredUserId();
         }
 
         [HttpGet]
@@ -101,7 +109,7 @@ namespace Backend.Domains.Import.Controllers.Accountants
         {
             try
             {
-                var accountantId = 1; // TODO: replace with JWT claims
+                var accountantId = GetAccountantId();
                 var order = await _service.AccountantApproveAsync(purchaseOrderId, accountantId);
                 var userNames = await LoadUserNamesAsync(new[] { order });
                 return Ok(PurchaseOrderMapper.ToDto(order, userNames));
@@ -129,7 +137,7 @@ namespace Backend.Domains.Import.Controllers.Accountants
         {
             try
             {
-                var accountantId = 1; // TODO: replace with JWT claims
+                var accountantId = GetAccountantId();
                 var order = await _service.AccountantRejectAsync(purchaseOrderId, accountantId, dto.Reason);
                 var userNames = await LoadUserNamesAsync(new[] { order });
                 return Ok(PurchaseOrderMapper.ToDto(order, userNames));

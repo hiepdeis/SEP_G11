@@ -1,9 +1,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using Backend.Data;
+using Backend.Extensions;
 using Backend.Domains.Import.DTOs.Admins;
 using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +13,7 @@ namespace Backend.Domains.Import.Controllers.Admins
 {
     [ApiController]
     [Route("api/admin/purchase-requests")]
+    [Authorize(Roles = "Admin", Policy = "ActiveUserOnly")]
     public class PurchaseRequestsController : ControllerBase
     {
         private readonly IPurchaseRequestService _service;
@@ -20,6 +23,11 @@ namespace Backend.Domains.Import.Controllers.Admins
         {
             _service = service;
             _context = context;
+        }
+
+        private int GetAdminId()
+        {
+            return User.GetRequiredUserId();
         }
 
         [HttpGet]
@@ -61,7 +69,7 @@ namespace Backend.Domains.Import.Controllers.Admins
         {
             try
             {
-                var adminId = 1; // TODO: replace with JWT claims
+                var adminId = GetAdminId();
                 var items = dto.Items.Select(i => new PurchaseRequestItem
                 {
                     MaterialId = i.MaterialId,
