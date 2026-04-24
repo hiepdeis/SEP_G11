@@ -404,13 +404,13 @@ namespace Backend.Domains.Admin.Services
         {
             var roleName = Normalize(request.RoleName);
             if (string.IsNullOrWhiteSpace(roleName))
-                throw new ArgumentException("RoleName is required.");
+                throw new ArgumentException("Tên vai trò không được để trống.");
 
             var exists = await _db.Roles.AnyAsync(
                 x => x.RoleName.ToLower() == roleName.ToLower(), ct);
 
             if (exists)
-                throw new ArgumentException("Role name already exists.");
+                throw new ArgumentException("Tên vai trò đã tồn tại.");
 
             var entity = new Role
             {
@@ -430,13 +430,13 @@ namespace Backend.Domains.Admin.Services
 
             var roleName = Normalize(request.RoleName);
             if (string.IsNullOrWhiteSpace(roleName))
-                throw new ArgumentException("RoleName is required.");
+                throw new ArgumentException("Tên vai trò không được để trống.");
 
             var exists = await _db.Roles.AnyAsync(
                 x => x.RoleId != id && x.RoleName.ToLower() == roleName.ToLower(), ct);
 
             if (exists)
-                throw new ArgumentException("Role name already exists.");
+                throw new ArgumentException("Tên vai trò đã tồn tại.");
 
             entity.RoleName = roleName;
             await _db.SaveChangesAsync(ct);
@@ -451,7 +451,7 @@ namespace Backend.Domains.Admin.Services
 
             var isUsed = await _db.Users.AnyAsync(x => x.RoleId == id, ct);
             if (isUsed)
-                throw new InvalidOperationException("Cannot delete role because it is being used by users.");
+                throw new InvalidOperationException("Không thể xóa vai trò vì có người dùng đang thuộc vai trò này.");
 
             _db.Roles.Remove(entity);
             await _db.SaveChangesAsync(ct);
@@ -519,16 +519,16 @@ namespace Backend.Domains.Admin.Services
             var description = Normalize(request.Description);
 
             if (string.IsNullOrWhiteSpace(code))
-                throw new ArgumentException("Code is required.");
+                throw new ArgumentException("Mã danh mục không được để trống.");
 
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("Name is required.");
+                throw new ArgumentException("Tên danh mục không được để trống.");
 
             var codeExists = await _db.MaterialCategories.AnyAsync(
                 x => x.Code.ToLower() == code.ToLower(), ct);
 
             if (codeExists)
-                throw new ArgumentException("Category code already exists.");
+                throw new ArgumentException("Mã danh mục đã tồn tại.");
 
             var entity = new MaterialCategory
             {
@@ -553,16 +553,16 @@ namespace Backend.Domains.Admin.Services
             var description = Normalize(request.Description);
 
             if (string.IsNullOrWhiteSpace(code))
-                throw new ArgumentException("Code is required.");
+                throw new ArgumentException("Mã danh mục không được để trống.");
 
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("Name is required.");
+                throw new ArgumentException("Tên danh mục không được để trống.");
 
             var codeExists = await _db.MaterialCategories.AnyAsync(
                 x => x.CategoryId != id && x.Code.ToLower() == code.ToLower(), ct);
 
             if (codeExists)
-                throw new ArgumentException("Category code already exists.");
+                throw new ArgumentException("Mã danh mục đã tồn tại.");
 
             entity.Code = code;
             entity.Name = name;
@@ -579,7 +579,7 @@ namespace Backend.Domains.Admin.Services
 
             var isUsed = await _db.Materials.AnyAsync(x => x.CategoryId == id, ct);
             if (isUsed)
-                throw new InvalidOperationException("Cannot delete category because it is being used by materials.");
+                throw new InvalidOperationException("Không thể xóa danh mục vì đang được sử dụng bởi vật tư.");
 
             _db.MaterialCategories.Remove(entity);
             await _db.SaveChangesAsync(ct);
@@ -654,16 +654,16 @@ namespace Backend.Domains.Admin.Services
             var description = Normalize(request.Description);
 
             if (string.IsNullOrWhiteSpace(code))
-                throw new ArgumentException("Code is required.");
+                throw new ArgumentException("Mã không được để trống.");
 
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("Name is required.");
+                throw new ArgumentException("Tên không được để trống.");
 
             var codeExists = await _db.AdjustmentReasons.AnyAsync(
                 x => x.Code.ToLower() == code.ToLower(), ct);
 
             if (codeExists)
-                throw new ArgumentException("Adjustment reason code already exists.");
+                throw new ArgumentException("Mã lý do điều chỉnh đã tồn tại.");
 
             var entity = new AdjustmentReason
             {
@@ -689,16 +689,16 @@ namespace Backend.Domains.Admin.Services
             var description = Normalize(request.Description);
 
             if (string.IsNullOrWhiteSpace(code))
-                throw new ArgumentException("Code is required.");
+                throw new ArgumentException("Mã không được để trống.");
 
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("Name is required.");
+                throw new ArgumentException("Tên không được để trống.");
 
             var codeExists = await _db.AdjustmentReasons.AnyAsync(
                 x => x.ReasonId != id && x.Code.ToLower() == code.ToLower(), ct);
 
             if (codeExists)
-                throw new ArgumentException("Adjustment reason code already exists.");
+                throw new ArgumentException("Mã lý do điều chỉnh đã tồn tại.");
 
             entity.Code = code;
             entity.Name = name;
@@ -730,7 +730,7 @@ namespace Backend.Domains.Admin.Services
             //
             // var isUsed = await _db.StockTakeDetails.AnyAsync(x => x.AdjustmentReasonId == id, ct);
             // if (isUsed)
-            //     throw new InvalidOperationException("Cannot delete adjustment reason because it is already in use.");
+            //     throw new InvalidOperationException("Không thể xóa lý do điều chỉnh vì đang được sử dụng.");
 
             _db.AdjustmentReasons.Remove(entity);
             await _db.SaveChangesAsync(ct);
@@ -825,16 +825,16 @@ namespace Backend.Domains.Admin.Services
             var address = Normalize(request.Address);
 
             if (string.IsNullOrWhiteSpace(code))
-                throw new ArgumentException("Code is required.");
+                throw new ArgumentException("Mã không được để trống.");
 
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("Name is required.");
+                throw new ArgumentException("Tên không được để trống.");
 
             var codeExists = await _db.Suppliers.AnyAsync(
                 x => x.Code.ToLower() == code.ToLower(), ct);
 
             if (codeExists)
-                throw new ArgumentException("Supplier code already exists.");
+                throw new ArgumentException("Mã nhà cung cấp đã tồn tại.");
 
             var entity = new Supplier
             {
@@ -861,16 +861,16 @@ namespace Backend.Domains.Admin.Services
             var address = Normalize(request.Address);
 
             if (string.IsNullOrWhiteSpace(code))
-                throw new ArgumentException("Code is required.");
+                throw new ArgumentException("Mã không được để trống.");
 
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("Name is required.");
+                throw new ArgumentException("Tên không được để trống.");
 
             var codeExists = await _db.Suppliers.AnyAsync(
                 x => x.SupplierId != id && x.Code.ToLower() == code.ToLower(), ct);
 
             if (codeExists)
-                throw new ArgumentException("Supplier code already exists.");
+                throw new ArgumentException("Mã nhà cung cấp đã tồn tại.");
 
             entity.Code = code;
             entity.Name = name;
@@ -892,7 +892,7 @@ namespace Backend.Domains.Admin.Services
             // var usedInQuotations = await _db.SupplierQuotations.AnyAsync(x => x.SupplierId == id, ct);
             //
             // if (usedInReceipts || usedInQuotations)
-            //     throw new InvalidOperationException("Cannot delete supplier because it is already in use.");
+            //     throw new InvalidOperationException("Không thể xóa nhà cung cấp vì đang được sử dụng.");
 
             _db.Suppliers.Remove(entity);
             await _db.SaveChangesAsync(ct);
@@ -958,13 +958,13 @@ namespace Backend.Domains.Admin.Services
             var address = Normalize(request.Address);
 
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("Name is required.");
+                throw new ArgumentException("Tên không được để trống.");
 
             var exists = await _db.Warehouses.AnyAsync(
                 x => x.Name.ToLower() == name.ToLower(), ct);
 
             if (exists)
-                throw new ArgumentException("Warehouse name already exists.");
+                throw new ArgumentException("Tên kho đã tồn tại.");
 
             var entity = new Warehouse
             {
@@ -987,13 +987,13 @@ namespace Backend.Domains.Admin.Services
             var address = Normalize(request.Address);
 
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("Name is required.");
+                throw new ArgumentException("Tên không được để trống.");
 
             var exists = await _db.Warehouses.AnyAsync(
                 x => x.WarehouseId != id && x.Name.ToLower() == name.ToLower(), ct);
 
             if (exists)
-                throw new ArgumentException("Warehouse name already exists.");
+                throw new ArgumentException("Tên kho đã tồn tại.");
 
             entity.Name = name;
             entity.Address = string.IsNullOrWhiteSpace(address) ? null : address;
@@ -1009,7 +1009,7 @@ namespace Backend.Domains.Admin.Services
 
             var hasBins = await _db.BinLocations.AnyAsync(x => x.WarehouseId == id, ct);
             if (hasBins)
-                throw new InvalidOperationException("Cannot delete warehouse because it still has bin locations.");
+                throw new InvalidOperationException("Không thể xóa kho vì vẫn còn vị trí lưu trữ.");
 
             // Nếu project có thêm bảng tham chiếu warehouse, mở rộng check ở đây.
             //
@@ -1017,7 +1017,7 @@ namespace Backend.Domains.Admin.Services
             // var hasIssues = await _db.IssueSlips.AnyAsync(x => x.WarehouseId == id, ct);
             // var hasStockTakes = await _db.StockTakes.AnyAsync(x => x.WarehouseId == id, ct);
             // if (hasReceipts || hasIssues || hasStockTakes)
-            //     throw new InvalidOperationException("Cannot delete warehouse because it is already in use.");
+            //     throw new InvalidOperationException("Không thể xóa kho vì đang được sử dụng.");
 
             _db.Warehouses.Remove(entity);
             await _db.SaveChangesAsync(ct);
@@ -1113,19 +1113,19 @@ namespace Backend.Domains.Admin.Services
         {
             var warehouseExists = await _db.Warehouses.AnyAsync(x => x.WarehouseId == request.WarehouseId, ct);
             if (!warehouseExists)
-                throw new ArgumentException("WarehouseId does not exist.");
+                throw new ArgumentException("Kho không tồn tại.");
 
             var code = Normalize(request.Code).ToUpper();
             var type = Normalize(request.Type);
 
             if (string.IsNullOrWhiteSpace(code))
-                throw new ArgumentException("Code is required.");
+                throw new ArgumentException("Mã không được để trống.");
 
             var codeExists = await _db.BinLocations.AnyAsync(
                 x => x.WarehouseId == request.WarehouseId && x.Code.ToLower() == code.ToLower(), ct);
 
             if (codeExists)
-                throw new ArgumentException("Bin code already exists in this warehouse.");
+                throw new ArgumentException("Mã vị trí đã tồn tại trong kho này.");
 
             var entity = new BinLocation
             {
@@ -1147,13 +1147,13 @@ namespace Backend.Domains.Admin.Services
 
             var warehouseExists = await _db.Warehouses.AnyAsync(x => x.WarehouseId == request.WarehouseId, ct);
             if (!warehouseExists)
-                throw new ArgumentException("WarehouseId does not exist.");
+                throw new ArgumentException("Kho không tồn tại.");
 
             var code = Normalize(request.Code).ToUpper();
             var type = Normalize(request.Type);
 
             if (string.IsNullOrWhiteSpace(code))
-                throw new ArgumentException("Code is required.");
+                throw new ArgumentException("Mã không được để trống.");
 
             var codeExists = await _db.BinLocations.AnyAsync(
                 x => x.BinId != id
@@ -1161,7 +1161,7 @@ namespace Backend.Domains.Admin.Services
                   && x.Code.ToLower() == code.ToLower(), ct);
 
             if (codeExists)
-                throw new ArgumentException("Bin code already exists in this warehouse.");
+                throw new ArgumentException("Mã vị trí đã tồn tại trong kho này.");
 
             entity.WarehouseId = request.WarehouseId;
             entity.Code = code;
@@ -1179,7 +1179,7 @@ namespace Backend.Domains.Admin.Services
             // Nếu project có inventory/current stock theo bin thì mở check này:
             var hasInventory = await _db.InventoryCurrents.AnyAsync(x => x.BinId == id, ct);
             if (hasInventory)
-                throw new InvalidOperationException("Cannot delete bin location because it is being used by inventory.");
+                throw new InvalidOperationException("Không thể xóa vị trí lưu trữ vì đang được sử dụng trong kiểm kê/tồn kho.");
 
             _db.BinLocations.Remove(entity);
             await _db.SaveChangesAsync(ct);
@@ -1285,22 +1285,22 @@ namespace Backend.Domains.Admin.Services
             var status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : NormalizeProjectStatus(request.Status);
 
             if (string.IsNullOrWhiteSpace(code))
-                throw new ArgumentException("Code is required.");
+                throw new ArgumentException("Mã không được để trống.");
 
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("Name is required.");
+                throw new ArgumentException("Tên không được để trống.");
 
             if (!IsValidProjectStatus(status))
-                throw new ArgumentException("Invalid project status.");
+                throw new ArgumentException("Trạng thái công trình không hợp lệ.");
 
             if (request.StartDate.HasValue && request.EndDate.HasValue && request.EndDate.Value.Date < request.StartDate.Value.Date)
-                throw new ArgumentException("EndDate must be greater than or equal to StartDate.");
+                throw new ArgumentException("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.");
 
             var codeExists = await _db.Projects.AnyAsync(
                 x => x.Code.ToLower() == code.ToLower(), ct);
 
             if (codeExists)
-                throw new ArgumentException("Project code already exists.");
+                throw new ArgumentException("Mã công trình đã tồn tại.");
 
             var entity = new Project
             {
@@ -1330,22 +1330,22 @@ namespace Backend.Domains.Admin.Services
             var status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : NormalizeProjectStatus(request.Status);
 
             if (string.IsNullOrWhiteSpace(code))
-                throw new ArgumentException("Code is required.");
+                throw new ArgumentException("Mã không được để trống.");
 
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("Name is required.");
+                throw new ArgumentException("Tên không được để trống.");
 
             if (!IsValidProjectStatus(status))
-                throw new ArgumentException("Invalid project status.");
+                throw new ArgumentException("Trạng thái công trình không hợp lệ.");
 
             if (request.StartDate.HasValue && request.EndDate.HasValue && request.EndDate.Value.Date < request.StartDate.Value.Date)
-                throw new ArgumentException("EndDate must be greater than or equal to StartDate.");
+                throw new ArgumentException("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.");
 
             var codeExists = await _db.Projects.AnyAsync(
                 x => x.ProjectId != id && x.Code.ToLower() == code.ToLower(), ct);
 
             if (codeExists)
-                throw new ArgumentException("Project code already exists.");
+                throw new ArgumentException("Mã công trình đã tồn tại.");
 
             entity.Code = code;
             entity.Name = name;
@@ -1367,7 +1367,7 @@ namespace Backend.Domains.Admin.Services
 
             var status = Normalize(request.Status);
             if (!IsValidProjectStatus(status))
-                throw new ArgumentException("Invalid project status.");
+                throw new ArgumentException("Trạng thái công trình không hợp lệ.");
 
             entity.Status = NormalizeProjectStatus(status);
             await _db.SaveChangesAsync(ct);
@@ -1385,7 +1385,7 @@ namespace Backend.Domains.Admin.Services
             //
             // var isUsed = await _db.IssueSlips.AnyAsync(x => x.ProjectId == id, ct);
             // if (isUsed)
-            //     throw new InvalidOperationException("Cannot delete project because it is already in use.");
+            //     throw new InvalidOperationException("Không thể xóa công trình vì đang được sử dụng.");
 
             _db.Projects.Remove(entity);
             await _db.SaveChangesAsync(ct);
@@ -1465,17 +1465,17 @@ namespace Backend.Domains.Admin.Services
             var number = Normalize(request.ContractNumber);
             var status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : Normalize(request.Status);
 
-            if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Code is required.");
-            if (request.SupplierId <= 0) throw new ArgumentException("Supplier is required.");
+            if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Mã không được để trống.");
+            if (request.SupplierId <= 0) throw new ArgumentException("Nhà cung cấp không được để trống.");
 
             if (request.EffectiveTo?.Date < DateTime.Now.Date)
-                throw new ArgumentException("EffectiveTo must be greater than or equal to today.");
+                throw new ArgumentException("Ngày hết hạn phải lớn hơn hoặc bằng ngày hôm nay.");
 
             if (request.EffectiveFrom.Date >= request.EffectiveTo?.Date)
-                throw new ArgumentException("Effective From must be less than Effective To.");
+                throw new ArgumentException("Ngày bắt đầu hiệu lực phải nhỏ hơn ngày hết hạn.");
 
             var codeExists = await _db.SupplierContracts.AnyAsync(x => x.ContractCode.ToLower() == code.ToLower(), ct);
-            if (codeExists) throw new ArgumentException("Contract code already exists.");
+            if (codeExists) throw new ArgumentException("Mã hợp đồng đã tồn tại.");
 
             var entity = new SupplierContract
             {
@@ -1507,15 +1507,15 @@ namespace Backend.Domains.Admin.Services
             var number = Normalize(request.ContractNumber);
             var status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : Normalize(request.Status);
 
-            if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Code is required.");
+            if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Mã không được để trống.");
 
-            if (request.SupplierId <= 0) throw new ArgumentException("Supplier is required.");
+            if (request.SupplierId <= 0) throw new ArgumentException("Nhà cung cấp không được để trống.");
 
             if (request.EffectiveFrom.Date >= request.EffectiveTo?.Date)
-                throw new ArgumentException("Effective From must be less than Effective To.");
+                throw new ArgumentException("Ngày bắt đầu hiệu lực phải nhỏ hơn ngày hết hạn.");
 
             var codeExists = await _db.SupplierContracts.AnyAsync(x => x.ContractCode.ToLower() == code.ToLower() && x.ContractId != id, ct);
-            if (codeExists) throw new ArgumentException("Contract code already exists.");
+            if (codeExists) throw new ArgumentException("Mã hợp đồng đã tồn tại.");
 
             entity.ContractCode = code;
             entity.ContractNumber = number;
@@ -1654,27 +1654,27 @@ namespace Backend.Domains.Admin.Services
         public async Task<int> CreateSupplierQuotationAsync(UpsertSupplierQuotationDto request, CancellationToken ct)
         {
             if (request.SupplierId <= 0)
-                throw new ArgumentException("Supplier is required.");
+                throw new ArgumentException("Nhà cung cấp không được để trống.");
 
             if (request.MaterialId <= 0)
-                throw new ArgumentException("Material is required.");
+                throw new ArgumentException("Vật tư không được để trống.");
 
             if (request.Price <= 0)
-                throw new ArgumentException("Price must be greater than 0.");
+                throw new ArgumentException("Giá phải lớn hơn 0.");
 
             var supplierExists = await _db.Suppliers.AnyAsync(x => x.SupplierId == request.SupplierId, ct);
             if (!supplierExists)
-                throw new ArgumentException("Supplier not found.");
+                throw new ArgumentException("Không tìm thấy nhà cung cấp.");
 
             var materialExists = await _db.Materials.AnyAsync(x => x.MaterialId == request.MaterialId, ct);
             if (!materialExists)
-                throw new ArgumentException("Material not found.");
+                throw new ArgumentException("Không tìm thấy vật tư.");
 
             if (!request.ValidFrom.HasValue || !request.ValidTo.HasValue)
-                throw new ArgumentException("Valid From and Valid To must be provided together.");
+                throw new ArgumentException("Ngày bắt đầu và ngày kết thúc hiệu lực phải được cung cấp cùng nhau.");
 
             if (request.ValidFrom.HasValue && request.ValidTo.HasValue && request.ValidTo.Value.Date <= request.ValidFrom.Value.Date)
-                throw new ArgumentException("Valid To must be greater than Valid From.");
+                throw new ArgumentException("Ngày kết thúc hiệu lực phải lớn hơn ngày bắt đầu.");
 
             // Check duplicate active quotation for same supplier + material
             var duplicateExists = await _db.SupplierQuotations.AnyAsync(x =>
@@ -1683,7 +1683,7 @@ namespace Backend.Domains.Admin.Services
                 x.IsActive == true, ct);
 
             if (duplicateExists)
-                throw new ArgumentException("An active quotation already exists for this supplier and material combination.");
+                throw new ArgumentException("Một báo giá đang hoạt động đã tồn tại cho nhà cung cấp và vật tư này.");
 
             var entity = new SupplierQuotation
             {
@@ -1708,24 +1708,24 @@ namespace Backend.Domains.Admin.Services
             if (entity == null) return false;
 
             if (request.SupplierId <= 0)
-                throw new ArgumentException("Supplier is required.");
+                throw new ArgumentException("Nhà cung cấp không được để trống.");
 
             if (request.MaterialId <= 0)
-                throw new ArgumentException("Material is required.");
+                throw new ArgumentException("Vật tư không được để trống.");
 
             if (request.Price < 0)
-                throw new ArgumentException("Price must be greater than or equal to 0.");
+                throw new ArgumentException("Giá phải lớn hơn hoặc bằng 0.");
 
             var supplierExists = await _db.Suppliers.AnyAsync(x => x.SupplierId == request.SupplierId, ct);
             if (!supplierExists)
-                throw new ArgumentException("Supplier not found.");
+                throw new ArgumentException("Không tìm thấy nhà cung cấp.");
 
             var materialExists = await _db.Materials.AnyAsync(x => x.MaterialId == request.MaterialId, ct);
             if (!materialExists)
-                throw new ArgumentException("Material not found.");
+                throw new ArgumentException("Không tìm thấy vật tư.");
 
             if (request.ValidFrom.HasValue && request.ValidTo.HasValue && request.ValidTo.Value.Date <= request.ValidFrom.Value.Date)
-                throw new ArgumentException("Valid To must be greater than Valid From.");
+                throw new ArgumentException("Ngày kết thúc hiệu lực phải lớn hơn ngày bắt đầu.");
 
             // Check duplicate active quotation for same supplier + material (excluding current)
             var duplicateExists = await _db.SupplierQuotations.AnyAsync(x =>
@@ -1735,7 +1735,7 @@ namespace Backend.Domains.Admin.Services
                 x.IsActive == true, ct);
 
             if (duplicateExists && request.IsActive == true)
-                throw new ArgumentException("An active quotation already exists for this supplier and material combination.");
+                throw new ArgumentException("Một báo giá đang hoạt động đã tồn tại cho nhà cung cấp và vật tư này.");
 
             entity.SupplierId = request.SupplierId;
             entity.MaterialId = request.MaterialId;

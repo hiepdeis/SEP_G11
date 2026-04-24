@@ -15,7 +15,7 @@ namespace Backend.Domains.Import.Services
         }
         public Task<List<SupplierWithMaterialDto>> GetSuppliersAsync()
         {
-            var now = DateTime.UtcNow;
+            var now = DateTime.Now;
 
             return _context.Suppliers
                 .Where(s => s.SupplierContracts.Any(sc => 

@@ -22,7 +22,7 @@ namespace Backend.Domains.Admin.Dtos
         public int? RoleId { get; set; }
 
         public int Page { get; set; } = 1;
-        public int PageSize { get; set; } = 500;
+        public int PageSize { get; set; } = 5000;
 
         public string SortBy { get; set; } = "FullName";
         public string SortDir { get; set; } = "asc";
