@@ -2,9 +2,12 @@
 using Backend.Domains.auth.Interfaces;
 using Backend.Domains.auth.Services;
 using Backend.Domains.outbound.Dtos;
+using Backend.Domains.outbound.Interface;
+using Backend.Domains.outbound.Services;
 using Backend.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -19,11 +22,16 @@ namespace Backend.Domains.outbound.Controllers
     {
         private readonly MyDbContext _context;
         private readonly IAuthService _authService;
-
-        public IssueSlipsController(MyDbContext context, IAuthService auth)
+        private readonly IssueService _issueService;
+        private readonly IssueDetailsService _issueDetailsService;
+        private readonly IIssueSlipWorkflowService _workflowService;
+        public IssueSlipsController(MyDbContext context, IAuthService auth, IssueService issue, IssueDetailsService issueDetails, IIssueSlipWorkflowService workflowService)
         {
             _context = context;
             _authService = auth;
+            _issueService = issue;
+            _issueDetailsService = issueDetails;
+            _workflowService = workflowService;
         }
 
         [HttpGet("{id:long}")]
@@ -68,118 +76,40 @@ namespace Backend.Domains.outbound.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateIssueSlip(CreateIssueSlipDto dto)
         {
-            if (dto == null)
+
+            var (success, message, data) = await _issueService.CreateIssueSlipAsync(dto);
+
+            if (!success)
             {
-                return BadRequest("Invalid data.");
+                if (message.Contains("Invalid data"))
+                    return BadRequest(message);
+
+                if (message.Contains("stock take"))
+                    return StatusCode(StatusCodes.Status409Conflict, message);
+
+                if (message.Contains("not found"))
+                    return NotFound(message);
+
+                return BadRequest(message);
             }
 
-            var isStockTakeActive = await _context.StockTakeLocks.AnyAsync(l => l.IsActive);
-            if (isStockTakeActive)
-            {
-                return StatusCode(StatusCodes.Status409Conflict, "A stock take is currently in progress. Material issue requests cannot be created at this time.");
-            }
-
-            var projectExists = await _context.Projects.AnyAsync(p => p.ProjectId == dto.ProjectId);
-            if (!projectExists)
-            {
-                return NotFound($"Project with ID {dto.ProjectId} not found.");
-            }
-
-            var issueSlip = new IssueSlip
-            {
-                IssueCode = dto.IssueCode,
-                ProjectId = dto.ProjectId,
-                CreatedBy = dto.UserId,
-                IssueDate = DateTime.UtcNow,
-                Status = "Pending_Review",
-                Description = dto.Description,
-                WorkItem = dto.WorkItem,
-                Department = dto.Department,
-                DeliveryLocation = dto.DeliveryLocation,
-                ReferenceCode = dto.ReferenceCode
-            };
-
-            _context.IssueSlips.Add(issueSlip);
-            await _context.SaveChangesAsync();
-
-            var approvalSteps = new List<IssueSlipApproval>
-            {
-                new IssueSlipApproval
-                {
-                    IssueId = issueSlip.IssueId,
-                    Step = "Accountant",
-                    StepOrder = 1,
-                    Status = "Pending",
-                    IsActive = true
-                },
-                new IssueSlipApproval
-                {
-                    IssueId = issueSlip.IssueId,
-                    Step = "Admin",
-                    StepOrder = 2,
-                    Status = "Pending",
-                    IsActive = false 
-                },
-                new IssueSlipApproval
-                {
-                    IssueId = issueSlip.IssueId,
-                    Step = "WarehouseManager",
-                    StepOrder = 3,
-                    Status = "Pending",
-                    IsActive = true
-                },
-                new IssueSlipApproval
-                {
-                    IssueId = issueSlip.IssueId,
-                    Step = "WarehouseStaff",
-                    StepOrder = 4,
-                    Status = "Pending",
-                    IsActive = true
-                }
-            };
-
-            _context.IssueSlipApprovals.AddRange(approvalSteps);
-            await _context.SaveChangesAsync();
-
-            return Ok(new
-            {
-                issueId = issueSlip.IssueId,
-                issueCode = issueSlip.IssueCode
-            });
+            return Ok(data);
         }
 
         [HttpPost("{issueId}/details")]
         public async Task<IActionResult> AddIssueDetails(long issueId, List<CreateIssueDetailDto> details)
         {
-            var issueSlip = await _context.IssueSlips.FindAsync(issueId);
-            if (issueSlip == null)
+            var (success, message, data) = await _issueDetailsService.AddIssueDetailsAsync(issueId, details);
+
+            if (!success)
             {
-                return NotFound("IssueSlip not found");
+                if (message.Contains("not found"))
+                    return NotFound(message);
+
+                return BadRequest(message);
             }
 
-            if (details == null || !details.Any())
-                return BadRequest("Issue details is empty");
-
-            // 3. Map DTO -> Entity
-            var issueDetails = details.Select(d => new IssueDetail
-            {
-                IssueId = issueId,
-                MaterialId = d.MaterialId,
-                Quantity = d.Quantity,
-                UnitPrice = d.UnitPrice,
-                
-            }).ToList();
-
-            // 4. Insert
-            _context.IssueDetails.AddRange(issueDetails);
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new
-            {
-                IssueId = issueId,
-                TotalItems = issueDetails.Count
-            });
+            return Ok(data);
 
         }
 
@@ -688,200 +618,86 @@ namespace Backend.Domains.outbound.Controllers
 
         }
 
+
         [HttpPost("{id}/change-status")]
         // [Authorize(Roles = "Accountant, Admin, WarehouseManager")]
         public async Task<IActionResult> ChangeSlipStatus(long id, [FromBody] ChangeStatusRequest request)
         {
-           // var slip = await _context.IssueSlips.Include(x => x.Project).FirstOrDefaultAsync(x => x.IssueId == id);
-            var slip = await _context.IssueSlips
-                                    .Include(x => x.Project)
-                                    .Include(x => x.IssueDetails)           
-                                        .ThenInclude(d => d.PickingLists)  
-                                    .FirstOrDefaultAsync(x => x.IssueId == id);
-
-            if (slip == null) return NotFound("Không tìm thấy phiếu.");
-
-            // Dùng chung 1 API, xử lý linh hoạt dựa vào Action gửi lên
-            switch (request.Action)
+            try
             {
-                case "Pending_Warehouse_Approval":
-                    // Kế toán gửi cho Thủ kho
-                    if (slip.Status != "Draft_Issue_Note") return BadRequest("Chỉ phiếu Nháp mới được gửi Thủ kho.");
-                    slip.Status = "Pending_Warehouse_Approval";
-                    break;
+                switch (request.Action)
+                {
+                    case "Pending_Warehouse_Approval":
+                        // Kế toán gửi cho Thủ kho
+                        var (success, message) = await _workflowService.ForwardToWarehouseAsync(id, request.Reason);
+                        if (success!= true) return BadRequest(new { message });
+                        break;
 
-                case "Forwarded_To_Purchasing":
-                    // Kế toán gửi cho bộ phận Mua hàng
-                    if (slip.Status != "Draft_Direct_PO") return BadRequest("Chỉ Đơn mua nháp mới được gửi Thu mua.");
-                    // 1. Tạo Đơn mua xuất thẳng mới (Sang bảng DirectPurchaseOrders)
-                    var newDpo = new DirectPurchaseOrder
-                    {
-                        DpoCode = "DPO-" + DateTime.Now.ToString("yyMMdd") + "-" + new Random().Next(1000, 9999),
-                        ReferenceCode = slip.IssueCode, // Nối dây rốn với phiếu Nháp
-                        ProjectId = slip.Project.ProjectId,
-                        CreatedBy = slip.CreatedBy,
-                        OrderDate = DateTime.UtcNow,
-                        Status = "Pending_Supplier_Selection", // Trạng thái chờ Thu mua vào chọn Nhà cung cấp
-                        SupplierId = null, // ĐỂ TRỐNG (Null) chờ Thu mua điền
-                        Description = $"Chuyển từ đơn mua nháp {slip.IssueCode}.",
-                        DirectPurchaseDetails = new List<DirectPurchaseDetail>()
-                    };
+                    case "Forwarded_To_Purchasing":
+                        // Kế toán gửi cho bộ phận Mua hàng
+                        var currentToken = Request.Cookies["refreshToken"];
+                        var currentUser = await _authService.GetUserByRefreshTokenAsync(currentToken);
+                        if (currentUser == null) return Unauthorized(new { message = "Phiên đăng nhập hết hạn." });
 
-                    // 2. Lấy toàn bộ hàng hóa từ Phiếu Nháp copy sang Đơn mua thật
-                    foreach (var detail in slip.IssueDetails)
-                    {
-                        newDpo.DirectPurchaseDetails.Add(new DirectPurchaseDetail
-                        {
-                            MaterialId = detail.MaterialId,
-                            Quantity = detail.Quantity,
-                            NegotiatedUnitPrice = detail.UnitPrice ?? 0 // Lấy giá dự toán làm base
-                        });
-                    }
+                        var result = await _workflowService.ForwardToPurchasingAsync(id, currentUser.UserId, request.Reason);
+                        if (!result.Success)
+                            return BadRequest(new { message = result.Message });
+                        break;
 
-                    // 3. Add vào database (Entity Framework sẽ tự sinh lệnh INSERT)
-                    _context.DirectPurchaseOrders.Add(newDpo);
-                    slip.Description += $"\nHệ thống: Đã khởi tạo đơn mua ngoài chính thức [{newDpo.DpoCode}].";
-                    slip.Status = "Forwarded_To_Purchasing";
-                    break;
+                    case "Picking_In_Progress":
+                        // thủ kho gán nhân viên 
+                        if (!request.AssignedPickerId.HasValue)
+                            return BadRequest(new { message = "Vui lòng chọn nhân viên kho để phân công nhiệm vụ." });
 
-                case "Picking_In_Progress":
-                    if (!request.AssignedPickerId.HasValue)
-                    {
-                        return BadRequest("Vui lòng chọn nhân viên kho để phân công nhiệm vụ.");
-                    }
-                    slip.AssignedPickerId = request.AssignedPickerId.Value;
-                    slip.Status = "Picking_In_Progress";
-                    slip.Description += $"\n(Kho: Quản lý kho đã phân công phiếu này cho nhân viên ID: {request.AssignedPickerId} lúc {DateTime.Now:HH:mm}).";
-                    break;
+                        var result1 =  await _workflowService.StartPickingAsync(id, request.AssignedPickerId.Value, request.Reason);
+                        if (!result1.Success)
+                            return BadRequest(new { message = result1.Message });
+                        break;
+                    case "Ready_For_Delivery":
+                        // nhân viên bốc hàng 
+                        var refreshToken = Request.Cookies["refreshToken"];
+                        if (string.IsNullOrEmpty(refreshToken)) return Unauthorized(new { message = "Vui lòng đăng nhập." });
 
-                case "Ready_For_Delivery":
-                    if (slip.Status != "Picking_In_Progress")
-                        return BadRequest("Phiếu chưa ở trạng thái đang nhặt hàng.");
-                    
-                    var refreshToken = Request.Cookies["refreshToken"];
-                    if (string.IsNullOrEmpty(refreshToken))
-                    {
-                        return Unauthorized();
-                    }
+                        var userFromDb = await _authService.GetUserByRefreshTokenAsync(refreshToken);
+                        if (userFromDb == null) return Unauthorized(new { message = "Phiên đăng nhập không hợp lệ." });
 
-                    var userFromDb = await _authService.GetUserByRefreshTokenAsync(refreshToken);
-                    if (userFromDb == null)
-                    {
-                        return Unauthorized();
-                    }
+                        var result3 =  await _workflowService.FinishPickingAndDeductInventoryAsync(id, userFromDb.UserId, request.Reason);
+                        if (!result3.Success)
+                            return BadRequest(new { message = result3.Message });
+                        break;
+                    case "Completed":
+                        // kĩ sư hiện trường chấp nhận hàng 
+                        var result4 =  await _workflowService.CompleteReceiptAsync(id, request.Reason);
+                        if (!result4.Success) 
+                            return BadRequest(new { message = result4.Message });
+                        break;
+                    case "Closed":
+                        // kế toán hạch toán 
+                        var result5 =  await _workflowService.CloseSlipAsync(id, request.Reason);
+                        if (!result5.Success)
+                            return BadRequest(new { message = result5.Message });
+                        break;
 
-                    // TIẾN HÀNH TRỪ TỒN KHO VẬT LÝ
-                    foreach (var detail in slip.IssueDetails)
-                    {
-                        foreach (var pick in detail.PickingLists)
-                        {
-                           
-                                pick.IsPicked = true;
-                                pick.ActualPickerId = userFromDb.UserId;
-                                var inventoryRecord = await _context.InventoryCurrents
-                                    .FirstOrDefaultAsync(ic => ic.WarehouseId == slip.WarehouseId
-                                                            && ic.MaterialId == detail.MaterialId
-                                                            && ic.BatchId == pick.BatchId
-                                                            && ic.BinId == pick.BinId);
-
-                                if (inventoryRecord != null)
-                                {
-                                    // 1. Trừ tồn kho thực tế
-                                    inventoryRecord.QuantityOnHand = (inventoryRecord.QuantityOnHand ?? 0) - pick.QtyToPick;
-
-                                    // 2. Giải phóng tồn kho giữ chỗ
-                                    inventoryRecord.QuantityAllocated = (inventoryRecord.QuantityAllocated ?? 0) - pick.QtyToPick;
-                                    inventoryRecord.LastUpdated = DateTime.Now;
-                                    // Đảm bảo không bị âm số (Safe check)
-                                    if (inventoryRecord.QuantityAllocated < 0) inventoryRecord.QuantityAllocated = 0;
-                                    if (inventoryRecord.QuantityOnHand < 0) inventoryRecord.QuantityOnHand = 0;
-                                }
-                            
-                        }
-                    }
-
-                    slip.Status = "Ready_For_Delivery";
-                    slip.Description += $"\n(Kho: Đã xuất hàng và trừ tồn kho vật lý lúc {DateTime.Now:HH:mm}).";
-                    break;
-                case "Completed":
-                    // 1. Chỉ cho phép nhận hàng nếu phiếu đang trên đường giao && slip.Status != "Delivering_To_Site"
-                    if (slip.Status != "Ready_For_Delivery" )
-                        return BadRequest("Phiếu phải ở trạng thái đang giao hàng mới có thể xác nhận.");
-
-                    // 2. Cập nhật trạng thái và ngày thực nhận
-                    slip.Status = "Completed";
-                    if (slip.Project != null)
-                    {
-                        // Tính tổng tiền của phiếu xuất này (Số lượng * Đơn giá dự toán/Giá xuất kho)
-                        decimal totalSlipCost = slip.IssueDetails.Sum(d => d.Quantity * (d.UnitPrice ?? 0));
-
-                        // Cộng dồn vào chi phí dự án
-                        slip.Project.BudgetUsed = (slip.Project.BudgetUsed ?? 0) + totalSlipCost;
-
-                        slip.Description += $"\n(Kế toán: Đã ghi nhận {totalSlipCost:N0} VNĐ từ kho vào chi phí dự án).";
-                    }
-                    slip.Description += $"\n(Hiện trường: Kỹ sư đã xác nhận nhận đủ hàng vào lúc {DateTime.Now:dd/MM/yyyy HH:mm}).";
-                    if (!string.IsNullOrEmpty(slip.ReferenceCode))
-                    {
-                        // Tìm tất cả các phiếu con khác có cùng mã tham chiếu (ReferenceCode)
-                        var siblingSlips = await _context.IssueSlips
-                            .Where(s => s.ReferenceCode == slip.ReferenceCode && s.IssueId != slip.IssueId)
-                            .ToListAsync();
-
-                        
-                         if (siblingSlips.All(s => s.Status == "Completed"))
-                        {
-                            
-                            var rootSlip = await _context.IssueSlips
-                                .FirstOrDefaultAsync(s => s.IssueCode == slip.ReferenceCode);
-
-                            if (rootSlip != null && rootSlip.Status != "Completed")
-                            {
-                                rootSlip.Status = "Completed";
-                                rootSlip.Description += $"\n({DateTime.Now:dd/MM/yyyy HH:mm} - Hệ thống: Toàn bộ vật tư từ các nguồn (Kho/Mua ngoài) đã được bàn giao xong. Tự động đóng phiếu yêu cầu gốc).";
-                            }
-                        }
-                    }
-
-                    break;
-                case "Closed": // Bước cuối: Kế toán chốt sổ công nợ & chi phí
-                    if (slip.Status != "Completed")
-                        return BadRequest("Phiếu phải được xác nhận nhận đủ hàng trước khi đóng.");
-                    // 1. Thực hiện ghi nhận chi phí vào DB (nếu bác có bảng hạch toán riêng)
-                    slip.Status = "Closed";
-                    slip.Description += $"\n(Kế toán: Đã kiểm tra chứng từ và chốt sổ tài chính lúc {DateTime.Now:dd/MM/yyyy HH:mm}).";
-                    // 2. Logic tự động Đóng phiếu cha (Parent Slip)
-                    if (slip.ParentIssueId.HasValue)
-                    {
-                        // Kiểm tra xem tất cả các "anh em" (child slips) của phiếu này đã Closed hết chưa
-                        var siblingStatus = await _context.IssueSlips
-                            .Where(s => s.ParentIssueId == slip.ParentIssueId && s.IssueId != slip.IssueId)
-                            .Select(s => s.Status)
-                            .ToListAsync();
-
-                        if (siblingStatus.All(s => s == "Closed"))
-                        {
-                            var parentSlip = await _context.IssueSlips.FindAsync(slip.ParentIssueId);
-                            if (parentSlip != null)
-                            {
-                                parentSlip.Status = "Closed";
-                                parentSlip.Description += $"\n(Hệ thống: Toàn bộ các phiếu con đã hoàn tất. Đóng phiếu yêu cầu gốc).";
-                            }
-                        }
-                    }
-                    break;
-
-                default:
-                    return BadRequest("Trạng thái không hợp lệ.");
+                    default:
+                        return BadRequest("Trạng thái không hợp lệ.");
+                }
+                return Ok(new { message = "Chuyển trạng thái thành công!", newStatus = request.Action });
             }
-
-            if (!string.IsNullOrEmpty(request.Reason))
+            catch (KeyNotFoundException ex)
             {
-                slip.Description += $"\n({DateTime.Now:dd/MM} - {request.Action}: {request.Reason})";
+                // Bắt lỗi không tìm thấy phiếu từ Service
+                return NotFound(new { message = ex.Message });
             }
-
-            await _context.SaveChangesAsync();
-            return Ok(new { message = "Chuyển trạng thái thành công!", newStatus = slip.Status });
+            catch (InvalidOperationException ex)
+            {
+                // Bắt các lỗi sai luồng nghiệp vụ (Ví dụ: phiếu chưa duyệt mà đòi xuất kho)
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Bắt các lỗi hệ thống văng ra (như lỗi Database, lỗi Transaction)
+                return StatusCode(500, new { message = "Đã xảy ra lỗi hệ thống trong quá trình xử lý.", details = ex.Message });
+            }
         }
 
         public class PickerDto
