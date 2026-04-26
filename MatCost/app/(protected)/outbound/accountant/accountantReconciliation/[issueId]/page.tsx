@@ -50,11 +50,15 @@ export default function AccountantReconciliation() {
     if (!voucherNo.trim()) {
       return toast.error("Vui lòng nhập Số chứng từ kế toán!");
     }
-    
+    const currentSlipType = data?.childSlips?.[0]?.slipType;
+    if (!currentSlipType) {
+      return toast.error("Lỗi dữ liệu: Không xác định được loại phiếu!");
+    }
     try {
       setSubmitting(true);
       // Gọi API POST để đóng phiếu (Bác nhớ tạo hàm này trong issueSlipApi nhé)
       await issueSlipApi.finalizeAccounting(issueId, {
+        slipType: currentSlipType,
         voucherNo: voucherNo,
         accountingDate: accountingDate,
         finalTotalAmount: data?.totalFinalCost 

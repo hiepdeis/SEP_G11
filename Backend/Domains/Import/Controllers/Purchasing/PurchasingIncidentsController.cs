@@ -1,11 +1,14 @@
 using Backend.Domains.Import.DTOs.Purchasing;
 using Backend.Domains.Import.Interfaces;
+using Backend.Extensions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Domains.Import.Controllers.Purchasing
 {
     [ApiController]
     [Route("api/purchasing/incidents")]
+    [Authorize(Roles = "Purchasing", Policy = "ActiveUserOnly")]
     public class PurchasingIncidentsController : ControllerBase
     {
         private readonly IIncidentWorkflowService _service;
@@ -15,12 +18,32 @@ namespace Backend.Domains.Import.Controllers.Purchasing
             _service = service;
         }
 
+        private int GetPurchasingId()
+        {
+            return User.GetRequiredUserId();
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetPendingIncidents()
         {
             try
             {
                 var incidents = await _service.GetPurchasingIncidentsAsync();
+                
+                foreach (var incident in incidents)
+                {
+                    try
+                    {
+                        var supplementaryReceipt = await _service.GetSupplementaryReceiptAsync(incident.IncidentId);
+                        incident.SupplementaryRevisionHistory = await _service
+                            .GetSupplementaryRevisionHistoryAsync(supplementaryReceipt.SupplementaryReceiptId);
+                    }
+                    catch (KeyNotFoundException)
+                    {
+                        incident.SupplementaryRevisionHistory = new List<SupplementaryRevisionHistoryItemDto>();
+                    }
+                }
+
                 return Ok(incidents);
             }
             catch (Exception ex)
@@ -35,6 +58,18 @@ namespace Backend.Domains.Import.Controllers.Purchasing
             try
             {
                 var incident = await _service.GetPurchasingIncidentAsync(incidentId);
+
+                try
+                {
+                    var supplementaryReceipt = await _service.GetSupplementaryReceiptAsync(incidentId);
+                    incident.SupplementaryRevisionHistory = await _service
+                        .GetSupplementaryRevisionHistoryAsync(supplementaryReceipt.SupplementaryReceiptId);
+                }
+                catch (KeyNotFoundException)
+                {
+                    incident.SupplementaryRevisionHistory = new List<SupplementaryRevisionHistoryItemDto>();
+                }
+
                 return Ok(incident);
             }
             catch (KeyNotFoundException ex)
@@ -52,7 +87,7 @@ namespace Backend.Domains.Import.Controllers.Purchasing
         {
             try
             {
-                var purchasingId = 1; // TODO: replace with JWT claims
+                var purchasingId = GetPurchasingId();
                 var result = await _service.CreateSupplementaryReceiptAsync(incidentId, purchasingId, dto);
                 return Ok(result);
             }

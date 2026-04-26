@@ -1222,10 +1222,27 @@ public partial class MyDbContext : DbContext
                 .HasForeignKey(e => e.PurchaseOrderId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            entity.HasOne(e => e.SupplementaryReceipt)
+                .WithMany(s => s.RejectionHistories)
+                .HasForeignKey(e => e.SupplementaryReceiptId)
+                .OnDelete(DeleteBehavior.NoAction);
+
             entity.HasOne(e => e.Rejector)
                 .WithMany()
                 .HasForeignKey(e => e.RejectedBy)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SupplementaryReceipt>(entity =>
+        {
+            entity.Property(e => e.RevisionNumber)
+                .HasDefaultValue(1);
+
+            entity.HasOne(e => e.ParentReceipt)
+                .WithMany(e => e.ChildRevisions)
+                .HasForeignKey(e => e.ParentReceiptId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_SupplementaryReceipts_SupplementaryReceipts_ParentReceiptID");
         });
 
         modelBuilder.Entity<WarehouseCard>(entity =>

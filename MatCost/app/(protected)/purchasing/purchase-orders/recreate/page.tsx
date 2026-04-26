@@ -428,7 +428,10 @@ export default function RecreatePurchaseOrderPage() {
                     <CardHeader className="border-b border-slate-100 pb-4 shrink-0">
                       <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pt-2">
                         <History className="w-5 h-5 text-indigo-600" />
-                        {t("PO Revision History")}
+                        {t("PO Revision History")}{" "}
+                        <span className="text-[11px] font-medium text-rose-700 bg-rose-100/80 px-2 py-0.5 rounded-full border border-rose-200/60 whitespace-nowrap">
+                          {t("Revision")} #{originalOrder?.revisionNumber}
+                        </span>
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-5 overflow-y-auto flex-1 relative">

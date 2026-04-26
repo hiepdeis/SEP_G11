@@ -6,6 +6,7 @@ namespace Backend.Domains.Import.Interfaces
 {
     public interface IIncidentWorkflowService
     {
+        Task<List<SupplementaryRevisionHistoryItemDto>> GetSupplementaryRevisionHistoryAsync(long supplementaryReceiptId);
         Task<IncidentReport> SubmitIncidentToManagerAsync(long incidentId, int staffId);
         Task<List<ManagerIncidentSummaryDto>> GetManagerIncidentsAsync();
         Task<ManagerIncidentDetailDto> GetManagerIncidentAsync(long incidentId);

@@ -268,6 +268,7 @@ export interface ManagerIncidentSummaryDto {
   submittedAt: string;
   status?: string;
   items: ManagerIncidentItemSummaryDto[];
+  supplementaryRevisionHistory: null[];
 }
 
 export interface ManagerIncidentDetailDto {
@@ -401,6 +402,17 @@ export interface PurchasingIncidentItemSummaryDto {
   evidenceImages: string[] | null;
 }
 
+export interface SupplementaryRevisionHistoryItemDto {
+  supplementaryReceiptId: number;
+  revisionNumber: number;
+  status: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+  totalSupplementaryQty: number;
+  createdAt: string;
+}
+
 export interface PurchasingIncidentSummaryDto {
   incidentId: number;
   incidentCode: string;
@@ -409,6 +421,7 @@ export interface PurchasingIncidentSummaryDto {
   createdAt: string;
   status?: string;
   items: PurchasingIncidentItemSummaryDto[];
+  supplementaryRevisionHistory: SupplementaryRevisionHistoryItemDto[];
 }
 
 export interface PurchasingIncidentDetailDto {
@@ -421,6 +434,7 @@ export interface PurchasingIncidentDetailDto {
   createdAt: string;
   qcCheck?: QCCheckDto;
   items: PurchasingIncidentItemSummaryDto[];
+  supplementaryRevisionHistory: SupplementaryRevisionHistoryItemDto[];
 }
 
 export interface CreateSupplementaryReceiptItemDto {

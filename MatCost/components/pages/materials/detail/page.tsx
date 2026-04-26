@@ -150,6 +150,31 @@ export default function MaterialDetailPage({
   const [editForm, setEditForm] = useState<Partial<MaterialItem> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  const loadData = async (silent = false) => {
+    try {
+      if (!silent) setLoading(true);
+      const [matData, catData, whData, binData, invData] = await Promise.all([
+        getMaterialById(materialId),
+        getCategories(),
+        getWarehouses(),
+        getBins(),
+        getInventoryByMaterial(materialId),
+      ]);
+      setMaterial(matData);
+      setCategories(catData.items ?? []);
+      setWarehouses(Array.isArray(whData) ? whData : (whData.items ?? []));
+      setBins(Array.isArray(binData) ? binData : (binData.items ?? []));
+      setInventoryGroups(invData ?? []);
+    } catch (error) {
+      console.error("Failed to load material detail:", error);
+      toast.error(t("Failed to load material details"));
+      if (role === "admin") router.push("/admin/master-data?tab=materials");
+      else router.push(`/${role}/materials`);
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (isNaN(materialId)) {
       toast.error(t("Invalid Material ID"));
@@ -157,31 +182,6 @@ export default function MaterialDetailPage({
       else router.push(`/${role}/materials`);
       return;
     }
-
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const [matData, catData, whData, binData, invData] = await Promise.all([
-          getMaterialById(materialId),
-          getCategories(),
-          getWarehouses(),
-          getBins(),
-          getInventoryByMaterial(materialId),
-        ]);
-        setMaterial(matData);
-        setCategories(catData.items ?? []);
-        setWarehouses(Array.isArray(whData) ? whData : (whData.items ?? []));
-        setBins(Array.isArray(binData) ? binData : (binData.items ?? []));
-        setInventoryGroups(invData ?? []);
-      } catch (error) {
-        console.error("Failed to load material detail:", error);
-        toast.error(t("Failed to load material details"));
-        if (role === "admin") router.push("/admin/master-data?tab=materials");
-        else router.push(`/${role}/materials`);
-      } finally {
-        setLoading(false);
-      }
-    };
 
     loadData();
   }, [materialId, router]);
@@ -227,6 +227,11 @@ export default function MaterialDetailPage({
     try {
       if (invForm.warehouseId === 0 || invForm.binId === 0) {
         toast.error(t("Please select warehouse and bin"));
+        return;
+      }
+
+      if (invForm.batchCode === "") {
+        toast.error(t("Please enter batch code"));
         return;
       }
 
@@ -336,13 +341,13 @@ export default function MaterialDetailPage({
         isDecimalUnit: editForm.isDecimalUnit ?? false,
       };
 
-      const updated = await updateMaterial(materialId, payload);
-      setMaterial({ ...material!, ...updated });
+      await updateMaterial(materialId, payload);
       toast.success(t("Update Successful"));
       closeEditModal();
+      await loadData(true);
       router.refresh();
-    } catch (error) {
-      toast.error(t("Save Failed"));
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || t("Save Failed"));
     } finally {
       setIsSaving(false);
     }

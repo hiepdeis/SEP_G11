@@ -359,7 +359,7 @@ namespace Backend.Domains.Admin.Services
                 .FirstOrDefaultAsync(x => x.Id == inventoryId && x.MaterialId == materialId, ct);
 
             if (entity == null)
-                return (false, "Inventory row not found.");
+                return (false, "Vị trí tồn kho không tồn tại.");
 
             _db.InventoryCurrents.Remove(entity);
             await _db.SaveChangesAsync(ct);
@@ -446,21 +446,21 @@ namespace Backend.Domains.Admin.Services
                 .FirstOrDefaultAsync(ct);
 
             if (material == null)
-                throw new ArgumentException("Material không tồn tại.");
+                throw new ArgumentException("Vật tư không tồn tại.");
 
             var warehouseExists = await _db.Warehouses.AnyAsync(x => x.WarehouseId == warehouseId, ct);
             if (!warehouseExists)
-                throw new ArgumentException("Warehouse không tồn tại.");
+                throw new ArgumentException("Kho không tồn tại.");
 
             var bin = await _db.BinLocations
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.BinId == binId, ct);
 
             if (bin == null)
-                throw new ArgumentException("Bin không tồn tại.");
+                throw new ArgumentException("Vị trí không tồn tại.");
 
             if (bin.WarehouseId != warehouseId)
-                throw new ArgumentException("Bin không thuộc warehouse đã chọn.");
+                throw new ArgumentException("Vị trí không thuộc kho đã chọn.");
 
             var batch = await _db.Batches
                 .AsNoTracking()

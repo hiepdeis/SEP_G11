@@ -15,6 +15,7 @@ using Backend.Entities;
 using Backend.Filters;
 using Backend.Options;
 using Backend.Services.Email;
+using Backend.Services.Notifications;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -41,7 +42,7 @@ builder.Configuration
 builder.Services.AddDbContext<MyDbContext>(options =>
               options.UseSqlServer(
                   builder.Configuration.GetConnectionString("DefaultConnection")
-                 //ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
+              //ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
               ));
 // Add services to the container.
 
@@ -124,6 +125,7 @@ builder.Services.AddScoped<IMaterialService, MaterialService>();
 builder.Services.AddScoped<IMasterDataService, MasterDataService>();
 builder.Services.AddScoped<INotificationAdminService, NotificationAdminService>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+builder.Services.AddScoped<INotificationDispatcher, NotificationDispatchService>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -167,6 +169,7 @@ using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<MyDbContext>();
     await SeedData.InitializeAsync(context);
+    await SeedData1.InitializeAsync(context);
 }
 
 

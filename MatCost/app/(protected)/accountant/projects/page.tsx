@@ -24,7 +24,7 @@ export default function ProjectManagementPage() {
           </div>
 
           <div className="p-0">
-            <ProjectsTab role="accountant" />
+            <ProjectsTab role="accountant" viewOnly={true} />
           </div>
         </div>
       </main>

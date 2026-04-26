@@ -812,12 +812,12 @@ export default function PurchasingDashboardPage() {
                                 >
                                   {item.status === "Draft" ||
                                   item.status === "AccountantApproved"
-                                    ? "Pending Approval"
+                                    ? t("Pending Approval")
                                     : item.status === "AdminApproved"
-                                      ? "Approved"
+                                      ? t("Approved")
                                       : item.status === "SentToSupplier" &&
                                           item.expectedDeliveryDate != null
-                                        ? "Delivery Confirmed"
+                                        ? t("Delivery Confirmed")
                                         : t(formatPascalCase(item.status))}
                                 </Badge>
                               </TableCell>
@@ -847,7 +847,7 @@ export default function PurchasingDashboardPage() {
                                           }}
                                         >
                                           <Eye className="w-4 h-4 mr-2 focus:text-primary" />{" "}
-                                          {t("View Alert Details")}
+                                          {t("View PO Details")}
                                         </DropdownMenuItem>
                                       </DropdownMenuContent>
                                     </DropdownMenu>

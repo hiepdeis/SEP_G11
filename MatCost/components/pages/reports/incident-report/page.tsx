@@ -164,11 +164,16 @@ export default function IncidentReportsPage({
 
   useEffect(() => {
     const fetchStaffs = async () => {
-      if (role?.toLowerCase() === "manager" || role?.toLowerCase() === "admin") {
+      if (
+        role?.toLowerCase() === "manager" ||
+        role?.toLowerCase() === "admin"
+      ) {
         try {
           const res = await userApi.getAll(1, 100);
           const staffs = res.data.users.filter(
-            (u) => u.roleName.toLowerCase() === "staff" || u.roleName.toLowerCase() === "manager",
+            (u) =>
+              u.roleName.toLowerCase() === "staff" ||
+              u.roleName.toLowerCase() === "manager",
           );
           setStaffList(staffs);
         } catch (error) {
@@ -261,7 +266,10 @@ export default function IncidentReportsPage({
     let matchesStaff = true;
     if (role?.toLowerCase() === "staff") {
       matchesStaff = item.creatorId === user?.id;
-    } else if ((role?.toLowerCase() === "manager" || role?.toLowerCase() === "admin") && selectedStaffId !== "All") {
+    } else if (
+      (role?.toLowerCase() === "manager" || role?.toLowerCase() === "admin") &&
+      selectedStaffId !== "All"
+    ) {
       matchesStaff = item.creatorId.toString() === selectedStaffId;
     }
 
@@ -511,7 +519,8 @@ export default function IncidentReportsPage({
                     />
                   </div>
 
-                  {(role?.toLowerCase() === "manager" || role?.toLowerCase() === "admin") && (
+                  {(role?.toLowerCase() === "manager" ||
+                    role?.toLowerCase() === "admin") && (
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
                         {t("Member")}

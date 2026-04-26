@@ -147,12 +147,17 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
 
   useEffect(() => {
     const fetchStaffs = async () => {
-      if (role?.toLowerCase() === "manager" || role?.toLowerCase() === "admin") {
+      if (
+        role?.toLowerCase() === "manager" ||
+        role?.toLowerCase() === "admin"
+      ) {
         try {
           const res = await userApi.getAll(1, 100);
 
           const staffs = res.data.users.filter(
-            (u) => u.roleName.toLowerCase() === "staff" || u.roleName.toLowerCase() === "manager",
+            (u) =>
+              u.roleName.toLowerCase() === "staff" ||
+              u.roleName.toLowerCase() === "manager",
           );
 
           setStaffList(staffs);
@@ -190,7 +195,10 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
     let matchesStaff = true;
     if (role?.toLowerCase() === "staff") {
       matchesStaff = item.createdBy === user?.id;
-    } else if ((role?.toLowerCase() === "manager" || role?.toLowerCase() === "admin") && selectedStaffId !== "All") {
+    } else if (
+      (role?.toLowerCase() === "manager" || role?.toLowerCase() === "admin") &&
+      selectedStaffId !== "All"
+    ) {
       matchesStaff = item.createdBy.toString() === selectedStaffId;
     }
 
@@ -447,7 +455,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
               {/* Right: Search, Filters & Export */}
               <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
                 {/* Search Bar */}
-                <div className="relative w-full sm:w-64">
+                <div className="relative w-full sm:w-80">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                   <Input
                     placeholder={t("Search Code, Material, Bin...")}
@@ -528,7 +536,8 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                           />
                         </div>
 
-                        {(role?.toLowerCase() === "manager" || role?.toLowerCase() === "admin") && (
+                        {(role?.toLowerCase() === "manager" ||
+                          role?.toLowerCase() === "admin") && (
                           <div className="space-y-2">
                             <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
                               {t("Member")}
@@ -551,9 +560,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                                 </div>
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="All">
-                                  {t("All")}
-                                </SelectItem>
+                                <SelectItem value="All">{t("All")}</SelectItem>
                                 {staffList.map((staff) => (
                                   <SelectItem
                                     key={staff.id}

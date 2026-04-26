@@ -4,6 +4,7 @@ using Backend.Data;
 using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +12,7 @@ namespace Backend.Domains.Import.Controllers.Admins
 {
     [ApiController]
     [Route("api/admin/alerts")]
+    [Authorize(Roles = "Admin", Policy = "ActiveUserOnly")]
     public class StockShortageAlertsAdminController : ControllerBase
     {
         private readonly IStockShortageAlertService _service;

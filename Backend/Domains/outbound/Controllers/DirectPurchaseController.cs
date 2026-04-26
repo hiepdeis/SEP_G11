@@ -107,7 +107,7 @@ namespace Backend.Domains.outbound.Controllers
                     ExpectedDeliveryDate = request.ExpectedDeliveryDate,
                     DeliveryAddress = request.DeliveryAddress,
 
-                    Status = "Delivering_To_Site", // Chuyển thẳng sang trạng thái Đang giao hàng
+                    Status = "Ready_For_Delivery", // Chuyển thẳng sang trạng thái Đang giao hàng
                     Description = $"Đơn hàng tách từ phiếu yêu cầu {originalDpo.DpoCode}.",
                     DirectPurchaseDetails = new List<DirectPurchaseDetail>()
                 };
@@ -143,7 +143,16 @@ namespace Backend.Domains.outbound.Controllers
             originalDpo.Status = "Processed";
             string codes = string.Join(", ", newlyCreatedDpoCodes);
             originalDpo.Description += $"\n({DateTime.Now:dd/MM/yyyy HH:mm} - Thu mua đã tách thành {groupedItems.Count} đơn hàng thực tế: {codes})";
+            var parentIssueSlip = await _context.IssueSlips
+                                            .FirstOrDefaultAsync(s => s.IssueCode == originalDpo.ReferenceCode);
 
+            if (parentIssueSlip != null)
+            {
+                // Đổi trạng thái để Tracking của Đội thi công nhảy sang bước tiếp theo
+                parentIssueSlip.Status = "Processed";
+
+                parentIssueSlip.Description += $"\n({DateTime.Now:dd/MM HH:mm} - Hệ thống: Thu mua đã chốt đơn. Các mã đơn thực tế: {codes}. Hàng đang được giao đến công trường).";
+            }
             // 7. Lưu tất cả sự thay đổi xuống DB
             await _context.SaveChangesAsync();
 
@@ -224,13 +233,13 @@ namespace Backend.Domains.outbound.Controllers
         {
             // 1. Lấy thông tin đơn mua kèm theo thông tin Dự án để cập nhật tiền
             var dpo = await _context.DirectPurchaseOrders
-                .Include(x => x.Project)
-                .FirstOrDefaultAsync(x => x.DpoId == id);
+                                    .Include(x => x.Project)
+                                    .FirstOrDefaultAsync(x => x.DpoId == id);
 
             if (dpo == null) return NotFound("Không tìm thấy đơn mua hàng.");
 
-            // 2. Kiểm tra trạng thái
-            if (dpo.Status != "Delivering_To_Site")
+            // 2. Kiểm tra trạng thái Ready_For_Delivery
+            if (dpo.Status != "Ready_For_Delivery")
                 return BadRequest("Đơn hàng chưa ở trạng thái giao hàng hoặc đã hoàn thành trước đó.");
 
             // 3. Cập nhật trạng thái đơn hàng
@@ -245,6 +254,63 @@ namespace Backend.Domains.outbound.Controllers
                 dpo.Project.BudgetUsed = (dpo.Project.BudgetUsed ?? 0) + dpo.TotalAmount;
 
                 dpo.Description += $"\n(Kế toán: Đã ghi nhận {dpo.TotalAmount:N0} VNĐ vào chi phí dự án).";
+            }
+
+            var siblingDpos = await _context.DirectPurchaseOrders
+                                            .Where(p => p.ReferenceCode == dpo.ReferenceCode
+                                                     && p.SupplierId != null
+                                                     && p.DpoId != dpo.DpoId) // Loại trừ chính nó vì mình vừa set Completed ở trên
+                                            .ToListAsync();
+            bool areAllSiblingsCompleted = siblingDpos.All(p => p.Status == "Completed");
+
+
+            if (areAllSiblingsCompleted)
+            {
+                // 5.1. Tự động ĐÓNG PHIẾU NHÁP (DPO ID 12 - SupplierId là null)
+                var draftDpo = await _context.DirectPurchaseOrders
+                    .FirstOrDefaultAsync(p => p.ReferenceCode == dpo.ReferenceCode && p.SupplierId == null);
+
+                if (draftDpo != null && draftDpo.Status != "Completed")
+                {
+                    draftDpo.Status = "Completed";
+                    draftDpo.Description += $"\n(Hệ thống: Toàn bộ đơn hàng thuộc nhóm này đã giao xong. Hoàn tất phiếu nháp).";
+                }
+
+                // 5.2. Tự động ĐÓNG PHIẾU GỐC BÊN KỸ SƯ (Bảng IssueSlips)
+                var parentIssueSlip = await _context.IssueSlips
+                    .FirstOrDefaultAsync(s => s.IssueCode == dpo.ReferenceCode);
+
+                if (parentIssueSlip != null && parentIssueSlip.Status != "Completed")
+                {
+                    parentIssueSlip.Status = "Completed";
+                    parentIssueSlip.Description += $"\n({DateTime.Now:dd/MM/yyyy HH:mm} - Hệ thống: Toàn bộ hàng Mua ngoài đã được giao đủ đến công trình. Hoàn tất yêu cầu).";
+                    
+                    string rootReqCode = parentIssueSlip.ReferenceCode; 
+
+                    if (!string.IsNullOrEmpty(rootReqCode))
+                    {
+                        // Tìm tất cả các phiếu anh em ở tầng 2 (Ví dụ: thằng IS-260420-6036)
+                        // Phải loại trừ cái thằng issueSlipPo hiện tại ra vì nó đang nằm trên RAM, chưa lưu DB
+                        var siblingIssueSlips = await _context.IssueSlips
+                            .Where(s => s.ReferenceCode == rootReqCode && s.IssueId != parentIssueSlip.IssueId)
+                            .ToListAsync();
+
+                        // Nếu tất cả các nhánh khác (kho nội bộ) cũng đã Completed hết rồi
+                        if (siblingIssueSlips.All(s => s.Status == "Completed"))
+                        {
+                            // Lôi cổ thằng Ông nội (REQ gốc - ID 72) ra đóng luôn!
+                            var rootSlip = await _context.IssueSlips
+                                .FirstOrDefaultAsync(s => s.IssueCode == rootReqCode);
+
+                            if (rootSlip != null && rootSlip.Status != "Completed")
+                            {
+                                rootSlip.Status = "Completed";
+                                rootSlip.Description += $"\n({DateTime.Now:dd/MM/yyyy HH:mm} - Hệ thống: Toàn bộ hàng từ Kho và Mua ngoài đều đã đáp ứng đủ. Hoàn tất yêu cầu cấp phát).";
+                            }
+                        }
+                    }
+
+                }
             }
 
             // 5. Lưu thay đổi

@@ -1,3 +1,5 @@
+"use client";
+
 import IncidentReportDetailPage from "@/components/pages/incident-reports-staff/detail/page";
 
 const StaffIncidentReportDetailPage = () => {

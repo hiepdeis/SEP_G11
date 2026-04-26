@@ -1,4 +1,6 @@
 using Backend.Data;
+using Backend.Extensions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,6 +8,7 @@ namespace Backend.Domains.Import.Controllers.Admins
 {
     [ApiController]
     [Route("api/admin/notifications")]
+    [Authorize(Roles = "Admin", Policy = "ActiveUserOnly")]
     public class AdminNotificationsController : ControllerBase
     {
         private readonly MyDbContext _db;
@@ -17,7 +20,7 @@ namespace Backend.Domains.Import.Controllers.Admins
 
         private int GetAdminId()
         {
-            return 1; // TODO: replace with JWT claims
+            return User.GetRequiredUserId();
         }
 
         [HttpGet("unread")]

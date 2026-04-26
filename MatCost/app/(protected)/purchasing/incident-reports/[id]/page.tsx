@@ -19,6 +19,7 @@ import {
   User,
   PackagePlus,
   CheckCircle2,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -88,7 +89,6 @@ export default function PurchasingIncidentDetailPage() {
       try {
         const res = await purchasingIncidentApi.getIncidentDetail(id);
         const data = res.data;
-        // Filter out items with no failed items
         const filteredIncident = {
           ...data,
           items: data.items.filter(
@@ -256,7 +256,6 @@ export default function PurchasingIncidentDetailPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* CỘT TRÁI: THÔNG TIN CHUNG */}
             <div className="lg:col-span-1 space-y-6">
               <Card className="border-slate-200 shadow-sm bg-white gap-0 pb-0">
                 <CardHeader className="border-b border-slate-100 py-4">
@@ -325,9 +324,53 @@ export default function PurchasingIncidentDetailPage() {
                   </p>
                 </CardContent>
               </Card>
+              {incident.supplementaryRevisionHistory &&
+                incident.supplementaryRevisionHistory.length > 0 &&
+                incident.supplementaryRevisionHistory[0].rejectedAt !==
+                  null && (
+                  <Card className="border-slate-200 shadow-sm bg-white gap-0">
+                    <CardHeader className="border-b border-slate-100 py-4">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                        <History className="w-5 h-5 text-indigo-600" />{" "}
+                        {t("Revision History")}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-5 space-y-4">
+                      {incident.supplementaryRevisionHistory
+                        .filter((rev) => rev.rejectedAt)
+                        .slice(-5)
+                        .map((rev) => (
+                          <div
+                            key={rev.supplementaryReceiptId}
+                            className="flex flex-col border-l-2 border-rose-200 pl-3 relative pb-4 last:pb-0 mb-0"
+                          >
+                            <div className="absolute w-2 h-2 bg-rose-500 rounded-full -left-[5px] top-1.5" />
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-rose-600">
+                                {t("Revision")} #{rev.revisionNumber}
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                {formatDateTime(rev.rejectedAt)}
+                              </span>
+                            </div>
+                            <div className="text-xs text-slate-700 mt-1">
+                              <span className="font-semibold text-slate-500">
+                                {t("Rejected By")}:
+                              </span>{" "}
+                              {rev.rejectedBy}
+                            </div>
+                            {rev.rejectionReason && (
+                              <div className="text-xs text-slate-600 italic bg-rose-50 p-2 rounded mt-1.5 border border-rose-100">
+                                "{rev.rejectionReason}"
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                    </CardContent>
+                  </Card>
+                )}
             </div>
 
-            {/* CỘT PHẢI: DANH SÁCH VẬT TƯ LỖI TỪ KHO */}
             <div className="lg:col-span-3 space-y-6">
               <Card className="border-slate-200 shadow-sm bg-white flex flex-col min-h-[500px] gap-0">
                 <CardHeader className="border-b border-slate-100 py-4 flex flex-row items-center justify-between shrink-0">
