@@ -361,7 +361,7 @@ namespace Backend.Data
                     new Material { Code = "MAT-145", Name = "Xi măng bột PCB30 - La Hiên", Unit = "tấn", IsDecimalUnit = true, UnitPrice = 750000, Specification = "PCB30, bột (rời)" },
                     new Material { Code = "MAT-146", Name = "Xi măng bột PCB40 - La Hiên", Unit = "tấn", IsDecimalUnit = true, UnitPrice = 814814, Specification = "PCB40, bột (rời)" },
                 };
-
+                
                 await context.Materials.AddRangeAsync(materials);
                 await context.SaveChangesAsync();
             }
@@ -371,8 +371,7 @@ namespace Backend.Data
             {
                 var warehouses = new List<Warehouse>
                 {
-                    new Warehouse { Name = "Kho chính", Address = "Hà Nội" },
-                    new Warehouse { Name = "Kho phụ 1", Address = "Hà Nội" },
+                    new Warehouse { Name = "Kho chính", Address = "Hà Nội" },  
                 };
 
                 await context.Warehouses.AddRangeAsync(warehouses);
@@ -383,7 +382,7 @@ namespace Backend.Data
             if (!await context.BinLocations.AnyAsync())
             {
                 var mainWarehouse = await context.Warehouses.FirstAsync(w => w.Name == "Kho chính");
-                var subWarehouse = await context.Warehouses.FirstAsync(w => w.Name == "Kho phụ 1");
+              
 
                 var bins = new List<BinLocation>
                 {
@@ -394,10 +393,6 @@ namespace Backend.Data
                     new BinLocation { WarehouseId = mainWarehouse.WarehouseId, Code = "BIN-B02", Type = "STORAGE" },
                     new BinLocation { WarehouseId = mainWarehouse.WarehouseId, Code = "BIN-RECV", Type = "RECEIVING" },
                     new BinLocation { WarehouseId = mainWarehouse.WarehouseId, Code = "BIN-SHIP", Type = "SHIPPING" },
-
-                    // Kho phụ 1
-                    new BinLocation { WarehouseId = subWarehouse.WarehouseId, Code = "SUB-A01", Type = "STORAGE" },
-                    new BinLocation { WarehouseId = subWarehouse.WarehouseId, Code = "SUB-A02", Type = "STORAGE" },
                 };
 
                 await context.BinLocations.AddRangeAsync(bins);
@@ -568,7 +563,7 @@ namespace Backend.Data
             if (!await context.InventoryCurrents.AnyAsync())
             {
                 var mainWarehouse = await context.Warehouses.FirstAsync(w => w.Name == "Kho chính");
-                var subWarehouse = await context.Warehouses.FirstAsync(w => w.Name == "Kho phụ 1");
+           
 
                 // Lấy tất cả bins
                 var binMain_A01 = await context.BinLocations.FirstAsync(b => b.Code == "BIN-A01");
@@ -576,8 +571,6 @@ namespace Backend.Data
                 var binMain_B01 = await context.BinLocations.FirstAsync(b => b.Code == "BIN-B01");
                 var binMain_B02 = await context.BinLocations.FirstAsync(b => b.Code == "BIN-B02");
                 var binMain_RECV = await context.BinLocations.FirstAsync(b => b.Code == "BIN-RECV");
-                var binSub_A01 = await context.BinLocations.FirstAsync(b => b.Code == "SUB-A01");
-                var binSub_A02 = await context.BinLocations.FirstAsync(b => b.Code == "SUB-A02");
 
                 // Lấy batch theo BatchCode để tra cứu
                 var batchDict = await context.Batches
@@ -600,14 +593,14 @@ namespace Backend.Data
         Inv("AMC-2025-001", mainWarehouse, binMain_A01,  120m),   // cống Ø500 lô cũ - kho chính A01
         Inv("AMC-2025-002", mainWarehouse, binMain_A02,   80m),   // cống Ø500 lô mới - kho chính A02
         Inv("AMC-2025-003", mainWarehouse, binMain_B01,   60m),   // cống Ø800
-        Inv("AMC-2025-004", subWarehouse,  binSub_A01,    40m),   // cống Ø1250 - kho phụ
+      
         Inv("AMC-2025-005", mainWarehouse, binMain_A01,   25m),   // cống hộp 1000x1000
         Inv("AMC-2025-006", mainWarehouse, binMain_B02,  200m),   // tấm bê tông ứng lực
 
         // ── BÊ TÔNG NHỰA ─────────────────────────────────────────────────────
         Inv("CVN-2025-001", mainWarehouse, binMain_A01,   15m),   // Carboncor lô cũ
         Inv("CVN-2025-002", mainWarehouse, binMain_A01,   20m),   // CA 95 lô mới
-        Inv("CVN-2025-003", subWarehouse,  binSub_A01,   10m),    // CA 19 - kho phụ
+
 
         // ── CỬA NHÔM Việt Pháp ───────────────────────────────────────────────
         Inv("HPT-2025-001", mainWarehouse, binMain_A02,  150m),   // vách kính lô cũ
@@ -616,7 +609,6 @@ namespace Backend.Data
 
         // ── CỬA NHỰA uPVC ────────────────────────────────────────────────────
         Inv("PAG-2025-001", mainWarehouse, binMain_B01,  100m),   // vách kính cố định
-        Inv("PAG-2025-002", subWarehouse,  binSub_A02,   50m),    // cửa sổ trượt - kho phụ
 
         // ── CỬA NHÔM Xingfa ──────────────────────────────────────────────────
         Inv("NVP-2025-001", mainWarehouse, binMain_A01,  120m),   // vách kính cố định
@@ -625,31 +617,31 @@ namespace Backend.Data
         // ── GẠCH XÂY An Thịnh ────────────────────────────────────────────────
         Inv("ATH-2025-001", mainWarehouse, binMain_A01, 5000m),   // gạch đặc M10 lô cũ - kho chính
         Inv("ATH-2025-002", mainWarehouse, binMain_A02, 3000m),   // gạch đặc M10 lô mới
-        Inv("ATH-2025-001", subWarehouse,  binSub_A01,  2000m),   // gạch đặc M10 lô cũ - kho phụ
+      
         Inv("ATH-2025-003", mainWarehouse, binMain_B01, 1500m),   // gạch đặc M10 105mm
         Inv("ATH-2025-004", mainWarehouse, binMain_B01,  800m),   // gạch rỗng M7.5
 
         // ── GẠCH SECOIN ──────────────────────────────────────────────────────
         Inv("SCN-2025-001", mainWarehouse, binMain_A01, 4000m),   // gạch block đặc
-        Inv("SCN-2025-002", subWarehouse,  binSub_A02,  500m),    // gạch terrazzo ngoài trời
+
         Inv("SCN-2025-003", mainWarehouse, binMain_B02,  300m),   // gạch block lát hè
 
         // ── GẠCH AAC Viglacera ────────────────────────────────────────────────
         Inv("VGA-2025-001", mainWarehouse, binMain_A02,   50m),   // AAC dày 50mm
         Inv("VGA-2025-002", mainWarehouse, binMain_B01,   40m),   // AAC dày 100mm
-        Inv("VGA-2025-003", subWarehouse,  binSub_A01,   20m),    // Panel ALC - kho phụ
+   
 
         // ── THÉP Việt Nhật ────────────────────────────────────────────────────
         Inv("VNJ-2025-001", mainWarehouse, binMain_A01, 8000m),   // D10 CB300V lô cũ
         Inv("VNJ-2025-002", mainWarehouse, binMain_A01, 5000m),   // D10 CB300V lô mới
-        Inv("VNJ-2025-001", subWarehouse,  binSub_A01,  3000m),   // D10 CB300V lô cũ - kho phụ
+    
         Inv("VNJ-2025-003", mainWarehouse, binMain_B01, 6000m),   // D14-D32 CB300V
         Inv("VNJ-2025-004", mainWarehouse, binMain_B02, 4500m),   // D14-D32 CB400V
 
         // ── THÉP VGS Việt Đức ────────────────────────────────────────────────
         Inv("VGS-2025-001", mainWarehouse, binMain_A02, 3500m),   // cuộn CB240
         Inv("VGS-2025-002", mainWarehouse, binMain_B01, 4000m),   // D10 CB300V
-        Inv("VGS-2025-003", subWarehouse,  binSub_A02,  2000m),   // D14-D32 CB400V - kho phụ
+    
 
         // ── THÉP Việt Ý ──────────────────────────────────────────────────────
         Inv("VIY-2025-001", mainWarehouse, binMain_A01, 2500m),   // cuộn CB240T
@@ -657,26 +649,25 @@ namespace Backend.Data
 
         // ── THÉP HÌNH ─────────────────────────────────────────────────────────
         Inv("TNG-2025-001", mainWarehouse, binMain_B02, 2000m),   // thép góc L40
-        Inv("TNG-2025-002", subWarehouse,  binSub_A01,  1500m),   // thép I10 - kho phụ
+   
         Inv("VAS-2025-001", mainWarehouse, binMain_A02, 4000m),   // D10 VAS
         Inv("VAS-2025-002", mainWarehouse, binMain_B01, 3500m),   // D14-D20 VAS
 
         // ── TRẦN THẠCH CAO ───────────────────────────────────────────────────
         Inv("MKD-2025-001", mainWarehouse, binMain_A01,  500m),   // trần phẳng GOLD 9mm
         Inv("MKD-2025-002", mainWarehouse, binMain_A02,  300m),   // trần chống cháy
-        Inv("MKD-2025-003", subWarehouse,  binSub_A02,  200m),    // vách ngăn - kho phụ
+    
 
         // ── SƠN Jotun ────────────────────────────────────────────────────────
         Inv("JTN-2025-001", mainWarehouse, binMain_A01,  200m),   // Jotashield lô cũ
         Inv("JTN-2025-002", mainWarehouse, binMain_A01,  150m),   // Jotashield lô mới
         Inv("JTN-2025-003", mainWarehouse, binMain_A02,  180m),   // Majestic nội thất
-        Inv("JTN-2025-004", subWarehouse,  binSub_A01,   80m),    // Waterguard - kho phụ
+      
         Inv("JTN-2025-005", mainWarehouse, binMain_B01,  120m),   // bột bả ngoại thất
 
         // ── SƠN NISHU ────────────────────────────────────────────────────────
         Inv("NSH-2025-001", mainWarehouse, binMain_A02,  100m),   // nội thất Nishu
         Inv("NSH-2025-002", mainWarehouse, binMain_B01,   80m),   // ngoại thất Nishu
-        Inv("NSH-2025-003", subWarehouse,  binSub_A02,   50m),    // chống thấm Nishu
 
         // ── SƠN Sonata ───────────────────────────────────────────────────────
         Inv("SNA-2025-001", mainWarehouse, binMain_A01,   90m),   // nội thất Sonata
@@ -685,40 +676,40 @@ namespace Backend.Data
         // ── SƠN JEP JAPAN ────────────────────────────────────────────────────
         Inv("JEP-2025-001", mainWarehouse, binMain_A01,   60m),   // nội thất JP-5200
         Inv("JEP-2025-002", mainWarehouse, binMain_A02,   40m),   // ngoại thất JP-7100
-        Inv("JEP-2025-003", subWarehouse,  binSub_A01,   30m),    // chống thấm JP-9100
+   
 
         // ── CHỐNG THẤM Conmik ────────────────────────────────────────────────
         Inv("CMK-2025-001", mainWarehouse, binMain_A01,  300m),   // Seal 100 CM75
         Inv("CMK-2025-002", mainWarehouse, binMain_B01,  500m),   // màng WP 590
-        Inv("CMK-2025-003", subWarehouse,  binSub_A02,  250m),    // màng WP 800 - kho phụ
+     
 
         // ── TÔN Austnam ──────────────────────────────────────────────────────
         Inv("AUS-2025-001", mainWarehouse, binMain_B01,  800m),   // AC11 lô cũ
         Inv("AUS-2025-002", mainWarehouse, binMain_B01,  500m),   // AC11 lô mới
-        Inv("AUS-2025-003", subWarehouse,  binSub_A01,  300m),    // ALOK420 - kho phụ
+ 
         Inv("AUS-2025-004", mainWarehouse, binMain_B02,  200m),   // Sandwich PU
 
         // ── TÔN Poshaco ──────────────────────────────────────────────────────
         Inv("PSC-2025-001", mainWarehouse, binMain_B02,  600m),   // Kazin 0.45mm
-        Inv("PSC-2025-002", subWarehouse,  binSub_A02,  400m),    // Kazin 0.50mm - kho phụ
+       
         Inv("PSC-2025-003", mainWarehouse, binMain_A02, 1500m),   // xà gồ mạ kẽm CZ150 (kg)
 
         // ── ỐNG NHỰA Europipe ────────────────────────────────────────────────
         Inv("EUP-2025-001", mainWarehouse, binMain_A01,  400m),   // uPVC D90
         Inv("EUP-2025-002", mainWarehouse, binMain_A01,  300m),   // uPVC D110
         Inv("EUP-2025-003", mainWarehouse, binMain_B01,  250m),   // HDPE100 D110 PN6
-        Inv("EUP-2025-004", subWarehouse,  binSub_A01,  200m),    // PPR D20 - kho phụ
+    
 
         // ── XI MĂNG Bỉm Sơn ──────────────────────────────────────────────────
         Inv("BIS-2025-001", mainWarehouse, binMain_A01,   50m),   // PCB30 bao lô cũ (tấn)
         Inv("BIS-2025-002", mainWarehouse, binMain_A02,   80m),   // PCB30 bao lô mới (tấn)
-        Inv("BIS-2025-003", subWarehouse,  binSub_A01,   40m),    // PCB40 bao - kho phụ (tấn)
+      
         Inv("BIS-2025-004", mainWarehouse, binMain_B01,   60m),   // PCB30 rời (tấn)
 
         // ── XI MĂNG Hoàng Long ────────────────────────────────────────────────
         Inv("HLG-2025-001", mainWarehouse, binMain_A02,   30m),   // PCB30 bao (tấn)
         Inv("HLG-2025-002", mainWarehouse, binMain_B01,   25m),   // PCB40 bao (tấn)
-        Inv("HLG-2025-003", subWarehouse,  binSub_A02,   20m),    // PCB30 rời - kho phụ (tấn)
+      
 
         // ── XI MĂNG La Hiên ───────────────────────────────────────────────────
         Inv("LHN-2025-001", mainWarehouse, binMain_B02,   35m),   // PCB30 bao (tấn)
