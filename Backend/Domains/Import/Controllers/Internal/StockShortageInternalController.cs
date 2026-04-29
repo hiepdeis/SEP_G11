@@ -6,7 +6,7 @@ namespace Backend.Domains.Import.Controllers.Internal
 {
     [ApiController]
     [Route("api/internal/stock-shortage")]
-    [Authorize(Roles = "Admin, WarehouseManager", Policy = "ActiveUserOnly")]
+    // [Authorize(Roles = "Admin, WarehouseManager", Policy = "ActiveUserOnly")]
     public class StockShortageInternalController : ControllerBase
     {
         private readonly IStockShortageAlertService _service;
