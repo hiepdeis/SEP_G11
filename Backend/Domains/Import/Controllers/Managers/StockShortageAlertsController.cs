@@ -14,7 +14,7 @@ namespace Backend.Domains.Import.Controllers.Managers
 {
     [ApiController]
     [Route("api/warehouse-manager/alerts")]
-    [Authorize(Roles = "WarehouseManager", Policy = "ActiveUserOnly")]
+    [Authorize(Roles = "WarehouseManager, Admin", Policy = "ActiveUserOnly")]
     public class StockShortageAlertsController : ControllerBase
     {
         private readonly IStockShortageAlertService _service;

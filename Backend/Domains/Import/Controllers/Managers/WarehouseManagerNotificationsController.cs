@@ -8,7 +8,7 @@ namespace Backend.Domains.Import.Controllers.Managers
 {
     [ApiController]
     [Route("api/warehouse-manager/notifications")]
-    [Authorize(Roles = "WarehouseManager", Policy = "ActiveUserOnly")]
+    [Authorize(Roles = "WarehouseManager, Admin", Policy = "ActiveUserOnly")]
     public class WarehouseManagerNotificationsController : ControllerBase
     {
         private readonly MyDbContext _db;

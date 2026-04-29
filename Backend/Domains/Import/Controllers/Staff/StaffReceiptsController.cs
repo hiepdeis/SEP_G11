@@ -9,7 +9,7 @@ namespace Backend.Domains.Import.Controllers.Staff
 {
     [Route("api/staff/receipts")]
     [ApiController]
-    [Authorize(Roles = "WarehouseStaff, WarehouseManager", Policy = "ActiveUserOnly")]
+    [Authorize(Roles = "WarehouseStaff, WarehouseManager, Admin", Policy = "ActiveUserOnly")]
     public class StaffReceiptsController : ControllerBase
     {
         private readonly IReceiptService _receiptService;

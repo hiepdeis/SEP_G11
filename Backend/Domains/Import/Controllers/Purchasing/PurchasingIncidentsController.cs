@@ -8,7 +8,7 @@ namespace Backend.Domains.Import.Controllers.Purchasing
 {
     [ApiController]
     [Route("api/purchasing/incidents")]
-    [Authorize(Roles = "Purchasing", Policy = "ActiveUserOnly")]
+    [Authorize(Roles = "Purchasing, Admin", Policy = "ActiveUserOnly")]
     public class PurchasingIncidentsController : ControllerBase
     {
         private readonly IIncidentWorkflowService _service;

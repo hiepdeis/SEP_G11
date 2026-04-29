@@ -1,11 +1,13 @@
 using Backend.Domains.Admin.Dtos;
 using Backend.Domains.Admin.Interface;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Domains.Admin.Controllers
 {
     [ApiController]
     [Route("api/admin/materials")]
+    [Authorize(Policy = "ActiveUserOnly")]
     public class MaterialsAdminController : ControllerBase
     {
         private readonly IMaterialService _materialService;
@@ -32,6 +34,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin, WarehouseManager")]
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateMaterialRequest request, CancellationToken ct)
         {
@@ -54,6 +57,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin, WarehouseManager")]
         [HttpPut("{materialId:int}")]
         public async Task<IActionResult> Update([FromRoute] int materialId, [FromBody] UpdateMaterialRequest request, CancellationToken ct)
         {
@@ -71,6 +75,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin, WarehouseManager")]
         [HttpDelete("{materialId:int}")]
         public async Task<IActionResult> Delete([FromRoute] int materialId, CancellationToken ct)
         {
@@ -88,6 +93,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin, WarehouseManager")]
         [HttpPost("{materialId:int}/inventory")]
         public async Task<IActionResult> CreateInventory(
             [FromRoute] int materialId,
@@ -110,6 +116,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin, WarehouseManager")]
         [HttpPut("{materialId:int}/inventory/{inventoryId:int}")]
         public async Task<IActionResult> UpdateInventory(
             [FromRoute] int materialId,
@@ -131,6 +138,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin, WarehouseManager")]
         [HttpDelete("{materialId:int}/inventory/{inventoryId:int}")]
         public async Task<IActionResult> DeleteInventory(
             [FromRoute] int materialId,

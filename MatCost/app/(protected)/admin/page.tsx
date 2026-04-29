@@ -43,6 +43,7 @@ import {
   Cell,
 } from "recharts";
 import { useAuth } from "@/components/providers/auth-provider";
+import { CurrencyLimitDisplay } from "@/components/ui/custom/currency-limit-display";
 
 // --- CONSTANTS ---
 const COLORS = [
@@ -265,7 +266,7 @@ export default function DashboardPage() {
               },
               {
                 label: t("Total Value"),
-                val: formatCurrency(summary.poValue),
+                val: <CurrencyLimitDisplay amount={summary.poValue} />,
                 color: "slate",
                 icon: DollarSign,
                 isWide: true,
