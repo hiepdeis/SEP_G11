@@ -1,5 +1,7 @@
 ﻿using Backend.Domains.Import.DTOs.Staff;
 using Backend.Domains.Import.Interfaces;
+using Backend.Extensions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,6 +9,7 @@ namespace Backend.Domains.Import.Controllers.Staff
 {
     [Route("api/staff/receipts")]
     [ApiController]
+    [Authorize(Roles = "WarehouseStaff, WarehouseManager", Policy = "ActiveUserOnly")]
     public class StaffReceiptsController : ControllerBase
     {
         private readonly IReceiptService _receiptService;
@@ -15,6 +18,11 @@ namespace Backend.Domains.Import.Controllers.Staff
         {
             _receiptService = receiptService;
             _binLocationService = binLocationService;
+        }
+
+        private int GetStaffId()
+        {
+            return User.GetRequiredUserId();
         }
 
         [HttpGet("inbound-requests")]
@@ -54,7 +62,7 @@ namespace Backend.Domains.Import.Controllers.Staff
         {
             try
             {
-                var staffId = 4;
+                var staffId = GetStaffId();
 
                 await _receiptService.ConfirmGoodsReceiptAsync(receiptId, dto, staffId);
                 return Ok(new { message = "Goods receipt confirmed successfully" });
@@ -82,7 +90,7 @@ namespace Backend.Domains.Import.Controllers.Staff
         {
             try
             {
-                var staffId = 4; // TODO: replace with JWT claims
+                var staffId = GetStaffId();
                 var result = await _receiptService.ReceiveGoodsFromPOAsync(dto, staffId);
                 return Ok(result);
             }
@@ -109,7 +117,7 @@ namespace Backend.Domains.Import.Controllers.Staff
         {
             try
             {
-                var staffId = 4; // TODO: replace with JWT claims
+                var staffId = GetStaffId();
                 var result = await _receiptService.PutawayAsync(receiptId, dto, staffId);
                 // trung bình giá cập lại bảng materials, theo totalamount của phiếu nahapj 
                 // totalamount của phiếu nhập = totalamount của nhiều material id trong phiếu nhập = totalamoutn trong kho 
@@ -335,7 +343,7 @@ namespace Backend.Domains.Import.Controllers.Staff
         {
             try
             {
-                var staffId = 4; // TODO: lấy từ JWT claims
+                var staffId = GetStaffId();
                 var result = await _receiptService.CreateIncidentReportAsync(receiptId, dto, staffId);
                 return Ok(result);
             }

@@ -1,10 +1,12 @@
 using Backend.Domains.Import.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Domains.Import.Controllers.Internal
 {
     [ApiController]
     [Route("api/internal/stock-shortage")]
+    [Authorize(Roles = "Admin, WarehouseManager", Policy = "ActiveUserOnly")]
     public class StockShortageInternalController : ControllerBase
     {
         private readonly IStockShortageAlertService _service;

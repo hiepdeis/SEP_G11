@@ -1,11 +1,14 @@
 using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.Interfaces;
+using Backend.Extensions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Domains.Import.Controllers.Managers
 {
     [ApiController]
     [Route("api/manager/receipts")]
+    [Authorize(Roles = "WarehouseManager", Policy = "ActiveUserOnly")]
     public class ManagerReceiptsController : ControllerBase
     {
         private readonly IReceiptService _service;
@@ -13,6 +16,11 @@ namespace Backend.Domains.Import.Controllers.Managers
         public ManagerReceiptsController(IReceiptService service)
         {
             _service = service;
+        }
+
+        private int GetManagerId()
+        {
+            return User.GetRequiredUserId();
         }
 
         [HttpGet]
@@ -52,7 +60,7 @@ namespace Backend.Domains.Import.Controllers.Managers
         {
             try
             {
-                var managerId = 2; // TODO: replace with JWT claims
+                var managerId = GetManagerId();
                 var result = await _service.StampReceiptAsync(receiptId, dto, managerId);
                 return Ok(result);
             }

@@ -258,7 +258,7 @@ namespace Backend.Domains.Admin.Services
 
             var roleExists = await _db.Roles.AnyAsync(x => x.RoleId == request.RoleId, ct);
             if (!roleExists)
-                throw new ArgumentException("Role không tồn tại.");
+                throw new ArgumentException("Vai trò không tồn tại.");
 
             await EnsureCannotAssignAdminRoleAsync(user, request.RoleId, ct);
             await EnsureActiveAdminStillExistsAsync(user, request.RoleId, request.Status, ct);
@@ -358,7 +358,7 @@ namespace Backend.Domains.Admin.Services
 
             var roleExists = await _db.Roles.AnyAsync(x => x.RoleId == roleId, ct);
             if (!roleExists)
-                throw new ArgumentException("Role không tồn tại.");
+                throw new ArgumentException("Vai trò không tồn tại.");
 
             await EnsureCannotAssignAdminRoleAsync(user, roleId, ct);
             await EnsureActiveAdminStillExistsAsync(user, roleId, user.Status, ct);
@@ -410,13 +410,13 @@ namespace Backend.Domains.Admin.Services
 
             var roleName = request.RoleName?.Trim();
             if (string.IsNullOrWhiteSpace(roleName))
-                throw new ArgumentException("Tên role không được để trống.");
+                throw new ArgumentException("Tên vai trò không được để trống.");
 
             var exists = await _db.Roles.AnyAsync(
                 x => x.RoleName == roleName && x.RoleId != roleId, ct);
 
             if (exists)
-                throw new ArgumentException("Tên role đã tồn tại.");
+                throw new ArgumentException("Tên vai trò đã tồn tại.");
 
             var oldRoleName = role.RoleName;
             role.RoleName = roleName;
@@ -453,7 +453,7 @@ namespace Backend.Domains.Admin.Services
 
             var isUsed = await _db.Users.AnyAsync(x => x.RoleId == roleId, ct);
             if (isUsed)
-                throw new ArgumentException("Không thể xóa role vì đang có user sử dụng.");
+                throw new ArgumentException("Không thể xóa vai trò vì đang có người dùng sử dụng.");
 
             var adminName = await GetActorDisplayNameAsync(currentAdminUserId, ct);
             var roleName = role.RoleName;
@@ -475,11 +475,11 @@ namespace Backend.Domains.Admin.Services
         {
             var roleName = request.RoleName?.Trim();
             if (string.IsNullOrWhiteSpace(roleName))
-                throw new ArgumentException("Tên role không được để trống.");
+                throw new ArgumentException("Tên vai trò không được để trống.");
 
             var exists = await _db.Roles.AnyAsync(x => x.RoleName == roleName, ct);
             if (exists)
-                throw new ArgumentException("Tên role đã tồn tại.");
+                throw new ArgumentException("Tên vai trò đã tồn tại.");
 
             var role = new Role
             {

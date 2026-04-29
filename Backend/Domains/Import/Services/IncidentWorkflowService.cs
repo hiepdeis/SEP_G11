@@ -4,6 +4,7 @@ using Backend.Domains.Import.DTOs.Purchasing;
 using Backend.Domains.Import.DTOs.Staff;
 using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
+using Backend.Services.Notifications;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Domains.Import.Services
@@ -11,10 +12,12 @@ namespace Backend.Domains.Import.Services
     public class IncidentWorkflowService : IIncidentWorkflowService
     {
         private readonly MyDbContext _context;
+        private readonly INotificationDispatcher _notificationDispatcher;
 
-        public IncidentWorkflowService(MyDbContext context)
+        public IncidentWorkflowService(MyDbContext context, INotificationDispatcher notificationDispatcher)
         {
             _context = context;
+            _notificationDispatcher = notificationDispatcher;
         }
 
         public async Task<IncidentReport> SubmitIncidentToManagerAsync(long incidentId, int staffId)
@@ -37,11 +40,17 @@ namespace Backend.Domains.Import.Services
             await _context.SaveChangesAsync();
 
             // Notify warehouse managers for review
-            await CreateRoleNotificationsAsync(
-                "Manager",
-                $"Incident {incident.IncidentCode} submitted for manager review.",
-                "IncidentReport",
-                incident.IncidentId);
+            await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
+            {
+                RoleName = "WarehouseManager",
+                FallbackRoleName = "Admin",
+                OnlyActiveUsers = true,
+                Message = $"Incident {incident.IncidentCode} đã được gửi đến Thủ Kho để xem xét!",
+                RelatedEntityType = "IncidentReport",
+                RelatedEntityId = incident.IncidentId,
+                SendEmail = true,
+                SaveChanges = true
+            }, CancellationToken.None);
 
             return incident;
         }
@@ -144,12 +153,17 @@ namespace Backend.Domains.Import.Services
             }
 
             // Notify purchasing team to work with supplier
-            await CreateRoleNotificationsAsync(
-                "Purchasing",
-                $"Incident {incident.IncidentCode} approved. Please coordinate with supplier.",
-                "IncidentReport",
-                incident.IncidentId,
-                fallbackRoleName: "Admin");
+            await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
+            {
+                RoleName = "Purchasing",
+                FallbackRoleName = "Admin",
+                OnlyActiveUsers = true,
+                Message = $"Incident {incident.IncidentCode} đã được Thủ Kho duyệt. Vui lòng phối hợp với nhà cung cấp để xử lý!",
+                RelatedEntityType = "IncidentReport",
+                RelatedEntityId = incident.IncidentId,
+                SendEmail = true,
+                SaveChanges = true
+            }, CancellationToken.None);
 
             return incident;
         }
@@ -400,11 +414,17 @@ namespace Backend.Domains.Import.Services
             await _context.SaveChangesAsync();
 
             // Notify manager to approve supplementary receipt
-            await CreateRoleNotificationsAsync(
-                "Manager",
-                $"Supplementary receipt {supplementaryReceipt.SupplementaryReceiptId} awaiting manager approval.",
-                "SupplementaryReceipt",
-                supplementaryReceipt.SupplementaryReceiptId);
+            await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
+            {
+                RoleName = "WarehouseManager",
+                FallbackRoleName = "Admin",
+                OnlyActiveUsers = true,
+                Message = $"Incident {incident.IncidentCode} đã có phiếu bổ sung mới cần Thủ Kho duyệt!",
+                RelatedEntityType = "IncidentReport",
+                RelatedEntityId = incident.IncidentId,
+                SendEmail = true,
+                SaveChanges = true
+            }, CancellationToken.None);
 
             var totalSupplementaryQty = supplementaryReceipt.Items.Sum(i => i.SupplementaryQuantity);
 
@@ -513,14 +533,20 @@ namespace Backend.Domains.Import.Services
                 : null;
 
             var message = string.IsNullOrWhiteSpace(purchaseOrderCode)
-                ? $"Da duyet phieu bo sung. Vui long xep {totalPassQuantity} cai vao kho."
-                : $"Da duyet phieu bo sung {purchaseOrderCode}. Vui long xep {totalPassQuantity} cai vao kho.";
+                ? $"Thủ Kho đã duyệt phiếu bổ sung {supplementaryReceipt.SupplementaryReceiptId}. Vui lòng xếp {totalPassQuantity} cái vào kho."
+                : $"Phiếu bổ sung {supplementaryReceipt.SupplementaryReceiptId} đã được Thủ Kho duyệt cho đơn hàng {purchaseOrderCode}. Vui lòng xếp {totalPassQuantity} cái vào kho.";
 
-            await CreateRoleNotificationsAsync(
-                "Staff",
-                message,
-                "Receipt",
-                incident.ReceiptId);
+            await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
+            {
+                RoleName = "WarehouseStaff",
+                FallbackRoleName = "Purchasing",
+                OnlyActiveUsers = true,
+                Message = message,
+                RelatedEntityType = "SupplementaryReceipt",
+                RelatedEntityId = supplementaryReceipt.SupplementaryReceiptId,
+                SendEmail = true,
+                SaveChanges = true
+            }, CancellationToken.None);
 
             return new ManagerSupplementaryApprovalResultDto
             {
@@ -584,12 +610,17 @@ namespace Backend.Domains.Import.Services
                 await _context.SaveChangesAsync();
 
                 // Notify purchasing to revise with supplier (fallback to Admin)
-                await CreateRoleNotificationsAsync(
-                    "Purchasing",
-                    $"Supplementary receipt {supplementaryReceipt.SupplementaryReceiptId} rejected. Reason: {reason}",
-                    "SupplementaryReceipt",
-                    supplementaryReceipt.SupplementaryReceiptId,
-                    fallbackRoleName: "Admin");
+                await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
+                {
+                    RoleName = "Purchasing",
+                    FallbackRoleName = "Admin",
+                    OnlyActiveUsers = true,
+                    Message = $"Phiếu bổ sung {supplementaryReceipt.SupplementaryReceiptId} bị từ chối với lí do: {reason}",
+                    RelatedEntityType = "SupplementaryReceipt",
+                    RelatedEntityId = supplementaryReceipt.SupplementaryReceiptId,
+                    SendEmail = true,
+                    SaveChanges = true
+                }, CancellationToken.None);
 
                 await transaction.CommitAsync();
 

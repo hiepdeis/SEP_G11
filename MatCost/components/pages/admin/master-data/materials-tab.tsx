@@ -91,7 +91,7 @@ export function MaterialsTab({
       try {
         const [catData, matData] = await Promise.all([
           getCategories(),
-          getMaterials({ page: 1, pageSize: 100 }),
+          getMaterials({ page: 1, pageSize: 5000 }),
         ]);
         if (mounted) {
           setCategories(catData.items ?? []);

@@ -48,6 +48,5 @@
 
   <ItemGroup>
     <Folder Include="Domains\outbound\Services\" />
-    <Folder Include="Migrations\" />
   </ItemGroup>
 </Project>

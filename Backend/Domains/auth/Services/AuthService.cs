@@ -1,5 +1,5 @@
 
-﻿//using Backend.Data;
+//using Backend.Data;
 //using Backend.Domains.auth.Dtos;
 //using Backend.Domains.auth.Entity;
 //using Backend.Domains.auth.Interfaces;
@@ -56,7 +56,7 @@
 //                _configuration.GetValue<string>("Jwt:Key")!
 //            ));
 
-﻿using Backend.Domains.auth.Dtos;
+using Backend.Domains.auth.Dtos;
 using Backend.Domains.auth.Interfaces;
 using Backend.Entities;
 using Microsoft.EntityFrameworkCore;

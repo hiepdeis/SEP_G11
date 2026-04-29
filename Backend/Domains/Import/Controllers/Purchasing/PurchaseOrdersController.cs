@@ -1,9 +1,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using Backend.Data;
+using Backend.Extensions;
 using Backend.Domains.Import.DTOs.Purchasing;
 using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +13,7 @@ namespace Backend.Domains.Import.Controllers.Purchasing
 {
     [ApiController]
     [Route("api/purchasing/purchase-orders")]
+    [Authorize(Roles = "Purchasing", Policy = "ActiveUserOnly")]
     public class PurchaseOrdersController : ControllerBase
     {
         private readonly IPurchaseOrderService _service;
@@ -25,6 +28,11 @@ namespace Backend.Domains.Import.Controllers.Purchasing
             _service = service;
             _supplierService = supplierService;
             _context = context;
+        }
+
+        private int GetPurchasingId()
+        {
+            return User.GetRequiredUserId();
         }
 
         [HttpGet("suppliers")]
@@ -88,7 +96,7 @@ namespace Backend.Domains.Import.Controllers.Purchasing
         {
             try
             {
-                var purchasingId = 1; // TODO: replace with JWT claims
+                var purchasingId = GetPurchasingId();
                 var orders = await _service.CreateDraftsAsync(dto.RequestId, purchasingId, dto);
                 var userNames = await LoadUserNamesAsync(orders);
                 var result = orders.Select(o => PurchaseOrderMapper.ToDto(o, userNames)).ToList();
@@ -117,7 +125,7 @@ namespace Backend.Domains.Import.Controllers.Purchasing
         {
             try
             {
-                var purchasingId = 1; // TODO: replace with JWT claims
+                var purchasingId = GetPurchasingId();
                 var order = await _service.GetOrderAsync(purchaseOrderId);
                 if (order == null)
                     return NotFound(new { message = "Purchase order not found" });
