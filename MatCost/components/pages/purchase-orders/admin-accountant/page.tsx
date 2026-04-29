@@ -56,6 +56,7 @@ import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/format-currency";
 import { formatDateTime } from "@/lib/format-date-time";
+import { CurrencyLimitDisplay } from "@/components/ui/custom/currency-limit-display";
 
 export default function AccountantPurchaseOrderListPage({
   role = "accountant",
@@ -281,7 +282,7 @@ export default function AccountantPurchaseOrderListPage({
                       {t("Pending Value (Est.)")}
                     </p>
                     <h3 className="text-2xl font-bold text-slate-900">
-                      {formatCurrency(totalAmountPending)}
+                      <CurrencyLimitDisplay amount={totalAmountPending} />
                     </h3>
                   </div>
                 </CardContent>

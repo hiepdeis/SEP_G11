@@ -311,21 +311,23 @@ export default function AlertDetailPage({ role = "manager" }) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-6 space-y-5">
-                  <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4 flex items-start gap-3">
-                    <Info className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-indigo-900">
-                        {t("System Suggestion")}
-                      </p>
-                      <p className="text-xs text-indigo-700 mt-1">
-                        {t("The system recommends restocking")}{" "}
-                        <strong className="text-lg mx-1">
-                          {formatQuantity(alert.suggestedQuantity) || 0}
-                        </strong>{" "}
-                        {t("units to reach safe inventory levels.")}
-                      </p>
+                  {alert.status !== "ManagerConfirmed" && (
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4 flex items-start gap-3">
+                      <Info className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-indigo-900">
+                          {t("System Suggestion")}
+                        </p>
+                        <p className="text-xs text-indigo-700 mt-1">
+                          {t("The system recommends restocking")}{" "}
+                          <strong className="text-lg mx-1">
+                            {formatQuantity(alert.suggestedQuantity) || 0}
+                          </strong>{" "}
+                          {t("units to reach safe inventory levels.")}
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="space-y-3">
                     <label className="text-sm font-medium text-slate-700">

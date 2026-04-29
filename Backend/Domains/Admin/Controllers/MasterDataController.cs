@@ -1,11 +1,13 @@
 using Backend.Domains.Admin.Dtos;
 using Backend.Domains.Admin.Interface;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Domains.Admin.Controllers
 {
     [ApiController]
     [Route("api/admin/master-data")]
+    [Authorize(Policy = "ActiveUserOnly")]
     public sealed class MasterDataController : ControllerBase
     {
         private readonly IMasterDataService _service;
@@ -19,6 +21,7 @@ namespace Backend.Domains.Admin.Controllers
         // ROLES
         // =========================================================
 
+        [Authorize(Roles = "Admin")]
         [HttpGet("roles")]
         public async Task<IActionResult> GetRoles([FromQuery] MasterDataQueryDto query, CancellationToken ct)
         {
@@ -26,6 +29,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpGet("roles/{id:int}")]
         public async Task<IActionResult> GetRoleById(int id, CancellationToken ct)
         {
@@ -36,6 +40,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost("roles")]
         public async Task<IActionResult> CreateRole([FromBody] UpsertRoleDto request, CancellationToken ct)
         {
@@ -50,6 +55,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPut("roles/{id:int}")]
         public async Task<IActionResult> UpdateRole(int id, [FromBody] UpsertRoleDto request, CancellationToken ct)
         {
@@ -67,6 +73,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpDelete("roles/{id:int}")]
         public async Task<IActionResult> DeleteRole(int id, CancellationToken ct)
         {
@@ -88,6 +95,7 @@ namespace Backend.Domains.Admin.Controllers
         // MATERIAL CATEGORIES
         // =========================================================
 
+        [Authorize(Roles = "Admin,WarehouseManager, WarehouseStaff")]
         [HttpGet("categories")]
         public async Task<IActionResult> GetCategories([FromQuery] MasterDataQueryDto query, CancellationToken ct)
         {
@@ -95,6 +103,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin,WarehouseManager, WarehouseStaff")]
         [HttpGet("categories/{id:int}")]
         public async Task<IActionResult> GetCategoryById(int id, CancellationToken ct)
         {
@@ -105,6 +114,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin,WarehouseManager")]
         [HttpPost("categories")]
         public async Task<IActionResult> CreateCategory([FromBody] UpsertMaterialCategoryDto request, CancellationToken ct)
         {
@@ -119,6 +129,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin,WarehouseManager")]
         [HttpPut("categories/{id:int}")]
         public async Task<IActionResult> UpdateCategory(int id, [FromBody] UpsertMaterialCategoryDto request, CancellationToken ct)
         {
@@ -136,6 +147,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin,WarehouseManager")]
         [HttpDelete("categories/{id:int}")]
         public async Task<IActionResult> DeleteCategory(int id, CancellationToken ct)
         {
@@ -157,6 +169,7 @@ namespace Backend.Domains.Admin.Controllers
         // ADJUSTMENT REASONS
         // =========================================================
 
+        [Authorize(Roles = "Admin")]
         [HttpGet("adjustment-reasons")]
         public async Task<IActionResult> GetAdjustmentReasons([FromQuery] MasterDataQueryDto query, CancellationToken ct)
         {
@@ -164,6 +177,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpGet("adjustment-reasons/{id:int}")]
         public async Task<IActionResult> GetAdjustmentReasonById(int id, CancellationToken ct)
         {
@@ -174,6 +188,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost("adjustment-reasons")]
         public async Task<IActionResult> CreateAdjustmentReason([FromBody] UpsertAdjustmentReasonDto request, CancellationToken ct)
         {
@@ -188,6 +203,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPut("adjustment-reasons/{id:int}")]
         public async Task<IActionResult> UpdateAdjustmentReason(int id, [FromBody] UpsertAdjustmentReasonDto request, CancellationToken ct)
         {
@@ -205,6 +221,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPatch("adjustment-reasons/{id:int}/status")]
         public async Task<IActionResult> UpdateAdjustmentReasonStatus(int id, [FromBody] MasterDataStatusDto request, CancellationToken ct)
         {
@@ -222,6 +239,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpDelete("adjustment-reasons/{id:int}")]
         public async Task<IActionResult> DeleteAdjustmentReason(int id, CancellationToken ct)
         {
@@ -243,6 +261,7 @@ namespace Backend.Domains.Admin.Controllers
         // SUPPLIERS
         // =========================================================
 
+        [Authorize(Roles = "Admin, Accountant, Purchasing")]
         [HttpGet("suppliers")]
         public async Task<IActionResult> GetSuppliers([FromQuery] MasterDataQueryDto query, CancellationToken ct)
         {
@@ -250,6 +269,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin, Accountant, Purchasing")]
         [HttpGet("suppliers/{id:int}")]
         public async Task<IActionResult> GetSupplierById(int id, CancellationToken ct)
         {
@@ -260,6 +280,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin, Accountant, Purchasing")]
         [HttpPost("suppliers")]
         public async Task<IActionResult> CreateSupplier([FromBody] UpsertSupplierDto request, CancellationToken ct)
         {
@@ -274,6 +295,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin, Accountant, Purchasing")]
         [HttpPut("suppliers/{id:int}")]
         public async Task<IActionResult> UpdateSupplier(int id, [FromBody] UpsertSupplierDto request, CancellationToken ct)
         {
@@ -291,6 +313,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin, Accountant, Purchasing")]
         [HttpDelete("suppliers/{id:int}")]
         public async Task<IActionResult> DeleteSupplier(int id, CancellationToken ct)
         {
@@ -312,6 +335,7 @@ namespace Backend.Domains.Admin.Controllers
         // WAREHOUSES
         // =========================================================
 
+        [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
         [HttpGet("warehouses")]
         public async Task<IActionResult> GetWarehouses([FromQuery] MasterDataQueryDto query, CancellationToken ct)
         {
@@ -319,6 +343,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
         [HttpGet("warehouses/{id:int}")]
         public async Task<IActionResult> GetWarehouseById(int id, CancellationToken ct)
         {
@@ -329,6 +354,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
         [HttpGet("warehouses/lookup")]
         public async Task<IActionResult> GetWarehouseLookup(CancellationToken ct)
         {
@@ -336,6 +362,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin,WarehouseManager")]
         [HttpPost("warehouses")]
         public async Task<IActionResult> CreateWarehouse([FromBody] UpsertWarehouseDto request, CancellationToken ct)
         {
@@ -350,6 +377,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin,WarehouseManager")]
         [HttpPut("warehouses/{id:int}")]
         public async Task<IActionResult> UpdateWarehouse(int id, [FromBody] UpsertWarehouseDto request, CancellationToken ct)
         {
@@ -367,6 +395,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin,WarehouseManager")]
         [HttpDelete("warehouses/{id:int}")]
         public async Task<IActionResult> DeleteWarehouse(int id, CancellationToken ct)
         {
@@ -388,6 +417,7 @@ namespace Backend.Domains.Admin.Controllers
         // BIN LOCATIONS
         // =========================================================
 
+        [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
         [HttpGet("bin-locations")]
         public async Task<IActionResult> GetBinLocations([FromQuery] MasterDataQueryDto query, CancellationToken ct)
         {
@@ -395,6 +425,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
         [HttpGet("bin-locations/{id:int}")]
         public async Task<IActionResult> GetBinLocationById(int id, CancellationToken ct)
         {
@@ -405,6 +436,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin,WarehouseManager")]
         [HttpPost("bin-locations")]
         public async Task<IActionResult> CreateBinLocation([FromBody] UpsertBinLocationDto request, CancellationToken ct)
         {
@@ -419,6 +451,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin,WarehouseManager")]
         [HttpPut("bin-locations/{id:int}")]
         public async Task<IActionResult> UpdateBinLocation(int id, [FromBody] UpsertBinLocationDto request, CancellationToken ct)
         {
@@ -436,6 +469,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin,WarehouseManager")]
         [HttpDelete("bin-locations/{id:int}")]
         public async Task<IActionResult> DeleteBinLocation(int id, CancellationToken ct)
         {
@@ -457,6 +491,7 @@ namespace Backend.Domains.Admin.Controllers
         // PROJECTS
         // =========================================================
 
+        [Authorize(Roles = "Admin, Accountant, WarehouseManager")]
         [HttpGet("projects")]
         public async Task<IActionResult> GetProjects([FromQuery] MasterDataQueryDto query, CancellationToken ct)
         {
@@ -464,6 +499,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin, Accountant, WarehouseManager")]
         [HttpGet("projects/{id:int}")]
         public async Task<IActionResult> GetProjectById(int id, CancellationToken ct)
         {
@@ -474,6 +510,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost("projects")]
         public async Task<IActionResult> CreateProject([FromBody] UpsertProjectDto request, CancellationToken ct)
         {
@@ -488,6 +525,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPut("projects/{id:int}")]
         public async Task<IActionResult> UpdateProject(int id, [FromBody] UpsertProjectDto request, CancellationToken ct)
         {
@@ -505,6 +543,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPatch("projects/{id:int}/status")]
         public async Task<IActionResult> UpdateProjectStatus(int id, [FromBody] ProjectStatusUpdateDto request, CancellationToken ct)
         {
@@ -522,6 +561,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpDelete("projects/{id:int}")]
         public async Task<IActionResult> DeleteProject(int id, CancellationToken ct)
         {
@@ -544,6 +584,7 @@ namespace Backend.Domains.Admin.Controllers
         // SUPPLIER CONTRACT
         // =========================================================
 
+        [Authorize(Roles = "Admin, Accountant, Purchasing")]
         [HttpGet("supplier-contracts")]
         public async Task<IActionResult> GetSupplierContracts([FromQuery] MasterDataQueryDto query, CancellationToken ct)
         {
@@ -551,6 +592,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin, Accountant, Purchasing")]
         [HttpGet("supplier-contracts/{id:int}")]
         public async Task<IActionResult> GetSupplierContractById(int id, CancellationToken ct)
         {
@@ -561,6 +603,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin, Accountant, Purchasing")]
         [HttpPost("supplier-contracts")]
         public async Task<IActionResult> CreateSupplierContract([FromBody] UpsertSupplierContractDto request, CancellationToken ct)
         {
@@ -575,6 +618,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin, Accountant, Purchasing")]
         [HttpPut("supplier-contracts/{id:int}")]
         public async Task<IActionResult> UpdateSupplierContract(int id, [FromBody] UpsertSupplierContractDto request, CancellationToken ct)
         {
@@ -592,6 +636,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin, Accountant, Purchasing")]
         [HttpDelete("supplier-contracts/{id:int}")]
         public async Task<IActionResult> DeleteSupplierContract(int id, CancellationToken ct)
         {
@@ -609,6 +654,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin, Accountant, Purchasing")]
         [HttpGet("supplier-contracts/supplier/{supplierId:int}")]
         public async Task<IActionResult> GetSupplierContractsBySupplierId(int supplierId, CancellationToken ct)
         {
@@ -620,6 +666,7 @@ namespace Backend.Domains.Admin.Controllers
         // SUPPLIER QUOTATIONS
         // =========================================================
 
+        [Authorize(Roles = "Admin, Accountant, Purchasing")]
         [HttpGet("supplier-quotations")]
         public async Task<IActionResult> GetSupplierQuotations([FromQuery] MasterDataQueryDto query, CancellationToken ct)
         {
@@ -627,6 +674,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin, Accountant, Purchasing")]
         [HttpGet("supplier-quotations/{id:int}")]
         public async Task<IActionResult> GetSupplierQuotationById(int id, CancellationToken ct)
         {
@@ -637,6 +685,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin, Accountant, Purchasing")]
         [HttpPost("supplier-quotations")]
         public async Task<IActionResult> CreateSupplierQuotation([FromBody] UpsertSupplierQuotationDto request, CancellationToken ct)
         {
@@ -651,6 +700,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin, Accountant, Purchasing")]
         [HttpPut("supplier-quotations/{id:int}")]
         public async Task<IActionResult> UpdateSupplierQuotation(int id, [FromBody] UpsertSupplierQuotationDto request, CancellationToken ct)
         {
@@ -668,6 +718,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin, Accountant, Purchasing")]
         [HttpDelete("supplier-quotations/{id:int}")]
         public async Task<IActionResult> DeleteSupplierQuotation(int id, CancellationToken ct)
         {
@@ -685,6 +736,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin, Accountant, Purchasing")]
         [HttpGet("supplier-quotations/supplier/{supplierId:int}")]
         public async Task<IActionResult> GetSupplierQuotationsBySupplierId(int supplierId, CancellationToken ct)
         {

@@ -8,7 +8,7 @@ namespace Backend.Domains.Admin.Controllers
 {
     [ApiController]
     [Route("api/admin/users")]
-    //[Authorize(Roles = "Admin")]
+    [Authorize(Policy = "ActiveUserOnly")]
     public sealed class AdminUsersController : ControllerBase
     {
         private readonly IAdminUserService _svc;
@@ -24,6 +24,7 @@ namespace Backend.Domains.Admin.Controllers
             return int.TryParse(claim, out var id) ? id : 0;
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpGet]
         public async Task<IActionResult> GetUsers([FromQuery] GetUsersQuery query, CancellationToken ct)
         {
@@ -38,6 +39,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id, CancellationToken ct)
         {
@@ -55,6 +57,7 @@ namespace Backend.Domains.Admin.Controllers
 
 
 
+        [Authorize(Roles = "Admin")]
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateUserRequest request, CancellationToken ct)
         {
@@ -73,6 +76,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPatch("{id:int}/status")]
         public async Task<IActionResult> ChangeStatus(int id, [FromBody] ChangeUserStatusRequest request, CancellationToken ct)
         {
@@ -88,6 +92,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPatch("{id:int}/role")]
         public async Task<IActionResult> ChangeRole(int id, [FromBody] ChangeUserRoleRequest request, CancellationToken ct)
         {
@@ -102,6 +107,7 @@ namespace Backend.Domains.Admin.Controllers
                 return Conflict(new { message = ex.Message });
             }
         }
+        [Authorize(Roles = "Admin")]
         [HttpGet("roles")]
         public async Task<IActionResult> GetRoles(CancellationToken ct)
         {
@@ -116,6 +122,7 @@ namespace Backend.Domains.Admin.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPut("roles/{roleId:int}")]
         public async Task<IActionResult> UpdateRole(int roleId, UpdateRoleRequest request, CancellationToken ct)
         {
@@ -130,6 +137,7 @@ namespace Backend.Domains.Admin.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+        [Authorize(Roles = "Admin")]
         [HttpDelete("roles/{roleId:int}")]
         public async Task<IActionResult> DeleteRole(int roleId, CancellationToken ct)
         {
@@ -145,6 +153,7 @@ namespace Backend.Domains.Admin.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+        [Authorize(Roles = "Admin")]
         [HttpPost("roles")]
         public async Task<IActionResult> CreateRole(CreateRoleRequest request, CancellationToken ct)
         {

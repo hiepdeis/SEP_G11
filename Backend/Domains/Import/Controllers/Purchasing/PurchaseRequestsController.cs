@@ -12,7 +12,7 @@ namespace Backend.Domains.Import.Controllers.Purchasing
 {
     [ApiController]
     [Route("api/purchasing/purchase-requests")]
-    [Authorize(Roles = "Purchasing", Policy = "ActiveUserOnly")]
+    [Authorize(Roles = "Purchasing, Admin", Policy = "ActiveUserOnly")]
     public class PurchaseRequestsController : ControllerBase
     {
         private readonly IPurchaseRequestService _service;

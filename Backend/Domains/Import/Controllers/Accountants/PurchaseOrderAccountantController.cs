@@ -14,7 +14,7 @@ namespace Backend.Domains.Import.Controllers.Accountants
 {
     [ApiController]
     [Route("api/accountant/purchase-orders")]
-    [Authorize(Roles = "Accountant", Policy = "ActiveUserOnly")]
+    [Authorize(Roles = "Accountant, Admin", Policy = "ActiveUserOnly")]
     public class PurchaseOrderAccountantController : ControllerBase
     {
         private readonly IPurchaseOrderService _service;

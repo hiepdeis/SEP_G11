@@ -450,12 +450,12 @@ export default function MaterialDetailPage({
                         orientation="vertical"
                         className="h-6 mx-1 bg-slate-200 dark:bg-slate-800"
                       />
-                      <Button
+                      {/* <Button
                         onClick={openAddInv}
                         className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-100 dark:shadow-none"
                       >
                         <Plus className="w-4 h-4 mr-2" /> {t("Add Stock")}
-                      </Button>
+                      </Button> */}
                     </>
                   )}
                 </div>

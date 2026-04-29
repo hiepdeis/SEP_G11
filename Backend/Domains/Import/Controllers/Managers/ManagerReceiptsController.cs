@@ -8,7 +8,7 @@ namespace Backend.Domains.Import.Controllers.Managers
 {
     [ApiController]
     [Route("api/manager/receipts")]
-    [Authorize(Roles = "WarehouseManager", Policy = "ActiveUserOnly")]
+    [Authorize(Roles = "WarehouseManager, Admin", Policy = "ActiveUserOnly")]
     public class ManagerReceiptsController : ControllerBase
     {
         private readonly IReceiptService _service;

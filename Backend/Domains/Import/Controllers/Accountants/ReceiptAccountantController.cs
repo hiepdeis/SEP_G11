@@ -8,7 +8,7 @@ namespace Backend.Domains.Import.Controllers.Accountants
 {
     [ApiController]
     [Route("api/accountant/receipts")]
-    [Authorize(Roles = "Accountant", Policy = "ActiveUserOnly")]
+    [Authorize(Roles = "Accountant, Admin", Policy = "ActiveUserOnly")]
     public class ReceiptAccountantController : ControllerBase
     {
         private readonly IReceiptService _service;
