@@ -51,11 +51,13 @@ export function IncidentExcelHandler({
     }
 
     const exportData = items.map((item) => ({
-      "Material ID": item.materialId, // Khóa chính
+      "Material ID": item.materialId,
       "Material Code": item.materialCode,
       "Material Name": item.materialName,
       "Total Failed": item.orderedQuantity - item.passQuantity,
-      Quantity: item.breakdown.quantity,
+      Quantity: Math.max(item.orderedQuantity - item.actualQuantity, 0).toFixed(
+        item.isDecimalUnit ? 3 : 0,
+      ),
       "Quality *": item.breakdown.quality || 0,
       "Damage *": item.breakdown.damage || 0,
       "Detailed Notes *": item.notes,

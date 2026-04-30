@@ -460,7 +460,9 @@ export default function StaffIncidentPage({
       );
     }
 
-    const validSizeFiles = imageFiles.filter((file) => file.size <= 2 * 1024 * 1024);
+    const validSizeFiles = imageFiles.filter(
+      (file) => file.size <= 2 * 1024 * 1024,
+    );
 
     if (validSizeFiles.length < imageFiles.length) {
       toast.warning(t("Some images exceed the 2MB limit and were skipped."));
@@ -483,9 +485,7 @@ export default function StaffIncidentPage({
     const filesToProcess = validSizeFiles.slice(0, availableSlots);
 
     if (filesToProcess.length < validSizeFiles.length) {
-      toast.warning(
-        t("Maximum 5 images allowed. Extra images were skipped.")
-      );
+      toast.warning(t("Maximum 5 images allowed. Extra images were skipped."));
     }
 
     try {
@@ -546,6 +546,16 @@ export default function StaffIncidentPage({
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
+        {isSubmittingToManager && (
+          <div className="absolute inset-0 z-50 bg-white/70 backdrop-blur-sm flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3 text-indigo-600">
+              <Loader2 className="w-8 h-8 animate-spin" />
+              <p className="text-sm font-medium">
+                {t("Submitting to manager...")}
+              </p>
+            </div>
+          </div>
+        )}
         <Header
           title={`${t("Incident Report")} #${qcData?.receiptCode || id}`}
         />
