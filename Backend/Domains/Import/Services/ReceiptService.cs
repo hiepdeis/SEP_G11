@@ -1173,6 +1173,7 @@ namespace Backend.Domains.Import.Services
                         RelatedEntityType = "Receipt",
                         RelatedEntityId = receipt.ReceiptId,
                         SendEmail = true,
+                        SendEmailInBackground = true,
                         SaveChanges = true
                     }, CancellationToken.None);
                 }
@@ -1635,6 +1636,7 @@ namespace Backend.Domains.Import.Services
                 RelatedEntityType = "Receipt",
                 RelatedEntityId = receipt.ReceiptId,
                 SendEmail = true,
+                SendEmailInBackground = true,
                 SaveChanges = true
             }, CancellationToken.None);
 

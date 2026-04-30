@@ -311,6 +311,7 @@ namespace Backend.Domains.Import.Services
                 RelatedEntityType = "PurchaseOrder",
                 RelatedEntityId = purchaseOrder.PurchaseOrderId,
                 SendEmail = true,
+                SendEmailInBackground = true,
                 SaveChanges = true
             }, CancellationToken.None);
 
@@ -376,6 +377,7 @@ namespace Backend.Domains.Import.Services
                 RelatedEntityType = "PurchaseOrder",
                 RelatedEntityId = purchaseOrder.PurchaseOrderId,
                 SendEmail = true,
+                SendEmailInBackground = true,
                 SaveChanges = true
             }, CancellationToken.None);
 
@@ -514,6 +516,7 @@ namespace Backend.Domains.Import.Services
                 RelatedEntityType = "PurchaseOrder",
                 RelatedEntityId = purchaseOrder.PurchaseOrderId,
                 SendEmail = true,
+                SendEmailInBackground = true,
                 SaveChanges = true
             }, CancellationToken.None);
 
@@ -526,6 +529,7 @@ namespace Backend.Domains.Import.Services
                 RelatedEntityType = "PurchaseOrder",
                 RelatedEntityId = purchaseOrder.PurchaseOrderId,
                 SendEmail = true,
+                SendEmailInBackground = true,
                 SaveChanges = true
             }, CancellationToken.None);
 

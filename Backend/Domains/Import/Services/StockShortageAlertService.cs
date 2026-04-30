@@ -143,7 +143,8 @@ namespace Backend.Domains.Import.Services
                     FallbackRoleName = "Admin",
                     Message = "Hệ thống phát hiện có vật liệu sắp hết hàng. Vui lòng kiểm tra và xử lý kịp thời!",
                     RelatedEntityType = "StockShortageAlert",
-                    SendEmail = true
+                    SendEmail = true,
+                    SendEmailInBackground = true
                 }, CancellationToken.None);
 
             if (newAlerts.Count > 0 || updatedAlerts > 0)
@@ -279,7 +280,8 @@ namespace Backend.Domains.Import.Services
                     RoleName = "Admin",
                     Message = $"Có {alerts.Count} alert về thiếu hụt tồn kho đã được xác nhận bởi manager. Vui lòng kiểm tra và xử lý kịp thời!",
                     RelatedEntityType = "StockShortageAlert",
-                    SendEmail = true
+                    SendEmail = true,
+                    SendEmailInBackground = true
                 }, CancellationToken.None);
 
                 await _context.SaveChangesAsync();
