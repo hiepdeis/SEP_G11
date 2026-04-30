@@ -786,10 +786,8 @@ namespace Backend.Domains.Audit.Services
                 }
                 else
                 {
+                    // Keep CountQty from round 1 so staff can see previous count
                     d.DiscrepancyStatus = "RecountRequested";
-                    d.CountQty = null;
-                    d.CountedBy = null;
-                    d.CountedAt = null;
                     d.ResolutionAction = null;
                     d.AdjustmentReasonId = request.ReasonId > 0 ? request.ReasonId : null;
                     d.Reason = d.Id == detailId ? request.Note : "Required full scope recount";
@@ -802,10 +800,8 @@ namespace Backend.Domains.Audit.Services
             {
                 if (d.DiscrepancyStatus != "RecountRequested")
                 {
+                    // Keep CountQty from round 1 so staff can see previous count
                     d.DiscrepancyStatus = "RecountRequested";
-                    d.CountQty = null;
-                    d.CountedBy = null;
-                    d.CountedAt = null;
                     d.ResolutionAction = null;
                     d.AdjustmentReasonId = request.ReasonId > 0 ? request.ReasonId : null;
                     d.Reason = d.Id == detailId ? request.Note : "Required full scope recount";

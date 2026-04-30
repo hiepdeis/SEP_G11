@@ -155,7 +155,7 @@ namespace Backend.Domains.Audit.Services
             return query;
         }
 
-        public async Task<List<MaterialBatchDto>> GetCountedItemsAsync(
+        public async Task<List<CountingDto>> GetCountedItemsAsync(
      int stockTakeId,
      int userId,
      int skip,
@@ -212,7 +212,8 @@ namespace Backend.Domains.Audit.Services
                     BinId = inv.BinId,
                     BinCode = bin.Code,
                     BatchId = inv.BatchId,
-                    BatchCode = b.BatchCode
+                    BatchCode = b.BatchCode,
+                    CountQty = d.CountQty
                 };
 
             return await q
@@ -222,14 +223,15 @@ namespace Backend.Domains.Audit.Services
                 .ThenBy(x => x.BinCode)
                 .Skip(skip)
                 .Take(take)
-                .Select(x => new MaterialBatchDto
+                .Select(x => new CountingDto
                 {
                     MaterialId = x.MaterialId,
                     MaterialName = x.MaterialName,
                     BinId = x.BinId,
                     BinCode = x.BinCode,
                     BatchId = x.BatchId,
-                    BatchCode = x.BatchCode
+                    BatchCode = x.BatchCode,
+                    CountQty = x.CountQty
                 })
                 .ToListAsync(ct);
         }
@@ -404,7 +406,8 @@ namespace Backend.Domains.Audit.Services
                     CountQty = x.CountQty,
                     Variance = x.Variance,
                     CountedBy = x.CountedBy,
-                    CountedAt = x.CountedAt
+                    CountedAt = x.CountedAt,
+                    DiscrepancyStatus = x.DiscrepancyStatus
                 })
                 .OrderBy(x => x.MaterialName)
                 .ThenBy(x => x.BatchCode)
@@ -859,7 +862,7 @@ namespace Backend.Domains.Audit.Services
 
             detail.SystemQty = systemQty;
             detail.CountQty = request.CountQty;
-            detail.CountRound = detail.CountRound <= 0 ? 2 : detail.CountRound + 1;
+            detail.CountRound = 2;
             detail.Variance = variance;
             detail.CountedBy = userId;
             detail.CountedAt = DateTime.UtcNow;

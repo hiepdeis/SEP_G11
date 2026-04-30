@@ -6,7 +6,7 @@ export interface AuditListItemDto { stockTakeId: number; title: string; status: 
 export interface EligibleStaffDto { userId: number; fullName: string; email: string; }
 export interface AssignedMemberDto { userId: number; fullName: string; roleInTeam?: string; assignedAt: string; }
 export interface AuditTeamResponse { stockTakeId: number; title: string; assignedMembers: AssignedMemberDto[]; }
-export interface CountItemDto { materialId: number; binId: number; batchId: number; materialName: string; batchCode: string; binCode: string; countQty?: number | null; countedBy?: number; countedAt?: string; countRound?: number; unitName?: string; variance?: number; }
+export interface CountItemDto { materialId: number; binId: number; batchId: number; materialName: string; batchCode: string; binCode: string; countQty?: number | null; countedBy?: number; countedAt?: string; countRound?: number; unitName?: string; variance?: number; discrepancyStatus?: string; }
 export interface MaterialBatchDto { materialId: number; materialName: string; batchId: number; batchCode: string; }
 export interface UpsertCountRequest { materialId: number; binCode: string; batchCode: string; countQty: number; reason?: string; }
 export interface AuditMetricsDto { totalItems: number; countedItems: number; matchedItems: number; discrepancyItems: number; countingProgress: number; }

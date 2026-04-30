@@ -572,7 +572,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                           </DialogContent>
                         </Dialog>
                         <Dialog open={isAccountantRejecting} onOpenChange={(open) => { setIsAccountantRejecting(open); if (!open) handleClearSignature(); }}>
-                          <DialogTrigger asChild><Button variant="outline" className="flex-1 border-red-200 text-red-700 hover:bg-red-50" disabled={isSubmitting}><AlertTriangle className="w-4 h-4 mr-2" /> {t("Reject")}</Button></DialogTrigger>
+                          <DialogTrigger asChild><Button variant="outline" className="flex-1 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-700" disabled={isSubmitting}><AlertTriangle className="w-4 h-4 mr-2" /> {t("Reject")}</Button></DialogTrigger>
                           <DialogContent className="sm:max-w-[450px]">
                             <DialogHeader><DialogTitle className="text-red-700">{t("Reject Resolution")}</DialogTitle><DialogDescription>{t("Reject to escalate this audit to Admin for final review.")}</DialogDescription></DialogHeader>
                             <div className="py-4 space-y-4">

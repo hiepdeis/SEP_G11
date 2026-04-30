@@ -1,4 +1,4 @@
-﻿namespace Backend.Domains.Audit.DTOs.Staffs;
+namespace Backend.Domains.Audit.DTOs.Staffs;
 
 public sealed class CountingDto
 {
@@ -18,6 +18,7 @@ public sealed class CountingDto
 
     public int? CountedBy { get; set; }
     public DateTime? CountedAt { get; set; }
+    public string? DiscrepancyStatus { get; set; }
 }
 
 public sealed class UpsertCountRequest

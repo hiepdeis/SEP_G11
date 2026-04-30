@@ -7,7 +7,7 @@ namespace Backend.Domains.Audit.Interfaces
     {
         Task<bool> IsTeamMemberAsync(int stockTakeId, int userId, CancellationToken ct);
 
-        Task<List<MaterialBatchDto>> GetCountedItemsAsync(
+        Task<List<CountingDto>> GetCountedItemsAsync(
           int stockTakeId,
           int userId,
           int skip,
