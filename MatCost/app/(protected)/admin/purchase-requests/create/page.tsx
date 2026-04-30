@@ -413,7 +413,7 @@ export default function CreatePurchaseRequestPage() {
                             className="hover:bg-slate-50/50 transition-colors"
                           >
                             <TableCell className="pl-6 align-top pt-4">
-                              <Select
+                              <Select 
                                 value={item.materialId}
                                 disabled={item.isFromAlert}
                                 onValueChange={(val) =>
