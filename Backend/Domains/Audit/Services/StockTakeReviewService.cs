@@ -209,10 +209,14 @@ namespace Backend.Domains.Audit.Services
                 // Get item counts. Use StockTakeDetails as truth if audit is in progress/completed.
                 // Fallback to live InventoryCurrent only for Planned/Assigned audits.
                 int totalItems;
-                if (st.Status == "Planned" || st.Status == "Assigned")
+                if (st.Status == "Planned" || st.Status == "Assigned" || st.Status == "InProgress")
                 {
-                    totalItems = await BuildScopedInventoryQuery(st.StockTakeId, st.WarehouseId)
-                        .CountAsync(ct);
+                    totalItems = await (
+                        from inv in BuildScopedInventoryQuery(st.StockTakeId, st.WarehouseId)
+                        join b in _db.Batches.AsNoTracking() on inv.BatchId equals b.BatchId
+                        join bin in _db.BinLocations.AsNoTracking() on inv.BinId equals bin.BinId
+                        select new { inv.MaterialId, b.BatchCode, BinCode = bin.Code }
+                    ).Distinct().CountAsync(ct);
                 }
                 else
                 {
@@ -295,8 +299,23 @@ namespace Backend.Domains.Audit.Services
 
             var uncountedMaterials = totalMaterials - countedMaterials;
 
+            int totalItems;
+            if (st.Status == "Planned" || st.Status == "Assigned" || st.Status == "InProgress")
+            {
+                totalItems = await (
+                    from inv in scopedInventoryQuery
+                    join b in _db.Batches.AsNoTracking() on inv.BatchId equals b.BatchId
+                    join bin in _db.BinLocations.AsNoTracking() on inv.BinId equals bin.BinId
+                    select new { inv.MaterialId, b.BatchCode, BinCode = bin.Code }
+                ).Distinct().CountAsync(ct);
+            }
+            else
+            {
+                totalItems = await _db.StockTakeDetails
+                    .Where(x => x.StockTakeId == stockTakeId)
+                    .CountAsync(ct);
+            }
             // === Số lượng items ===
-            var totalItems = await scopedInventoryQuery.CountAsync(ct);
 
             var countedItems = await _db.StockTakeDetails
                 .AsNoTracking()
@@ -947,9 +966,15 @@ namespace Backend.Domains.Audit.Services
             var scopedInventoryQuery = BuildScopedInventoryQuery(stockTakeId, st.WarehouseId);
             int totalItems;
             int totalMaterials;
-            if (st.Status == "Planned" || st.Status == "Assigned")
+            if (st.Status == "Planned" || st.Status == "Assigned" || st.Status == "InProgress")
             {
-                totalItems = await scopedInventoryQuery.CountAsync(ct);
+                totalItems = await (
+                    from inv in scopedInventoryQuery
+                    join b in _db.Batches.AsNoTracking() on inv.BatchId equals b.BatchId
+                    join bin in _db.BinLocations.AsNoTracking() on inv.BinId equals bin.BinId
+                    select new { inv.MaterialId, b.BatchCode, BinCode = bin.Code }
+                ).Distinct().CountAsync(ct);
+
                 totalMaterials = await scopedInventoryQuery
                     .Select(x => x.MaterialId)
                     .Distinct()
@@ -960,6 +985,7 @@ namespace Backend.Domains.Audit.Services
                 totalItems = await _db.StockTakeDetails
                     .Where(x => x.StockTakeId == stockTakeId)
                     .CountAsync(ct);
+
                 totalMaterials = await _db.StockTakeDetails
                     .Where(x => x.StockTakeId == stockTakeId)
                     .Select(x => x.MaterialId)
@@ -1183,7 +1209,23 @@ namespace Backend.Domains.Audit.Services
 
             // Verification: All items must be counted before ANYONE can sign off
             // (Standard procedure to ensure the record being signed is complete)
-            var totalItems = await BuildScopedInventoryQuery(stockTakeId, st.WarehouseId).CountAsync(ct);
+            int totalItems;
+            if (st.Status == "Planned" || st.Status == "Assigned" || st.Status == "InProgress")
+            {
+                totalItems = await (
+                    from inv in BuildScopedInventoryQuery(stockTakeId, st.WarehouseId)
+                    join b in _db.Batches.AsNoTracking() on inv.BatchId equals b.BatchId
+                    join bin in _db.BinLocations.AsNoTracking() on inv.BinId equals bin.BinId
+                    select new { inv.MaterialId, b.BatchCode, BinCode = bin.Code }
+                ).Distinct().CountAsync(ct);
+            }
+            else
+            {
+                totalItems = await _db.StockTakeDetails
+                    .Where(x => x.StockTakeId == stockTakeId)
+                    .CountAsync(ct);
+            }
+
             var countedItems = await _db.StockTakeDetails
                 .AsNoTracking()
                 .CountAsync(x => x.StockTakeId == stockTakeId && x.CountQty != null, ct);
@@ -1401,14 +1443,13 @@ namespace Backend.Domains.Audit.Services
 
             await AddSignatureIfNotExistsAsync(stockTakeId, userId, "Admin", request.SignatureData, ct);
 
-            // Notify the manager about the penalty
-            _db.Notifications.Add(new Backend.Entities.Notification
-            {
-                UserId = request.TargetManagerUserId,
-                Message = $"Bạn đã bị phạt {request.PenaltyAmount:N0} VNĐ cho Audit #{st.StockTakeId} ({st.Title}). Lý do: {request.PenaltyReason}",
-                IsRead = false,
-                CreatedAt = DateTime.UtcNow
-            });
+            // Notify the manager about the penalty (with email)
+            await _notificationService.QueueNotificationAsync(
+                new[] { request.TargetManagerUserId },
+                $"Bạn đã bị phạt {request.PenaltyAmount:N0} VNĐ cho Audit #{st.StockTakeId} ({st.Title}). Lý do: {request.PenaltyReason}",
+                relatedEntityType: "Audit",
+                relatedEntityId: st.StockTakeId,
+                ct);
 
             return await CompleteAndUpdateInventoryAsync(st, userId, request.AuditNotes, ct);
         }

@@ -1,6 +1,7 @@
 using Backend.Data;
 using Backend.Domains.Audit.Interfaces;
 using Backend.Entities;
+using Backend.Services.Notifications;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Domains.Audit.Services;
@@ -8,10 +9,12 @@ namespace Backend.Domains.Audit.Services;
 public sealed class AuditNotificationService : IAuditNotificationService
 {
     private readonly MyDbContext _db;
+    private readonly INotificationDispatcher _dispatcher;
 
-    public AuditNotificationService(MyDbContext db)
+    public AuditNotificationService(MyDbContext db, INotificationDispatcher dispatcher)
     {
         _db = db;
+        _dispatcher = dispatcher;
     }
 
     public async Task QueueNotificationAsync(
@@ -33,28 +36,26 @@ public sealed class AuditNotificationService : IAuditNotificationService
         if (distinctUserIds.Count == 0)
             return;
 
-        var activeUserIds = await _db.Users
+        // Resolve active users with their email addresses
+        var recipients = await _db.Users
             .AsNoTracking()
             .Where(x => x.Status && distinctUserIds.Contains(x.UserId))
-            .Select(x => x.UserId)
+            .Select(x => new NotificationRecipient(x.UserId, x.FullName, x.Email))
             .ToListAsync(ct);
 
-        if (activeUserIds.Count == 0)
+        if (recipients.Count == 0)
             return;
 
-        var now = DateTime.UtcNow;
-        foreach (var userId in activeUserIds)
+        await _dispatcher.DispatchAsync(new NotificationDispatchRequest
         {
-            _db.Notifications.Add(new Notification
-            {
-                UserId = userId,
-                Message = normalizedMessage,
-                RelatedEntityType = relatedEntityType,
-                RelatedEntityId = relatedEntityId,
-                IsRead = false,
-                CreatedAt = now
-            });
-        }
+            Recipients = recipients,
+            Message = normalizedMessage,
+            RelatedEntityType = relatedEntityType,
+            RelatedEntityId = relatedEntityId,
+            SendEmail = true,
+            SendEmailInBackground = true,
+            SaveChanges = true
+        }, ct);
     }
 
     public async Task QueueAuditNotificationAsync(

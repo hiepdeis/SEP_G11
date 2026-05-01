@@ -95,7 +95,7 @@ namespace Backend.Domains.Admin.Controllers
         // MATERIAL CATEGORIES
         // =========================================================
 
-        [Authorize(Roles = "Admin,WarehouseManager, WarehouseStaff")]
+        [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff,Accountant")]
         [HttpGet("categories")]
         public async Task<IActionResult> GetCategories([FromQuery] MasterDataQueryDto query, CancellationToken ct)
         {
@@ -103,7 +103,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
-        [Authorize(Roles = "Admin,WarehouseManager, WarehouseStaff")]
+        [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff,Accountant")]
         [HttpGet("categories/{id:int}")]
         public async Task<IActionResult> GetCategoryById(int id, CancellationToken ct)
         {
@@ -335,7 +335,7 @@ namespace Backend.Domains.Admin.Controllers
         // WAREHOUSES
         // =========================================================
 
-        [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff,Accountant")]
         [HttpGet("warehouses")]
         public async Task<IActionResult> GetWarehouses([FromQuery] MasterDataQueryDto query, CancellationToken ct)
         {
@@ -343,7 +343,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
-        [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff,Accountant")]
         [HttpGet("warehouses/{id:int}")]
         public async Task<IActionResult> GetWarehouseById(int id, CancellationToken ct)
         {
@@ -354,7 +354,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
-        [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff,Accountant")]
         [HttpGet("warehouses/lookup")]
         public async Task<IActionResult> GetWarehouseLookup(CancellationToken ct)
         {
@@ -417,7 +417,7 @@ namespace Backend.Domains.Admin.Controllers
         // BIN LOCATIONS
         // =========================================================
 
-        [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff,Accountant")]
         [HttpGet("bin-locations")]
         public async Task<IActionResult> GetBinLocations([FromQuery] MasterDataQueryDto query, CancellationToken ct)
         {
@@ -425,7 +425,7 @@ namespace Backend.Domains.Admin.Controllers
             return Ok(result);
         }
 
-        [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff,Accountant")]
         [HttpGet("bin-locations/{id:int}")]
         public async Task<IActionResult> GetBinLocationById(int id, CancellationToken ct)
         {
