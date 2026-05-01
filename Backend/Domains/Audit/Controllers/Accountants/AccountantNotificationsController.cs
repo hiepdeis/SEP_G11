@@ -8,7 +8,7 @@ namespace Backend.Domains.Notifications.Controllers
 {
     [ApiController]
     [Route("api/accountant/notifications")]
-    [Authorize(Roles = "Accountant,accountant")]
+    [Authorize(Roles = "Accountant,Admin")]
     public class AccountantNotificationsController : ControllerBase
     {
         private readonly MyDbContext _db;

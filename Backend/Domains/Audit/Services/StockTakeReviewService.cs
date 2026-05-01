@@ -1264,8 +1264,11 @@ namespace Backend.Domains.Audit.Services
 
             var user = await _db.Users.AsNoTracking().Include(x => x.Role)
                 .FirstOrDefaultAsync(x => x.UserId == userId, ct);
-            if (user == null || !string.Equals(user.Role.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase))
-                return (false, "Only Accountants can perform this action.");
+            var isAccountant = string.Equals(user?.Role?.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase);
+            var isAdmin = string.Equals(user?.Role?.RoleName, "Admin", StringComparison.OrdinalIgnoreCase);
+
+            if (user == null || (!isAccountant && !isAdmin))
+                return (false, "Only Accountants or Admins can perform this action.");
 
             if (string.Equals(action, "Approve", StringComparison.OrdinalIgnoreCase))
             {
@@ -1308,8 +1311,11 @@ namespace Backend.Domains.Audit.Services
 
             var user = await _db.Users.AsNoTracking().Include(x => x.Role)
                 .FirstOrDefaultAsync(x => x.UserId == userId, ct);
-            if (user == null || !string.Equals(user.Role.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase))
-                return (false, "Only Accountants can perform this action.");
+            var isAccountant = string.Equals(user?.Role?.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase);
+            var isAdmin = string.Equals(user?.Role?.RoleName, "Admin", StringComparison.OrdinalIgnoreCase);
+
+            if (user == null || (!isAccountant && !isAdmin))
+                return (false, "Only Accountants or Admins can perform this action.");
 
             await AddSignatureIfNotExistsAsync(stockTakeId, userId, "Accountant", signatureData, ct);
             return await CompleteAndUpdateInventoryAsync(st, userId, "Audit completed: Accountant approved resolution.", ct);
@@ -1330,8 +1336,11 @@ namespace Backend.Domains.Audit.Services
 
             var user = await _db.Users.AsNoTracking().Include(x => x.Role)
                 .FirstOrDefaultAsync(x => x.UserId == userId, ct);
-            if (user == null || !string.Equals(user.Role.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase))
-                return (false, "Only Accountants can perform this action.");
+            var isAccountant = string.Equals(user?.Role?.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase);
+            var isAdmin = string.Equals(user?.Role?.RoleName, "Admin", StringComparison.OrdinalIgnoreCase);
+
+            if (user == null || (!isAccountant && !isAdmin))
+                return (false, "Only Accountants or Admins can perform this action.");
 
             if (string.IsNullOrWhiteSpace(signatureData))
                 return (false, "Accountant signature is required.");
@@ -1526,8 +1535,11 @@ namespace Backend.Domains.Audit.Services
                 .Include(x => x.Role)
                 .FirstOrDefaultAsync(x => x.UserId == userId, ct);
 
-            if (currentUser == null || !string.Equals(currentUser.Role.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase))
-                return (false, "Only accountants can complete the audit.");
+            var isAccountant = string.Equals(currentUser?.Role?.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase);
+            var isAdmin = string.Equals(currentUser?.Role?.RoleName, "Admin", StringComparison.OrdinalIgnoreCase);
+
+            if (currentUser == null || (!isAccountant && !isAdmin))
+                return (false, "Only accountants or admins can complete the audit.");
 
             return await CompleteAndUpdateInventoryAsync(st, userId, request.Notes, ct);
         }
