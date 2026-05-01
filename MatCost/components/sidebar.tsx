@@ -709,7 +709,7 @@ export function Sidebar() {
                   className={`
                   relative flex gap-3 px-3 py-3 rounded-xl transition-all duration-300 group overflow-hidden w-full
                   ${
-                    pathname.includes("/audit")
+                    pathname.includes("/audit") && !pathname.includes("/reports")
                       ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100"
                       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm"
                   }
@@ -720,7 +720,7 @@ export function Sidebar() {
                     className={`
                     h-5 w-5 flex-shrink-0 transition-all duration-300
                     ${
-                      pathname.includes("/audit")
+                      pathname.includes("/audit") && !pathname.includes("/reports")
                         ? "text-blue-600 scale-110"
                         : "text-slate-400 group-hover:text-slate-600 group-hover:scale-110"
                     }
@@ -734,7 +734,7 @@ export function Sidebar() {
                       <ChevronDown className="w-4 h-4 ml-auto" />
                     </>
                   )}
-                  {pathname.includes("/audit") && (
+                  {pathname.includes("/audit") && !pathname.includes("/reports") && (
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
                   )}
                 </button>
