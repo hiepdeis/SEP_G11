@@ -360,7 +360,8 @@
       "incident_reports": "Báo cáo sự cố",
       "inbound_requests": "Yêu cầu nhập kho",
       "stock_shortage_alerts": "Cảnh báo thiếu hụt tồn kho",
-      "pending_pos": "Đơn mua hàng chờ xử lý"
+      "pending_pos": "Đơn mua hàng chờ xử lý",
+      "audit": "Kiểm kê"
     }
   },
   "reports": {
@@ -1920,5 +1921,7 @@
   "InProgress": "Đang thực hiện",
   "PendingAccountantReview": "Chờ kế toán đối soát",
   "PendingAccountantApproval": "Chờ kế toán phê duyệt",
-  "PendingAdminReview": "Chờ Admin duyệt"
+  "PendingAdminReview": "Chờ Admin duyệt",
+  "Failed to upload images to Cloudinary.": "Không thể tải ảnh lên Cloudinary.",
+  "Uploading certificate images...": "Đang tải ảnh chứng nhận..."
 }
