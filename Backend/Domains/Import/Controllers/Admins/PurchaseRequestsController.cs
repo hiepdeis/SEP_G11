@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
+using System;
+using System.Threading.Tasks;
 using Backend.Data;
 using Backend.Extensions;
 using Backend.Domains.Import.DTOs.Admins;
@@ -13,7 +15,7 @@ namespace Backend.Domains.Import.Controllers.Admins
 {
     [ApiController]
     [Route("api/admin/purchase-requests")]
-    [Authorize(Roles = "Admin", Policy = "ActiveUserOnly")]
+    [Authorize(Policy = "ActiveUserOnly")]
     public class PurchaseRequestsController : ControllerBase
     {
         private readonly IPurchaseRequestService _service;
@@ -31,6 +33,7 @@ namespace Backend.Domains.Import.Controllers.Admins
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin")] 
         public async Task<IActionResult> GetRequests()
         {
             try
@@ -47,6 +50,7 @@ namespace Backend.Domains.Import.Controllers.Admins
         }
 
         [HttpGet("{requestId:long}")]
+        [Authorize(Roles = "Admin,Purchasing")] 
         public async Task<IActionResult> GetRequest(long requestId)
         {
             try
@@ -65,6 +69,7 @@ namespace Backend.Domains.Import.Controllers.Admins
         }
 
         [HttpPost("alerts/{alertId:long}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateFromAlert(long alertId, [FromBody] CreatePurchaseRequestFromAlertDto dto)
         {
             try

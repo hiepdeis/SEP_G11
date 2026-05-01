@@ -113,7 +113,6 @@ export default function IncidentsListPage({
         } else {
           res = await managerIncidentApi.getPendingIncidents();
         }
-        // Filter out incidents with no failed items
         const filteredIncidents = (res.data as any[])
           .map((incident) => ({
             ...incident,
