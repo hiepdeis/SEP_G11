@@ -1916,5 +1916,9 @@
   "admin": "Quản trị viên",
   "staff": "Nhân viên kho",
   "accountant": "Kế toán",
-  "manager": "Quản lý kho"
+  "manager": "Quản lý kho",
+  "InProgress": "Đang thực hiện",
+  "PendingAccountantReview": "Chờ kế toán đối soát",
+  "PendingAccountantApproval": "Chờ kế toán phê duyệt",
+  "PendingAdminReview": "Chờ Admin duyệt"
 }

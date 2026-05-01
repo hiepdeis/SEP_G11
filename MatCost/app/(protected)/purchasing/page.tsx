@@ -67,10 +67,10 @@ export default function PurchasingDashboard() {
         setLoading(true);
         const [ordersRes, pendingIncidentsRes, requestsRes, slipsRes] =
           await Promise.all([
-            purchasingPurchaseOrderApi.getOrders(),
-            purchasingIncidentApi.getPendingIncidents(),
-            purchasingPurchaseRequestApi.getRequests(),
-            issueSlipApi.getIssueSlips(),
+            purchasingPurchaseOrderApi.getOrders().catch(() => ({ data: [] })),
+            purchasingIncidentApi.getPendingIncidents().catch(() => ({ data: [] })),
+            purchasingPurchaseRequestApi.getRequests().catch(() => ({ data: [] })),
+            issueSlipApi.getIssueSlips().catch(() => []),
           ]);
 
         setPurchaseOrders(ordersRes.data || []);

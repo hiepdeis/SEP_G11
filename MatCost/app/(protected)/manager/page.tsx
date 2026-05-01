@@ -72,11 +72,11 @@ export default function ManagerDashboard() {
         setLoading(true);
         const [alertsRes, incidentsRes, receiptsRes, slipsRes, auditsRes] =
           await Promise.all([
-            managerStockShortageAlertApi.getAlerts(),
-            managerIncidentApi.getPendingIncidents(),
-            managerReceiptsApi.getReceipts(),
-            issueSlipApi.getIssueSlips(),
-            auditService.getAll(),
+            managerStockShortageAlertApi.getAlerts().catch(() => ({ data: [] })),
+            managerIncidentApi.getPendingIncidents().catch(() => ({ data: [] })),
+            managerReceiptsApi.getReceipts().catch(() => ({ data: [] })),
+            issueSlipApi.getIssueSlips().catch(() => []),
+            auditService.getAll().catch(() => []),
           ]);
 
         setAlerts(alertsRes.data || []);
@@ -655,14 +655,21 @@ export default function ManagerDashboard() {
                               )
                             }
                           >
-                            <div className="flex justify-between items-start mb-1">
-                              <span className="font-semibold text-slate-800">
-                                {audit.title}
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-500 mt-1 truncate">
-                              {audit.warehouseName} | {t(audit.status)}
-                            </p>
+                             <div className="flex justify-between items-start mb-1">
+                               <span className="font-semibold text-slate-800">
+                                 {audit.title}
+                               </span>
+                               <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                                 audit.status?.toLowerCase().includes("pending") 
+                                   ? "bg-amber-100 text-amber-700" 
+                                   : "bg-green-100 text-green-700"
+                               }`}>
+                                 {t(audit.status)}
+                               </span>
+                             </div>
+                             <p className="text-xs text-slate-500 mt-1 truncate">
+                               {audit.warehouseName}
+                             </p>
                           </div>
                         ))}
                         {activeAudits.length === 0 && (

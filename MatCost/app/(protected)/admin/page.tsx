@@ -126,12 +126,12 @@ export default function DashboardPage() {
         setLoading(true);
         const [poRes, prRes, adminPoRes, adminPrRes, issueRes, auditRes] =
           await Promise.all([
-            purchasingPurchaseOrderApi.getOrders(),
-            purchasingPurchaseRequestApi.getRequests(),
-            adminPurchaseOrderApi.getPendingOrders(),
-            adminPurchaseRequestApi.getRequests(),
-            issueSlipApi.getIssueSlips(),
-            auditService.getAll(),
+            purchasingPurchaseOrderApi.getOrders().catch(() => ({ data: [] })),
+            purchasingPurchaseRequestApi.getRequests().catch(() => ({ data: [] })),
+            adminPurchaseOrderApi.getPendingOrders().catch(() => ({ data: [] })),
+            adminPurchaseRequestApi.getRequests().catch(() => ({ data: [] })),
+            issueSlipApi.getIssueSlips().catch(() => []),
+            auditService.getAll().catch(() => []),
           ]);
 
         setPendingOrders(poRes.data || []);

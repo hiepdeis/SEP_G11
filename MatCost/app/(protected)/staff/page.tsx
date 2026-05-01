@@ -76,12 +76,12 @@ export default function StaffDashboard() {
           auditsRes,
           putawayRes,
         ] = await Promise.all([
-          staffReceiptsApi.getPendingPurchaseOrders(),
-          staffReceiptsApi.getAllIncidentReports(),
-          staffReceiptsApi.getAllReceiptsForWarehouse(),
-          issueSlipApi.getIssueSlips(),
-          auditService.getAll(),
-          staffReceiptsApi.getPendingPutawayReceipts(),
+          staffReceiptsApi.getPendingPurchaseOrders().catch(() => ({ data: [] })),
+          staffReceiptsApi.getAllIncidentReports().catch(() => ({ data: [] })),
+          staffReceiptsApi.getAllReceiptsForWarehouse().catch(() => ({ data: [] })),
+          issueSlipApi.getIssueSlips().catch(() => []),
+          auditService.getAll().catch(() => []),
+          staffReceiptsApi.getPendingPutawayReceipts().catch(() => ({ data: [] })),
         ]);
 
         setPendingPOs(posRes.data || []);

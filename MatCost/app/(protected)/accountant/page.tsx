@@ -66,14 +66,12 @@ export default function AccountantDashboard() {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const [ordersRes, receiptsRes, slipsRes, auditsRes] = await Promise.all(
-          [
-            accountantPurchaseOrderApi.getPendingOrders(),
-            accountantReceiptsApi.getReceipts(),
-            issueSlipApi.getIssueSlips(),
-            auditService.getAll(),
-          ],
-        );
+        const [ordersRes, receiptsRes, slipsRes, auditsRes] = await Promise.all([
+          accountantPurchaseOrderApi.getPendingOrders().catch(() => ({ data: [] })),
+          accountantReceiptsApi.getReceipts().catch(() => ({ data: [] })),
+          issueSlipApi.getIssueSlips().catch(() => []),
+          auditService.getAll().catch(() => []),
+        ]);
 
         setPendingOrders(ordersRes.data || []);
 
@@ -643,11 +641,15 @@ export default function AccountantDashboard() {
                               <span className="font-semibold text-slate-800">
                                 {audit.title}
                               </span>
-                              <span className="text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
-                                {audit.status === "PendingAccountantReview"
-                                  ? t("Pending Review")
-                                  : t("Pending Approval")}
-                              </span>
+                               <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                                 audit.status?.toLowerCase().includes("pending") 
+                                   ? "bg-amber-100 text-amber-700" 
+                                   : "bg-purple-100 text-purple-700"
+                               }`}>
+                                 {audit.status?.toLowerCase() === "pendingaccountantreview"
+                                   ? t("Pending Review")
+                                   : t("Pending Approval")}
+                               </span>
                             </div>
                             <p className="text-xs text-slate-500 mt-1 truncate">
                               {audit.warehouseName}
