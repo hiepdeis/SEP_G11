@@ -105,7 +105,7 @@ export default function StaffDashboard() {
   }, [issueSlips]);
 
   const activeAudits = useMemo(() => {
-    return audits.slice(0, 2);
+    return audits.filter((a) => a.status === "InProgress").slice(0, 5);
   }, [audits]);
 
   const statsData: StatData[] = useMemo(() => {
@@ -595,7 +595,9 @@ export default function StaffDashboard() {
                             key={audit.stockTakeId}
                             className="p-3 border border-slate-100 rounded-xl bg-green-50/50 hover:bg-green-50 hover:border-green-200 transition-colors cursor-pointer"
                             onClick={() =>
-                              router.push(`/staff/audit/${audit.stockTakeId}`)
+                              router.push(
+                                `/staff/audit/manual-count/${audit.stockTakeId}`,
+                              )
                             }
                           >
                             <div className="flex justify-between items-start mb-1">

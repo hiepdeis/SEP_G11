@@ -99,8 +99,14 @@ export default function AccountantDashboard() {
     return issueSlips.slice(0, 2);
   }, [issueSlips]);
 
-  const completedAudits = useMemo(() => {
-    return audits.filter((a) => a.status === "Completed").slice(0, 2);
+  const auditsToReconcile = useMemo(() => {
+    return audits
+      .filter(
+        (a) =>
+          a.status === "PendingAccountantReview" ||
+          a.status === "PendingAccountantApproval",
+      )
+      .slice(0, 5);
   }, [audits]);
 
   const totalPendingOrderValue = useMemo(() => {
@@ -117,7 +123,7 @@ export default function AccountantDashboard() {
       ordersCount +
       receiptsCount +
       pendingIssueSlips.length +
-      completedAudits.length;
+      auditsToReconcile.length;
 
     return [
       {
@@ -160,7 +166,7 @@ export default function AccountantDashboard() {
     pendingOrders,
     pendingReceipts,
     pendingIssueSlips,
-    completedAudits,
+    auditsToReconcile,
     totalPendingOrderValue,
     t,
   ]);
@@ -623,13 +629,13 @@ export default function AccountantDashboard() {
                         {t("Audits to Reconcile")}
                       </h3>
                       <div className="space-y-3">
-                        {completedAudits.map((audit) => (
+                        {auditsToReconcile.map((audit) => (
                           <div
                             key={audit.stockTakeId}
                             className="p-3 border border-slate-100 rounded-xl bg-purple-50/50 hover:bg-purple-50 hover:border-purple-200 transition-colors cursor-pointer"
                             onClick={() =>
                               router.push(
-                                `/accountant/audit/${audit.stockTakeId}`,
+                                `/accountant/audit/detail/${audit.stockTakeId}`,
                               )
                             }
                           >
@@ -638,7 +644,9 @@ export default function AccountantDashboard() {
                                 {audit.title}
                               </span>
                               <span className="text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
-                                {t("Completed")}
+                                {audit.status === "PendingAccountantReview"
+                                  ? t("Pending Review")
+                                  : t("Pending Approval")}
                               </span>
                             </div>
                             <p className="text-xs text-slate-500 mt-1 truncate">
@@ -646,19 +654,19 @@ export default function AccountantDashboard() {
                             </p>
                           </div>
                         ))}
-                        {completedAudits.length === 0 && (
+                        {auditsToReconcile.length === 0 && (
                           <p className="text-center text-sm text-slate-500 py-4">
                             {t("No audits pending reconciliation.")}
                           </p>
                         )}
                       </div>
-                      {completedAudits.length > 0 && (
+                      {auditsToReconcile.length > 0 && (
                         <Button
                           variant="ghost"
                           className="w-full text-purple-600 hover:text-purple-700 hover:bg-purple-50 mt-2 text-sm"
                           onClick={() => router.push("/accountant/audit")}
                         >
-                          {t("View all ")} {completedAudits.length}{" "}
+                          {t("View all ")} {auditsToReconcile.length}{" "}
                           {t("audits")}
                         </Button>
                       )}

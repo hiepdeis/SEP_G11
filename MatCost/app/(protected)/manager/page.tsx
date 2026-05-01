@@ -100,8 +100,15 @@ export default function ManagerDashboard() {
 
   const activeAudits = useMemo(() => {
     return audits
-      .filter((a) => a.status === "Planned" || a.status === "Counting")
-      .slice(0, 3);
+      .filter(
+        (a) =>
+          a.status === "InProgress" ||
+          a.status === "PendingManagerReview" ||
+          a.status === "Planned" ||
+          a.status === "Assigned" ||
+          a.status === "PLAN",
+      )
+      .slice(0, 5);
   }, [audits]);
 
   const statsData: StatData[] = useMemo(() => {
@@ -643,7 +650,9 @@ export default function ManagerDashboard() {
                             key={audit.stockTakeId}
                             className="p-3 border border-slate-100 rounded-xl bg-green-50/50 hover:bg-green-50 hover:border-green-200 transition-colors cursor-pointer"
                             onClick={() =>
-                              router.push(`/manager/audit/${audit.stockTakeId}`)
+                              router.push(
+                                `/manager/audit/detail/${audit.stockTakeId}`,
+                              )
                             }
                           >
                             <div className="flex justify-between items-start mb-1">
