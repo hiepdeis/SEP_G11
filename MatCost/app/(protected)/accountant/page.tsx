@@ -50,7 +50,7 @@ interface StatData {
 
 export default function AccountantDashboard() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
@@ -240,7 +240,7 @@ export default function AccountantDashboard() {
     }
   };
 
-  const currentDate = new Date().toLocaleDateString("vi-VN", {
+  const currentDate = new Date().toLocaleDateString(i18n.language === 'vi' ? 'vi-VN' : 'en-US', {
     weekday: "long",
     year: "numeric",
     month: "long",
@@ -291,7 +291,7 @@ export default function AccountantDashboard() {
                   {t("Welcome Back")}
                 </p>
                 <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-slate-100">
-                  {t(user?.fullName || "Accountant")}
+                  {user?.fullName || t("accountant")}
                 </h1>
               </div>
               <div className="hidden md:flex items-center gap-2 text-slate-500 bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-100">

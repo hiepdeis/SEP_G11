@@ -1297,5 +1297,13 @@
   "Some images exceed the 2MB limit and were skipped.": "Some images exceed the 2MB limit and were skipped.",
   "Maximum 5 images allowed per item.": "Maximum 5 images allowed per item.",
   "Maximum 5 images allowed. Extra images were skipped.": "Maximum 5 images allowed. Extra images were skipped.",
-  "Duplicated images were skipped.": "Duplicated images were skipped."
+  "Duplicated images were skipped.": "Duplicated images were skipped.",
+  "User": "User",
+  "User ID": "User ID",
+  "Audit not found": "Audit not found",
+  "admin": "Admin",
+  "staff": "Staff",
+  "accountant": "Accountant",
+  "manager": "Manager",
+  "ID": "ID"
 }

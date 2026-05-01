@@ -25,7 +25,7 @@ type UserRole = "admin" | "manager" | "accountant" | "staff";
 interface AuditDetailProps { role: UserRole; }
 
 export default function SharedAuditDetail({ role }: AuditDetailProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const params = useParams();
   const stockTakeId = Number(params?.id);
@@ -95,7 +95,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
       // 1. Find Manager from signatures
       const managerSig = detailData.signatures?.find(s => s.role === "WarehouseManager");
       if (managerSig) {
-        setManagerInfo({ id: managerSig.userId, name: managerSig.fullName || `User #${managerSig.userId}` });
+        setManagerInfo({ id: managerSig.userId, name: managerSig.fullName || `${t("User")} #${managerSig.userId}` });
         setTargetManagerId(managerSig.userId.toString());
       }
 
@@ -367,7 +367,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   const paginatedVariances = variances.slice(startIndex, endIndex);
 
   if (loading) return <div className="h-screen w-screen flex items-center justify-center bg-slate-50"><div className="flex flex-col items-center gap-2 text-indigo-600"><Loader2 className="w-8 h-8 animate-spin" /><p className="text-sm font-medium">{t("Loading audit data...")}</p></div></div>;
-  if (!detailData) return <div className="p-10 text-center">Audit not found</div>;
+  if (!detailData) return <div className="p-10 text-center">{t("Audit not found")}</div>;
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
@@ -378,7 +378,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div className="flex items-center justify-between">
             <Button variant="ghost" onClick={() => router.back()} className="pl-0 hover:bg-transparent hover:text-indigo-600"><ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}</Button>
-            <div className="text-sm text-slate-500">{t("Created on:")} <span className="font-medium text-slate-700">{detailData.timeline?.createdAt ? new Date(detailData.timeline.createdAt).toLocaleDateString("vi-VN") : "N/A"}</span></div>
+            <div className="text-sm text-slate-500">{t("Created on:")} <span className="font-medium text-slate-700">{detailData.timeline?.createdAt ? new Date(detailData.timeline.createdAt).toLocaleDateString(i18n.language === 'vi' ? 'vi-VN' : 'en-US') : t("N/A")}</span></div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -629,7 +629,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                 )}
 
                 <CardContent className="p-6 space-y-5">
-                  <div><label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Warehouse")}</label><div className="mt-1.5 flex items-center gap-2 text-slate-800 font-medium bg-slate-50 p-2.5 rounded-md border border-slate-100"><MapPin className="w-4 h-4 text-indigo-500" />{detailData.warehouseName || `ID: ${detailData.warehouseId}`}</div></div>
+                  <div><label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Warehouse")}</label><div className="mt-1.5 flex items-center gap-2 text-slate-800 font-medium bg-slate-50 p-2.5 rounded-md border border-slate-100"><MapPin className="w-4 h-4 text-indigo-500" />{detailData.warehouseName || `${t("ID")}: ${detailData.warehouseId}`}</div></div>
                   <div><label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Current Status")}</label><div className="mt-2 flex items-center gap-2">{getStatusBadge(detailData.status || "")}</div></div>
                   {detailData.notes && (<div><label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Notes")}</label><p className="text-sm text-slate-700 mt-1.5 bg-slate-50 p-3 rounded-md border border-slate-100 leading-relaxed">{detailData.notes}</p></div>)}
                 </CardContent>
@@ -647,19 +647,19 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                     <div>
                       <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Penalize Amount")}</label>
                       <div className="mt-1.5 bg-red-50 p-2.5 rounded-md border border-red-200">
-                        <span className="text-lg font-bold text-red-700">{Number(detailData.penalty.amount).toLocaleString("vi-VN")} VNĐ</span>
+                        <span className="text-lg font-bold text-red-700">{Number(detailData.penalty.amount).toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')} VNĐ</span>
                       </div>
                     </div>
                     <div>
                       <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Penalized Manager")}</label>
                       <div className="mt-1.5 flex items-center gap-2 text-slate-800 font-medium bg-slate-50 p-2.5 rounded-md border border-slate-100">
-                        <Users className="w-4 h-4 text-red-500" />{detailData.penalty.targetUserName || `ID: ${detailData.penalty.targetUserId}`}
+                        <Users className="w-4 h-4 text-red-500" />{detailData.penalty.targetUserName || `${t("ID")}: ${detailData.penalty.targetUserId}`}
                       </div>
                     </div>
                     <div>
                       <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Issued By")}</label>
                       <div className="mt-1.5 flex items-center gap-2 text-slate-800 font-medium bg-slate-50 p-2.5 rounded-md border border-slate-100">
-                        <ShieldAlert className="w-4 h-4 text-indigo-500" />{detailData.penalty.issuedByName || `ID: ${detailData.penalty.issuedByUserId}`}
+                        <ShieldAlert className="w-4 h-4 text-indigo-500" />{detailData.penalty.issuedByName || `${t("ID")}: ${detailData.penalty.issuedByUserId}`}
                       </div>
                     </div>
                     {detailData.penalty.notes && (
@@ -670,7 +670,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                     )}
                     <div>
                       <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Issued Date")}</label>
-                      <p className="text-sm text-slate-700 mt-1.5 font-medium">{new Date(detailData.penalty.createdAt).toLocaleString("vi-VN")}</p>
+                      <p className="text-sm text-slate-700 mt-1.5 font-medium">{new Date(detailData.penalty.createdAt).toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}</p>
                     </div>
                   </CardContent>
                 </Card>

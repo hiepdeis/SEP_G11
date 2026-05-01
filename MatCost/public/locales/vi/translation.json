@@ -1745,7 +1745,8 @@
   "Trạng thái": "Trạng thái",
   "Incident Frequency Trend": "Biểu đồ Mức độ sự cố",
   "Incidents": "Các sự cố",
-  "Resolution Status": "Trạng thái giải quyết","Track and manage all inbound incidents.": "Theo dõi và quản lý tất cả sự cố nhập hàng.",
+  "Resolution Status": "Trạng thái giải quyết",
+  "Track and manage all inbound incidents.": "Theo dõi và quản lý tất cả sự cố nhập hàng.",
   "Không có dữ liệu để xuất với bộ lọc hiện tại.": "Không có dữ liệu xuất theo bộ lọc hiện tại.",
   "Tải báo cáo Excel thành công!": "Xuất báo cáo Excel thành công!",
   "Tính năng xuất PDF đang được phát triển.": "Tính năng xuất PDF đang được phát triển.",
@@ -1821,7 +1822,7 @@
   "No pending incidents to resolve.": "Không có sự cố nào cần giải quyết.",
   "incidents": "sự cố",
   "issue slips": "phiếu xuất kho",
-  "Issue Slips to Process": "Phiếu xuất kho cần xử lý"  ,
+  "Issue Slips to Process": "Phiếu xuất kho cần xử lý",
   "Approved POs": "PO đã duyệt",
   "Forwarded Slips": "Phiếu xuất kho",
   "Require direct PO": "Cần tạo PO trực tiếp",
@@ -1908,5 +1909,12 @@
   "Recent Incidents": "Sự cố gần đây",
   "No recent incidents reported.": "Không có sự cố nào gần đây.",
   "View all incidents": "Xem tất cả sự cố",
-  "Status: ": "Trạng thái: "
+  "Status: ": "Trạng thái: ",
+  "User": "Người dùng",
+  "User ID": "ID người dùng",
+  "Audit not found": "Không tìm thấy phiên kiểm kê",
+  "admin": "Quản trị viên",
+  "staff": "Nhân viên kho",
+  "accountant": "Kế toán",
+  "manager": "Quản lý kho"
 }

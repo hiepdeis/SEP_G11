@@ -405,7 +405,7 @@ export default function StaffCountingPage() {
                         <Table className="w-full min-w-[800px] table-fixed">
                             <TableHeader className="sticky top-0 z-20 bg-slate-100 shadow-sm outline outline-1 outline-slate-200">
                                 <TableRow>
-                                    <TableHead className="w-[6%] text-center pl-4 font-bold text-slate-800 text-[11px] tracking-wider uppercase">STT</TableHead>
+                                    <TableHead className="w-[6%] text-center pl-4 font-bold text-slate-800 text-[11px] tracking-wider uppercase">{t("No.")}</TableHead>
                                     <TableHead className="w-[28%] font-bold text-slate-800 text-[11px] tracking-wider uppercase">{t("Material")}</TableHead>
                                     <TableHead className="w-[12%] text-center font-bold text-slate-800 text-[11px] tracking-wider uppercase">{t("Batch")}</TableHead>
                                     <TableHead className="w-[12%] text-center font-bold text-slate-800 text-[11px] tracking-wider uppercase">{t("Bin")}</TableHead>
@@ -430,7 +430,7 @@ export default function StaffCountingPage() {
                                             <TableCell className="text-center pl-4 text-slate-500 text-sm font-medium">{startIndex + idx + 1}</TableCell>
                                             <TableCell>
                                                 <div className="font-bold text-slate-800 truncate" title={task.materialName}>{task.materialName}</div>
-                                                <div className="text-xs text-slate-500 uppercase mt-0.5">Mã: {task.materialId}</div>
+                                                <div className="text-xs text-slate-500 uppercase mt-0.5">{t("Code")}: {task.materialId}</div>
                                             </TableCell>
                                             <TableCell className="text-center">
                                                 <span className="text-sm font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded">{task.batchCode || '-'}</span>

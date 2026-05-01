@@ -90,8 +90,8 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-const formatDate = (dateStr: string) => {
-  return new Date(dateStr).toLocaleDateString("vi-VN", {
+const formatDate = (dateStr: string, language: string = 'vi') => {
+  return new Date(dateStr).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US', {
     month: "short",
     day: "numeric",
   });
@@ -100,7 +100,7 @@ const formatDate = (dateStr: string) => {
 // --- PAGE COMPONENT ---
 export default function DashboardPage() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
 
   const [pendingOrders, setPendingOrders] = useState<PurchaseOrderDto[]>([]);
@@ -216,7 +216,7 @@ export default function DashboardPage() {
       ).length;
 
       return {
-        date: formatDate(date),
+        date: formatDate(date, i18n.language),
         orders: pos,
         requests: prs,
         issues: issues,
@@ -288,7 +288,7 @@ export default function DashboardPage() {
                 {t("Welcome Back")}
               </p>
               <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-slate-100">
-                {t(user?.fullName || "Admin")}
+                {user?.fullName || t("admin")}
               </h1>
             </div>
             <div className="flex items-center gap-2 p-1 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl shadow-sm">
