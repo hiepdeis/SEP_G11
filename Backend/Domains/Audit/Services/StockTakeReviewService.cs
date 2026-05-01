@@ -60,6 +60,7 @@ namespace Backend.Domains.Audit.Services
             return _db.InventoryCurrents
                 .AsNoTracking()
                 .Where(x => x.WarehouseId == warehouseId &&
+                           (x.QuantityOnHand ?? 0) != 0 &&
                            (!scopedBinIds.Any() || scopedBinIds.Contains(x.BinId)));
         }
 
@@ -205,9 +206,20 @@ namespace Backend.Domains.Audit.Services
 
             foreach (var st in audits)
             {
-                // Get item counts in audit scope (bin-level or whole warehouse).
-                var totalItems = await BuildScopedInventoryQuery(st.StockTakeId, st.WarehouseId)
-                    .CountAsync(ct);
+                // Get item counts. Use StockTakeDetails as truth if audit is in progress/completed.
+                // Fallback to live InventoryCurrent only for Planned/Assigned audits.
+                int totalItems;
+                if (st.Status == "Planned" || st.Status == "Assigned")
+                {
+                    totalItems = await BuildScopedInventoryQuery(st.StockTakeId, st.WarehouseId)
+                        .CountAsync(ct);
+                }
+                else
+                {
+                    totalItems = await _db.StockTakeDetails
+                        .Where(x => x.StockTakeId == st.StockTakeId)
+                        .CountAsync(ct);
+                }
 
                 var countedItems = await _db.StockTakeDetails
                     .AsNoTracking()
@@ -739,12 +751,13 @@ namespace Backend.Domains.Audit.Services
             }
 
             // 1. Identify all materials in the audit scope (InventoryCurrent matching warehouse and assigned bins)
+            // We only include items that have stock.
             var assignedBinIds = await _db.StockTakeBinLocations
                 .Where(x => x.StockTakeId == stockTakeId)
                 .Select(x => x.BinId)
                 .ToListAsync(ct);
 
-            var query = _db.InventoryCurrents.Where(x => x.WarehouseId == st.WarehouseId);
+            var query = _db.InventoryCurrents.Where(x => x.WarehouseId == st.WarehouseId && (x.QuantityOnHand ?? 0) != 0);
             if (assignedBinIds.Any())
             {
                 query = query.Where(x => assignedBinIds.Contains(x.BinId));
@@ -930,9 +943,19 @@ namespace Backend.Domains.Audit.Services
                 .OrderBy(x => x.FullName)
                 .ToListAsync(ct);
 
-            // Get metrics
-            var scopedInventoryQuery = BuildScopedInventoryQuery(stockTakeId, st.WarehouseId);
-            var totalItems = await scopedInventoryQuery.CountAsync(ct);
+            // Get metrics. Use StockTakeDetails as truth if audit is in progress/completed.
+            int totalItems;
+            if (st.Status == "Planned" || st.Status == "Assigned")
+            {
+                var scopedInventoryQuery = BuildScopedInventoryQuery(stockTakeId, st.WarehouseId);
+                totalItems = await scopedInventoryQuery.CountAsync(ct);
+            }
+            else
+            {
+                totalItems = await _db.StockTakeDetails
+                    .Where(x => x.StockTakeId == stockTakeId)
+                    .CountAsync(ct);
+            }
 
             var countedItems = await _db.StockTakeDetails
                 .AsNoTracking()

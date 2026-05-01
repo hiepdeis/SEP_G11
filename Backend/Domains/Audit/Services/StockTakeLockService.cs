@@ -112,6 +112,43 @@ namespace Backend.Domains.Audit.Services
                 st.CheckDate ??= DateTime.UtcNow;
             }
 
+            // === Snapshot the audit scope by initializing StockTakeDetails ===
+            // This ensures totalItems is stable even if live inventory changes later.
+            // We only include items that currently have stock.
+            var inventoryQuery = _db.InventoryCurrents.Where(x => x.WarehouseId == st.WarehouseId && (x.QuantityOnHand ?? 0) != 0);
+            if (assignedBinIds.Any())
+            {
+                inventoryQuery = inventoryQuery.Where(x => assignedBinIds.Contains(x.BinId));
+            }
+
+            var itemsInScope = await inventoryQuery.ToListAsync(ct);
+            var existingDetails = await _db.StockTakeDetails
+                .Where(x => x.StockTakeId == stockTakeId)
+                .ToListAsync(ct);
+
+            foreach (var inv in itemsInScope)
+            {
+                var exists = existingDetails.Any(d => 
+                    d.MaterialId == inv.MaterialId && 
+                    d.BinId == inv.BinId && 
+                    d.BatchId == inv.BatchId);
+                
+                if (!exists)
+                {
+                    _db.StockTakeDetails.Add(new StockTakeDetail
+                    {
+                        StockTakeId = stockTakeId,
+                        MaterialId = inv.MaterialId,
+                        BinId = inv.BinId,
+                        BatchId = inv.BatchId,
+                        SystemQty = inv.QuantityOnHand ?? 0m,
+                        CountQty = null,
+                        CountRound = 1,
+                        DiscrepancyStatus = null
+                    });
+                }
+            }
+
             await _notificationService.QueueAuditNotificationAsync(
                 stockTakeId,
                 $"Audit #{st.StockTakeId} ({st.Title}) đã được khóa phạm vi và bắt đầu kiểm kê.",

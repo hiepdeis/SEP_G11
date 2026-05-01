@@ -96,6 +96,7 @@ namespace Backend.Domains.Audit.Services
             return _db.InventoryCurrents
                 .AsNoTracking()
                 .Where(x => x.WarehouseId == warehouseId &&
+                           (x.QuantityOnHand ?? 0) != 0 &&
                            (!assignedBinIds.Any() || assignedBinIds.Contains(x.BinId)));
         }
 
