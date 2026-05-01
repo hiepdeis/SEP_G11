@@ -1,4 +1,5 @@
 using Backend.Data;
+using Backend.Domains.Audit.Interfaces;
 using Backend.Domains.Import.DTOs.Accountants;
 using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.DTOs.Purchasing;
@@ -14,10 +15,12 @@ namespace Backend.Domains.Import.Services
     {
         private readonly MyDbContext _context;
         private readonly INotificationDispatcher _notificationDispatcher;
-        public ReceiptService(MyDbContext context, INotificationDispatcher notificationDispatcher)
+        private readonly IAuditLockCheckService _auditLockCheck;
+        public ReceiptService(MyDbContext context, INotificationDispatcher notificationDispatcher, IAuditLockCheckService auditLockCheck)
         {
             _context = context;
             _notificationDispatcher = notificationDispatcher;
+            _auditLockCheck = auditLockCheck;
         }
 
 
@@ -206,6 +209,13 @@ namespace Backend.Domains.Import.Services
                     // Update Inventory (skip if ActualQuantity = 0)
                     if (item.ActualQuantity > 0)
                     {
+                        // Check audit lock for this bin
+                        if (receipt.WarehouseId.HasValue)
+                        {
+                            var isLocked = await _auditLockCheck.IsBinLockedAsync(receipt.WarehouseId.Value, item.BinLocationId, default);
+                            if (isLocked)
+                                throw new InvalidOperationException($"Vị trí kệ (Bin) đang bị khóa để kiểm kê. Không thể nhập hàng vào vị trí này.");
+                        }
                         var inventory = await _context.InventoryCurrents
                             .FirstOrDefaultAsync(i =>
                                 i.WarehouseId == receipt.WarehouseId &&
@@ -950,6 +960,11 @@ namespace Backend.Domains.Import.Services
                 var binMap = await _context.BinLocations
                     .Where(b => binIds.Contains(b.BinId))
                     .ToDictionaryAsync(b => b.BinId, b => b);
+
+                // Check audit lock for all target bins before proceeding
+                var lockMessage = await _auditLockCheck.CheckBinsForLockAsync(receipt.WarehouseId.Value, binIds, default);
+                if (lockMessage != null)
+                    throw new InvalidOperationException(lockMessage);
 
                 var summary = new List<ReceiptPutawaySummaryDto>();
                 var costUpdateItems = new List<MaterialCostUpdateItem>();

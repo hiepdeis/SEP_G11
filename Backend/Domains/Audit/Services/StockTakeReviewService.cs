@@ -944,16 +944,26 @@ namespace Backend.Domains.Audit.Services
                 .ToListAsync(ct);
 
             // Get metrics. Use StockTakeDetails as truth if audit is in progress/completed.
+            var scopedInventoryQuery = BuildScopedInventoryQuery(stockTakeId, st.WarehouseId);
             int totalItems;
+            int totalMaterials;
             if (st.Status == "Planned" || st.Status == "Assigned")
             {
-                var scopedInventoryQuery = BuildScopedInventoryQuery(stockTakeId, st.WarehouseId);
                 totalItems = await scopedInventoryQuery.CountAsync(ct);
+                totalMaterials = await scopedInventoryQuery
+                    .Select(x => x.MaterialId)
+                    .Distinct()
+                    .CountAsync(ct);
             }
             else
             {
                 totalItems = await _db.StockTakeDetails
                     .Where(x => x.StockTakeId == stockTakeId)
+                    .CountAsync(ct);
+                totalMaterials = await _db.StockTakeDetails
+                    .Where(x => x.StockTakeId == stockTakeId)
+                    .Select(x => x.MaterialId)
+                    .Distinct()
                     .CountAsync(ct);
             }
 
@@ -976,10 +986,6 @@ namespace Backend.Domains.Audit.Services
                     (x.DiscrepancyStatus == "Discrepancy" || x.DiscrepancyStatus == "Recounted"), ct);
 
             // Get materials
-            var totalMaterials = await scopedInventoryQuery
-                .Select(x => x.MaterialId)
-                .Distinct()
-                .CountAsync(ct);
 
             var countedMaterials = await _db.StockTakeDetails
                 .AsNoTracking()
