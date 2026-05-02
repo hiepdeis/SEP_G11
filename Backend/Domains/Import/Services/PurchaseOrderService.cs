@@ -79,6 +79,20 @@ namespace Backend.Domains.Import.Services
                 throw;
             }
 
+            var message = $"Đơn mua hàng nháp mới đã được tạo cho yêu cầu {requestId} bởi đội Thu Mua: {_context.Users.FirstOrDefault(u => u.UserId == purchasingId)?.FullName}. Vui lòng kiểm tra và phê duyệt.";
+            await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
+            {
+                RoleName = "Purchasing",
+                FallbackRoleName = "Admin",
+                OnlyActiveUsers = true,
+                Message = message,
+                RelatedEntityType = "PurchaseRequest",
+                RelatedEntityId = requestId,
+                SendEmail = true,
+                SendEmailInBackground = true,
+                SaveChanges = true
+            }, CancellationToken.None);
+
             return orders;
         }
 
@@ -269,6 +283,20 @@ namespace Backend.Domains.Import.Services
 
             await _context.SaveChangesAsync();
 
+            var message = $"PO {purchaseOrder.PurchaseOrderCode} đã được Kế Toán phê duyệt";
+            await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
+            {
+                RoleName = "Purchasing",
+                FallbackRoleName = "Admin",
+                OnlyActiveUsers = true,
+                Message = message,
+                RelatedEntityType = "PurchaseOrder",
+                RelatedEntityId = purchaseOrder.PurchaseOrderId,
+                SendEmail = true,
+                SendEmailInBackground = true,
+                SaveChanges = true
+            }, CancellationToken.None);
+
             return purchaseOrder;
         }
 
@@ -333,6 +361,20 @@ namespace Backend.Domains.Import.Services
             purchaseOrder.AdminApprovedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+
+            var message = $"PO {purchaseOrder.PurchaseOrderCode} đã được Giám đốc phê duyệt";
+            await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
+            {
+                RoleName = "Purchasing",
+                FallbackRoleName = "Accountant",
+                OnlyActiveUsers = true,
+                Message = message,
+                RelatedEntityType = "PurchaseOrder",
+                RelatedEntityId = purchaseOrder.PurchaseOrderId,
+                SendEmail = true,
+                SendEmailInBackground = true,
+                SaveChanges = true
+            }, CancellationToken.None);
 
             return purchaseOrder;
         }

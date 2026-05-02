@@ -91,9 +91,9 @@ namespace Backend.Domains.Import.Services
             await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
             {
                 RoleName = "Purchasing",
-                FallbackRoleName = "Admin",
+                FallbackRoleName = "WarehouseManager",
                 OnlyActiveUsers = true,
-                Message = $"Yêu cầu mua hàng có mã: {request.RequestCode} đã được tạo với cảnh báo có id: {alert.AlertId}.",
+                Message = $"Yêu cầu mua hàng có mã: {request.RequestCode} đã được tạo bởi Giám Đốc với cảnh báo có id: {alert.AlertId}.",
                 RelatedEntityType = "PurchaseRequest",
                 RelatedEntityId = request.RequestId,
                 SendEmail = true,

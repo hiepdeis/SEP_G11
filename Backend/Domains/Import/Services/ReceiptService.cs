@@ -994,20 +994,31 @@ namespace Backend.Domains.Import.Services
                     }
 
                     Batch batch;
-                    if (item.Batch.BatchId.HasValue)
-                    {
-                        batch = await _context.Batches
-                            .FirstOrDefaultAsync(b => b.BatchId == item.Batch.BatchId.Value)
-                            ?? throw new KeyNotFoundException($"Batch with ID {item.Batch.BatchId} not found");
 
+                    if (string.IsNullOrWhiteSpace(item.Batch.BatchCode))
+                    {
+                        throw new ArgumentException("BatchCode is required!");
+                    }
+
+                    // Kiểm tra trong database xem Lô hàng này đã tồn tại chưa
+                    batch = await _context.Batches.FirstOrDefaultAsync(b => b.BatchCode == item.Batch.BatchCode);
+
+                    if (batch != null)
+                    {
                         if (batch.MaterialId != item.MaterialId)
-                            throw new InvalidOperationException("Batch khong thuoc material nay");
+                            throw new ArgumentException("Batch này thuộc về một vật tư khác!");
+
+                        if (batch.MfgDate != item.Batch.MfgDate || batch.ExpiryDate != item.Batch.ExpiryDate)
+                            throw new InvalidOperationException($"Lô hàng {batch.BatchCode} đã tồn tại trong hệ thống với Ngày SX: {batch.MfgDate:dd/MM/yyyy}. Dữ liệu bạn nhập không khớp. Vui lòng kiểm tra lại có gõ nhầm mã lô không!");
+
+                        if (!string.IsNullOrEmpty(item.Batch.CertificateImage) && batch.CertificateImage != item.Batch.CertificateImage)
+                        {
+                            batch.CertificateImage = item.Batch.CertificateImage;
+                            _context.Batches.Update(batch);
+                        }
                     }
                     else
                     {
-                        if (string.IsNullOrWhiteSpace(item.Batch.BatchCode))
-                            throw new ArgumentException("BatchCode is required when creating new batch");
-
                         batch = new Batch
                         {
                             MaterialId = item.MaterialId,
