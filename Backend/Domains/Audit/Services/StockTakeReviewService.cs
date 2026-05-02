@@ -215,7 +215,7 @@ namespace Backend.Domains.Audit.Services
                         from inv in BuildScopedInventoryQuery(st.StockTakeId, st.WarehouseId)
                         join b in _db.Batches.AsNoTracking() on inv.BatchId equals b.BatchId
                         join bin in _db.BinLocations.AsNoTracking() on inv.BinId equals bin.BinId
-                        select new { inv.MaterialId, b.BatchCode, BinCode = bin.Code }
+                        select new { inv.MaterialId, b.BatchCode, b.MfgDate, b.ExpiryDate, BinCode = bin.Code }
                     ).Distinct().CountAsync(ct);
                 }
                 else
@@ -306,7 +306,7 @@ namespace Backend.Domains.Audit.Services
                     from inv in scopedInventoryQuery
                     join b in _db.Batches.AsNoTracking() on inv.BatchId equals b.BatchId
                     join bin in _db.BinLocations.AsNoTracking() on inv.BinId equals bin.BinId
-                    select new { inv.MaterialId, b.BatchCode, BinCode = bin.Code }
+                    select new { inv.MaterialId, b.BatchCode, b.MfgDate, b.ExpiryDate, BinCode = bin.Code }
                 ).Distinct().CountAsync(ct);
             }
             else
@@ -968,12 +968,12 @@ namespace Backend.Domains.Audit.Services
             int totalMaterials;
             if (st.Status == "Planned" || st.Status == "Assigned" || st.Status == "InProgress")
             {
-                totalItems = await (
-                    from inv in scopedInventoryQuery
-                    join b in _db.Batches.AsNoTracking() on inv.BatchId equals b.BatchId
-                    join bin in _db.BinLocations.AsNoTracking() on inv.BinId equals bin.BinId
-                    select new { inv.MaterialId, b.BatchCode, BinCode = bin.Code }
-                ).Distinct().CountAsync(ct);
+                    totalItems = await (
+                        from inv in scopedInventoryQuery
+                        join b in _db.Batches.AsNoTracking() on inv.BatchId equals b.BatchId
+                        join bin in _db.BinLocations.AsNoTracking() on inv.BinId equals bin.BinId
+                        select new { inv.MaterialId, b.BatchCode, b.MfgDate, b.ExpiryDate, BinCode = bin.Code }
+                    ).Distinct().CountAsync(ct);
 
                 totalMaterials = await scopedInventoryQuery
                     .Select(x => x.MaterialId)
@@ -1216,7 +1216,7 @@ namespace Backend.Domains.Audit.Services
                     from inv in BuildScopedInventoryQuery(stockTakeId, st.WarehouseId)
                     join b in _db.Batches.AsNoTracking() on inv.BatchId equals b.BatchId
                     join bin in _db.BinLocations.AsNoTracking() on inv.BinId equals bin.BinId
-                    select new { inv.MaterialId, b.BatchCode, BinCode = bin.Code }
+                    select new { inv.MaterialId, b.BatchCode, b.MfgDate, b.ExpiryDate, BinCode = bin.Code }
                 ).Distinct().CountAsync(ct);
             }
             else

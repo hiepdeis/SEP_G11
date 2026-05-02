@@ -214,11 +214,13 @@ namespace Backend.Domains.Audit.Services
                     BinCode = bin.Code,
                     BatchId = inv.BatchId,
                     BatchCode = b.BatchCode,
+                    b.MfgDate,
+                    b.ExpiryDate,
                     CountQty = d.CountQty
                 };
 
             return await q
-                .GroupBy(x => new { x.MaterialId, x.MaterialName, x.BatchCode, x.BinCode, x.CountQty })
+                .GroupBy(x => new { x.MaterialId, x.MaterialName, x.BatchCode, x.MfgDate, x.ExpiryDate, x.BinCode, x.CountQty })
                 .Select(g => new 
                 {
                     g.Key.MaterialId,
@@ -303,12 +305,14 @@ namespace Backend.Domains.Audit.Services
                     BinId = inv.BinId,
                     BinCode = bin.Code,
                     BatchId = inv.BatchId,
-                    BatchCode = b.BatchCode
+                    BatchCode = b.BatchCode,
+                    b.MfgDate,
+                    b.ExpiryDate
                 };
 
             // GROUP BY BUSINESS KEYS
             return await q
-                .GroupBy(x => new { x.MaterialId, x.MaterialName, x.BatchCode, x.BinCode })
+                .GroupBy(x => new { x.MaterialId, x.MaterialName, x.BatchCode, x.MfgDate, x.ExpiryDate, x.BinCode })
                 .Select(g => new 
                 {
                     g.Key.MaterialId,
@@ -422,6 +426,8 @@ namespace Backend.Domains.Audit.Services
                     x.MaterialId,
                     MaterialName = x.Material != null ? x.Material.Name : null,
                     BatchCode = x.Batch != null ? x.Batch.BatchCode : null,
+                    MfgDate = x.Batch != null ? x.Batch.MfgDate : null,
+                    ExpiryDate = x.Batch != null ? x.Batch.ExpiryDate : null,
                     BinCode = x.Bin != null ? x.Bin.Code : null,
                     x.BatchId,
                     x.BinId,
@@ -432,7 +438,7 @@ namespace Backend.Domains.Audit.Services
                     x.CountedAt,
                     x.DiscrepancyStatus
                 })
-                .GroupBy(x => new { x.MaterialId, x.MaterialName, x.BatchCode, x.BinCode })
+                .GroupBy(x => new { x.MaterialId, x.MaterialName, x.BatchCode, x.MfgDate, x.ExpiryDate, x.BinCode })
                 .Select(g => new CountingDto
                 {
                     MaterialId = g.Key.MaterialId,
@@ -443,7 +449,7 @@ namespace Backend.Domains.Audit.Services
                     SystemQty = g.Sum(x => x.SystemQty),
                     CountQty = g.Max(x => x.CountQty),
                     Variance = g.Max(x => x.Variance),
-                    DiscrepancyStatus = g.Max(x => x.DiscrepancyStatus), // "RecountRequested" is usually higher than "Matched" alphabetically if we are lucky, but better to be safe
+                    DiscrepancyStatus = g.Max(x => x.DiscrepancyStatus), 
                     BatchId = g.Min(x => x.BatchId) ?? 0,
                     BinId = g.Min(x => x.BinId) ?? 0,
                     CountedBy = g.Max(x => x.CountedBy),
@@ -648,14 +654,18 @@ namespace Backend.Domains.Audit.Services
             if (string.IsNullOrWhiteSpace(batchCode))
                 return (false, "BatchCode is required.");
 
-            var batchId = await _db.Batches
+            var batch = await _db.Batches
                 .AsNoTracking()
                 .Where(b => b.BatchCode == batchCode && b.MaterialId == request.MaterialId)
-                .Select(b => b.BatchId)
+                .OrderBy(b => b.BatchId)
                 .FirstOrDefaultAsync(ct);
 
-            if (batchId == 0)
+            if (batch == null)
                 return (false, "BatchCode not found for this material.");
+
+            var batchId = batch.BatchId;
+            var mfgDate = batch.MfgDate;
+            var expiryDate = batch.ExpiryDate;
 
             var binCode = request.BinCode?.Trim();
             if (string.IsNullOrWhiteSpace(binCode))
@@ -693,8 +703,7 @@ namespace Backend.Domains.Audit.Services
                     : "BinLocation is currently locked by another active audit.");
             }
 
-            // Sum up system quantity across all rows matching this Material/BatchCode/BinCode
-            // (In case there are duplicate technical IDs for the same business codes)
+            // Sum up system quantity across all rows matching this Material/BatchCode/Dates/BinCode
             var systemQty = await (
                 from inventory in _db.InventoryCurrents.AsNoTracking()
                 join b in _db.Batches.AsNoTracking() on inventory.BatchId equals b.BatchId
@@ -702,6 +711,8 @@ namespace Backend.Domains.Audit.Services
                 where inventory.WarehouseId == st.WarehouseId &&
                       inventory.MaterialId == request.MaterialId &&
                       b.BatchCode == batchCode &&
+                      b.MfgDate == mfgDate &&
+                      b.ExpiryDate == expiryDate &&
                       bin.Code == binCode
                 select inventory.QuantityOnHand ?? 0m
             ).SumAsync(ct);
@@ -714,6 +725,8 @@ namespace Backend.Domains.Audit.Services
                 where inventory.WarehouseId == st.WarehouseId &&
                       inventory.MaterialId == request.MaterialId &&
                       b.BatchCode == batchCode &&
+                      b.MfgDate == mfgDate &&
+                      b.ExpiryDate == expiryDate &&
                       bin.Code == binCode
                 select 1
             ).AnyAsync(ct);
@@ -726,7 +739,9 @@ namespace Backend.Domains.Audit.Services
                     join b in _db.Batches.AsNoTracking() on inventory.BatchId equals b.BatchId
                     where inventory.WarehouseId == st.WarehouseId &&
                           inventory.MaterialId == request.MaterialId &&
-                          b.BatchCode == batchCode
+                          b.BatchCode == batchCode &&
+                          b.MfgDate == mfgDate &&
+                          b.ExpiryDate == expiryDate
                     select 1
                 ).AnyAsync(ct);
 
@@ -738,20 +753,24 @@ namespace Backend.Domains.Audit.Services
 
             var variance = request.CountQty - systemQty;
 
-            var detail = await _db.StockTakeDetails
-                .FirstOrDefaultAsync(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.MaterialId == request.MaterialId &&
-                    x.BatchId == batchId &&
-                    x.BinId == binId, ct);
-            if (detail != null &&
-    string.Equals(detail.DiscrepancyStatus, "RecountRequested", StringComparison.OrdinalIgnoreCase))
+            // Update ALL matching detail records (in case duplicates were created before or technical IDs mismatch)
+            var detailsToUpdate = await (
+                from d in _db.StockTakeDetails
+                join b in _db.Batches on d.BatchId equals b.BatchId
+                join bin in _db.BinLocations on d.BinId equals bin.BinId
+                where d.StockTakeId == stockTakeId &&
+                      d.MaterialId == request.MaterialId &&
+                      b.BatchCode == batchCode &&
+                      b.MfgDate == mfgDate &&
+                      b.ExpiryDate == expiryDate &&
+                      bin.Code == binCode
+                select d
+            ).ToListAsync(ct);
+
+            if (detailsToUpdate.Count == 0)
             {
-                return (false, "This item is waiting for recount. Please use recount API.");
-            }
-            if (detail == null)
-            {
-                detail = new StockTakeDetail
+                // Fallback to creating a new detail record for the canonical IDs
+                var detail = new StockTakeDetail
                 {
                     StockTakeId = stockTakeId,
                     MaterialId = request.MaterialId,
@@ -769,13 +788,21 @@ namespace Backend.Domains.Audit.Services
             }
             else
             {
-                detail.SystemQty = systemQty;
-                detail.CountQty = request.CountQty;
-                detail.CountRound = detail.CountRound <= 0 ? 1 : detail.CountRound;
-                detail.Variance = variance;
-                detail.CountedBy = userId;
-                detail.CountedAt = DateTime.UtcNow;
-                detail.DiscrepancyStatus = variance == 0 ? "Matched" : "Discrepancy";
+                foreach (var detail in detailsToUpdate)
+                {
+                    // If it's already requested for recount, we don't update it via this basic API
+                    // (Actually the UI should have blocked this, but let's be safe)
+                    if (string.Equals(detail.DiscrepancyStatus, "RecountRequested", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    detail.SystemQty = systemQty;
+                    detail.CountQty = request.CountQty;
+                    detail.CountRound = 1;
+                    detail.Variance = variance;
+                    detail.CountedBy = userId;
+                    detail.CountedAt = DateTime.UtcNow;
+                    detail.DiscrepancyStatus = variance == 0 ? "Matched" : "Discrepancy";
+                }
             }
 
             await _db.SaveChangesAsync(ct);
@@ -824,14 +851,18 @@ namespace Backend.Domains.Audit.Services
             if (string.IsNullOrWhiteSpace(binCode))
                 return (false, "BinCode is required.");
 
-            var batchId = await _db.Batches
+            var batch = await _db.Batches
                 .AsNoTracking()
                 .Where(b => b.BatchCode == batchCode && b.MaterialId == request.MaterialId)
-                .Select(b => b.BatchId)
+                .OrderBy(b => b.BatchId)
                 .FirstOrDefaultAsync(ct);
 
-            if (batchId == 0)
+            if (batch == null)
                 return (false, "BatchCode not found for this material.");
+
+            var batchId = batch.BatchId;
+            var mfgDate = batch.MfgDate;
+            var expiryDate = batch.ExpiryDate;
 
             var binCodeLower = binCode.ToLower();
 
@@ -865,7 +896,7 @@ namespace Backend.Domains.Audit.Services
                     : "BinLocation is currently locked by another active audit.");
             }
 
-            // Sum up system quantity across all rows matching this Material/BatchCode/BinCode
+            // Sum up system quantity across all rows matching this Material/BatchCode/Dates/BinCode
             var systemQty = await (
                 from inventory in _db.InventoryCurrents.AsNoTracking()
                 join b in _db.Batches.AsNoTracking() on inventory.BatchId equals b.BatchId
@@ -873,6 +904,8 @@ namespace Backend.Domains.Audit.Services
                 where inventory.WarehouseId == st.WarehouseId &&
                       inventory.MaterialId == request.MaterialId &&
                       b.BatchCode == batchCode &&
+                      b.MfgDate == mfgDate &&
+                      b.ExpiryDate == expiryDate &&
                       bin.Code == binCode
                 select inventory.QuantityOnHand ?? 0m
             ).SumAsync(ct);
@@ -885,6 +918,8 @@ namespace Backend.Domains.Audit.Services
                 where inventory.WarehouseId == st.WarehouseId &&
                       inventory.MaterialId == request.MaterialId &&
                       b.BatchCode == batchCode &&
+                      b.MfgDate == mfgDate &&
+                      b.ExpiryDate == expiryDate &&
                       bin.Code == binCode
                 select 1
             ).AnyAsync(ct);
@@ -892,64 +927,79 @@ namespace Backend.Domains.Audit.Services
             if (!itemExistsInInventory)
                 return (false, "InventoryCurrent row not found for this material/bin/batch.");
 
-            var detail = await _db.StockTakeDetails
-                .FirstOrDefaultAsync(x =>
-                    x.StockTakeId == stockTakeId &&
-                    x.MaterialId == request.MaterialId &&
-                    x.BatchId == batchId &&
-                    x.BinId == binId, ct);
+            // Find ALL matching detail records
+            var detailsToUpdate = await (
+                from d in _db.StockTakeDetails
+                join b in _db.Batches on d.BatchId equals b.BatchId
+                join bin in _db.BinLocations on d.BinId equals bin.BinId
+                where d.StockTakeId == stockTakeId &&
+                      d.MaterialId == request.MaterialId &&
+                      b.BatchCode == batchCode &&
+                      b.MfgDate == mfgDate &&
+                      b.ExpiryDate == expiryDate &&
+                      bin.Code == binCode &&
+                      d.DiscrepancyStatus == "RecountRequested"
+                select d
+            ).ToListAsync(ct);
 
-            // If not found by canonical IDs, try to find ANY detail row for this triplet that has RecountRequested
-            if (detail == null)
+            if (detailsToUpdate.Count == 0)
             {
-                detail = await (
+                // Check if maybe it's already recounted/matched (to give a better error message or allow re-save)
+                var alreadyDone = await (
                     from d in _db.StockTakeDetails
                     join b in _db.Batches on d.BatchId equals b.BatchId
                     join bin in _db.BinLocations on d.BinId equals bin.BinId
                     where d.StockTakeId == stockTakeId &&
                           d.MaterialId == request.MaterialId &&
                           b.BatchCode == batchCode &&
+                          b.MfgDate == mfgDate &&
+                          b.ExpiryDate == expiryDate &&
                           bin.Code == binCode &&
-                          d.DiscrepancyStatus == "RecountRequested"
-                    select d
-                ).FirstOrDefaultAsync(ct);
-            }
-
-            if (detail == null)
-            {
-                // Check if item exists with a DIFFERENT bin (user entered wrong bin code)
-                var existsWithOtherBin = await (
-                    from d in _db.StockTakeDetails
-                    join b in _db.Batches on d.BatchId equals b.BatchId
-                    where d.StockTakeId == stockTakeId &&
-                          d.MaterialId == request.MaterialId &&
-                          b.BatchCode == batchCode &&
-                          d.DiscrepancyStatus == "RecountRequested"
+                          (d.DiscrepancyStatus == "Matched" || d.DiscrepancyStatus == "Recounted")
                     select 1
                 ).AnyAsync(ct);
 
-                if (existsWithOtherBin)
-                    return (false, "Incorrect Bin Code for this item. Please check and try again.");
-
-                return (false, "This item has not been requested for recount.");
+                if (alreadyDone)
+                {
+                    // Update the ones that are already done too (allow correction)
+                    detailsToUpdate = await (
+                        from d in _db.StockTakeDetails
+                        join b in _db.Batches on d.BatchId equals b.BatchId
+                        join bin in _db.BinLocations on d.BinId equals bin.BinId
+                        where d.StockTakeId == stockTakeId &&
+                              d.MaterialId == request.MaterialId &&
+                              b.BatchCode == batchCode &&
+                              b.MfgDate == mfgDate &&
+                              b.ExpiryDate == expiryDate &&
+                              bin.Code == binCode
+                        select d
+                    ).ToListAsync(ct);
+                }
+                else
+                {
+                    return (false, "This item has not been requested for recount.");
+                }
             }
 
             var variance = request.CountQty - systemQty;
 
-            detail.SystemQty = systemQty;
-            detail.CountQty = request.CountQty;
-            detail.CountRound = 2;
-            detail.Variance = variance;
-            detail.CountedBy = userId;
-            detail.CountedAt = DateTime.UtcNow;
-            detail.DiscrepancyStatus = variance == 0 ? "Matched" : "Recounted";
-            detail.ResolutionAction = null;
-            detail.AdjustmentReasonId = null;
-            detail.Reason = null;
-            detail.ResolvedBy = null;
-            detail.ResolvedAt = null;
-            await _db.SaveChangesAsync(ct);
+            foreach (var detail in detailsToUpdate)
+            {
+                detail.SystemQty = systemQty;
+                detail.CountQty = request.CountQty;
+                detail.CountRound = 2;
+                detail.Variance = variance;
+                detail.CountedBy = userId;
+                detail.CountedAt = DateTime.UtcNow;
+                detail.DiscrepancyStatus = variance == 0 ? "Matched" : "Recounted";
+                detail.ResolutionAction = null;
+                detail.AdjustmentReasonId = null;
+                detail.Reason = null;
+                detail.ResolvedBy = null;
+                detail.ResolvedAt = null;
+            }
 
+            await _db.SaveChangesAsync(ct);
             return (true, "Recount recorded successfully.");
         }
     }
