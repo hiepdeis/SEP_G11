@@ -117,10 +117,6 @@ namespace Backend.Domains.Audit.Services
 
         private IQueryable<(int MaterialId, string MaterialName, bool IsCounted)> BuildMaterialQuery(int stockTakeId)
         {
-            var detailQuery = _db.StockTakeDetails
-                .AsNoTracking()
-                .Where(x => x.StockTakeId == stockTakeId);
-
             var query =
                 from stBin in _db.StockTakeBinLocations.AsNoTracking()
                 where stBin.StockTakeId == stockTakeId
@@ -131,26 +127,30 @@ namespace Backend.Domains.Audit.Services
                 join m in _db.Materials.AsNoTracking()
                     on inv.MaterialId equals m.MaterialId
 
-                join d in detailQuery
-                    on new
-                    {
-                        MaterialId = inv.MaterialId,
-                        BinId = inv.BinId,
-                        BatchId = inv.BatchId
-                    }
-                    equals new
-                    {
-                        d.MaterialId,
-                        BinId = d.BinId ?? 0,
-                        BatchId = d.BatchId ?? 0
-                    }
-                    into detailJoin
-                from d in detailJoin.DefaultIfEmpty()
+                join b in _db.Batches.AsNoTracking()
+                    on inv.BatchId equals b.BatchId
+
+                join bin in _db.BinLocations.AsNoTracking()
+                    on inv.BinId equals bin.BinId
+
+                let isCounted = (
+                    from d in _db.StockTakeDetails.AsNoTracking()
+                    join db in _db.Batches.AsNoTracking() on d.BatchId equals db.BatchId
+                    join dbin in _db.BinLocations.AsNoTracking() on d.BinId equals dbin.BinId
+                    where d.StockTakeId == stockTakeId && 
+                          d.CountQty != null &&
+                          d.MaterialId == inv.MaterialId &&
+                          db.BatchCode == b.BatchCode &&
+                          db.MfgDate == b.MfgDate &&
+                          db.ExpiryDate == b.ExpiryDate &&
+                          dbin.Code == bin.Code
+                    select 1
+                ).Any()
 
                 select new ValueTuple<int, string, bool>(
                     inv.MaterialId,
                     m.Name,
-                    d != null && d.CountQty != null
+                    isCounted
                 );
 
             return query;
@@ -188,23 +188,21 @@ namespace Backend.Domains.Audit.Services
                 join bin in _db.BinLocations.AsNoTracking()
                     on inv.BinId equals bin.BinId
 
-                join d in _db.StockTakeDetails.AsNoTracking().Where(x => x.StockTakeId == stockTakeId)
-                    on new
-                    {
-                        MaterialId = inv.MaterialId,
-                        BinId = inv.BinId,
-                        BatchId = inv.BatchId
-                    }
-                    equals new
-                    {
-                        d.MaterialId,
-                        BinId = d.BinId ?? 0,
-                        BatchId = d.BatchId ?? 0
-                    }
-                    into detailJoin
-                from d in detailJoin.DefaultIfEmpty()
+                let countQty = (
+                    from d in _db.StockTakeDetails.AsNoTracking()
+                    join db in _db.Batches.AsNoTracking() on d.BatchId equals db.BatchId
+                    join dbin in _db.BinLocations.AsNoTracking() on d.BinId equals dbin.BinId
+                    where d.StockTakeId == stockTakeId && 
+                          d.CountQty != null &&
+                          d.MaterialId == inv.MaterialId &&
+                          db.BatchCode == b.BatchCode &&
+                          db.MfgDate == b.MfgDate &&
+                          db.ExpiryDate == b.ExpiryDate &&
+                          dbin.Code == bin.Code
+                    select d.CountQty
+                ).FirstOrDefault()
 
-                where d != null && d.CountQty != null
+                where countQty != null
 
                 select new
                 {
@@ -216,7 +214,7 @@ namespace Backend.Domains.Audit.Services
                     BatchCode = b.BatchCode,
                     b.MfgDate,
                     b.ExpiryDate,
-                    CountQty = d.CountQty
+                    CountQty = countQty
                 };
 
             return await q
@@ -226,6 +224,8 @@ namespace Backend.Domains.Audit.Services
                     g.Key.MaterialId,
                     g.Key.MaterialName,
                     g.Key.BatchCode,
+                    g.Key.MfgDate,
+                    g.Key.ExpiryDate,
                     g.Key.BinCode,
                     g.Key.CountQty,
                     BinId = g.Min(x => x.BinId),
@@ -244,6 +244,8 @@ namespace Backend.Domains.Audit.Services
                     BinCode = x.BinCode,
                     BatchId = x.BatchId,
                     BatchCode = x.BatchCode,
+                    MfgDate = x.MfgDate,
+                    ExpiryDate = x.ExpiryDate,
                     CountQty = x.CountQty
                 })
                 .ToListAsync(ct);
@@ -280,23 +282,21 @@ namespace Backend.Domains.Audit.Services
                 join bin in _db.BinLocations.AsNoTracking()
                     on inv.BinId equals bin.BinId
 
-                join d in _db.StockTakeDetails.AsNoTracking().Where(x => x.StockTakeId == stockTakeId)
-                    on new
-                    {
-                        MaterialId = inv.MaterialId,
-                        BinId = inv.BinId,
-                        BatchId = inv.BatchId
-                    }
-                    equals new
-                    {
-                        d.MaterialId,
-                        BinId = d.BinId ?? 0,
-                        BatchId = d.BatchId ?? 0
-                    }
-                    into detailJoin
-                from d in detailJoin.DefaultIfEmpty()
+                let hasCounted = (
+                    from d in _db.StockTakeDetails.AsNoTracking()
+                    join db in _db.Batches.AsNoTracking() on d.BatchId equals db.BatchId
+                    join dbin in _db.BinLocations.AsNoTracking() on d.BinId equals dbin.BinId
+                    where d.StockTakeId == stockTakeId && 
+                          d.CountQty != null &&
+                          d.MaterialId == inv.MaterialId &&
+                          db.BatchCode == b.BatchCode &&
+                          db.MfgDate == b.MfgDate &&
+                          db.ExpiryDate == b.ExpiryDate &&
+                          dbin.Code == bin.Code
+                    select 1
+                ).Any()
 
-                where d == null || d.CountQty == null
+                where !hasCounted
 
                 select new
                 {
@@ -318,6 +318,8 @@ namespace Backend.Domains.Audit.Services
                     g.Key.MaterialId,
                     g.Key.MaterialName,
                     g.Key.BatchCode,
+                    g.Key.MfgDate,
+                    g.Key.ExpiryDate,
                     g.Key.BinCode,
                     BinId = g.Min(x => x.BinId),
                     BatchId = g.Min(x => x.BatchId)
@@ -334,7 +336,9 @@ namespace Backend.Domains.Audit.Services
                     BinId = x.BinId,
                     BinCode = x.BinCode,
                     BatchId = x.BatchId,
-                    BatchCode = x.BatchCode
+                    BatchCode = x.BatchCode,
+                    MfgDate = x.MfgDate,
+                    ExpiryDate = x.ExpiryDate
                 })
                 .ToListAsync(ct);
         }
@@ -445,6 +449,8 @@ namespace Backend.Domains.Audit.Services
                     MaterialName = g.Key.MaterialName,
                     BatchCode = g.Key.BatchCode,
                     BinCode = g.Key.BinCode,
+                    MfgDate = g.Key.MfgDate,
+                    ExpiryDate = g.Key.ExpiryDate,
                     // Pick the most relevant metrics from the group
                     SystemQty = g.Sum(x => x.SystemQty),
                     CountQty = g.Max(x => x.CountQty),
@@ -654,14 +660,25 @@ namespace Backend.Domains.Audit.Services
             if (string.IsNullOrWhiteSpace(batchCode))
                 return (false, "BatchCode is required.");
 
-            var batch = await _db.Batches
-                .AsNoTracking()
-                .Where(b => b.BatchCode == batchCode && b.MaterialId == request.MaterialId)
-                .OrderBy(b => b.BatchId)
-                .FirstOrDefaultAsync(ct);
+            Backend.Entities.Batch batch = null;
+            if (request.BatchId.HasValue && request.BatchId.Value > 0)
+            {
+                batch = await _db.Batches
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(b => b.BatchId == request.BatchId.Value && b.MaterialId == request.MaterialId, ct);
+            }
 
             if (batch == null)
-                return (false, "BatchCode not found for this material.");
+            {
+                batch = await _db.Batches
+                    .AsNoTracking()
+                    .Where(b => b.BatchCode == batchCode && b.MaterialId == request.MaterialId)
+                    .OrderBy(b => b.BatchId)
+                    .FirstOrDefaultAsync(ct);
+            }
+
+            if (batch == null)
+                return (false, "Batch not found for this material.");
 
             var batchId = batch.BatchId;
             var mfgDate = batch.MfgDate;
@@ -851,14 +868,25 @@ namespace Backend.Domains.Audit.Services
             if (string.IsNullOrWhiteSpace(binCode))
                 return (false, "BinCode is required.");
 
-            var batch = await _db.Batches
-                .AsNoTracking()
-                .Where(b => b.BatchCode == batchCode && b.MaterialId == request.MaterialId)
-                .OrderBy(b => b.BatchId)
-                .FirstOrDefaultAsync(ct);
+            Backend.Entities.Batch batch = null;
+            if (request.BatchId.HasValue && request.BatchId.Value > 0)
+            {
+                batch = await _db.Batches
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(b => b.BatchId == request.BatchId.Value && b.MaterialId == request.MaterialId, ct);
+            }
 
             if (batch == null)
-                return (false, "BatchCode not found for this material.");
+            {
+                batch = await _db.Batches
+                    .AsNoTracking()
+                    .Where(b => b.BatchCode == batchCode && b.MaterialId == request.MaterialId)
+                    .OrderBy(b => b.BatchId)
+                    .FirstOrDefaultAsync(ct);
+            }
+
+            if (batch == null)
+                return (false, "Batch not found for this material.");
 
             var batchId = batch.BatchId;
             var mfgDate = batch.MfgDate;

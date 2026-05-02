@@ -225,9 +225,13 @@ namespace Backend.Domains.Audit.Services
                         .CountAsync(ct);
                 }
 
-                var countedItems = await _db.StockTakeDetails
-                    .AsNoTracking()
-                    .CountAsync(x => x.StockTakeId == st.StockTakeId && x.CountQty != null, ct);
+                var countedItems = await (
+                    from d in _db.StockTakeDetails.AsNoTracking()
+                        .Where(x => x.StockTakeId == st.StockTakeId && x.CountQty != null)
+                    join b2 in _db.Batches.AsNoTracking() on d.BatchId equals b2.BatchId
+                    join bin2 in _db.BinLocations.AsNoTracking() on d.BinId equals bin2.BinId
+                    select new { d.MaterialId, b2.BatchCode, b2.MfgDate, b2.ExpiryDate, BinCode = bin2.Code }
+                ).Distinct().CountAsync(ct);
 
                 var discrepancyItems = await _db.StockTakeDetails
                     .AsNoTracking()
@@ -317,9 +321,13 @@ namespace Backend.Domains.Audit.Services
             }
             // === Số lượng items ===
 
-            var countedItems = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x => x.StockTakeId == stockTakeId && x.CountQty != null, ct);
+            var countedItems = await (
+                from d in _db.StockTakeDetails.AsNoTracking()
+                    .Where(x => x.StockTakeId == stockTakeId && x.CountQty != null)
+                join b2 in _db.Batches.AsNoTracking() on d.BatchId equals b2.BatchId
+                join bin2 in _db.BinLocations.AsNoTracking() on d.BinId equals bin2.BinId
+                select new { d.MaterialId, b2.BatchCode, b2.MfgDate, b2.ExpiryDate, BinCode = bin2.Code }
+            ).Distinct().CountAsync(ct);
 
             var uncountedItems = totalItems - countedItems;
 
@@ -993,9 +1001,13 @@ namespace Backend.Domains.Audit.Services
                     .CountAsync(ct);
             }
 
-            var countedItems = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x => x.StockTakeId == stockTakeId && x.CountQty != null, ct);
+            var countedItems = await (
+                from d in _db.StockTakeDetails.AsNoTracking()
+                    .Where(x => x.StockTakeId == stockTakeId && x.CountQty != null)
+                join b2 in _db.Batches.AsNoTracking() on d.BatchId equals b2.BatchId
+                join bin2 in _db.BinLocations.AsNoTracking() on d.BinId equals bin2.BinId
+                select new { d.MaterialId, b2.BatchCode, b2.MfgDate, b2.ExpiryDate, BinCode = bin2.Code }
+            ).Distinct().CountAsync(ct);
 
             var uncountedItems = totalItems - countedItems;
 
@@ -1226,9 +1238,15 @@ namespace Backend.Domains.Audit.Services
                     .CountAsync(ct);
             }
 
-            var countedItems = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x => x.StockTakeId == stockTakeId && x.CountQty != null, ct);
+            // Count distinct business-key tuples that have been counted
+            // This must use the SAME grouping logic as totalItems to be comparable
+            var countedItems = await (
+                from d in _db.StockTakeDetails.AsNoTracking()
+                    .Where(x => x.StockTakeId == stockTakeId && x.CountQty != null)
+                join b in _db.Batches.AsNoTracking() on d.BatchId equals b.BatchId
+                join bin in _db.BinLocations.AsNoTracking() on d.BinId equals bin.BinId
+                select new { d.MaterialId, b.BatchCode, b.MfgDate, b.ExpiryDate, BinCode = bin.Code }
+            ).Distinct().CountAsync(ct);
 
             if (countedItems < totalItems)
                 return (false, "All items must be counted before signing off.", null);
