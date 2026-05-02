@@ -1924,5 +1924,21 @@
   "PendingAdminReview": "Chờ Admin duyệt",
   "Failed to upload images to Cloudinary.": "Không thể tải ảnh lên Cloudinary.",
   "Uploading certificate images...": "Đang tải ảnh chứng nhận...",
-  "Uploading evidence images...": "Đang tải ảnh bằng chứng..."
+  "Uploading evidence images...": "Đang tải ảnh bằng chứng...",
+  "Audits": "Kiểm kê",
+  "Operations Trend": "Xu hướng hoạt động",
+  "Orders vs Requests vs Issue Slips": "Đơn hàng vs Yêu cầu vs Phiếu xuất",
+  "Issue Slip Status": "Trạng thái phiếu xuất",
+  "Current breakdown": "Phân bổ hiện tại",
+  "Slips": "Phiếu xuất",
+  "Active Audit Progress": "Tiến độ kiểm kê đang diễn ra",
+  "Stock taking completion rate": "Tỷ lệ hoàn thành kiểm kê",
+  "No active audits": "Không có đợt kiểm kê nào đang diễn ra",
+  "Pending Work Items": "Công việc chờ xử lý",
+  "Ongoing Stock Takes": "Kiểm kê đang thực hiện",
+  "No pending audits": "Không có kiểm kê chờ xử lý",
+  "No description": "Không có mô tả",
+  "No pending issue slips": "Không có phiếu xuất chờ xử lý",
+  "Pending_Admin_Approval": "Chờ Admin duyệt",
+  "Pending_Accountant_Approval": "Chờ Kế toán duyệt"
 }
