@@ -1009,7 +1009,7 @@ namespace Backend.Domains.Import.Services
                             throw new ArgumentException("Batch này thuộc về một vật tư khác!");
 
                         if (batch.MfgDate != item.Batch.MfgDate || batch.ExpiryDate != item.Batch.ExpiryDate)
-                            throw new InvalidOperationException($"Lô hàng {batch.BatchCode} đã tồn tại trong hệ thống với Ngày SX: {batch.MfgDate:dd/MM/yyyy}. Dữ liệu bạn nhập không khớp. Vui lòng kiểm tra lại có gõ nhầm mã lô không!");
+                            throw new InvalidOperationException($"Lô hàng {batch.BatchCode} đã tồn tại trong hệ thống với Ngày SX: {batch.MfgDate:dd/MM/yyyy} và HSD là {batch.ExpiryDate:dd/MM/yyyy}. Dữ liệu bạn nhập không khớp. Vui lòng kiểm tra lại có gõ nhầm mã lô không!");
 
                         if (!string.IsNullOrEmpty(item.Batch.CertificateImage) && batch.CertificateImage != item.Batch.CertificateImage)
                         {

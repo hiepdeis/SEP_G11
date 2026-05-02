@@ -246,7 +246,6 @@ export default function StaffIncidentPage({
         );
 
         setIncidentItems(
-          // Filter out items with no failed items
           itemsToReport.filter(
             (item) => item.passQuantity < item.orderedQuantity,
           ),

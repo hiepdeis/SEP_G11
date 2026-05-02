@@ -25,7 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   staffReceiptsApi,
   ReceiptPutawayDto,
-  PendingPutawayReceiptDto, // Import DTO mới
+  PendingPutawayReceiptDto,
 } from "@/services/import-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";

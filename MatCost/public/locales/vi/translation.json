@@ -1923,5 +1923,6 @@
   "PendingAccountantApproval": "Chờ kế toán phê duyệt",
   "PendingAdminReview": "Chờ Admin duyệt",
   "Failed to upload images to Cloudinary.": "Không thể tải ảnh lên Cloudinary.",
-  "Uploading certificate images...": "Đang tải ảnh chứng nhận..."
+  "Uploading certificate images...": "Đang tải ảnh chứng nhận...",
+  "Uploading evidence images...": "Đang tải ảnh bằng chứng..."
 }
