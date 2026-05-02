@@ -256,7 +256,7 @@ public class StockTakeReviewController : ControllerBase
     }
 
     [HttpPost("{stockTakeId:int}/sign-off")]
-    [Authorize(Roles = "WarehouseManager,WarehouseStaff, Accountant")]
+    [Authorize(Roles = "WarehouseManager,WarehouseStaff,Accountant,Admin")]
     public async Task<IActionResult> SignOff(
         int stockTakeId,
         [FromBody] SignOffRequest? req,
@@ -318,7 +318,7 @@ public class StockTakeReviewController : ControllerBase
     }
 
     [HttpPost("{stockTakeId:int}/complete")]
-    [Authorize(Roles = "Accountant")]
+    [Authorize(Roles = "Accountant,Admin")]
     public async Task<IActionResult> CompleteAudit(
         int stockTakeId,
         [FromBody] CompleteAuditRequest? req,

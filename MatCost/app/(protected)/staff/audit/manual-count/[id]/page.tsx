@@ -25,6 +25,8 @@ interface NormalizedTask {
   materialName: string;
   batchId: number;
   batchCode: string;
+  mfgDate?: string | null;
+  expiryDate?: string | null;
   binId: number;
   binCode: string;
   countQty: string;
@@ -85,6 +87,8 @@ export default function StaffCountingPage() {
                   materialName: item.materialName,
                   batchId: item.batchId || 0,
                   batchCode: item.batchCode || "",
+                  mfgDate: item.mfgDate,
+                  expiryDate: item.expiryDate,
                   binId: item.binId || 0,
                   binCode: item.binCode || "",
                   countQty: qty,
@@ -108,6 +112,8 @@ export default function StaffCountingPage() {
                     materialName: item.materialName,
                     batchId: item.batchId || 0,
                     batchCode: item.batchCode || "",
+                    mfgDate: item.mfgDate,
+                    expiryDate: item.expiryDate,
                     binId: item.binId || 0,
                     binCode: item.binCode || "",
                     countQty: qty,
@@ -147,7 +153,7 @@ export default function StaffCountingPage() {
 
     try {
         setSavingIds(prev => new Set(prev).add(task.id));
-        const payload = { materialId: task.materialId, binCode: task.binCode, batchCode: task.batchCode, countQty: qty };
+        const payload = { materialId: task.materialId, binCode: task.binCode, batchCode: task.batchCode, batchId: task.batchId, countQty: qty };
         
         if (task.isRecount) await auditService.submitRecount(stockTakeId, payload);
         else await auditService.submitCount(stockTakeId, payload);
@@ -218,7 +224,7 @@ export default function StaffCountingPage() {
                     if (!isNaN(parsedQty) && parsedQty >= 0) {
                         const matched = tasks.find(t => t.materialId == mCode && t.batchCode == bCode && t.binCode == binCode);
                         if (matched && matched.originalQty !== String(parsedQty)) {
-                            const payload = { materialId: matched.materialId, binCode: matched.binCode, batchCode: matched.batchCode, countQty: parsedQty };
+                            const payload = { materialId: matched.materialId, binCode: matched.binCode, batchCode: matched.batchCode, batchId: matched.batchId, countQty: parsedQty };
                             const p = matched.isRecount ? auditService.submitRecount(stockTakeId, payload) : auditService.submitCount(stockTakeId, payload);
                             promises.push(p);
                             successCount++;
@@ -433,7 +439,16 @@ export default function StaffCountingPage() {
                                                 <div className="text-xs text-slate-500 uppercase mt-0.5">{t("Code")}: {task.materialId}</div>
                                             </TableCell>
                                             <TableCell className="text-center">
-                                                <span className="text-sm font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded">{task.batchCode || '-'}</span>
+                                                <div className="flex flex-col items-center justify-center gap-1">
+                                                    <span className="text-sm font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded">{task.batchCode || '-'}</span>
+                                                    {(task.mfgDate || task.expiryDate) && (
+                                                        <div className="text-[10px] text-slate-500 whitespace-nowrap">
+                                                            {task.mfgDate ? new Date(task.mfgDate).toLocaleDateString() : '-'} 
+                                                            <span className="mx-1">→</span> 
+                                                            {task.expiryDate ? new Date(task.expiryDate).toLocaleDateString() : '-'}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </TableCell>
                                             <TableCell className="text-center">
                                                 <span className="text-sm font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-md">{task.binCode}</span>

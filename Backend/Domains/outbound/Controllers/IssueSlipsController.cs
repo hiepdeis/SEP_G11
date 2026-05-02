@@ -1,4 +1,5 @@
-﻿using Backend.Data;
+using Backend.Data;
+using Backend.Domains.Audit.Interfaces;
 using Backend.Domains.auth.Interfaces;
 using Backend.Domains.auth.Services;
 using Backend.Domains.outbound.Dtos;
@@ -19,11 +20,13 @@ namespace Backend.Domains.outbound.Controllers
     {
         private readonly MyDbContext _context;
         private readonly IAuthService _authService;
+        private readonly IAuditLockCheckService _auditLockCheck;
 
-        public IssueSlipsController(MyDbContext context, IAuthService auth)
+        public IssueSlipsController(MyDbContext context, IAuthService auth, IAuditLockCheckService auditLockCheck)
         {
             _context = context;
             _authService = auth;
+            _auditLockCheck = auditLockCheck;
         }
 
         [HttpGet("{id:long}")]
@@ -73,11 +76,8 @@ namespace Backend.Domains.outbound.Controllers
                 return BadRequest("Invalid data.");
             }
 
-            var isStockTakeActive = await _context.StockTakeLocks.AnyAsync(l => l.IsActive);
-            if (isStockTakeActive)
-            {
-                return StatusCode(StatusCodes.Status409Conflict, "A stock take is currently in progress. Material issue requests cannot be created at this time.");
-            }
+            // Note: Bin-level lock checks are enforced when inventory is actually moved
+            // (ProcessDraftInventory and Ready_For_Delivery), not at issue slip creation.
 
             var projectExists = await _context.Projects.AnyAsync(p => p.ProjectId == dto.ProjectId);
             if (!projectExists)
@@ -593,6 +593,17 @@ namespace Backend.Domains.outbound.Controllers
 
                         if (inventoryRecord != null)
                         {
+                            // Check if this bin is locked by an active audit
+                            if (inventoryRecord.WarehouseId.HasValue)
+                            {
+                                var isLocked = await _auditLockCheck.IsBinLockedAsync(inventoryRecord.WarehouseId.Value, inventoryRecord.BinId, default);
+                                if (isLocked)
+                                {
+                                    var binCode = inventoryRecord.Bin?.Code ?? inventoryRecord.BinId.ToString();
+                                    return BadRequest($"Vị trí kệ {binCode} đang bị khóa để kiểm kê (audit). Không thể xuất hàng từ vị trí này.");
+                                }
+                            }
+
                             // A. Cập nhật tồn kho (Giữ chỗ)
                             inventoryRecord.QuantityAllocated = (inventoryRecord.QuantityAllocated ?? 0) + batch.QtyToTake;
 
@@ -786,6 +797,14 @@ namespace Backend.Domains.outbound.Controllers
 
                                 if (inventoryRecord != null)
                                 {
+                                    // Check if this bin is locked by an active audit
+                                    if (inventoryRecord.WarehouseId.HasValue && slip.WarehouseId.HasValue)
+                                    {
+                                        var isLocked = await _auditLockCheck.IsBinLockedAsync(slip.WarehouseId.Value, pick.BinId, default);
+                                        if (isLocked)
+                                            return BadRequest($"Vị trí kệ đang bị khóa để kiểm kê (audit). Không thể xuất hàng lúc này.");
+                                    }
+
                                     // 1. Trừ tồn kho thực tế
                                     inventoryRecord.QuantityOnHand = (inventoryRecord.QuantityOnHand ?? 0) - pick.QtyToPick;
 

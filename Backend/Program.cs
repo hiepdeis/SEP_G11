@@ -64,6 +64,7 @@ builder.Services.AddScoped<IAuditTeamService, AuditTeamService>();
 builder.Services.AddScoped<IStockTakeReviewService, StockTakeReviewService>();
 builder.Services.AddScoped<IStockTakeCountingService, StockTakeCountingService>();
 builder.Services.AddScoped<IStockTakeLockService, StockTakeLockService>();
+builder.Services.AddScoped<IAuditLockCheckService, AuditLockCheckService>();
 
 
 //  Import services

@@ -60,6 +60,7 @@ namespace Backend.Domains.Audit.Services
             return _db.InventoryCurrents
                 .AsNoTracking()
                 .Where(x => x.WarehouseId == warehouseId &&
+                           (x.QuantityOnHand ?? 0) != 0 &&
                            (!scopedBinIds.Any() || scopedBinIds.Contains(x.BinId)));
         }
 
@@ -205,13 +206,32 @@ namespace Backend.Domains.Audit.Services
 
             foreach (var st in audits)
             {
-                // Get item counts in audit scope (bin-level or whole warehouse).
-                var totalItems = await BuildScopedInventoryQuery(st.StockTakeId, st.WarehouseId)
-                    .CountAsync(ct);
+                // Get item counts. Use StockTakeDetails as truth if audit is in progress/completed.
+                // Fallback to live InventoryCurrent only for Planned/Assigned audits.
+                int totalItems;
+                if (st.Status == "Planned" || st.Status == "Assigned" || st.Status == "InProgress")
+                {
+                    totalItems = await (
+                        from inv in BuildScopedInventoryQuery(st.StockTakeId, st.WarehouseId)
+                        join b in _db.Batches.AsNoTracking() on inv.BatchId equals b.BatchId
+                        join bin in _db.BinLocations.AsNoTracking() on inv.BinId equals bin.BinId
+                        select new { inv.MaterialId, b.BatchCode, b.MfgDate, b.ExpiryDate, BinCode = bin.Code }
+                    ).Distinct().CountAsync(ct);
+                }
+                else
+                {
+                    totalItems = await _db.StockTakeDetails
+                        .Where(x => x.StockTakeId == st.StockTakeId)
+                        .CountAsync(ct);
+                }
 
-                var countedItems = await _db.StockTakeDetails
-                    .AsNoTracking()
-                    .CountAsync(x => x.StockTakeId == st.StockTakeId && x.CountQty != null, ct);
+                var countedItems = await (
+                    from d in _db.StockTakeDetails.AsNoTracking()
+                        .Where(x => x.StockTakeId == st.StockTakeId && x.CountQty != null)
+                    join b2 in _db.Batches.AsNoTracking() on d.BatchId equals b2.BatchId
+                    join bin2 in _db.BinLocations.AsNoTracking() on d.BinId equals bin2.BinId
+                    select new { d.MaterialId, b2.BatchCode, b2.MfgDate, b2.ExpiryDate, BinCode = bin2.Code }
+                ).Distinct().CountAsync(ct);
 
                 var discrepancyItems = await _db.StockTakeDetails
                     .AsNoTracking()
@@ -283,12 +303,31 @@ namespace Backend.Domains.Audit.Services
 
             var uncountedMaterials = totalMaterials - countedMaterials;
 
+            int totalItems;
+            if (st.Status == "Planned" || st.Status == "Assigned" || st.Status == "InProgress")
+            {
+                totalItems = await (
+                    from inv in scopedInventoryQuery
+                    join b in _db.Batches.AsNoTracking() on inv.BatchId equals b.BatchId
+                    join bin in _db.BinLocations.AsNoTracking() on inv.BinId equals bin.BinId
+                    select new { inv.MaterialId, b.BatchCode, b.MfgDate, b.ExpiryDate, BinCode = bin.Code }
+                ).Distinct().CountAsync(ct);
+            }
+            else
+            {
+                totalItems = await _db.StockTakeDetails
+                    .Where(x => x.StockTakeId == stockTakeId)
+                    .CountAsync(ct);
+            }
             // === Số lượng items ===
-            var totalItems = await scopedInventoryQuery.CountAsync(ct);
 
-            var countedItems = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x => x.StockTakeId == stockTakeId && x.CountQty != null, ct);
+            var countedItems = await (
+                from d in _db.StockTakeDetails.AsNoTracking()
+                    .Where(x => x.StockTakeId == stockTakeId && x.CountQty != null)
+                join b2 in _db.Batches.AsNoTracking() on d.BatchId equals b2.BatchId
+                join bin2 in _db.BinLocations.AsNoTracking() on d.BinId equals bin2.BinId
+                select new { d.MaterialId, b2.BatchCode, b2.MfgDate, b2.ExpiryDate, BinCode = bin2.Code }
+            ).Distinct().CountAsync(ct);
 
             var uncountedItems = totalItems - countedItems;
 
@@ -739,12 +778,13 @@ namespace Backend.Domains.Audit.Services
             }
 
             // 1. Identify all materials in the audit scope (InventoryCurrent matching warehouse and assigned bins)
+            // We only include items that have stock.
             var assignedBinIds = await _db.StockTakeBinLocations
                 .Where(x => x.StockTakeId == stockTakeId)
                 .Select(x => x.BinId)
                 .ToListAsync(ct);
 
-            var query = _db.InventoryCurrents.Where(x => x.WarehouseId == st.WarehouseId);
+            var query = _db.InventoryCurrents.Where(x => x.WarehouseId == st.WarehouseId && (x.QuantityOnHand ?? 0) != 0);
             if (assignedBinIds.Any())
             {
                 query = query.Where(x => assignedBinIds.Contains(x.BinId));
@@ -930,13 +970,44 @@ namespace Backend.Domains.Audit.Services
                 .OrderBy(x => x.FullName)
                 .ToListAsync(ct);
 
-            // Get metrics
+            // Get metrics. Use StockTakeDetails as truth if audit is in progress/completed.
             var scopedInventoryQuery = BuildScopedInventoryQuery(stockTakeId, st.WarehouseId);
-            var totalItems = await scopedInventoryQuery.CountAsync(ct);
+            int totalItems;
+            int totalMaterials;
+            if (st.Status == "Planned" || st.Status == "Assigned" || st.Status == "InProgress")
+            {
+                    totalItems = await (
+                        from inv in scopedInventoryQuery
+                        join b in _db.Batches.AsNoTracking() on inv.BatchId equals b.BatchId
+                        join bin in _db.BinLocations.AsNoTracking() on inv.BinId equals bin.BinId
+                        select new { inv.MaterialId, b.BatchCode, b.MfgDate, b.ExpiryDate, BinCode = bin.Code }
+                    ).Distinct().CountAsync(ct);
 
-            var countedItems = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x => x.StockTakeId == stockTakeId && x.CountQty != null, ct);
+                totalMaterials = await scopedInventoryQuery
+                    .Select(x => x.MaterialId)
+                    .Distinct()
+                    .CountAsync(ct);
+            }
+            else
+            {
+                totalItems = await _db.StockTakeDetails
+                    .Where(x => x.StockTakeId == stockTakeId)
+                    .CountAsync(ct);
+
+                totalMaterials = await _db.StockTakeDetails
+                    .Where(x => x.StockTakeId == stockTakeId)
+                    .Select(x => x.MaterialId)
+                    .Distinct()
+                    .CountAsync(ct);
+            }
+
+            var countedItems = await (
+                from d in _db.StockTakeDetails.AsNoTracking()
+                    .Where(x => x.StockTakeId == stockTakeId && x.CountQty != null)
+                join b2 in _db.Batches.AsNoTracking() on d.BatchId equals b2.BatchId
+                join bin2 in _db.BinLocations.AsNoTracking() on d.BinId equals bin2.BinId
+                select new { d.MaterialId, b2.BatchCode, b2.MfgDate, b2.ExpiryDate, BinCode = bin2.Code }
+            ).Distinct().CountAsync(ct);
 
             var uncountedItems = totalItems - countedItems;
 
@@ -953,10 +1024,6 @@ namespace Backend.Domains.Audit.Services
                     (x.DiscrepancyStatus == "Discrepancy" || x.DiscrepancyStatus == "Recounted"), ct);
 
             // Get materials
-            var totalMaterials = await scopedInventoryQuery
-                .Select(x => x.MaterialId)
-                .Distinct()
-                .CountAsync(ct);
 
             var countedMaterials = await _db.StockTakeDetails
                 .AsNoTracking()
@@ -1154,10 +1221,32 @@ namespace Backend.Domains.Audit.Services
 
             // Verification: All items must be counted before ANYONE can sign off
             // (Standard procedure to ensure the record being signed is complete)
-            var totalItems = await BuildScopedInventoryQuery(stockTakeId, st.WarehouseId).CountAsync(ct);
-            var countedItems = await _db.StockTakeDetails
-                .AsNoTracking()
-                .CountAsync(x => x.StockTakeId == stockTakeId && x.CountQty != null, ct);
+            int totalItems;
+            if (st.Status == "Planned" || st.Status == "Assigned" || st.Status == "InProgress")
+            {
+                totalItems = await (
+                    from inv in BuildScopedInventoryQuery(stockTakeId, st.WarehouseId)
+                    join b in _db.Batches.AsNoTracking() on inv.BatchId equals b.BatchId
+                    join bin in _db.BinLocations.AsNoTracking() on inv.BinId equals bin.BinId
+                    select new { inv.MaterialId, b.BatchCode, b.MfgDate, b.ExpiryDate, BinCode = bin.Code }
+                ).Distinct().CountAsync(ct);
+            }
+            else
+            {
+                totalItems = await _db.StockTakeDetails
+                    .Where(x => x.StockTakeId == stockTakeId)
+                    .CountAsync(ct);
+            }
+
+            // Count distinct business-key tuples that have been counted
+            // This must use the SAME grouping logic as totalItems to be comparable
+            var countedItems = await (
+                from d in _db.StockTakeDetails.AsNoTracking()
+                    .Where(x => x.StockTakeId == stockTakeId && x.CountQty != null)
+                join b in _db.Batches.AsNoTracking() on d.BatchId equals b.BatchId
+                join bin in _db.BinLocations.AsNoTracking() on d.BinId equals bin.BinId
+                select new { d.MaterialId, b.BatchCode, b.MfgDate, b.ExpiryDate, BinCode = bin.Code }
+            ).Distinct().CountAsync(ct);
 
             if (countedItems < totalItems)
                 return (false, "All items must be counted before signing off.", null);
@@ -1241,8 +1330,11 @@ namespace Backend.Domains.Audit.Services
 
             var user = await _db.Users.AsNoTracking().Include(x => x.Role)
                 .FirstOrDefaultAsync(x => x.UserId == userId, ct);
-            if (user == null || !string.Equals(user.Role.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase))
-                return (false, "Only Accountants can perform this action.");
+            var isAccountant = string.Equals(user?.Role?.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase);
+            var isAdmin = string.Equals(user?.Role?.RoleName, "Admin", StringComparison.OrdinalIgnoreCase);
+
+            if (user == null || (!isAccountant && !isAdmin))
+                return (false, "Only Accountants or Admins can perform this action.");
 
             if (string.Equals(action, "Approve", StringComparison.OrdinalIgnoreCase))
             {
@@ -1285,8 +1377,11 @@ namespace Backend.Domains.Audit.Services
 
             var user = await _db.Users.AsNoTracking().Include(x => x.Role)
                 .FirstOrDefaultAsync(x => x.UserId == userId, ct);
-            if (user == null || !string.Equals(user.Role.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase))
-                return (false, "Only Accountants can perform this action.");
+            var isAccountant = string.Equals(user?.Role?.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase);
+            var isAdmin = string.Equals(user?.Role?.RoleName, "Admin", StringComparison.OrdinalIgnoreCase);
+
+            if (user == null || (!isAccountant && !isAdmin))
+                return (false, "Only Accountants or Admins can perform this action.");
 
             await AddSignatureIfNotExistsAsync(stockTakeId, userId, "Accountant", signatureData, ct);
             return await CompleteAndUpdateInventoryAsync(st, userId, "Audit completed: Accountant approved resolution.", ct);
@@ -1307,8 +1402,11 @@ namespace Backend.Domains.Audit.Services
 
             var user = await _db.Users.AsNoTracking().Include(x => x.Role)
                 .FirstOrDefaultAsync(x => x.UserId == userId, ct);
-            if (user == null || !string.Equals(user.Role.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase))
-                return (false, "Only Accountants can perform this action.");
+            var isAccountant = string.Equals(user?.Role?.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase);
+            var isAdmin = string.Equals(user?.Role?.RoleName, "Admin", StringComparison.OrdinalIgnoreCase);
+
+            if (user == null || (!isAccountant && !isAdmin))
+                return (false, "Only Accountants or Admins can perform this action.");
 
             if (string.IsNullOrWhiteSpace(signatureData))
                 return (false, "Accountant signature is required.");
@@ -1363,14 +1461,13 @@ namespace Backend.Domains.Audit.Services
 
             await AddSignatureIfNotExistsAsync(stockTakeId, userId, "Admin", request.SignatureData, ct);
 
-            // Notify the manager about the penalty
-            _db.Notifications.Add(new Backend.Entities.Notification
-            {
-                UserId = request.TargetManagerUserId,
-                Message = $"Bạn đã bị phạt {request.PenaltyAmount:N0} VNĐ cho Audit #{st.StockTakeId} ({st.Title}). Lý do: {request.PenaltyReason}",
-                IsRead = false,
-                CreatedAt = DateTime.UtcNow
-            });
+            // Notify the manager about the penalty (with email)
+            await _notificationService.QueueNotificationAsync(
+                new[] { request.TargetManagerUserId },
+                $"Bạn đã bị phạt {request.PenaltyAmount:N0} VNĐ cho Audit #{st.StockTakeId} ({st.Title}). Lý do: {request.PenaltyReason}",
+                relatedEntityType: "Audit",
+                relatedEntityId: st.StockTakeId,
+                ct);
 
             return await CompleteAndUpdateInventoryAsync(st, userId, request.AuditNotes, ct);
         }
@@ -1503,8 +1600,11 @@ namespace Backend.Domains.Audit.Services
                 .Include(x => x.Role)
                 .FirstOrDefaultAsync(x => x.UserId == userId, ct);
 
-            if (currentUser == null || !string.Equals(currentUser.Role.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase))
-                return (false, "Only accountants can complete the audit.");
+            var isAccountant = string.Equals(currentUser?.Role?.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase);
+            var isAdmin = string.Equals(currentUser?.Role?.RoleName, "Admin", StringComparison.OrdinalIgnoreCase);
+
+            if (currentUser == null || (!isAccountant && !isAdmin))
+                return (false, "Only accountants or admins can complete the audit.");
 
             return await CompleteAndUpdateInventoryAsync(st, userId, request.Notes, ct);
         }

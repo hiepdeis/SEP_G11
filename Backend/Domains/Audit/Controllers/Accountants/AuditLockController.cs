@@ -8,7 +8,7 @@ namespace Backend.Controllers
 {
     [ApiController]
     [Route("api/accountants/audits")]
-    [Authorize(Roles = "Accountant")]
+    [Authorize(Roles = "Accountant,Admin")]
     public class AuditLockController : ControllerBase
     {
         private readonly IStockTakeLockService _service;
