@@ -177,12 +177,15 @@ export default function StaffCountingPage() {
       "Tên vật tư": t.materialName,
       "Mã": t.materialId,
       "Số lô": t.batchCode,
+      "Ngày SX": t.mfgDate ? new Date(t.mfgDate).toLocaleDateString('en-GB') : '',
+      "Hạn SD": t.expiryDate ? new Date(t.expiryDate).toLocaleDateString('en-GB') : '',
       "Kho": t.binCode,
+      "BatchId": t.batchId,
       "Số lượng": null 
     }));
 
     const ws = XLSX.utils.json_to_sheet(dataToExport);
-    ws['!cols'] = [{wch: 5}, {wch: 30}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 15}];
+    ws['!cols'] = [{wch: 5}, {wch: 30}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 10}, {wch: 15}];
     
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Kiem_ke");
@@ -211,6 +214,7 @@ export default function StaffCountingPage() {
                 const mCode = row["Mã"];
                 const bCode = row["Số lô"] ? String(row["Số lô"]) : "";
                 const binCode = row["Kho"] ? String(row["Kho"]) : "";
+                const bId = row["BatchId"];
                 const qtyVal = row["Số lượng"];
 
                 if (qtyVal !== undefined && qtyVal !== null && qtyVal !== "") {
@@ -222,7 +226,7 @@ export default function StaffCountingPage() {
                     const parsedQty = parseFloat(stringVal);
                     
                     if (!isNaN(parsedQty) && parsedQty >= 0) {
-                        const matched = tasks.find(t => t.materialId == mCode && t.batchCode == bCode && t.binCode == binCode);
+                        const matched = tasks.find(t => t.materialId == mCode && t.batchCode == bCode && t.binCode == binCode && t.batchId == bId);
                         if (matched && matched.originalQty !== String(parsedQty)) {
                             const payload = { materialId: matched.materialId, binCode: matched.binCode, batchCode: matched.batchCode, batchId: matched.batchId, countQty: parsedQty };
                             const p = matched.isRecount ? auditService.submitRecount(stockTakeId, payload) : auditService.submitCount(stockTakeId, payload);
