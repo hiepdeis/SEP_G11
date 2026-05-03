@@ -1940,5 +1940,11 @@
   "No description": "Không có mô tả",
   "No pending issue slips": "Không có phiếu xuất chờ xử lý",
   "Pending_Admin_Approval": "Chờ Admin duyệt",
-  "Pending_Accountant_Approval": "Chờ Kế toán duyệt"
+  "Pending_Accountant_Approval": "Chờ Kế toán duyệt",
+  "Current Material": "Vật liệu hiện tại",
+  "Max Stock Level": "Mức tồn kho tối đa",
+  "Enter max stock level": "Nhập mức tồn kho tối đa",
+  "None": "Không có",
+  "Max stock level must be greater than 0": "Mức tồn kho tối đa phải lớn hơn 0",
+  "Capacity": "Mức tối đa"
 }

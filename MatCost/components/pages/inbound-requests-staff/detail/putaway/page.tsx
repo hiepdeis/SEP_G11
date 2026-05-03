@@ -729,7 +729,11 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                                                       (locBin) =>
                                                         locBin.warehouse
                                                           .warehouseId ===
-                                                        receipt.warehouseId,
+                                                          receipt.warehouseId &&
+                                                        (locBin.currentMaterialId ===
+                                                          item.materialId ||
+                                                          locBin.currentMaterialId ===
+                                                            null),
                                                     )
                                                     .map((location) => {
                                                       const isSelectedElsewhere =
@@ -748,6 +752,16 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                                                           }
                                                         >
                                                           {location.code}
+                                                          {location.maxStockLevel !=
+                                                            null && (
+                                                            <span className="text-[10px]">
+                                                              ({t("Capacity")}:{" "}
+                                                              {
+                                                                location.maxStockLevel
+                                                              }
+                                                              )
+                                                            </span>
+                                                          )}
                                                         </SelectItem>
                                                       );
                                                     })}
