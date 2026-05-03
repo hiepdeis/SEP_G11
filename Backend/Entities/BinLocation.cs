@@ -23,6 +23,12 @@ public partial class BinLocation
     [Unicode(false)]
     public string? Type { get; set; }
 
+    [Column("CurrentMaterialID")]
+    public int? CurrentMaterialId { get; set; }
+
+    [Column(TypeName = "decimal(18, 4)")]
+    public decimal? MaxStockLevel { get; set; }
+
     public virtual ICollection<InventoryAdjustmentEntry> InventoryAdjustmentEntries { get; set; } = new List<InventoryAdjustmentEntry>();
 
     [InverseProperty("Bin")]

@@ -57,33 +57,33 @@ namespace Backend.Domains.Import.Controllers.Staff
             }
         }
 
-        [HttpPost("inbound-requests/{receiptId}/confirm")]
-        public async Task<IActionResult> ConfirmGoodsReceipt(long receiptId, [FromBody] ConfirmGoodsReceiptDto dto)
-        {
-            try
-            {
-                var staffId = GetStaffId();
+        // [HttpPost("inbound-requests/{receiptId}/confirm")]
+        // public async Task<IActionResult> ConfirmGoodsReceipt(long receiptId, [FromBody] ConfirmGoodsReceiptDto dto)
+        // {
+        //     try
+        //     {
+        //         var staffId = GetStaffId();
 
-                await _receiptService.ConfirmGoodsReceiptAsync(receiptId, dto, staffId);
-                return Ok(new { message = "Goods receipt confirmed successfully" });
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
-            }
-        }
+        //         await _receiptService.ConfirmGoodsReceiptAsync(receiptId, dto, staffId);
+        //         return Ok(new { message = "Goods receipt confirmed successfully" });
+        //     }
+        //     catch (KeyNotFoundException ex)
+        //     {
+        //         return NotFound(new { message = ex.Message });
+        //     }
+        //     catch (InvalidOperationException ex)
+        //     {
+        //         return BadRequest(new { message = ex.Message });
+        //     }
+        //     catch (ArgumentException ex)
+        //     {
+        //         return BadRequest(new { message = ex.Message });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+        //     }
+        // }
 
         [HttpPost("/api/staff/receipts/from-po")]
         public async Task<IActionResult> ReceiveGoodsFromPurchaseOrder([FromBody] ReceiveGoodsFromPoDto dto)
