@@ -161,7 +161,7 @@ export default function StaffCountingPage() {
         toast.success(`${t("Saved")} ${task.materialName}`);
         setTasks(prev => prev.map(t => t.id === task.id ? { ...t, originalQty: task.countQty, status: "counted" } : t));
     } catch (error: any) { 
-        toast.error(error.response?.data?.message || t("Error saving quantity.")); 
+        toast.error(t(error.response?.data?.message || "Error saving quantity.")); 
     } finally { 
         setSavingIds(prev => {
             const next = new Set(prev);
@@ -288,7 +288,7 @@ export default function StaffCountingPage() {
       toast.success(t("Audit results submitted and signed successfully!"));
       router.push('/staff/audit');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || t("Error submitting results."));
+      toast.error(t(error.response?.data?.message || "Error submitting results."));
     } finally {
       setIsSubmittingFinal(false);
     }
@@ -590,7 +590,7 @@ export default function StaffCountingPage() {
                 disabled={!isSigned || isSubmittingFinal}
               >
                 {isSubmittingFinal ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-                {t("Submit & Finish")}
+                {t("Submit & Return to List")}
               </Button>
             </DialogFooter>
           </DialogContent>

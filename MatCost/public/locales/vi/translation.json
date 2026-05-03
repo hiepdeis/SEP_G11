@@ -1920,5 +1920,20 @@
   "InProgress": "Đang thực hiện",
   "PendingAccountantReview": "Chờ kế toán đối soát",
   "PendingAccountantApproval": "Chờ kế toán phê duyệt",
-  "PendingAdminReview": "Chờ Admin duyệt"
+  "PendingAdminReview": "Chờ Admin duyệt",
+  "Saved": "Đã lưu",
+  "Missing Bin Code!": "Thiếu mã Vị trí!",
+  "Failed to import Excel file. Please ensure format is correct.": "Nhập file Excel thất bại. Vui lòng đảm bảo định dạng chính xác.",
+  "You must complete all counting tasks before submitting!": "Bạn phải hoàn thành tất cả nhiệm vụ đếm trước khi nộp!",
+  "Audit Reports": "Báo cáo Kiểm kê",
+  "Completed Audit Reports": "Báo cáo Kiểm kê Hoàn thành",
+  "View detailed records of finished inventory audits.": "Xem hồ sơ chi tiết của các đợt kiểm kê tồn kho đã hoàn thành.",
+  "Total Completed": "Tổng số hoàn thành",
+  "Warehouses Audited": "Kho đã kiểm kê",
+  "Latest Completion": "Hoàn thành mới nhất",
+  "Completed Date": "Ngày hoàn thành",
+  "Loading reports...": "Đang tải báo cáo...",
+  "No completed audits found matching your filters.": "Không tìm thấy kiểm kê hoàn thành nào phù hợp với bộ lọc của bạn.",
+  "Please wait for Manager review. If there are discrepancies, Recount list will appear here.": "Vui lòng đợi quản lý xem xét. Nếu có chênh lệch, danh sách Đếm lại sẽ xuất hiện tại đây.",
+  "Please wait for Manager's review. If there are discrepancies, a recount may be requested.": "Vui lòng đợi người quản lý xét duyệt. Nếu có chênh lệch, bạn có thể được yêu cầu đếm lại."
 }

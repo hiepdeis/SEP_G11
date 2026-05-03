@@ -64,7 +64,7 @@ export default function AssignTeamPage() {
         setEligibleStaff(eligibleData);
         setSelectedStaffIds([]);
         setIsStaffPopoverOpen(false);
-    } catch (error: any) { toast.error(error.response?.data?.message || t("Error assigning staff.")); } 
+    } catch (error: any) { toast.error(t(error.response?.data?.message || "Error assigning staff.")); } 
     finally { setIsSaving(false); }
   };
 
@@ -77,7 +77,7 @@ export default function AssignTeamPage() {
         const [teamData, eligibleData] = await Promise.all([ auditService.getTeam(stockTakeId), auditService.getEligibleStaff(stockTakeId) ]);
         setAssignedTeam(teamData.assignedMembers);
         setEligibleStaff(eligibleData);
-    } catch (error: any) { toast.error(error.response?.data?.message || t("Error")); } 
+    } catch (error: any) { toast.error(t(error.response?.data?.message || "Error")); } 
     finally { setIsSaving(false); }
   };
 
