@@ -124,7 +124,6 @@ export default function SharedReceiptsListPage({
         if (role === "manager") {
           res = await managerReceiptsApi.getReceipts();
         } else {
-          // Both accountant and admin use the accountant API
           res = await accountantReceiptsApi.getReceipts();
         }
         setReceipts(res.data);
