@@ -1087,6 +1087,7 @@ namespace Backend.Domains.Admin.Services
                          Type = x.b.Type,
                          CurrentMaterialId = x.b.CurrentMaterialId,
                          CurrentMaterialName = x.m != null ? x.m.Name : null,
+                         CurrentMaterialCode = x.m != null ? x.m.Code : null,
                          MaxStockLevel = x.b.MaxStockLevel
                      }),
                     query.Page,
@@ -1113,6 +1114,7 @@ namespace Backend.Domains.Admin.Services
                     Type = b.Type,
                     CurrentMaterialId = b.CurrentMaterialId,
                     CurrentMaterialName = m != null ? m.Name : null,
+                    CurrentMaterialCode = m != null ? m.Code : null,
                     MaxStockLevel = b.MaxStockLevel
                 };
 

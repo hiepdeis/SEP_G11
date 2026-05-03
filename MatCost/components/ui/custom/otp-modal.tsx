@@ -23,6 +23,7 @@ import { otpApi } from "@/services/otpservices";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
 import SignatureCanvas from "react-signature-canvas";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 
 interface OtpVerificationModalProps {
   isOpen: boolean;
@@ -81,11 +82,24 @@ export function OtpVerificationModal({
 
       await otpApi.verifyAction(otp);
 
-      const signatureData = requireSignature
-        ? sigPadRef.current?.getTrimmedCanvas().toDataURL("image/png")
-        : undefined;
+      let signatureUrl: string | undefined;
 
-      await onSuccess(signatureData);
+      if (requireSignature && sigPadRef.current) {
+        const canvas = sigPadRef.current.getTrimmedCanvas();
+        const blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, "image/png"),
+        );
+
+        if (!blob) throw new Error("Failed to create signature image.");
+
+        const file = new File([blob], `signature_${Date.now()}.png`, {
+          type: "image/png",
+        });
+
+        signatureUrl = await uploadToCloudinary(file);
+      }
+
+      await onSuccess(signatureUrl);
 
       setOtp("");
       if (requireSignature) clearSignature();
@@ -147,7 +161,7 @@ export function OtpVerificationModal({
                   canvasProps={{
                     className: "w-full h-[120px] cursor-crosshair",
                   }}
-                  backgroundColor="rgb(248 250 252)"
+                  backgroundColor="rgb(255 255 255)"
                   penColor="black"
                 />
               </div>

@@ -39,18 +39,20 @@ namespace Backend.Domains.Import.Services
 
         public async Task<StockShortageDetectResultDto> DetectShortagesAsync(int? warehouseId = null)
         {
+            // 1) Xác định các alert đang hoạt động để tránh tạo trùng.
             var activeStatuses = new[] { "Pending", "ManagerConfirmed" };
-
             var activeAlerts = await _context.StockShortageAlerts
                 .Where(a => activeStatuses.Contains(a.Status))
                 .ToListAsync();
-
             var activeAlertMap = activeAlerts
                 .ToDictionary(a => (a.MaterialId, a.WarehouseId));
 
+            // 2) Gom nhóm tồn kho theo vật liệu + kho.
             var inventoryQuery = _context.InventoryCurrents.AsQueryable();
             if (warehouseId.HasValue)
+            {
                 inventoryQuery = inventoryQuery.Where(i => i.WarehouseId == warehouseId.Value);
+            }
 
             var inventoryGroups = await inventoryQuery
                 .GroupBy(i => new { i.MaterialId, i.WarehouseId })
@@ -62,6 +64,7 @@ namespace Backend.Domains.Import.Services
                 })
                 .ToListAsync();
 
+            // 3) Lấy danh sách vật liệu có cấu hình mức tồn tối thiểu.
             var materialMap = await _context.Materials
                 .Where(m => m.MinStockLevel.HasValue)
                 .ToDictionaryAsync(m => m.MaterialId, m => m);
@@ -70,15 +73,21 @@ namespace Backend.Domains.Import.Services
             var newAlerts = new List<StockShortageAlert>();
             var updatedAlerts = 0;
 
+            // 4) Duyệt từng nhóm tồn kho và quyết định: cập nhật alert hiện có hoặc tạo mới.
             foreach (var group in inventoryGroups)
             {
-
+                // Không có cấu hình mức tồn tối thiểu thì bỏ qua.
                 if (!materialMap.TryGetValue(group.MaterialId, out var material))
+                {
                     continue;
+                }
 
                 var minStock = material.MinStockLevel ?? 0;
+                // Tồn kho vẫn đạt ngưỡng tối thiểu thì không cảnh báo.
                 if (group.QuantityOnHand >= minStock)
+                {
                     continue;
+                }
 
                 var suggestedQuantity = CalculateSuggestedQuantity(material, group.QuantityOnHand);
                 var priority = CalculatePriority(group.QuantityOnHand, minStock);
@@ -86,6 +95,7 @@ namespace Backend.Domains.Import.Services
                 var key = (group.MaterialId, group.WarehouseId);
                 if (activeAlertMap.TryGetValue(key, out var existingAlert))
                 {
+                    // Cập nhật alert đang hoạt động nếu có thay đổi.
                     var hasChanges = false;
 
                     if (existingAlert.CurrentQuantity != group.QuantityOnHand)
@@ -113,11 +123,14 @@ namespace Backend.Domains.Import.Services
                     }
 
                     if (hasChanges)
+                    {
                         updatedAlerts++;
+                    }
 
                     continue;
                 }
 
+                // Tạo alert mới khi chưa tồn tại alert đang hoạt động.
                 var alert = new StockShortageAlert
                 {
                     MaterialId = group.MaterialId,
@@ -133,10 +146,14 @@ namespace Backend.Domains.Import.Services
                 newAlerts.Add(alert);
             }
 
+            // 5) Lưu và gửi thông báo khi có cảnh báo mới hoặc cập nhật.
             if (newAlerts.Count > 0)
+            {
                 _context.StockShortageAlerts.AddRange(newAlerts);
+            }
 
             if (newAlerts.Count > 0)
+            {
                 await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
                 {
                     RoleName = "WarehouseManager",
@@ -146,10 +163,14 @@ namespace Backend.Domains.Import.Services
                     SendEmail = true,
                     SendEmailInBackground = true
                 }, CancellationToken.None);
+            }
 
             if (newAlerts.Count > 0 || updatedAlerts > 0)
+            {
                 await _context.SaveChangesAsync();
+            }
 
+            // 6) Trả kết quả tổng hợp cho caller.
             return new StockShortageDetectResultDto
             {
                 TotalScanned = inventoryGroups.Count,
@@ -219,9 +240,13 @@ namespace Backend.Domains.Import.Services
 
         public async Task<List<StockShortageAlert>> BulkConfirmAlertsAsync(List<BulkConfirmAlertItemDto> requestItems, int managerId)
         {
+            // 1) Kiểm tra đầu vào để tránh xử lý rỗng.
             if (requestItems == null || requestItems.Count == 0)
+            {
                 return new List<StockShortageAlert>();
+            }
 
+            // 2) Lấy các alert đang ở trạng thái Pending theo danh sách ID gửi lên.
             var alertIds = requestItems
                 .Select(x => x.AlertId)
                 .Distinct()
@@ -233,30 +258,39 @@ namespace Backend.Domains.Import.Services
                 .Where(a => alertIds.Contains(a.AlertId) && a.Status == "Pending")
                 .ToListAsync();
 
+            // 3) Gom request theo AlertId để tra nhanh.
             var requestMap = requestItems
                 .GroupBy(x => x.AlertId)
                 .ToDictionary(g => g.Key, g => g.Last());
 
             var now = DateTime.UtcNow;
 
+            // 4) Duyệt từng alert và cập nhật theo request.
             foreach (var alert in alerts)
             {
                 if (!requestMap.TryGetValue(alert.AlertId, out var requestItem))
+                {
                     continue;
+                }
 
+                // 4.1) Nếu có số lượng điều chỉnh thì kiểm tra ràng buộc nghiệp vụ.
                 if (requestItem.AdjustedQuantity.HasValue)
                 {
                     var adjustedQuantity = requestItem.AdjustedQuantity.Value;
 
                     if (adjustedQuantity <= 0)
+                    {
                         throw new ArgumentException("Số lượng điều chỉnh phải lớn hơn 0");
+                    }
 
-                    if (alert.Material.MinStockLevel.HasValue && (adjustedQuantity + alert.CurrentQuantity) < alert.Material.MinStockLevel.Value)
+                    if (alert.Material.MinStockLevel.HasValue &&
+                        (adjustedQuantity + alert.CurrentQuantity) < alert.Material.MinStockLevel.Value)
                     {
                         throw new ArgumentException("Tổng số lượng điều chỉnh và tồn kho hiện tại không được nhỏ hơn mức tồn tối thiểu của vật liệu");
                     }
 
-                    if (alert.Material.MaxStockLevel.HasValue && (alert.CurrentQuantity + adjustedQuantity) > alert.Material.MaxStockLevel.Value)
+                    if (alert.Material.MaxStockLevel.HasValue &&
+                        (alert.CurrentQuantity + adjustedQuantity) > alert.Material.MaxStockLevel.Value)
                     {
                         throw new ArgumentException($"Tổng số lượng tồn hiện tại và lượng cần mua vượt quá mức tồn tối đa ({alert.Material.MaxStockLevel.Value})");
                     }
@@ -264,14 +298,19 @@ namespace Backend.Domains.Import.Services
                     alert.SuggestedQuantity = adjustedQuantity;
                 }
 
+                // 4.2) Xác nhận alert bởi manager.
                 alert.Status = "ManagerConfirmed";
                 alert.ConfirmedBy = managerId;
                 alert.ConfirmedAt = now;
 
+                // 4.3) Ghi chú nếu có.
                 if (!string.IsNullOrWhiteSpace(requestItem.Notes))
+                {
                     alert.Notes = requestItem.Notes;
+                }
             }
 
+            // 5) Gửi thông báo và lưu DB nếu có alert được xử lý.
             // await CreateAdminNotificationsAsync(alerts, now);
             if (alerts.Count > 0)
             {
@@ -286,6 +325,7 @@ namespace Backend.Domains.Import.Services
 
                 await _context.SaveChangesAsync();
             }
+
             return alerts;
         }
 

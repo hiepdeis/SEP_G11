@@ -24,8 +24,22 @@ namespace Backend.Domains.Import.DTOs.Accountants
         public string? StampedByName { get; set; }
         public PurchaseOrderDto? PurchaseOrder { get; set; }
         public QCCheckDto? QCCheck { get; set; }
+        public List<AccountantReceiptDetailItemDto> ReceiptDetails { get; set; } = new();
         public List<AccountantInventoryCurrentDto> InventoryCurrents { get; set; } = new();
         public List<WarehouseCardDto> WarehouseCards { get; set; } = new();
+    }
+
+    public class AccountantReceiptDetailItemDto
+    {
+        public long DetailId { get; set; }
+        public int MaterialId { get; set; }
+        public string? MaterialCode { get; set; }
+        public string? MaterialName { get; set; }
+        public string? MaterialUnit { get; set; }
+        public decimal Quantity { get; set; }
+        public decimal? ActualQuantity { get; set; }
+        public decimal? UnitPrice { get; set; }
+        public decimal? LineTotal { get; set; }
     }
 
     public class AccountantInventoryCurrentDto
@@ -43,6 +57,7 @@ namespace Backend.Domains.Import.DTOs.Accountants
 
     public class AccountantReceiptCloseDto
     {
+        public string? SignatureData { get; set; }
         public string? AccountingNote { get; set; }
     }
 

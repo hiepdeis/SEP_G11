@@ -1459,7 +1459,7 @@
   "After Issue": "Sau khi xuất",
   "Over budget!": "Vượt ngân sách!",
   "Chi tiết Nguồn xuất (FIFO)": "Chi tiết Nguồn xuất (FIFO)",
-  "Line Total": "Tổng dòng",
+  "Line Total": "Tổng giá trị",
   "Phương án xử lý": "Phương án xử lý",
   "Accountant Review": "Kế toán xem xét",
   "Warning: This request exceeds the project budget. Approving it will forward it to the Admin.": "Cảnh báo: Yêu cầu này vượt quá ngân sách công trình. Phê duyệt điều này sẽ chuyển tiếp đến Admin.",
@@ -1479,7 +1479,7 @@
   "Direct Purchase Order": "Đơn mua hàng trực tiếp",
   "Pending Supplier": "Thiếu nhà cung cấp",
   "No items to replace or supplement.": "Không có vật tư nào để thay thế hoặc bổ sung.",
-  "Confirm & Create": "Xác nhận & Mới",
+  "Confirm & Create": "Xác nhận & Tạo mới",
   "No single supplier can provide all listed materials.": "Không có nhà cung cấp nào có thể cung cấp tất cả các vật tư đã liệt kê.",
   "View PO Details": "Xem chi tiết PO",
   "Source PR": "PR gốc",
@@ -1978,5 +1978,7 @@
   "Investigate Further": "Điều tra thêm",
   "accept": "Chấp nhận",
   "adjustsystem": "Điều chỉnh hệ thống",
-  "investigate": "Điều tra thêm"
+  "investigate": "Điều tra thêm",
+  "AccountantApproved": "Đã duyệt bởi kế toán",
+  "Grand Total": "Tổng cộng"
 }
