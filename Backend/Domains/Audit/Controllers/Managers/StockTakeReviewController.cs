@@ -117,29 +117,6 @@ public class StockTakeReviewController : ControllerBase
         return Ok(new { message });
     }
 
-    [HttpPut("{stockTakeId:int}/variances/{detailId:long}/request-recount")]
-    [Authorize(Roles = "WarehouseManager, Admin")]
-    public async Task<IActionResult> RequestRecount(
-        int stockTakeId,
-        long detailId,
-        [FromBody] RequestRecountRequest? req,
-        CancellationToken ct = default)
-    {
-        var userId = GetUserId();
-
-        var (success, message) = await _service.RequestRecountAsync(
-            stockTakeId,
-            detailId,
-            req ?? new RequestRecountRequest(),
-            userId,
-            ct);
-
-        if (!success)
-            return BadRequest(new { message });
-
-        return Ok(new { message });
-    }
-
     [HttpPost("{stockTakeId:int}/request-recount-all")]
     [Authorize(Roles = "WarehouseManager, Admin")]
     public async Task<IActionResult> RequestRecountAll(
@@ -260,19 +237,4 @@ public class StockTakeReviewController : ControllerBase
         return Ok(new { message });
     }
 
-    [HttpPost("{stockTakeId:int}/complete")]
-    [Authorize(Roles = "Accountant,Admin")]
-    public async Task<IActionResult> CompleteAudit(
-        int stockTakeId,
-        [FromBody] CompleteAuditRequest? req,
-        CancellationToken ct = default)
-    {
-        var userId = GetUserId();
-        var (success, message) = await _service.CompleteAuditAsync(stockTakeId, userId, req ?? new CompleteAuditRequest(), ct);
-
-        if (!success)
-            return BadRequest(new { message });
-
-        return Ok(new { message });
-    }
 }
