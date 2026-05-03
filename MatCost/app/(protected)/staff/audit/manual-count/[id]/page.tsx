@@ -118,7 +118,7 @@ export default function StaffCountingPage() {
                     binCode: item.binCode || "",
                     countQty: qty,
                     originalQty: qty,
-                    isRecount: isPending,
+                    isRecount: true,
                     status: isPending ? "uncounted" : "counted"
                 };
                 if (!merged.find(x => x.id === nTask.id)) {
