@@ -927,6 +927,7 @@ export default function CommonIssueSlipDetail() {
                                     type="checkbox" 
                                     className="w-6 h-6 accent-indigo-500 cursor-pointer rounded border-slate-300 shadow-sm"
                                     checked={pick.isPicked}
+                                    disabled={pick.isLocked}
                                     onChange={() => handleTogglePick(pick.pickingId)}
                                   />
                                 </TableCell>
@@ -954,6 +955,7 @@ export default function CommonIssueSlipDetail() {
                                 type="checkbox" 
                                 className="w-8 h-8 accent-indigo-500 cursor-pointer rounded border-slate-300 shadow-sm"
                                 checked={pick.isPicked}
+                                disabled={pick.isLocked}
                                 onChange={() => handleTogglePick(pick.pickingId)}
                               />
                             </div>

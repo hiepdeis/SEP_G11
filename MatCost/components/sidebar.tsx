@@ -130,11 +130,10 @@ export function Sidebar() {
     },
   ];
 
-  const allOutboundTabs = [
+  const outboundTabs = [
     {
       label: t("sidebar.tabs.issue_slips"),
       href: "/outbound/common/IssueSlipList",
-      roles: ["Manager", "Staff", "Construction", "Accountant"], // Adjust as needed, but at least these should see it
     },
     {
       label: t("sidebar.roles.construction"),
@@ -340,11 +339,6 @@ export function Sidebar() {
           ? tab.subItems.map((sub) => ({ label: sub.label, href: sub.href }))
           : [{ label: tab.label, href: tab.href }],
       );
-  }, [devBypassRole, userRole, t]);
-
-  const outboundTabs = useMemo(() => {
-    if (devBypassRole) return allOutboundTabs;
-    return allOutboundTabs.filter((tab) => checkHasRole(tab.roles, userRole));
   }, [devBypassRole, userRole, t]);
 
   const auditTabs = useMemo(() => {
@@ -620,17 +614,19 @@ export function Sidebar() {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="right" align="start" className="ml-4">
-              {outboundTabs.map((tab) => (
-                <DropdownMenuItem
-                  key={tab.href}
-                  onClick={() => router.push(tab.href)}
-                  className={
-                    pathname === tab.href ? "bg-blue-100 font-semibold" : ""
-                  }
-                >
-                  {tab.label}
-                </DropdownMenuItem>
-              ))}
+              {outboundTabs
+                .filter((tab) => checkHasRole(tab.roles, userRole))
+                .map((tab) => (
+                  <DropdownMenuItem
+                    key={tab.href}
+                    onClick={() => router.push(tab.href)}
+                    className={
+                      pathname === tab.href ? "bg-blue-100 font-semibold" : ""
+                    }
+                  >
+                    {tab.label}
+                  </DropdownMenuItem>
+                ))}
             </DropdownMenuContent>
           </DropdownMenu>
 
