@@ -159,6 +159,22 @@ public class StockTakeReviewController : ControllerBase
         return Ok(new { message = "Variance resolved successfully." });
     }
 
+    [HttpPut("{stockTakeId:int}/variances/bulk-resolve")]
+    [Authorize(Roles = "WarehouseManager, Admin")]
+    public async Task<IActionResult> ResolveVariances(
+        int stockTakeId,
+        [FromBody] BulkResolveVarianceRequest req,
+        CancellationToken ct = default)
+    {
+        var userId = GetUserId();
+        var (success, message) = await _service.ResolveVariancesAsync(stockTakeId, req, userId, ct);
+
+        if (!success)
+            return BadRequest(new { message });
+
+        return Ok(new { message });
+    }
+
     [HttpPut("{stockTakeId:int}/variances/{detailId:long}/request-recount")]
     [Authorize(Roles = "WarehouseManager, Admin")]
     public async Task<IActionResult> RequestRecount(

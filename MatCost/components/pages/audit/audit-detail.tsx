@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { auditService, RecountCandidateDto, StockTakeReviewDetailDto, VarianceItemDto } from "@/services/audit-service";
 import { toast } from "sonner";
 import ReactSignatureCanvas, { SignatureCanvas } from "react-signature-canvas";
@@ -60,6 +61,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   const [prevIsAdminFinalizing, setPrevIsAdminFinalizing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(5);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   // OTP State
   const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
@@ -137,6 +139,24 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   };
 
   const handleConfirmResolve = async () => {
+    if (selectedIds.length > 0) {
+      if (!resolveNotes.trim()) return toast.error(t("Please enter a resolution note"));
+      try {
+        setIsSubmitting(true);
+        await auditService.resolveVariances(stockTakeId, selectedIds, "Accept", undefined, resolveNotes.trim());
+        toast.success(t("Selected variances resolved successfully!"));
+        setSelectedIds([]);
+        await fetchData();
+        setResolveItem(null);
+        setResolveNotes("");
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || "Error");
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     if (!resolveItem) return;
     if (!resolveNotes.trim()) return toast.error(t("Please enter a resolution note"));
 
@@ -148,6 +168,36 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
       setResolveItem(null);
       setResolveNotes("");
     } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); }
+  };
+
+  const getActualCountRound = (v: VarianceItemDto) => {
+    let cr = (v as any).countRound;
+    if (!cr || cr <= 0) {
+      cr = (v.discrepancyStatus === "Recounted" || v.discrepancyStatus === "RecountRequested") ? 2 : 1;
+    }
+    return cr;
+  };
+
+  const resolvableVariances = variances.filter(v => 
+    !v.resolutionAction && 
+    v.discrepancyStatus !== "RecountRequested" && 
+    getActualCountRound(v) > 1
+  );
+
+  const handleToggleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(resolvableVariances.map(v => v.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleToggleSelect = (id: number, checked: boolean) => {
+    if (checked) {
+      setSelectedIds(prev => [...prev, id]);
+    } else {
+      setSelectedIds(prev => prev.filter(i => i !== id));
+    }
   };
 
   const handleManagerConfirm = async () => {
@@ -394,6 +444,9 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                 <CardHeader className="border-b border-slate-100 py-4 flex flex-row justify-between items-center">
                   <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800"><ClipboardList className="w-4 h-4 text-indigo-600" /> {t("Discrepancies Details")}</CardTitle>
                   <div className="flex gap-2">
+                    {canResolve && selectedIds.length > 0 && (
+                      <Button size="sm" className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm" onClick={() => { setResolveItem({ id: 0, materialName: `${selectedIds.length} ${t("items")}` } as any); setResolveAction(""); }} disabled={isSubmitting}><CheckCircle className="w-3.5 h-3.5 mr-1.5" /> {t("Resolve Selected")} ({selectedIds.length})</Button>
+                    )}
                     {canResolve && hasRecountEligibleItems && (
                       <Button size="sm" className="h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white shadow-sm" onClick={handleRecountAll} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCcw className="w-3.5 h-3.5 mr-1.5" />} {t("Request Recount All")}</Button>
                     )}
@@ -407,7 +460,18 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                     <Table className="w-full min-w-[700px] table-fixed">
                       <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                         <TableRow className="bg-slate-50 hover:bg-slate-50">
-                          <TableHead className="pl-6 w-[28%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Material")}</TableHead>
+                          {canResolve && (
+                            <TableHead className="w-[60px] pl-6 bg-slate-100/50">
+                              <div className="flex items-center justify-center">
+                                <Checkbox 
+                                  className="h-5 w-5 border-slate-400 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600 shadow-sm transition-all"
+                                  checked={resolvableVariances.length > 0 && selectedIds.length === resolvableVariances.length}
+                                  onCheckedChange={(checked) => handleToggleSelectAll(checked as boolean)}
+                                />
+                              </div>
+                            </TableHead>
+                          )}
+                          <TableHead className={`${canResolve ? "pl-2" : "pl-6"} w-[28%] font-bold text-slate-800 uppercase text-[11px] tracking-wider`}>{t("Material")}</TableHead>
                           <TableHead className="text-right w-[12%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Sys Qty")}</TableHead>
                           <TableHead className="text-right w-[12%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Count Qty")}</TableHead>
                           <TableHead className="text-right w-[12%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Variance")}</TableHead>
@@ -421,11 +485,28 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                           <TableRow><TableCell colSpan={7} className="text-center py-10 text-slate-500 border-b-0"><div className="flex flex-col items-center justify-center gap-2"><CheckCircle className="w-8 h-8 text-emerald-400" /><p>{t("All items matched perfectly. No discrepancies found.")}</p></div></TableCell></TableRow>
                         ) : (
                           paginatedVariances.map((row) => {
-                            let countRound = (row as any).countRound;
-                            if (!countRound || countRound <= 0) countRound = (row.discrepancyStatus === "Recounted" || row.discrepancyStatus === "RecountRequested") ? 2 : 1;
+                            const countRound = getActualCountRound(row);
+                            const isResolvable = !row.resolutionAction && row.discrepancyStatus !== "RecountRequested" && countRound > 1;
+                            const isSelected = selectedIds.includes(row.id);
+                            
                             return (
-                            <TableRow key={row.id} className="hover:bg-slate-50/50">
-                              <TableCell className="pl-6"><div className="font-medium text-slate-700 truncate max-w-[200px]" title={row.materialName}>{row.materialName}</div><div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5"><span><LayoutGrid className="w-3 h-3 inline mr-1" />{row.binCode}</span></div></TableCell>
+                            <TableRow key={row.id} className={`hover:bg-slate-50/50 transition-colors ${isSelected ? "bg-indigo-50/40" : ""}`}>
+                              {canResolve && (
+                                <TableCell className="pl-6 bg-slate-50/30">
+                                  <div className="flex items-center justify-center">
+                                    {isResolvable ? (
+                                      <Checkbox 
+                                        className="h-5 w-5 border-slate-400 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600 shadow-sm transition-all"
+                                        checked={isSelected}
+                                        onCheckedChange={(checked) => handleToggleSelect(row.id, checked as boolean)}
+                                      />
+                                    ) : (
+                                      <div className="h-5 w-5 rounded border border-slate-200 bg-slate-100/50 cursor-not-allowed opacity-50" title={t("Not resolvable")} />
+                                    )}
+                                  </div>
+                                </TableCell>
+                              )}
+                              <TableCell className={canResolve ? "pl-2" : "pl-6"}><div className="font-medium text-slate-700 truncate max-w-[200px]" title={row.materialName}>{row.materialName}</div><div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5"><span><LayoutGrid className="w-3 h-3 inline mr-1" />{row.binCode}</span></div></TableCell>
                               <TableCell className="text-right text-slate-500">{row.systemQty}</TableCell>
                               <TableCell className="text-right font-bold text-slate-900">{row.countQty}</TableCell>
                               <TableCell className={`text-right font-bold ${row.variance < 0 ? "text-red-600" : "text-blue-600"}`}>{row.variance > 0 ? "+" : ""}{row.variance}</TableCell>
@@ -435,7 +516,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                               </TableCell>
                               <TableCell className="text-right pr-6">
                                 {canResolve && !row.resolutionAction && row.discrepancyStatus !== "RecountRequested" && countRound > 1 && (
-                                  <Button size="sm" variant="outline" className="text-indigo-600 border-indigo-200" onClick={() => { setResolveItem(row); setResolveAction(""); }}>{t("Resolve")}</Button>
+                                  <Button size="sm" variant="outline" className="text-indigo-600 border-indigo-200" onClick={() => { setResolveItem(row); setResolveAction(""); setSelectedIds([]); }}>{t("Resolve")}</Button>
                                 )}
                                 {row.resolutionAction && <span className="text-xs text-slate-400 italic block">{t(row.resolutionAction)}</span>}
                               </TableCell>

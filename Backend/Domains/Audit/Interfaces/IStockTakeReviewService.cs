@@ -40,6 +40,12 @@ namespace Backend.Domains.Audit.Interfaces
             int resolvedByUserId,
             CancellationToken ct);
 
+        Task<(bool success, string message)> ResolveVariancesAsync(
+            int stockTakeId,
+            BulkResolveVarianceRequest request,
+            int resolvedByUserId,
+            CancellationToken ct);
+
         Task<(bool success, string message)> UpdateVarianceReasonAsync(
             int stockTakeId,
             long detailId,

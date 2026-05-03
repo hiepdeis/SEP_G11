@@ -626,6 +626,71 @@ namespace Backend.Domains.Audit.Services
             return (true, "Variance resolved successfully.");
         }
 
+        public async Task<(bool success, string message)> ResolveVariancesAsync(
+            int stockTakeId,
+            BulkResolveVarianceRequest request,
+            int resolvedByUserId,
+            CancellationToken ct)
+        {
+            if (request.DetailIds == null || !request.DetailIds.Any())
+                return (false, "No variance items selected.");
+
+            var st = await _db.StockTakes
+                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
+
+            if (st == null)
+                return (false, "Audit not found.");
+
+            if (st.CompletedAt != null || string.Equals(st.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+                return (false, "Audit is already completed.");
+
+            if (!string.Equals(st.Status, "PendingManagerReview", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(st.Status, "InProgress", StringComparison.OrdinalIgnoreCase))
+                return (false, $"Audit cannot be modified in status '{st.Status}'. Must be PendingManagerReview.");
+
+            var normalizedAction = NormalizeResolutionAction(request.ResolutionAction);
+            if (normalizedAction == null)
+                return (false, "ResolutionAction must be one of: Accept, AdjustSystem, Investigate.");
+
+            if (normalizedAction == "AdjustSystem" && !request.AdjustmentReasonId.HasValue)
+                return (false, "AdjustmentReasonId is required when ResolutionAction is AdjustSystem.");
+
+            var details = await _db.StockTakeDetails
+                .Where(x => request.DetailIds.Contains(x.Id) && x.StockTakeId == stockTakeId)
+                .ToListAsync(ct);
+
+            if (!details.Any())
+                return (false, "None of the selected variance items were found.");
+
+            var now = DateTime.UtcNow;
+            foreach (var detail in details)
+            {
+                detail.ResolutionAction = normalizedAction;
+                detail.AdjustmentReasonId = normalizedAction == "AdjustSystem"
+                    ? request.AdjustmentReasonId
+                    : null;
+                detail.ResolvedBy = resolvedByUserId;
+                detail.ResolvedAt = now;
+
+                if (!string.IsNullOrWhiteSpace(request.Notes))
+                    detail.Reason = request.Notes.Trim();
+            }
+
+            await _notificationService.QueueAuditNotificationAsync(
+                stockTakeId,
+                $"{details.Count} chênh lệch trong Audit #{st.StockTakeId} ({st.Title}) đã được xử lý hàng loạt với phương án {DescribeResolutionAction(normalizedAction)}.",
+                includeCreator: true,
+                includeTeamMembers: false,
+                roleNames: new[] { "WarehouseManager" },
+                extraUserIds: null,
+                excludeUserIds: new[] { resolvedByUserId },
+                ct);
+
+            await _db.SaveChangesAsync(ct);
+
+            return (true, $"{details.Count} variances resolved successfully.");
+        }
+
         public async Task<(bool success, string message)> ManagerConfirmResolutionAsync(
             int stockTakeId,
             int managerUserId,

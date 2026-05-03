@@ -90,6 +90,14 @@ public sealed class ResolveVarianceRequest
     public string? Notes { get; set; }
 }
 
+public sealed class BulkResolveVarianceRequest
+{
+    public List<long> DetailIds { get; set; } = new();
+    public string? ResolutionAction { get; set; }
+    public int? AdjustmentReasonId { get; set; }
+    public string? Notes { get; set; }
+}
+
 public sealed class UpdateVarianceReasonRequest
 {
     public int? AdjustmentReasonId { get; set; }

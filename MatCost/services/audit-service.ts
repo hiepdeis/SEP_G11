@@ -97,6 +97,11 @@ export const auditService = {
     const response = await axiosClient.put(`/manager/audits/${stockTakeId}/variances/${detailId}/resolve`, payload);
     return response.data;
   },
+  resolveVariances: async (stockTakeId: number, detailIds: number[], resolutionAction: string, adjustmentReasonId?: number, notes?: string) => {
+    const payload = { detailIds, resolutionAction, adjustmentReasonId, notes };
+    const response = await axiosClient.put(`/manager/audits/${stockTakeId}/variances/bulk-resolve`, payload);
+    return response.data;
+  },
   requestRecount: async (stockTakeId: number, detailId: number, reasonId: number, note: string = "") => {
     const payload = { reasonId, note };
     const response = await axiosClient.put(`/manager/audits/${stockTakeId}/variances/${detailId}/request-recount`, payload);
