@@ -130,21 +130,17 @@ export function Sidebar() {
     },
   ];
 
-  const outboundTabs = [
+  const allOutboundTabs = [
     {
       label: t("sidebar.tabs.issue_slips"),
       href: "/outbound/common/IssueSlipList",
+      roles: ["Manager", "Staff", "Construction", "Accountant"], // Adjust as needed, but at least these should see it
     },
     {
       label: t("sidebar.roles.construction"),
       href: "/outbound/contruction/IncomingShipments",
+      roles: ["Construction"],
     },
-    // { label: t("sidebar.roles.accountant"), href: "/outbound/account" },
-    // { label: t("sidebar.roles.manager"), href: "/outbound/manager" },
-    // {
-    //   label: t("sidebar.tabs.inventory_issue"),
-    //   href: "/outbound/staff/InventoryIssueList",
-    // },
   ];
 
   const allAuditTabs = [
@@ -344,6 +340,11 @@ export function Sidebar() {
           ? tab.subItems.map((sub) => ({ label: sub.label, href: sub.href }))
           : [{ label: tab.label, href: tab.href }],
       );
+  }, [devBypassRole, userRole, t]);
+
+  const outboundTabs = useMemo(() => {
+    if (devBypassRole) return allOutboundTabs;
+    return allOutboundTabs.filter((tab) => checkHasRole(tab.roles, userRole));
   }, [devBypassRole, userRole, t]);
 
   const auditTabs = useMemo(() => {

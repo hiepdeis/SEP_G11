@@ -14,10 +14,21 @@ import { Sidebar } from '@/components/sidebar';
 import { Header } from '@/components/ui/custom/header';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/components/providers/auth-provider";
+import { useRouter } from "next/navigation";
 
 export default function IncomingShipments() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [shipments, setShipments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user && !user.role?.toLowerCase().includes("construction")) {
+      toast.error("Bạn không có quyền truy cập vào trang này.");
+      router.push("/dashboard");
+    }
+  }, [user, router]);
   const [searchQuery, setSearchQuery] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [checkedMaterials, setCheckedMaterials] = useState<Record<string, string[]>>({});
