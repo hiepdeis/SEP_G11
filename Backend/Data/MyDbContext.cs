@@ -178,6 +178,9 @@ public partial class MyDbContext : DbContext
         {
             entity.HasKey(e => e.BinId).HasName("PK__BinLocat__4BFF5A4EB0552000");
 
+            entity.Property(e => e.CurrentMaterialId).HasColumnName("CurrentMaterialID");
+            entity.Property(e => e.MaxStockLevel).HasColumnType("decimal(18, 4)");
+
             entity.HasOne(d => d.Warehouse).WithMany(p => p.BinLocations)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_BinLocations_Warehouses");

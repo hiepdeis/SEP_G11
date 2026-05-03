@@ -18,17 +18,20 @@ public sealed class NotificationDispatchService : INotificationDispatcher
 
     private readonly MyDbContext _db;
     private readonly IEmailSender _emailSender;
+    private readonly IEmailQueue _emailQueue;
     private readonly EmailOptions _emailOptions;
     private readonly ILogger<NotificationDispatchService> _logger;
 
     public NotificationDispatchService(
         MyDbContext db,
         IEmailSender emailSender,
+        IEmailQueue emailQueue,
         IOptions<EmailOptions> emailOptions,
         ILogger<NotificationDispatchService> logger)
     {
         _db = db;
         _emailSender = emailSender;
+        _emailQueue = emailQueue;
         _emailOptions = emailOptions.Value;
         _logger = logger;
     }
@@ -69,8 +72,15 @@ public sealed class NotificationDispatchService : INotificationDispatcher
         if (request.SaveChanges)
             await _db.SaveChangesAsync(ct);
 
+        var emailRecipients = ResolveEmailRecipients(request, recipients);
+
         var emailResult = request.SendEmail
-            ? await SendNotificationEmailsAsync(recipients, normalizedMessage, createdAtUtc, ct)
+            ? await SendNotificationEmailsAsync(
+                emailRecipients,
+                normalizedMessage,
+                createdAtUtc,
+                request.SendEmailInBackground,
+                ct)
             : new EmailDispatchCounters();
 
         return CreateResult(
@@ -96,12 +106,49 @@ public sealed class NotificationDispatchService : INotificationDispatcher
             request.OnlyActiveUsers,
             ct);
 
+        var fallbackApplied = false;
+
         if (recipients.Count == 0 && !string.IsNullOrWhiteSpace(request.FallbackRoleName))
         {
             recipients = await GetRecipientsByRoleAsync(
                 request.FallbackRoleName.Trim(),
                 request.OnlyActiveUsers,
                 ct);
+            fallbackApplied = true;
+        }
+
+        IReadOnlyCollection<NotificationRecipient>? emailRecipientsOverride = null;
+        if (request.SendEmail)
+        {
+            var hasEmail = recipients.Any(r => !string.IsNullOrWhiteSpace(r.Email));
+
+            if (!hasEmail)
+            {
+                if (!fallbackApplied && !string.IsNullOrWhiteSpace(request.FallbackRoleName))
+                {
+                    var fallbackRecipients = await GetRecipientsByRoleAsync(
+                        request.FallbackRoleName.Trim(),
+                        request.OnlyActiveUsers,
+                        ct);
+
+                    if (fallbackRecipients.Any(r => !string.IsNullOrWhiteSpace(r.Email)))
+                    {
+                        emailRecipientsOverride = fallbackRecipients;
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "Email requested for role {RoleName}, but no valid email addresses were found.",
+                            request.RoleName);
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Email requested for role {RoleName}, but no valid email addresses were found.",
+                        request.RoleName);
+                }
+            }
         }
 
         // Tái sử dụng cùng pipeline để tất cả business rule nằm tại một nơi.
@@ -109,13 +156,25 @@ public sealed class NotificationDispatchService : INotificationDispatcher
             new NotificationDispatchRequest
             {
                 Recipients = recipients,
+                EmailRecipientsOverride = emailRecipientsOverride,
                 Message = request.Message,
                 RelatedEntityType = request.RelatedEntityType,
                 RelatedEntityId = request.RelatedEntityId,
                 SendEmail = request.SendEmail,
-                SaveChanges = request.SaveChanges
+                SaveChanges = request.SaveChanges,
+                SendEmailInBackground = request.SendEmailInBackground
             },
             ct);
+    }
+
+    private static List<NotificationRecipient> ResolveEmailRecipients(
+        NotificationDispatchRequest request,
+        List<NotificationRecipient> recipients)
+    {
+        if (request.EmailRecipientsOverride is null)
+            return recipients;
+
+        return NormalizeRecipients(request.EmailRecipientsOverride);
     }
 
     private static void ValidateDispatchRequest(
@@ -242,6 +301,7 @@ public sealed class NotificationDispatchService : INotificationDispatcher
         IReadOnlyCollection<NotificationRecipient> recipients,
         string message,
         DateTime createdAtUtc,
+        bool sendInBackground,
         CancellationToken ct)
     {
         if (!_emailSender.IsConfigured)
@@ -249,6 +309,11 @@ public sealed class NotificationDispatchService : INotificationDispatcher
             _logger.LogWarning(
                 "Email delivery was requested for notifications, but SMTP is not configured correctly.");
             return new EmailDispatchCounters();
+        }
+
+        if (sendInBackground)
+        {
+            return await QueueNotificationEmailsAsync(recipients, message, createdAtUtc, ct);
         }
 
         var result = new EmailDispatchCounters();
@@ -279,6 +344,34 @@ public sealed class NotificationDispatchService : INotificationDispatcher
                     recipient.UserId,
                     recipient.Email);
             }
+        }
+
+        return result;
+    }
+
+    private async Task<EmailDispatchCounters> QueueNotificationEmailsAsync(
+        IReadOnlyCollection<NotificationRecipient> recipients,
+        string message,
+        DateTime createdAtUtc,
+        CancellationToken ct)
+    {
+        var result = new EmailDispatchCounters();
+
+        foreach (var recipient in recipients)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            if (string.IsNullOrWhiteSpace(recipient.Email))
+            {
+                result.EmailMissingAddressCount++;
+                continue;
+            }
+
+            await _emailQueue.EnqueueAsync(
+                BuildNotificationEmail(recipient, message, createdAtUtc),
+                ct);
+
+            result.EmailSentCount++;
         }
 
         return result;

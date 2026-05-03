@@ -44,6 +44,7 @@ import { formatQuantity } from "@/lib/format-quantity";
 
 import { ImageGallery } from "@/components/ui/custom/image-gallery";
 import { IncidentExcelHandler } from "@/components/ui/custom/incident-xlxs";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 
 interface IncidentItemInput {
   materialId: number;
@@ -57,6 +58,7 @@ interface IncidentItemInput {
   issueType: string;
   notes: string;
   evidenceImages: string[];
+  evidenceFiles?: { file: File; previewUrl: string }[];
   breakdown: {
     quantity: number;
     quality: number;
@@ -146,6 +148,7 @@ export default function StaffIncidentPage({
               ? historyDetail.notes || ""
               : qcItem.failReason || "",
             evidenceImages: historyDetail?.evidenceImages || [],
+            evidenceFiles: [],
             breakdown: historyDetail?.breakdown || {
               quantity: 0,
               quality: 0,
@@ -231,6 +234,7 @@ export default function StaffIncidentPage({
                 ? historyDetail.notes || ""
                 : qcItem.failReason || "",
               evidenceImages: historyDetail?.evidenceImages || [],
+              evidenceFiles: [],
               breakdown: historyDetail?.breakdown || {
                 quantity: expectedQuantityShortage,
                 quality: 0,
@@ -242,7 +246,6 @@ export default function StaffIncidentPage({
         );
 
         setIncidentItems(
-          // Filter out items with no failed items
           itemsToReport.filter(
             (item) => item.passQuantity < item.orderedQuantity,
           ),
@@ -313,7 +316,9 @@ export default function StaffIncidentPage({
       );
 
     const missingImages = incidentItems.filter(
-      (i) => !i.evidenceImages || i.evidenceImages.length === 0,
+      (i) =>
+        (!i.evidenceImages || i.evidenceImages.length === 0) &&
+        (!i.evidenceFiles || i.evidenceFiles.length === 0),
     );
     if (missingImages.length > 0)
       return toast.error(
@@ -329,29 +334,53 @@ export default function StaffIncidentPage({
       onConfirm: async () => {
         setIsSubmitting(true);
         try {
-          const payload: CreateIncidentReportDto = {
-            description: incidentDescription.trim(),
-            details: incidentItems.map((i) => {
-              const currentBreakdown = i.breakdown;
+          const uploadToastId = toast.loading(
+            t("Uploading evidence images..."),
+          );
+
+          const detailsPayload = await Promise.all(
+            incidentItems.map(async (i) => {
+              const uploadedUrls: string[] = [];
+              if (i.evidenceFiles && i.evidenceFiles.length > 0) {
+                for (const f of i.evidenceFiles) {
+                  const secureUrl = await uploadToCloudinary(f.file);
+                  uploadedUrls.push(secureUrl);
+                }
+              }
+
+              const allImages = [...(i.evidenceImages || []), ...uploadedUrls];
+
               return {
                 materialId: i.materialId,
                 issueType: i.issueType,
                 failQuantity: i.failQuantity,
                 evidenceNote: i.notes.trim() || null,
-                evidenceImages:
-                  i.evidenceImages.length > 0 ? i.evidenceImages : null,
-                breakdown: currentBreakdown,
+                evidenceImages: allImages.length > 0 ? allImages : null,
+                breakdown: i.breakdown,
               };
             }),
+          );
+
+          toast.dismiss(uploadToastId);
+
+          const payload: CreateIncidentReportDto = {
+            description: incidentDescription.trim(),
+            details: detailsPayload,
           };
+
+          console.log(payload);
+
           const res = await staffReceiptsApi.createIncidentReport(id, payload);
           toast.success(t("Incident Report created successfully!"));
           await initData();
           handleSubmitToManager(res.data.incidentId);
         } catch (error: any) {
+          toast.dismiss();
           toast.error(
-            error.response?.data?.message ||
-              t("Failed to create incident report"),
+            error.message === "Upload failed"
+              ? t("Failed to upload images to Cloudinary.")
+              : error.response?.data?.message ||
+                  t("Failed to create incident report"),
           );
         } finally {
           setIsSubmitting(false);
@@ -460,7 +489,9 @@ export default function StaffIncidentPage({
       );
     }
 
-    const validSizeFiles = imageFiles.filter((file) => file.size <= 2 * 1024 * 1024);
+    const validSizeFiles = imageFiles.filter(
+      (file) => file.size <= 2 * 1024 * 1024,
+    );
 
     if (validSizeFiles.length < imageFiles.length) {
       toast.warning(t("Some images exceed the 2MB limit and were skipped."));
@@ -471,8 +502,10 @@ export default function StaffIncidentPage({
       return;
     }
 
-    const currentImages = incidentItems[index].evidenceImages || [];
-    const availableSlots = 5 - currentImages.length;
+    const item = incidentItems[index];
+    const currentImagesCount =
+      (item.evidenceImages?.length || 0) + (item.evidenceFiles?.length || 0);
+    const availableSlots = 5 - currentImagesCount;
 
     if (availableSlots <= 0) {
       toast.warning(t("Maximum 5 images allowed per item."));
@@ -483,50 +516,35 @@ export default function StaffIncidentPage({
     const filesToProcess = validSizeFiles.slice(0, availableSlots);
 
     if (filesToProcess.length < validSizeFiles.length) {
-      toast.warning(
-        t("Maximum 5 images allowed. Extra images were skipped.")
-      );
+      toast.warning(t("Maximum 5 images allowed. Extra images were skipped."));
     }
 
-    try {
-      const base64Images = await Promise.all(
-        filesToProcess.map((file) => {
-          return new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = (error) => reject(error);
-          });
-        }),
-      );
+    const newFiles = filesToProcess.map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
 
-      const newItems = [...incidentItems];
-      const existingImages = newItems[index].evidenceImages || [];
+    const newItems = [...incidentItems];
+    newItems[index] = {
+      ...newItems[index],
+      evidenceFiles: [...(item.evidenceFiles || []), ...newFiles],
+    };
 
-      const uniqueNewImages = base64Images.filter(
-        (base64) => !existingImages.includes(base64),
-      );
-
-      if (uniqueNewImages.length < base64Images.length) {
-        toast.info(t("Duplicated images were skipped."));
-      }
-
-      newItems[index] = {
-        ...newItems[index],
-        evidenceImages: [...existingImages, ...uniqueNewImages].slice(0, 5),
-      };
-
-      setIncidentItems(newItems);
-    } catch (error) {
-      toast.error(t("Failed to process images."));
-    } finally {
-      e.target.value = "";
-    }
+    setIncidentItems(newItems);
+    e.target.value = "";
   };
 
   const removeImage = (itemIndex: number, imgIndex: number) => {
     const newItems = [...incidentItems];
-    newItems[itemIndex].evidenceImages.splice(imgIndex, 1);
+    const item = newItems[itemIndex];
+    const evidenceImagesLength = item.evidenceImages?.length || 0;
+
+    if (imgIndex < evidenceImagesLength) {
+      item.evidenceImages.splice(imgIndex, 1);
+    } else if (item.evidenceFiles) {
+      item.evidenceFiles.splice(imgIndex - evidenceImagesLength, 1);
+    }
+
     setIncidentItems(newItems);
   };
 
@@ -546,6 +564,16 @@ export default function StaffIncidentPage({
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
       <main className="flex-grow flex flex-col overflow-hidden relative z-10">
+        {isSubmittingToManager && (
+          <div className="absolute inset-0 z-50 bg-white/70 backdrop-blur-sm flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3 text-indigo-600">
+              <Loader2 className="w-8 h-8 animate-spin" />
+              <p className="text-sm font-medium">
+                {t("Submitting to manager...")}
+              </p>
+            </div>
+          </div>
+        )}
         <Header
           title={`${t("Incident Report")} #${qcData?.receiptCode || id}`}
         />
@@ -907,9 +935,13 @@ export default function StaffIncidentPage({
                                           <Camera className="w-3.5 h-3.5" />
                                           {t("Add Evidence")}
                                         </label>
-                                        {item.evidenceImages.length > 0 && (
+                                        {(item.evidenceImages.length > 0 ||
+                                          (item.evidenceFiles &&
+                                            item.evidenceFiles.length > 0)) && (
                                           <span className="text-xs text-slate-500 font-medium">
-                                            {item.evidenceImages.length}{" "}
+                                            {item.evidenceImages.length +
+                                              (item.evidenceFiles?.length ||
+                                                0)}{" "}
                                             {t("images")}
                                           </span>
                                         )}
@@ -917,9 +949,16 @@ export default function StaffIncidentPage({
                                     )}
 
                                     {/* Thumbnail Preview (Tối đa 5 ảnh) */}
-                                    {item.evidenceImages.length > 0 && (
+                                    {(item.evidenceImages.length > 0 ||
+                                      (item.evidenceFiles &&
+                                        item.evidenceFiles.length > 0)) && (
                                       <ImageGallery
-                                        images={item.evidenceImages}
+                                        images={[
+                                          ...(item.evidenceImages || []),
+                                          ...(item.evidenceFiles?.map(
+                                            (f) => f.previewUrl,
+                                          ) || []),
+                                        ]}
                                         isReadOnly={isHistoryView}
                                         onRemove={(imgIdx) =>
                                           removeImage(absoluteIdx, imgIdx)

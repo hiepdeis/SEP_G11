@@ -41,6 +41,17 @@ public sealed class NotificationDispatchRequest
     public bool SendEmail { get; init; }
 
     /// <summary>
+    /// Tùy chọn override danh sách người nhận email.
+    /// Notification vẫn được tạo cho Recipients.
+    /// </summary>
+    public IReadOnlyCollection<NotificationRecipient>? EmailRecipientsOverride { get; init; }
+
+    /// <summary>
+    /// True để đẩy việc gửi email sang background, tránh chặn request.
+    /// </summary>
+    public bool SendEmailInBackground { get; init; }
+
+    /// <summary>
     /// True để lưu các dòng Notification ngay trong lần gọi này.
     /// Bắt buộc true khi SendEmail=true để tránh gửi email cho thông báo chưa được lưu.
     /// </summary>
@@ -75,6 +86,8 @@ public sealed class NotificationRoleDispatchRequest
     public long? RelatedEntityId { get; init; }
 
     public bool SendEmail { get; init; }
+
+    public bool SendEmailInBackground { get; init; }
 
     public bool SaveChanges { get; init; } = true;
 }

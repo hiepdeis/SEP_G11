@@ -80,25 +80,6 @@ namespace Backend.Controllers
             });
         }
 
-        [HttpGet("{stockTakeId:int}/materials/suggest")]
-        public async Task<IActionResult> SuggestMaterials(
-            int stockTakeId,
-            [FromQuery] string? keyword,
-            [FromQuery] int take = 10,
-            CancellationToken ct = default)
-        {
-            return await ExecuteReadAsync(async () =>
-            {
-                var userId = GetCurrentUserId();
-
-                return await _stockTakeCountingService.SuggestMaterialsAsync(
-                    stockTakeId,
-                    userId,
-                    keyword,
-                    take,
-                    ct);
-            });
-        }
 
         [HttpPost("{stockTakeId:int}/count-items")]
         public async Task<IActionResult> UpsertCount(

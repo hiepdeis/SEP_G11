@@ -8,7 +8,7 @@ namespace Backend.Controllers
 {
     [ApiController]
     [Route("api/accountants/audits")]
-    [Authorize(Roles = "Accountant")]
+    [Authorize(Roles = "Accountant,Admin")]
     public class AuditLockController : ControllerBase
     {
         private readonly IStockTakeLockService _service;
@@ -35,16 +35,5 @@ namespace Backend.Controllers
             return Ok(new { message = result.message });
         }
 
-        [HttpPost("{stockTakeId:int}/unlock")]
-        public async Task<IActionResult> UnlockScope(int stockTakeId, CancellationToken ct)
-        {
-            var userId = GetCurrentUserId();
-            var result = await _service.UnlockScopeAsync(stockTakeId, userId, ct);
-
-            if (!result.success)
-                return BadRequest(new { message = result.message });
-
-            return Ok(new { message = result.message });
-        }
     }
 }

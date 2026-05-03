@@ -1,4 +1,5 @@
 using Backend.Data;
+using Backend.Domains.Audit.Interfaces;
 using Backend.Domains.Import.DTOs.Accountants;
 using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.DTOs.Purchasing;
@@ -6,6 +7,7 @@ using Backend.Domains.Import.DTOs.Staff;
 using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
 using Backend.Services.Notifications;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Domains.Import.Services
@@ -14,10 +16,12 @@ namespace Backend.Domains.Import.Services
     {
         private readonly MyDbContext _context;
         private readonly INotificationDispatcher _notificationDispatcher;
-        public ReceiptService(MyDbContext context, INotificationDispatcher notificationDispatcher)
+        private readonly IAuditLockCheckService _auditLockCheck;
+        public ReceiptService(MyDbContext context, INotificationDispatcher notificationDispatcher, IAuditLockCheckService auditLockCheck)
         {
             _context = context;
             _notificationDispatcher = notificationDispatcher;
+            _auditLockCheck = auditLockCheck;
         }
 
 
@@ -149,218 +153,218 @@ namespace Backend.Domains.Import.Services
             };
         }
 
-        public async Task ConfirmGoodsReceiptAsync(long receiptId, ConfirmGoodsReceiptDto dto, int staffId)
-        {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                // STEP 1: validate receipt and inputs
-                var receipt = await _context.Receipts
-                    .Include(r => r.ReceiptDetails)
-                    .ThenInclude(rd => rd.Material)
-                    .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
+        // public async Task ConfirmGoodsReceiptAsync(long receiptId, ConfirmGoodsReceiptDto dto, int staffId)
+        // {
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+        //     try
+        //     {
+        //         // STEP 1: validate receipt and inputs
+        //         var receipt = await _context.Receipts
+        //             .Include(r => r.ReceiptDetails)
+        //             .ThenInclude(rd => rd.Material)
+        //             .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
 
-                if (receipt == null)
-                    throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
+        //         if (receipt == null)
+        //             throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
 
-                if (receipt.Status != "GoodsArrived")
-                    throw new InvalidOperationException("Receipt must be approved before confirmation");
+        //         if (receipt.Status != "GoodsArrived")
+        //             throw new InvalidOperationException("Receipt must be approved before confirmation");
 
-                if (receipt.Status == "Completed")
-                    throw new InvalidOperationException("Receipt has already been confirmed");
+        //         if (receipt.Status == "Completed")
+        //             throw new InvalidOperationException("Receipt has already been confirmed");
 
-                if (dto.Items == null || !dto.Items.Any())
-                    throw new ArgumentException("Items list cannot be empty");
+        //         if (dto.Items == null || !dto.Items.Any())
+        //             throw new ArgumentException("Items list cannot be empty");
 
-                // STEP 2: CardCode prefix
-                var today = DateTime.UtcNow;
-                var cardPrefix = $"WC-{today:yyyyMMdd}-";
-                var lastCard = await _context.WarehouseCards
-                    .Where(w => w.CardCode.StartsWith(cardPrefix))
-                    .OrderByDescending(w => w.CardId)
-                    .FirstOrDefaultAsync();
+        //         // STEP 2: CardCode prefix
+        //         var today = DateTime.UtcNow;
+        //         var cardPrefix = $"WC-{today:yyyyMMdd}-";
+        //         var lastCard = await _context.WarehouseCards
+        //             .Where(w => w.CardCode.StartsWith(cardPrefix))
+        //             .OrderByDescending(w => w.CardId)
+        //             .FirstOrDefaultAsync();
 
-                int nextSeq = 1;
-                if (lastCard != null)
-                {
-                    var parts = lastCard.CardCode.Split('-');
-                    if (parts.Length > 0 && int.TryParse(parts[^1], out int lastSeq))
-                        nextSeq = lastSeq + 1;
-                }
+        //         int nextSeq = 1;
+        //         if (lastCard != null)
+        //         {
+        //             var parts = lastCard.CardCode.Split('-');
+        //             if (parts.Length > 0 && int.TryParse(parts[^1], out int lastSeq))
+        //                 nextSeq = lastSeq + 1;
+        //         }
 
-                var shortageList = new List<(int MaterialId, int? SupplierId, decimal ShortageQuantity, decimal? UnitPrice)>();
-                var costUpdateItems = new List<MaterialCostUpdateItem>();
+        //         var shortageList = new List<(int MaterialId, int? SupplierId, decimal ShortageQuantity, decimal? UnitPrice)>();
+        //         var costUpdateItems = new List<MaterialCostUpdateItem>();
 
-                foreach (var item in dto.Items)
-                {
-                    var detail = receipt.ReceiptDetails.First(rd => rd.DetailId == item.DetailId);
+        //         foreach (var item in dto.Items)
+        //         {
+        //             var detail = receipt.ReceiptDetails.First(rd => rd.DetailId == item.DetailId);
 
-                    // Update ReceiptDetail
-                    detail.ActualQuantity = item.ActualQuantity;
-                    detail.BinLocationId = item.BinLocationId;
+        //             // Update ReceiptDetail
+        //             detail.ActualQuantity = item.ActualQuantity;
+        //             detail.BinLocationId = item.BinLocationId;
 
-                    // Handle Batch
-                    var batch = await GetOrCreateBatchAsync(detail.MaterialId, item.BatchCode, item.MfgDate, item.CertificateImage);
-                    detail.BatchId = batch.BatchId;
+        //             // Handle Batch
+        //             var batch = await GetOrCreateBatchAsync(detail.MaterialId, item.BatchCode, item.MfgDate, item.CertificateImage);
+        //             detail.BatchId = batch.BatchId;
 
-                    // Update Inventory (skip if ActualQuantity = 0)
-                    if (item.ActualQuantity > 0)
-                    {
-                        var inventory = await _context.InventoryCurrents
-                            .FirstOrDefaultAsync(i =>
-                                i.WarehouseId == receipt.WarehouseId &&
-                                i.MaterialId == detail.MaterialId &&
-                                i.BinId == item.BinLocationId &&
-                                i.BatchId == batch.BatchId);
+        //             // Update Inventory (skip if ActualQuantity = 0)
+        //             if (item.ActualQuantity > 0)
+        //             {
+        //                 var inventory = await _context.InventoryCurrents
+        //                     .FirstOrDefaultAsync(i =>
+        //                         i.WarehouseId == receipt.WarehouseId &&
+        //                         i.MaterialId == detail.MaterialId &&
+        //                         i.BinId == item.BinLocationId &&
+        //                         i.BatchId == batch.BatchId);
 
-                        decimal qtyBefore = inventory?.QuantityOnHand ?? 0;
-                        decimal qtyAfter = qtyBefore + item.ActualQuantity;
+        //                 decimal qtyBefore = inventory?.QuantityOnHand ?? 0;
+        //                 decimal qtyAfter = qtyBefore + item.ActualQuantity;
 
-                        if (inventory == null)
-                        {
-                            inventory = new InventoryCurrent
-                            {
-                                WarehouseId = receipt.WarehouseId,
-                                MaterialId = detail.MaterialId,
-                                BinId = item.BinLocationId,
-                                BatchId = batch.BatchId,
-                                QuantityOnHand = item.ActualQuantity,
-                                LastUpdated = today
-                            };
-                            _context.InventoryCurrents.Add(inventory);
-                        }
-                        else
-                        {
-                            inventory.QuantityOnHand = qtyAfter;
-                            inventory.LastUpdated = today;
-                        }
+        //                 if (inventory == null)
+        //                 {
+        //                     inventory = new InventoryCurrent
+        //                     {
+        //                         WarehouseId = receipt.WarehouseId,
+        //                         MaterialId = detail.MaterialId,
+        //                         BinId = item.BinLocationId,
+        //                         BatchId = batch.BatchId,
+        //                         QuantityOnHand = item.ActualQuantity,
+        //                         LastUpdated = today
+        //                     };
+        //                     _context.InventoryCurrents.Add(inventory);
+        //                 }
+        //                 else
+        //                 {
+        //                     inventory.QuantityOnHand = qtyAfter;
+        //                     inventory.LastUpdated = today;
+        //                 }
 
-                        // Warehouse Card entry
-                        var cardCode = $"{cardPrefix}{nextSeq:D4}";
-                        nextSeq++;
+        //                 // Warehouse Card entry
+        //                 var cardCode = $"{cardPrefix}{nextSeq:D4}";
+        //                 nextSeq++;
 
-                        var warehouseCard = new WarehouseCard
-                        {
-                            CardCode = cardCode,
-                            WarehouseId = receipt.WarehouseId!.Value,
-                            MaterialId = detail.MaterialId,
-                            BinId = item.BinLocationId,
-                            BatchId = batch.BatchId,
-                            TransactionType = "Import",
-                            ReferenceId = receiptId,
-                            ReferenceType = "Receipt",
-                            TransactionDate = today,
-                            Quantity = item.ActualQuantity,
-                            QuantityBefore = qtyBefore,
-                            QuantityAfter = qtyAfter,
-                            CreatedBy = staffId,
-                            Notes = dto.Notes
-                        };
-                        _context.WarehouseCards.Add(warehouseCard);
-                        // 
-                    }
+        //                 var warehouseCard = new WarehouseCard
+        //                 {
+        //                     CardCode = cardCode,
+        //                     WarehouseId = receipt.WarehouseId!.Value,
+        //                     MaterialId = detail.MaterialId,
+        //                     BinId = item.BinLocationId,
+        //                     BatchId = batch.BatchId,
+        //                     TransactionType = "Import",
+        //                     ReferenceId = receiptId,
+        //                     ReferenceType = "Receipt",
+        //                     TransactionDate = today,
+        //                     Quantity = item.ActualQuantity,
+        //                     QuantityBefore = qtyBefore,
+        //                     QuantityAfter = qtyAfter,
+        //                     CreatedBy = staffId,
+        //                     Notes = dto.Notes
+        //                 };
+        //                 _context.WarehouseCards.Add(warehouseCard);
+        //                 // 
+        //             }
 
-                    if (item.ActualQuantity > 0)
-                    {
-                        costUpdateItems.Add(new MaterialCostUpdateItem
-                        {
-                            MaterialId = detail.MaterialId,
-                            ActualQuantity = item.ActualQuantity,
-                            UnitPrice = detail.UnitPrice ?? 0m
-                        });
-                    }
+        //             if (item.ActualQuantity > 0)
+        //             {
+        //                 costUpdateItems.Add(new MaterialCostUpdateItem
+        //                 {
+        //                     MaterialId = detail.MaterialId,
+        //                     ActualQuantity = item.ActualQuantity,
+        //                     UnitPrice = detail.UnitPrice ?? 0m
+        //                 });
+        //             }
 
-                    // Check shortage
-                    if (item.ActualQuantity < detail.Quantity)
-                    {
-                        shortageList.Add((
-                            detail.MaterialId,
-                            detail.SupplierId,
-                            detail.Quantity - item.ActualQuantity,
-                            detail.UnitPrice
-                        ));
-                    }
-                }
+        //             // Check shortage
+        //             if (item.ActualQuantity < detail.Quantity)
+        //             {
+        //                 shortageList.Add((
+        //                     detail.MaterialId,
+        //                     detail.SupplierId,
+        //                     detail.Quantity - item.ActualQuantity,
+        //                     detail.UnitPrice
+        //                 ));
+        //             }
+        //         }
 
-                // STEP 3: Process shortage - create child receipt if there is any shortage
-                if (shortageList.Any())
-                {
-                    var newReceiptCode = await GenerateReceiptCodeAsync();
+        //         // STEP 3: Process shortage - create child receipt if there is any shortage
+        //         if (shortageList.Any())
+        //         {
+        //             var newReceiptCode = await GenerateReceiptCodeAsync();
 
-                    var childReceipt = new Receipt
-                    {
-                        ReceiptCode = newReceiptCode,
-                        ParentRequestId = receiptId,
-                        Status = "Backorder",
-                        WarehouseId = receipt.WarehouseId,
-                        PurchaseOrderId = receipt.PurchaseOrderId,
-                        ConfirmedBy = receipt.ConfirmedBy,
-                        ConfirmedAt = receipt.ConfirmedAt,
-                        ReceiptDate = today,
-                        BackorderReason = $"Auto-generated backorder from receipt {receipt.ReceiptCode}",
-                        CreatedBy = staffId
-                    };
+        //             var childReceipt = new Receipt
+        //             {
+        //                 ReceiptCode = newReceiptCode,
+        //                 ParentRequestId = receiptId,
+        //                 Status = "Backorder",
+        //                 WarehouseId = receipt.WarehouseId,
+        //                 PurchaseOrderId = receipt.PurchaseOrderId,
+        //                 ConfirmedBy = receipt.ConfirmedBy,
+        //                 ConfirmedAt = receipt.ConfirmedAt,
+        //                 ReceiptDate = today,
+        //                 BackorderReason = $"Auto-generated backorder from receipt {receipt.ReceiptCode}",
+        //                 CreatedBy = staffId
+        //             };
 
-                    _context.Receipts.Add(childReceipt);
-                    await _context.SaveChangesAsync();
+        //             _context.Receipts.Add(childReceipt);
+        //             await _context.SaveChangesAsync();
 
-                    decimal totalAmount = 0;
-                    foreach (var shortage in shortageList)
-                    {
-                        var childDetail = new ReceiptDetail
-                        {
-                            ReceiptId = childReceipt.ReceiptId,
-                            MaterialId = shortage.MaterialId,
-                            SupplierId = shortage.SupplierId,
-                            Quantity = shortage.ShortageQuantity,
-                            UnitPrice = shortage.UnitPrice,
-                            LineTotal = shortage.ShortageQuantity * (shortage.UnitPrice ?? 0)
-                        };
-                        _context.ReceiptDetails.Add(childDetail);
-                        totalAmount += childDetail.LineTotal ?? 0;
-                    }
+        //             decimal totalAmount = 0;
+        //             foreach (var shortage in shortageList)
+        //             {
+        //                 var childDetail = new ReceiptDetail
+        //                 {
+        //                     ReceiptId = childReceipt.ReceiptId,
+        //                     MaterialId = shortage.MaterialId,
+        //                     SupplierId = shortage.SupplierId,
+        //                     Quantity = shortage.ShortageQuantity,
+        //                     UnitPrice = shortage.UnitPrice,
+        //                     LineTotal = shortage.ShortageQuantity * (shortage.UnitPrice ?? 0)
+        //                 };
+        //                 _context.ReceiptDetails.Add(childDetail);
+        //                 totalAmount += childDetail.LineTotal ?? 0;
+        //             }
 
-                    childReceipt.TotalAmount = totalAmount;
-                }
+        //             childReceipt.TotalAmount = totalAmount;
+        //         }
 
-                // STEP 4: Finalize
-                if (receipt.PurchaseOrderId.HasValue)
-                {
-                    var purchaseOrder = await _context.PurchaseOrders
-                        .Include(o => o.Items)
-                        .FirstOrDefaultAsync(o => o.PurchaseOrderId == receipt.PurchaseOrderId.Value);
+        //         // STEP 4: Finalize
+        //         if (receipt.PurchaseOrderId.HasValue)
+        //         {
+        //             var purchaseOrder = await _context.PurchaseOrders
+        //                 .Include(o => o.Items)
+        //                 .FirstOrDefaultAsync(o => o.PurchaseOrderId == receipt.PurchaseOrderId.Value);
 
-                    if (purchaseOrder != null)
-                    {
-                        var totalOrdered = purchaseOrder.Items.Sum(i => i.OrderedQuantity);
-                        var totalActual = receipt.ReceiptDetails.Sum(rd => rd.ActualQuantity ?? 0);
+        //             if (purchaseOrder != null)
+        //             {
+        //                 var totalOrdered = purchaseOrder.Items.Sum(i => i.OrderedQuantity);
+        //                 var totalActual = receipt.ReceiptDetails.Sum(rd => rd.ActualQuantity ?? 0);
 
-                        if (totalActual == totalOrdered)
-                            purchaseOrder.Status = "FullyReceived";
-                        else if (totalActual < totalOrdered)
-                            purchaseOrder.Status = "PartiallyReceived";
-                        else
-                            purchaseOrder.Status = "OverReceived";
-                    }
-                }
+        //                 if (totalActual == totalOrdered)
+        //                     purchaseOrder.Status = "FullyReceived";
+        //                 else if (totalActual < totalOrdered)
+        //                     purchaseOrder.Status = "PartiallyReceived";
+        //                 else
+        //                     purchaseOrder.Status = "OverReceived";
+        //             }
+        //         }
 
-                receipt.Status = "QCPassed";
-                receipt.ConfirmedBy = staffId;
-                receipt.ConfirmedAt = today;
+        //         receipt.Status = "QCPassed";
+        //         receipt.ConfirmedBy = staffId;
+        //         receipt.ConfirmedAt = today;
 
-                await _context.SaveChangesAsync();
+        //         await _context.SaveChangesAsync();
 
-                if (costUpdateItems.Count > 0)
-                    await UpdateMaterialAverageCostAsync(costUpdateItems);
+        //         if (costUpdateItems.Count > 0)
+        //             await UpdateMaterialAverageCostAsync(costUpdateItems);
 
-                await transaction.CommitAsync();
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
-        }
+        //         await transaction.CommitAsync();
+        //     }
+        //     catch
+        //     {
+        //         await transaction.RollbackAsync();
+        //         throw;
+        //     }
+        // }
 
         public async Task<ReceiveGoodsFromPoResultDto> ReceiveGoodsFromPOAsync(ReceiveGoodsFromPoDto dto, int staffId)
         {
@@ -941,15 +945,119 @@ namespace Backend.Domains.Import.Services
                     .GroupBy(d => d.ReceiptDetailId)
                     .ToDictionary(g => g.Key, g => g.Sum(x => x.PassQuantity));
 
-                var binIds = dto.Items
-                    .SelectMany(i => i.BinAllocations)
+                // Gom tất cả phân bổ kệ từ DTO để kiểm tra trước khi cập nhật tồn
+                var requestedAllocations = dto.Items
+                    .SelectMany(i => i.BinAllocations.Select(a => new
+                    {
+                        i.MaterialId,
+                        a.BinId,
+                        a.Quantity
+                    }))
+                    .ToList();
+
+                if (requestedAllocations.Count == 0)
+                    throw new ArgumentException("Danh sách phân bổ kệ (bin) không được rỗng");
+
+                var binIds = requestedAllocations
                     .Select(a => a.BinId)
                     .Distinct()
                     .ToList();
 
-                var binMap = await _context.BinLocations
-                    .Where(b => binIds.Contains(b.BinId))
-                    .ToDictionaryAsync(b => b.BinId, b => b);
+                // Khóa các kệ để tránh race condition khi nhiều người cất hàng cùng lúc
+                var binParameters = binIds
+                    .Select((id, index) => new SqlParameter($"@p{index}", id))
+                    .ToArray();
+                var binInClause = string.Join(", ", binParameters.Select(p => p.ParameterName));
+                var binSql = $"SELECT * FROM BinLocations WITH (UPDLOCK, HOLDLOCK, ROWLOCK) WHERE BinID IN ({binInClause})";
+
+                var lockedBins = await _context.BinLocations
+                    .FromSqlRaw(binSql, binParameters)
+                    .ToListAsync();
+
+                var binMap = lockedBins.ToDictionary(b => b.BinId, b => b);
+
+                // Mỗi kệ chỉ được gán 1 material trong cùng một lần putaway
+                var requestedByBin = new Dictionary<int, (int MaterialId, decimal Quantity)>();
+                foreach (var allocation in requestedAllocations)
+                {
+                    if (!requestedByBin.TryGetValue(allocation.BinId, out var current))
+                    {
+                        requestedByBin[allocation.BinId] = (allocation.MaterialId, allocation.Quantity);
+                        continue;
+                    }
+
+                    if (current.MaterialId != allocation.MaterialId)
+                    {
+                        throw new InvalidOperationException(
+                            $"Kệ {allocation.BinId} đang được phân bổ cho nhiều loại vật tư. Vui lòng tách ra các kệ khác nhau");
+                    }
+
+                    requestedByBin[allocation.BinId] = (current.MaterialId, current.Quantity + allocation.Quantity);
+                }
+
+                var missingBins = requestedByBin.Keys.Where(id => !binMap.ContainsKey(id)).ToList();
+                if (missingBins.Count > 0)
+                    throw new InvalidOperationException($"Kệ {string.Join(", ", missingBins)} không tồn tại hoặc không thuộc kho này");
+
+                var requestedMaterialIds = requestedByBin.Values
+                    .Select(v => v.MaterialId)
+                    .Distinct()
+                    .ToList();
+
+                var currentQtyList = await _context.InventoryCurrents
+                    .Where(i => binIds.Contains(i.BinId) && requestedMaterialIds.Contains(i.MaterialId))
+                    .GroupBy(i => new { i.BinId, i.MaterialId })
+                    .Select(g => new
+                    {
+                        g.Key.BinId,
+                        g.Key.MaterialId,
+                        Qty = g.Sum(x => x.QuantityOnHand ?? 0m)
+                    })
+                    .ToListAsync();
+
+                var currentQtyByBinMaterial = currentQtyList
+                    .ToDictionary(x => (x.BinId, x.MaterialId), x => x.Qty);
+
+                foreach (var kvp in requestedByBin)
+                {
+                    var binId = kvp.Key;
+                    var materialId = kvp.Value.MaterialId;
+                    var requestedQty = kvp.Value.Quantity;
+                    var bin = binMap[binId];
+
+                    if (bin.WarehouseId != receipt.WarehouseId.Value)
+                        throw new InvalidOperationException($"Kệ {bin.Code} không thuộc kho này");
+
+                    // Kiểm tra kệ đang chứa vật tư gì
+                    if (bin.CurrentMaterialId.HasValue && bin.CurrentMaterialId.Value != materialId)
+                    {
+                        throw new InvalidOperationException(
+                            $"Kệ {bin.Code} đang chứa vật tư khác (MaterialId {bin.CurrentMaterialId.Value}). Vui lòng chọn kệ khác");
+                    }
+
+                    if (!bin.CurrentMaterialId.HasValue)
+                        bin.CurrentMaterialId = materialId;
+
+                    // Kiểm tra sức chứa của kệ
+                    if (bin.MaxStockLevel.HasValue)
+                    {
+                        var currentQty = currentQtyByBinMaterial.TryGetValue((binId, materialId), out var qty)
+                            ? qty
+                            : 0m;
+                        var available = bin.MaxStockLevel.Value - currentQty;
+
+                        if (requestedQty > available)
+                        {
+                            throw new InvalidOperationException(
+                                $"Kệ {bin.Code} chỉ còn chứa được {available:F4}. Vui lòng chia số lượng sang kệ khác");
+                        }
+                    }
+                }
+
+                // Check audit lock for all target bins before proceeding
+                var lockMessage = await _auditLockCheck.CheckBinsForLockAsync(receipt.WarehouseId.Value, binIds, default);
+                if (lockMessage != null)
+                    throw new InvalidOperationException(lockMessage);
 
                 var summary = new List<ReceiptPutawaySummaryDto>();
                 var costUpdateItems = new List<MaterialCostUpdateItem>();
@@ -994,20 +1102,31 @@ namespace Backend.Domains.Import.Services
                     }
 
                     Batch batch;
-                    if (item.Batch.BatchId.HasValue)
-                    {
-                        batch = await _context.Batches
-                            .FirstOrDefaultAsync(b => b.BatchId == item.Batch.BatchId.Value)
-                            ?? throw new KeyNotFoundException($"Batch with ID {item.Batch.BatchId} not found");
 
+                    if (string.IsNullOrWhiteSpace(item.Batch.BatchCode))
+                    {
+                        throw new ArgumentException("BatchCode is required!");
+                    }
+
+                    // Kiểm tra trong database xem Lô hàng này đã tồn tại chưa
+                    batch = await _context.Batches.FirstOrDefaultAsync(b => b.BatchCode == item.Batch.BatchCode);
+
+                    if (batch != null)
+                    {
                         if (batch.MaterialId != item.MaterialId)
-                            throw new InvalidOperationException("Batch khong thuoc material nay");
+                            throw new ArgumentException("Batch này thuộc về một vật tư khác!");
+
+                        if (batch.MfgDate != item.Batch.MfgDate || batch.ExpiryDate != item.Batch.ExpiryDate)
+                            throw new InvalidOperationException($"Lô hàng {batch.BatchCode} đã tồn tại trong hệ thống với Ngày SX: {batch.MfgDate:dd/MM/yyyy} và HSD là {batch.ExpiryDate:dd/MM/yyyy}. Dữ liệu bạn nhập không khớp. Vui lòng kiểm tra lại có gõ nhầm mã lô không!");
+
+                        if (!string.IsNullOrEmpty(item.Batch.CertificateImage) && batch.CertificateImage != item.Batch.CertificateImage)
+                        {
+                            batch.CertificateImage = item.Batch.CertificateImage;
+                            _context.Batches.Update(batch);
+                        }
                     }
                     else
                     {
-                        if (string.IsNullOrWhiteSpace(item.Batch.BatchCode))
-                            throw new ArgumentException("BatchCode is required when creating new batch");
-
                         batch = new Batch
                         {
                             MaterialId = item.MaterialId,
@@ -1173,6 +1292,7 @@ namespace Backend.Domains.Import.Services
                         RelatedEntityType = "Receipt",
                         RelatedEntityId = receipt.ReceiptId,
                         SendEmail = true,
+                        SendEmailInBackground = true,
                         SaveChanges = true
                     }, CancellationToken.None);
                 }
@@ -1635,6 +1755,7 @@ namespace Backend.Domains.Import.Services
                 RelatedEntityType = "Receipt",
                 RelatedEntityId = receipt.ReceiptId,
                 SendEmail = true,
+                SendEmailInBackground = true,
                 SaveChanges = true
             }, CancellationToken.None);
 

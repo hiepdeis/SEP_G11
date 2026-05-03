@@ -19,6 +19,8 @@ import {
   BarChart3,
   PieChart as PieChartIcon,
   Activity,
+  ClipboardList,
+  Archive,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -44,6 +46,8 @@ import {
 } from "recharts";
 import { useAuth } from "@/components/providers/auth-provider";
 import { CurrencyLimitDisplay } from "@/components/ui/custom/currency-limit-display";
+import { IssueSlip, issueSlipApi } from "@/services/issueslip-service";
+import { AuditListItemDto, auditService } from "@/services/audit-service";
 
 // --- CONSTANTS ---
 const COLORS = [
@@ -53,6 +57,8 @@ const COLORS = [
   "#f43f5e",
   "#f59e0b",
   "#10b981",
+  "#3b82f6",
+  "#14b8a6",
 ];
 
 const statusColor: Record<string, string> = {
@@ -65,7 +71,15 @@ const statusColor: Record<string, string> = {
 // --- UTILS ---
 const mapStatusKey = (status: string) => {
   const s = status.toLowerCase();
-  if (s.includes("draftpo")) return "done";
+  if (
+    s.includes("draftpo") ||
+    s.includes("completed") ||
+    s.includes("closed") ||
+    s.includes("done")
+  )
+    return "done";
+  if (s.includes("reject")) return "reject";
+  if (s.includes("approved")) return "approved";
   return "pending";
 };
 
@@ -76,8 +90,8 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-const formatDate = (dateStr: string) => {
-  return new Date(dateStr).toLocaleDateString("vi-VN", {
+const formatDate = (dateStr: string, language: string = 'vi') => {
+  return new Date(dateStr).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US', {
     month: "short",
     day: "numeric",
   });
@@ -86,22 +100,23 @@ const formatDate = (dateStr: string) => {
 // --- PAGE COMPONENT ---
 export default function DashboardPage() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
 
-  // States for Analytics (Charts)
   const [pendingOrders, setPendingOrders] = useState<PurchaseOrderDto[]>([]);
   const [purchaseRequests, setPurchaseRequests] = useState<
     PurchaseRequestDto[]
   >([]);
 
-  // States for Approvals Table
   const [pendingAdminOrders, setPendingAdminOrders] = useState<
     PurchaseOrderDto[]
   >([]);
   const [adminRequests, setAdminRequests] = useState<PurchaseRequestDto[]>([]);
-
-  const [activeTab, setActiveTab] = useState<"orders" | "requests">("orders");
+  const [issueSlips, setIssueSlips] = useState<IssueSlip[]>([]);
+  const [audits, setAudits] = useState<AuditListItemDto[]>([]);
+  const [activeTab, setActiveTab] = useState<
+    "orders" | "requests" | "issues" | "audits"
+  >("orders");
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState(14);
 
@@ -109,20 +124,22 @@ export default function DashboardPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [poRes, prRes, adminPoRes, adminPrRes] = await Promise.all([
-          purchasingPurchaseOrderApi.getOrders(),
-          purchasingPurchaseRequestApi.getRequests(),
-          adminPurchaseOrderApi.getPendingOrders(),
-          adminPurchaseRequestApi.getRequests(),
-        ]);
+        const [poRes, prRes, adminPoRes, adminPrRes, issueRes, auditRes] =
+          await Promise.all([
+            purchasingPurchaseOrderApi.getOrders().catch(() => ({ data: [] })),
+            purchasingPurchaseRequestApi.getRequests().catch(() => ({ data: [] })),
+            adminPurchaseOrderApi.getPendingOrders().catch(() => ({ data: [] })),
+            adminPurchaseRequestApi.getRequests().catch(() => ({ data: [] })),
+            issueSlipApi.getIssueSlips().catch(() => []),
+            auditService.getAll().catch(() => []),
+          ]);
 
-        // Data for charts
         setPendingOrders(poRes.data || []);
         setPurchaseRequests(prRes.data || []);
-
-        // Data for approvals table
         setPendingAdminOrders(adminPoRes.data || []);
         setAdminRequests(adminPrRes.data || []);
+        setIssueSlips(issueRes || []);
+        setAudits(auditRes || []);
       } catch (error: any) {
         toast.error(
           error.response?.data?.message || t("Failed to load dashboard data"),
@@ -150,7 +167,7 @@ export default function DashboardPage() {
       poValue: totalPOValue,
       prItems: totalPRItems,
     };
-  }, [pendingAdminOrders, adminRequests]);
+  }, [pendingAdminOrders, adminRequests, pendingOrders, purchaseRequests]);
 
   const supplierData = useMemo(() => {
     const map: Record<string, number> = {};
@@ -179,6 +196,7 @@ export default function DashboardPage() {
       .slice(0, 5);
   }, [purchaseRequests]);
 
+  // Tích hợp thêm IssueSlips vào Trend Data
   const trendData = useMemo(() => {
     const days = Array.from({ length: timeRange }, (_, i) => {
       const d = new Date();
@@ -193,13 +211,52 @@ export default function DashboardPage() {
       const prs = purchaseRequests.filter((pr) =>
         pr.createdAt.startsWith(date),
       ).length;
+      const issues = issueSlips.filter((is) =>
+        is.issueDate?.startsWith(date),
+      ).length;
+
       return {
-        date: formatDate(date),
+        date: formatDate(date, i18n.language),
         orders: pos,
         requests: prs,
+        issues: issues,
       };
     });
-  }, [pendingOrders, purchaseRequests, timeRange]);
+  }, [pendingOrders, purchaseRequests, issueSlips, timeRange]);
+
+  const pendingIssueSlips = useMemo(() => {
+    return issueSlips
+      .filter(
+        (s) =>
+          s.status === "Pending_Admin_Approval" ||
+          s.status === "Pending_Review",
+      )
+      .slice(0, 5);
+  }, [issueSlips]);
+
+  // Data cho Biểu đồ Trạng thái Issue Slips
+  const issueStatusData = useMemo(() => {
+    const map: Record<string, number> = {};
+    issueSlips.forEach((slip) => {
+      const label = t(slip.status); // Dịch trạng thái ra ngôn ngữ hiện tại
+      map[label] = (map[label] || 0) + 1;
+    });
+    return Object.entries(map)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [issueSlips, t]);
+
+  // Data cho Biểu đồ Tiến độ Audit (Lấy 5 đợt gần nhất chưa hoàn thành)
+  const auditProgressData = useMemo(() => {
+    return audits
+      .filter((a) => a.status !== "Completed" && a.status !== "Cancelled")
+      .slice(0, 5)
+      .map((a) => ({
+        title: a.title,
+        warehouse: a.warehouseName,
+        progress: a.countingProgress,
+      }));
+  }, [audits]);
 
   if (loading) {
     return (
@@ -231,7 +288,7 @@ export default function DashboardPage() {
                 {t("Welcome Back")}
               </p>
               <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-slate-100">
-                {t(user?.fullName || "Admin")}
+                {user?.fullName || t("admin")}
               </h1>
             </div>
             <div className="flex items-center gap-2 p-1 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl shadow-sm">
@@ -302,16 +359,16 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          {/* Main Visuals */}
+          {/* Main Visuals (Area Chart + Material Distribution) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <Card className="lg:col-span-2 border-none shadow-sm bg-white dark:bg-slate-950">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
                   <CardTitle className="text-lg font-black tracking-tight">
-                    {t("Procurement Trend")}
+                    {t("Operations Trend")}
                   </CardTitle>
                   <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">
-                    {t("Orders vs Requests Volume")}
+                    {t("Orders vs Requests vs Issue Slips")}
                   </p>
                 </div>
                 <BarChart3 className="w-5 h-5 text-slate-400" />
@@ -356,6 +413,24 @@ export default function DashboardPage() {
                           stopOpacity={0}
                         />
                       </linearGradient>
+                      <linearGradient
+                        id="colorIssues"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#f59e0b"
+                          stopOpacity={0.1}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#f59e0b"
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
                     </defs>
                     <CartesianGrid
                       strokeDasharray="3 3"
@@ -382,6 +457,7 @@ export default function DashboardPage() {
                     />
                     <Area
                       type="monotone"
+                      name={t("Orders")}
                       dataKey="orders"
                       stroke="#6366f1"
                       strokeWidth={3}
@@ -390,11 +466,21 @@ export default function DashboardPage() {
                     />
                     <Area
                       type="monotone"
+                      name={t("Requests")}
                       dataKey="requests"
                       stroke="#10b981"
                       strokeWidth={3}
                       fillOpacity={1}
                       fill="url(#colorRequests)"
+                    />
+                    <Area
+                      type="monotone"
+                      name={t("Issue Slips")}
+                      dataKey="issues"
+                      stroke="#f59e0b"
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#colorIssues)"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -474,6 +560,169 @@ export default function DashboardPage() {
             </Card>
           </div>
 
+          {/* NEW VISUALS: Issue Slips & Audits */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Issue Slip Status Donut */}
+            <Card className="border-none shadow-sm bg-white dark:bg-slate-950">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle className="text-lg font-black tracking-tight">
+                    {t("Issue Slip Status")}
+                  </CardTitle>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">
+                    {t("Current breakdown")}
+                  </p>
+                </div>
+                <Archive className="w-5 h-5 text-slate-400" />
+              </CardHeader>
+              <CardContent className="h-[300px] flex flex-col items-center justify-center">
+                <div className="w-full h-[180px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={issueStatusData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={70}
+                        paddingAngle={5}
+                        dataKey="value"
+                        nameKey="name"
+                      >
+                        {issueStatusData.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={COLORS[(index + 3) % COLORS.length]} // Đảo màu chút cho đỡ trùng
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: "12px",
+                          border: "none",
+                          boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                        }}
+                        formatter={(value: number) => [
+                          `${value} ${t("Slips")}`,
+                          t("Total"),
+                        ]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="w-full mt-4 space-y-1">
+                  {issueStatusData.slice(0, 4).map((p, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between py-1"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{
+                            backgroundColor: COLORS[(i + 3) % COLORS.length],
+                          }}
+                        />
+                        <span className="text-[11px] font-bold text-slate-600 truncate max-w-[120px]">
+                          {p.name}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-black text-slate-900">
+                        {p.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Audit Progress Bar Chart */}
+            <Card className="lg:col-span-2 border-none shadow-sm bg-white dark:bg-slate-950">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle className="text-lg font-black tracking-tight">
+                    {t("Active Audit Progress")}
+                  </CardTitle>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">
+                    {t("Stock taking completion rate")}
+                  </p>
+                </div>
+                <ClipboardList className="w-5 h-5 text-slate-400" />
+              </CardHeader>
+              <CardContent className="h-[300px] pt-6">
+                {auditProgressData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={auditProgressData}
+                      layout="vertical"
+                      barSize={16}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        horizontal={false}
+                        stroke="#f1f5f9"
+                      />
+                      <XAxis
+                        type="number"
+                        domain={[0, 100]}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(tick) => `${tick}%`}
+                        tick={{
+                          fontSize: 10,
+                          fontWeight: 600,
+                          fill: "#94a3b8",
+                        }}
+                      />
+                      <YAxis
+                        dataKey="title"
+                        type="category"
+                        axisLine={false}
+                        tickLine={false}
+                        width={140}
+                        tick={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          fill: "#475569",
+                        }}
+                      />
+                      <Tooltip
+                        cursor={{ fill: "transparent" }}
+                        contentStyle={{
+                          borderRadius: "12px",
+                          border: "none",
+                          boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                        }}
+                        formatter={(value: number) => [
+                          `${value}%`,
+                          t("Progress"),
+                        ]}
+                      />
+                      <Bar
+                        dataKey="progress"
+                        fill="#14b8a6"
+                        radius={[0, 4, 4, 0]}
+                      >
+                        {auditProgressData.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={
+                              entry.progress === 100 ? "#10b981" : "#14b8a6"
+                            }
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-slate-400 text-xs font-bold uppercase">
+                    {t("No active audits")}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Supplier Analysis */}
             <Card className="border-none shadow-sm bg-white dark:bg-slate-950">
@@ -509,7 +758,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Recent Pending Approvals */}
+            {/* Recent Pending Approvals / Work Items */}
             <Card className="lg:col-span-2 border-none shadow-sm bg-white dark:bg-slate-950 overflow-hidden gap-0">
               <CardHeader className="px-6 py-4 flex flex-row items-center justify-between border-b border-slate-50 dark:border-slate-900">
                 <div className="flex items-center gap-6">
@@ -519,12 +768,16 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <CardTitle className="text-lg font-black tracking-tight">
-                        {t("Pending Approvals")}
+                        {t("Pending Work Items")}
                       </CardTitle>
                       <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">
                         {activeTab === "orders"
                           ? t("Critical Purchase Orders")
-                          : t("Critical Purchase Requests")}
+                          : activeTab === "requests"
+                            ? t("Critical Purchase Requests")
+                            : activeTab === "issues"
+                              ? t("Pending Issue Slips")
+                              : t("Ongoing Stock Takes")}
                       </p>
                     </div>
                   </div>
@@ -536,7 +789,11 @@ export default function DashboardPage() {
                     router.push(
                       activeTab === "orders"
                         ? "/admin/purchase-orders"
-                        : "/admin/purchase-requests",
+                        : activeTab === "requests"
+                          ? "/admin/purchase-requests"
+                          : activeTab === "issues"
+                            ? "/outbound/common/IssueSlipList"
+                            : "/admin/audits",
                     )
                   }
                   className="rounded-full text-xs font-bold text-indigo-600 hover:text-white"
@@ -561,10 +818,112 @@ export default function DashboardPage() {
                 >
                   {t("Requests")}
                 </Button>
+                <Button
+                  variant={activeTab === "issues" ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setActiveTab("issues")}
+                  className="text-[10px] font-bold h-7 px-3 rounded-md"
+                >
+                  {t("Issue Slips")}
+                </Button>
+                <Button
+                  variant={activeTab === "audits" ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setActiveTab("audits")}
+                  className="text-[10px] font-bold h-7 px-3 rounded-md"
+                >
+                  {t("Audits")}
+                </Button>
               </div>
               <CardContent className="p-0">
                 <div className="divide-y divide-slate-50 dark:divide-slate-900 min-h-[400px]">
-                  {activeTab === "orders" ? (
+                  {activeTab === "audits" ? (
+                    audits.slice(0, 5).length > 0 ? (
+                      audits.slice(0, 5).map((audit) => (
+                        <div
+                          key={audit.stockTakeId}
+                          className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors cursor-pointer"
+                          onClick={() =>
+                            router.push(`/admin/audits/${audit.stockTakeId}`)
+                          }
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-black tracking-tight truncate max-w-[200px]">
+                                {audit.title}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className={`text-[8px] font-bold uppercase border-none ${statusColor[mapStatusKey(audit.status)] || "bg-slate-50 text-slate-700"}`}
+                              >
+                                {t(audit.status)}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-slate-500 font-medium truncate">
+                              {audit.warehouseName} • {t("Progress")}:{" "}
+                              {audit.countingProgress}%
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-black text-slate-900">
+                              ST
+                            </p>
+                            <p className="text-[10px] font-bold text-slate-400 tracking-tighter uppercase">
+                              {formatDate(audit.plannedStartDate)}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex items-center justify-center p-12 text-slate-400 text-xs font-bold uppercase">
+                        {t("No pending audits")}
+                      </div>
+                    )
+                  ) : activeTab === "issues" ? (
+                    pendingIssueSlips.length > 0 ? (
+                      pendingIssueSlips.map((slip) => (
+                        <div
+                          key={slip.issueId}
+                          className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors cursor-pointer"
+                          onClick={() =>
+                            router.push(
+                              `/outbound/common/IssueSlipList?issueId=${slip.issueId}`,
+                            )
+                          }
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-black tracking-tight">
+                                {slip.issueCode}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className={`text-[8px] font-bold uppercase border-none ${statusColor[mapStatusKey(slip.status)] || "bg-slate-50 text-slate-700"}`}
+                              >
+                                {t(slip.status)}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-slate-500 font-medium truncate">
+                              {slip.projectName} •{" "}
+                              {slip.description || t("No description")}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-black text-slate-900">
+                              IS
+                            </p>
+                            <p className="text-[10px] font-bold text-slate-400 tracking-tighter uppercase">
+                              {formatDate(slip.issueDate)}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex items-center justify-center p-12 text-slate-400 text-xs font-bold uppercase">
+                        {t("No pending issue slips")}
+                      </div>
+                    )
+                  ) : activeTab === "orders" ? (
                     pendingAdminOrders.slice(0, 5).length > 0 ? (
                       pendingAdminOrders.slice(0, 5).map((po) => (
                         <div

@@ -1,4 +1,4 @@
-﻿namespace Backend.Domains.Audit.DTOs.Staffs;
+namespace Backend.Domains.Audit.DTOs.Staffs;
 
 public sealed class CountingDto
 {
@@ -11,6 +11,10 @@ public sealed class CountingDto
     public string? BinCode { get; set; }
     public string? UnitName { get; set; }
 
+    public DateTime? MfgDate { get; set; }
+    public DateTime? ExpiryDate { get; set; }
+
+
     public decimal? SystemQty { get; set; }
     public decimal? CountQty { get; set; }
     public int CountRound { get; set; }
@@ -18,6 +22,7 @@ public sealed class CountingDto
 
     public int? CountedBy { get; set; }
     public DateTime? CountedAt { get; set; }
+    public string? DiscrepancyStatus { get; set; }
 }
 
 public sealed class UpsertCountRequest
@@ -25,16 +30,10 @@ public sealed class UpsertCountRequest
     public int MaterialId { get; set; }
     public string BinCode { get; set; } = null!;
     public string BatchCode { get; set; } = null!;
+    public int? BatchId { get; set; }
     public decimal CountQty { get; set; }
 }
 
-public sealed class MaterialSuggestDto
-{
-    public int MaterialId { get; set; }
-    public string MaterialName { get; set; } = null!;
-    public string? BatchCode { get; set; }
-    public string? UnitName { get; set; }
-}
 public sealed class MaterialBatchDto
 {
     public int MaterialId { get; set; }
@@ -45,4 +44,7 @@ public sealed class MaterialBatchDto
 
     public int BatchId { get; set; }
     public string BatchCode { get; set; } = null!;
+
+    public DateTime? MfgDate { get; set; }
+    public DateTime? ExpiryDate { get; set; }
 }

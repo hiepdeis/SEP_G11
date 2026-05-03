@@ -49,6 +49,7 @@ namespace Backend.Domains.Import.Services
                 RelatedEntityType = "IncidentReport",
                 RelatedEntityId = incident.IncidentId,
                 SendEmail = true,
+                SendEmailInBackground = true,
                 SaveChanges = true
             }, CancellationToken.None);
 
@@ -162,6 +163,7 @@ namespace Backend.Domains.Import.Services
                 RelatedEntityType = "IncidentReport",
                 RelatedEntityId = incident.IncidentId,
                 SendEmail = true,
+                SendEmailInBackground = true,
                 SaveChanges = true
             }, CancellationToken.None);
 
@@ -423,6 +425,7 @@ namespace Backend.Domains.Import.Services
                 RelatedEntityType = "IncidentReport",
                 RelatedEntityId = incident.IncidentId,
                 SendEmail = true,
+                SendEmailInBackground = true,
                 SaveChanges = true
             }, CancellationToken.None);
 
@@ -545,6 +548,7 @@ namespace Backend.Domains.Import.Services
                 RelatedEntityType = "SupplementaryReceipt",
                 RelatedEntityId = supplementaryReceipt.SupplementaryReceiptId,
                 SendEmail = true,
+                SendEmailInBackground = true,
                 SaveChanges = true
             }, CancellationToken.None);
 
@@ -619,6 +623,7 @@ namespace Backend.Domains.Import.Services
                     RelatedEntityType = "SupplementaryReceipt",
                     RelatedEntityId = supplementaryReceipt.SupplementaryReceiptId,
                     SendEmail = true,
+                    SendEmailInBackground = true,
                     SaveChanges = true
                 }, CancellationToken.None);
 

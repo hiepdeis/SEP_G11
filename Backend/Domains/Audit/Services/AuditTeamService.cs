@@ -237,13 +237,12 @@ public class AuditTeamService : IAuditTeamService
         member.IsActive = false;
         member.RemovedAt = DateTime.UtcNow;
 
-        _db.Notifications.Add(new Notification
-        {
-            UserId = userId,
-            Message = $"You have been removed from Audit #{st.StockTakeId} ({st.Title}).",
-            IsRead = false,
-            CreatedAt = DateTime.UtcNow
-        });
+        await _notificationService.QueueNotificationAsync(
+            new[] { userId },
+            $"You have been removed from Audit #{st.StockTakeId} ({st.Title}).",
+            relatedEntityType: "Audit",
+            relatedEntityId: st.StockTakeId,
+            ct);
 
         var anyActive = await _db.StockTakeTeamMembers
             .AnyAsync(x => x.StockTakeId == stockTakeId && x.UserId != userId && x.IsActive, ct);
@@ -286,13 +285,12 @@ public class AuditTeamService : IAuditTeamService
                 .Select(u => u.FullName)
                 .FirstOrDefaultAsync(ct) ?? $"User#{staffUserId}";
 
-            _db.Notifications.Add(new Notification
-            {
-                UserId = creatorId,
-                Message = $"{staffName} đã hoàn thành phần kiểm kê của mình cho Audit #{st.StockTakeId} ({st.Title}).",
-                IsRead = false,
-                CreatedAt = now
-            });
+            await _notificationService.QueueNotificationAsync(
+                new[] { creatorId },
+                $"{staffName} đã hoàn thành phần kiểm kê của mình cho Audit #{st.StockTakeId} ({st.Title}).",
+                relatedEntityType: "Audit",
+                relatedEntityId: st.StockTakeId,
+                ct);
         }
 
         await _db.SaveChangesAsync(ct);

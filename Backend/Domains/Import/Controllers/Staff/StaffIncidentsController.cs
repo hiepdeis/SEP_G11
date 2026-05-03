@@ -7,7 +7,7 @@ namespace Backend.Domains.Import.Controllers.Staff
 {
     [ApiController]
     [Route("api/staff/incidents")]
-    [Authorize(Roles = "WarehouseStaff, Admin", Policy = "ActiveUserOnly")]
+    [Authorize(Roles = "WarehouseStaff, WarehouseManager, Admin", Policy = "ActiveUserOnly")]
     public class StaffIncidentsController : ControllerBase
     {
         private readonly IIncidentWorkflowService _service;

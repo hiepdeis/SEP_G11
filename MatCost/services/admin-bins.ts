@@ -5,6 +5,9 @@ export type BinDto = {
   code: string;
   warehouseId: number;
   type: string;
+  currentMaterialId: number | null;
+  currentMaterialName: string | null;
+  maxStockLevel: number | null;
 };
 
 export type BinResponse =
@@ -25,6 +28,8 @@ export type UpsertBinPayload = {
   warehouseId: number;
   code: string;
   type: string;
+  currentMaterialId: number | null;
+  maxStockLevel: number | null;
 };
 
 export type CreateBinResponse = {

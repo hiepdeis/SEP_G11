@@ -70,7 +70,9 @@ export function PutawayExcelHandler({
       ["3. Dòng 1: Cột Bin Code gõ kệ A, Bin Qty gõ 60."],
       ["4. Dòng 2: Cột Bin Code gõ kệ B, Bin Qty gõ 40."],
       ["5. Lưu file & Import -> Hệ thống sẽ tự đẻ ra 2 ô kệ cho Gạch men!"],
-      ["Lưu ý: Lô và Ngày tháng chỉ để dòng đầu tiên của từng sản phẩm!"],
+      ["Lưu ý:"],
+      ["- Lô và Ngày tháng chỉ để dòng đầu tiên của từng sản phẩm!"],
+      ["- Ngày tháng năm theo định dạng: DD/MM/YYYY"],
     ];
 
     XLSX.utils.sheet_add_aoa(worksheet, instructions, { origin: "K2" });
@@ -117,6 +119,23 @@ export function PutawayExcelHandler({
 
   const parseDateString = (dateStr: any) => {
     if (!dateStr) return "";
+
+    if (typeof dateStr === "string" && dateStr.includes("/")) {
+      const parts = dateStr.split("/");
+
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+
+        const d = new Date(Date.UTC(year, month, day));
+
+        if (!isNaN(d.getTime())) {
+          return d.toISOString();
+        }
+      }
+    }
+
     const d = new Date(dateStr);
     return isNaN(d.getTime()) ? "" : d.toISOString();
   };

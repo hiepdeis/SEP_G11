@@ -14,24 +14,13 @@ namespace Backend.Domains.Audit.Interfaces
             DateTime? toDate,
             CancellationToken ct);
 
-        Task<AuditMetricsDto> GetMetricsAsync(int stockTakeId, CancellationToken ct);
 
-        Task<(List<VarianceItemDto> items, int total, int unresolved)> GetVariancesAsync(
-            int stockTakeId,
-            int skip,
-            int take,
-            bool? resolved,
-            CancellationToken ct);
 
         Task<(List<VarianceItemDto> items, int total, int unresolved)> GetVarianceDetailsAsync(
             int stockTakeId,
             bool? resolved,
             CancellationToken ct);
 
-        Task<VarianceItemDto?> GetVarianceDetailAsync(
-            int stockTakeId,
-            long detailId,
-            CancellationToken ct);
 
         Task<(bool success, string message)> ResolveVarianceAsync(
             int stockTakeId,
@@ -40,11 +29,12 @@ namespace Backend.Domains.Audit.Interfaces
             int resolvedByUserId,
             CancellationToken ct);
 
-        Task<(bool success, string message)> UpdateVarianceReasonAsync(
+        Task<(bool success, string message)> ResolveVariancesAsync(
             int stockTakeId,
-            long detailId,
-            UpdateVarianceReasonRequest request,
+            BulkResolveVarianceRequest request,
+            int resolvedByUserId,
             CancellationToken ct);
+
 
         Task<(bool success, string message)> RequestRecountAsync(
             int stockTakeId,

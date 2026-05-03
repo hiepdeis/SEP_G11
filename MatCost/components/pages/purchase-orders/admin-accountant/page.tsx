@@ -111,7 +111,6 @@ export default function AccountantPurchaseOrderListPage({
       setIsLoading(true);
       try {
         let res;
-        // Phân nhánh gọi API theo Role
         if (role === "admin") {
           res = await adminPurchaseOrderApi.getPendingOrders();
         } else {

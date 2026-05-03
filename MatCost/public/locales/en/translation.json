@@ -1,29 +1,21 @@
 {
-   "Information Input": "Information Input",
+  "Information Input": "Information Input",
   "Please enter the delivery address...": "Please enter the delivery address...",
   "Material Details & Price Negotiation": "Material Details & Price Negotiation",
   "Material Code / Name": "Material Code / Name",
   "Quantity Needed": "Quantity Needed",
   "Actual Unit Price (VND)": "Actual Unit Price (VND)",
   "Line Total (VND)": "Line Total (VND)",
-   "Order not found": "Order not found",
-
+  "Order not found": "Order not found",
   "Loading...": "Loading...",
-
   "Tạo phiếu xuất vật tư": "Create Material Issue Slip",
-
   "Direct Purchase Orders": "Direct Purchase Orders",
   "Direct Purchase Order Processing": "Direct Purchase Order Processing",
-
   "Purchase Code": "Purchase Code",
-
   "Please select supplier!": "Please select supplier!",
-
   "Delivery Address": "Delivery Address",
-
   "Total Order Value": "Total Order Value",
   "Confirm Order": "Confirm Order",
-
   "Manage and confirm supplier orders": "Manage and confirm supplier orders",
   "Inbound Requests": "Inbound Requests",
   "Material Request": "Material Request",
@@ -69,7 +61,7 @@
   "Select a supplier and pricing for requested materials.": "Select a supplier and pricing for requested materials.",
   "Pending Requests": "Pending Requests",
   "Drafts": "Drafts",
-  "Pending_Review" : "Pending Review",
+  "Pending_Review": "Pending Review",
   "Rejects": "Rejects",
   "Item Code": "Item Code",
   "Filters": "Filters",
@@ -255,8 +247,6 @@
   "No Image": "No Image",
   "Certificate Image": "Certificate Image",
   "Remove Image": "Remove Image",
-
- 
   "Receipt reverted to Draft. You can now edit and resubmit.": "Receipt reverted to Draft. You can now edit and resubmit.",
   "Failed to revert receipt to draft": "Failed to revert receipt to draft",
   "Failed to load receipt data": "Failed to load receipt data",
@@ -369,7 +359,8 @@
       "incident_reports": "Incident Reports",
       "inbound_requests": "Inbound Requests",
       "stock_shortage_alerts": "Stock Shortage Alerts",
-      "pending_pos": "Pending POS"
+      "pending_pos": "Pending POS",
+      "audit": "Audit"
     }
   },
   "reports": {
@@ -1023,7 +1014,7 @@
   "You are about to stamp and officially confirm this receipt. This action will notify the Accounting team.": "You are about to stamp and officially confirm this receipt. This action will notify the Accounting team.",
   "Stamp Notes (Optional)": "Stamp Notes (Optional)",
   "Add any final notes or remarks here...": "Add any final notes or remarks here...",
-  "Confirm & Stamp": "Confirm & Stamp", 
+  "Confirm & Stamp": "Confirm & Stamp",
   "Original": "Original",
   "Supplementary": "Supplementary",
   "Missing Parent PO ID. Cannot recreate order.": "Missing Parent PO ID. Cannot recreate order.",
@@ -1307,5 +1298,20 @@
   "Some images exceed the 2MB limit and were skipped.": "Some images exceed the 2MB limit and were skipped.",
   "Maximum 5 images allowed per item.": "Maximum 5 images allowed per item.",
   "Maximum 5 images allowed. Extra images were skipped.": "Maximum 5 images allowed. Extra images were skipped.",
-  "Duplicated images were skipped.": "Duplicated images were skipped."
+  "Duplicated images were skipped.": "Duplicated images were skipped.",
+  "User": "User",
+  "User ID": "User ID",
+  "Audit not found": "Audit not found",
+  "admin": "Admin",
+  "staff": "Staff",
+  "accountant": "Accountant",
+  "manager": "Manager",
+  "ID": "ID",
+  "InProgress": "In Progress",
+  "PendingAccountantReview": "Pending Accountant Review",
+  "PendingAccountantApproval": "Pending Accountant Approval",
+  "PendingAdminReview": "Pending Admin Review",
+  "Planned": "Planned",
+  "Assigned": "Assigned",
+  "Counting": "Counting"
 }

@@ -58,45 +58,7 @@ public class StockTakeReviewController : ControllerBase
         }
     }
 
-    [HttpGet("{stockTakeId:int}/metrics")]
-    [Authorize(Roles = "WarehouseManager, Accountant, Admin")]
-    public async Task<IActionResult> GetMetrics(int stockTakeId, CancellationToken ct = default)
-    {
-        try
-        {
-            var result = await _service.GetMetricsAsync(stockTakeId, ct);
-            return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-    }
 
-    [HttpGet("{stockTakeId:int}/variances")]
-    [Authorize(Roles = "WarehouseManager, Accountant, Admin")]
-    public async Task<IActionResult> GetVariances(
-        int stockTakeId,
-        [FromQuery] int skip = 0,
-        [FromQuery] int take = 50,
-        [FromQuery] bool? resolved = null,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            var (variances, totalCount, unresolvedCount) = await _service.GetVariancesAsync(stockTakeId, skip, take, resolved, ct);
-            return Ok(new
-            {
-                total = totalCount,
-                unresolved = unresolvedCount,
-                items = variances
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-    }
 
     [HttpGet("{stockTakeId:int}/variances/details")]
     [Authorize(Roles = "WarehouseManager, Accountant, Admin")]
@@ -121,26 +83,6 @@ public class StockTakeReviewController : ControllerBase
         }
     }
 
-    [HttpGet("{stockTakeId:int}/variances/{detailId:long}")]
-    [Authorize(Roles = "WarehouseManager, Accountant, Admin")]
-    public async Task<IActionResult> GetVarianceDetail(
-        int stockTakeId,
-        long detailId,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            var variance = await _service.GetVarianceDetailAsync(stockTakeId, detailId, ct);
-            if (variance == null)
-                return NotFound(new { message = "Variance detail not found." });
-
-            return Ok(variance);
-        }
-        catch (ArgumentException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-    }
 
     [HttpPut("{stockTakeId:int}/variances/{detailId:long}/resolve")]
     [Authorize(Roles = "WarehouseManager, Admin")]
@@ -157,6 +99,22 @@ public class StockTakeReviewController : ControllerBase
             return BadRequest(new { message });
 
         return Ok(new { message = "Variance resolved successfully." });
+    }
+
+    [HttpPut("{stockTakeId:int}/variances/bulk-resolve")]
+    [Authorize(Roles = "WarehouseManager, Admin")]
+    public async Task<IActionResult> ResolveVariances(
+        int stockTakeId,
+        [FromBody] BulkResolveVarianceRequest req,
+        CancellationToken ct = default)
+    {
+        var userId = GetUserId();
+        var (success, message) = await _service.ResolveVariancesAsync(stockTakeId, req, userId, ct);
+
+        if (!success)
+            return BadRequest(new { message });
+
+        return Ok(new { message });
     }
 
     [HttpPut("{stockTakeId:int}/variances/{detailId:long}/request-recount")]
@@ -224,21 +182,6 @@ public class StockTakeReviewController : ControllerBase
         return Ok(new { message });
     }
 
-    [HttpPut("{stockTakeId:int}/variances/{detailId:long}/reason")]
-    [Authorize(Roles = "WarehouseManager, Admin")]
-    public async Task<IActionResult> UpdateVarianceReason(
-        int stockTakeId,
-        long detailId,
-        [FromBody] UpdateVarianceReasonRequest req,
-        CancellationToken ct = default)
-    {
-        var (success, message) = await _service.UpdateVarianceReasonAsync(stockTakeId, detailId, req, ct);
-
-        if (!success)
-            return BadRequest(new { message });
-
-        return Ok(new { message = "Variance reason updated successfully." });
-    }
 
     [HttpGet("{stockTakeId:int}/review-detail")]
     [Authorize(Roles = "WarehouseManager, Accountant, Admin")]
@@ -256,7 +199,7 @@ public class StockTakeReviewController : ControllerBase
     }
 
     [HttpPost("{stockTakeId:int}/sign-off")]
-    [Authorize(Roles = "WarehouseManager,WarehouseStaff, Accountant")]
+    [Authorize(Roles = "WarehouseManager,WarehouseStaff,Accountant,Admin")]
     public async Task<IActionResult> SignOff(
         int stockTakeId,
         [FromBody] SignOffRequest? req,
@@ -318,7 +261,7 @@ public class StockTakeReviewController : ControllerBase
     }
 
     [HttpPost("{stockTakeId:int}/complete")]
-    [Authorize(Roles = "Accountant")]
+    [Authorize(Roles = "Accountant,Admin")]
     public async Task<IActionResult> CompleteAudit(
         int stockTakeId,
         [FromBody] CompleteAuditRequest? req,

@@ -25,7 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   staffReceiptsApi,
   ReceiptPutawayDto,
-  PendingPutawayReceiptDto, // Import DTO mới
+  PendingPutawayReceiptDto,
 } from "@/services/import-service";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/dialog";
 import { PutawayExcelHandler } from "@/components/ui/custom/putaway-xlxs";
 import { formatQuantity } from "@/lib/format-quantity";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 
 interface PutawayBinInput {
   id: string;
@@ -63,6 +64,7 @@ interface PutawayItemInput {
     mfgDate: string;
     expiryDate: string;
     certificateImage: string | null;
+    certificateFile?: File;
   };
   unit: string;
   isDecimalUnit: boolean;
@@ -181,22 +183,17 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
       return;
     }
 
-    try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        handleBatchChange(
-          itemIndex,
-          "certificateImage",
-          reader.result as string,
-        );
-      };
-      reader.onerror = () => toast.error(t("Failed to read image file."));
-    } catch (error) {
-      toast.error(t("Failed to process image."));
-    } finally {
-      e.target.value = "";
-    }
+    const previewUrl = URL.createObjectURL(file);
+
+    const newItems = [...putawayItems];
+    newItems[itemIndex].batch = {
+      ...newItems[itemIndex].batch,
+      certificateImage: previewUrl,
+      certificateFile: file,
+    };
+    setPutawayItems(newItems);
+
+    e.target.value = "";
   };
 
   const handleAddBin = (itemIndex: number) => {
@@ -335,24 +332,44 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
       onConfirm: async () => {
         setIsSubmitting(true);
         try {
+          const uploadToastId = toast.loading(
+            t("Uploading certificate images..."),
+          );
+
+          const detailsPayload = await Promise.all(
+            putawayItems.map(async (item) => {
+              let uploadedUrl = item.batch.certificateImage;
+
+              if (item.batch.certificateFile) {
+                uploadedUrl = await uploadToCloudinary(
+                  item.batch.certificateFile,
+                );
+              }
+
+              return {
+                materialId: item.materialId,
+                batch: {
+                  batchCode: item.batch.batchCode.trim(),
+                  mfgDate: item.batch.mfgDate
+                    ? new Date(item.batch.mfgDate).toISOString()
+                    : null,
+                  expiryDate: item.batch.expiryDate
+                    ? new Date(item.batch.expiryDate).toISOString()
+                    : null,
+                  certificateImage: uploadedUrl,
+                },
+                binAllocations: item.binAllocations.map((bin) => ({
+                  binId: Number(bin.binId),
+                  quantity: Number(bin.quantity),
+                })),
+              };
+            }),
+          );
+
+          toast.dismiss(uploadToastId);
+
           const payload: ReceiptPutawayDto = {
-            items: putawayItems.map((item) => ({
-              materialId: item.materialId,
-              batch: {
-                batchCode: item.batch.batchCode.trim(),
-                mfgDate: item.batch.mfgDate
-                  ? new Date(item.batch.mfgDate).toISOString()
-                  : null,
-                expiryDate: item.batch.expiryDate
-                  ? new Date(item.batch.expiryDate).toISOString()
-                  : null,
-                certificateImage: item.batch.certificateImage,
-              },
-              binAllocations: item.binAllocations.map((bin) => ({
-                binId: Number(bin.binId),
-                quantity: Number(bin.quantity),
-              })),
-            })),
+            items: detailsPayload,
           };
 
           await staffReceiptsApi.putaway(id, payload);
@@ -362,8 +379,12 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
           router.push(`/${rolePath}/inbound-requests`);
         } catch (error: any) {
           console.error(error);
+          toast.dismiss();
           toast.error(
-            error.response?.data?.message || t("Failed to complete putaway."),
+            error.message === "Upload failed"
+              ? t("Failed to upload images to Cloudinary.")
+              : error.response?.data?.message ||
+                  t("Failed to complete putaway."),
           );
         } finally {
           setIsSubmitting(false);
@@ -586,11 +607,13 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                                       className="h-8 text-xs pointer-events-auto"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        handleBatchChange(
-                                          absoluteIdx,
-                                          "certificateImage",
-                                          null,
-                                        );
+                                        const newItems = [...putawayItems];
+                                        newItems[absoluteIdx].batch = {
+                                          ...newItems[absoluteIdx].batch,
+                                          certificateImage: null,
+                                          certificateFile: undefined,
+                                        };
+                                        setPutawayItems(newItems);
                                       }}
                                     >
                                       <Trash2 className="w-3.5 h-3.5 mr-1" />{" "}
@@ -706,7 +729,11 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                                                       (locBin) =>
                                                         locBin.warehouse
                                                           .warehouseId ===
-                                                        receipt.warehouseId,
+                                                          receipt.warehouseId &&
+                                                        (locBin.currentMaterialId ===
+                                                          item.materialId ||
+                                                          locBin.currentMaterialId ===
+                                                            null),
                                                     )
                                                     .map((location) => {
                                                       const isSelectedElsewhere =
@@ -725,6 +752,16 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                                                           }
                                                         >
                                                           {location.code}
+                                                          {location.maxStockLevel !=
+                                                            null && (
+                                                            <span className="text-[10px] self-end">
+                                                              ({t("Capacity")}:{" "}
+                                                              {
+                                                                location.maxStockLevel
+                                                              }
+                                                              )
+                                                            </span>
+                                                          )}
                                                         </SelectItem>
                                                       );
                                                     })}

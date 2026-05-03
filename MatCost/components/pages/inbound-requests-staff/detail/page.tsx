@@ -44,7 +44,6 @@ import { useTranslation } from "react-i18next";
 import { formatPascalCase } from "@/lib/format-pascal-case";
 import { formatDateTime } from "@/lib/format-date-time";
 
-
 export default function StaffInboundDetailPage({
   role = "staff",
 }: {
@@ -129,8 +128,6 @@ export default function StaffInboundDetailPage({
       },
     });
   };
-
-
 
   const totalTableItems = request?.items?.length || 0;
   const totalTablePages = Math.ceil(totalTableItems / tableItemsPerPage) || 1;

@@ -148,7 +148,7 @@ export default function SharedAuditList({ role }: AuditListProps) {
       setIsEditModalOpen(false);
       fetchData();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || t("Error updating Audit Plan."));
+      toast.error(t(error.response?.data?.message || "Error updating Audit Plan."));
     } finally { setIsSubmitting(false); }
   };
 
@@ -161,7 +161,7 @@ export default function SharedAuditList({ role }: AuditListProps) {
       setIsDeleteModalOpen(false);
       fetchData();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || t("Error deleting Audit Plan."));
+      toast.error(t(error.response?.data?.message || "Error deleting Audit Plan."));
     } finally { setIsSubmitting(false); }
   };
 
@@ -352,7 +352,7 @@ export default function SharedAuditList({ role }: AuditListProps) {
                                 <ClipboardList className="w-4 h-4 text-indigo-500" />
                                 <span className="font-bold text-slate-800 truncate" title={audit.title}>{audit.title}</span>
                               </div>
-                              <span className="text-xs text-slate-400">ID: AUD-{audit.stockTakeId}</span>
+                              <span className="text-xs text-slate-400">{t("ID")}: AUD-{audit.stockTakeId}</span>
                             </div>
                           </TableCell>
                           <TableCell>

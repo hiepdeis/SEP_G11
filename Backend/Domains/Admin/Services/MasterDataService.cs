@@ -1050,7 +1050,9 @@ namespace Backend.Domains.Admin.Services
             var q =
                 from b in _db.BinLocations.AsNoTracking()
                 join w in _db.Warehouses.AsNoTracking() on b.WarehouseId equals w.WarehouseId
-                select new { b, w };
+                join m in _db.Materials.AsNoTracking() on b.CurrentMaterialId equals m.MaterialId into mj
+                from m in mj.DefaultIfEmpty()
+                select new { b, w, m };
 
             if (!string.IsNullOrWhiteSpace(query.Keyword))
             {
@@ -1082,7 +1084,10 @@ namespace Backend.Domains.Admin.Services
                          WarehouseId = x.b.WarehouseId,
                          WarehouseName = x.w.Name,
                          Code = x.b.Code,
-                         Type = x.b.Type
+                         Type = x.b.Type,
+                         CurrentMaterialId = x.b.CurrentMaterialId,
+                         CurrentMaterialName = x.m != null ? x.m.Name : null,
+                         MaxStockLevel = x.b.MaxStockLevel
                      }),
                     query.Page,
                     query.PageSize)
@@ -1096,6 +1101,8 @@ namespace Backend.Domains.Admin.Services
             var query =
                 from b in _db.BinLocations.AsNoTracking()
                 join w in _db.Warehouses.AsNoTracking() on b.WarehouseId equals w.WarehouseId
+                join m in _db.Materials.AsNoTracking() on b.CurrentMaterialId equals m.MaterialId into mj
+                from m in mj.DefaultIfEmpty()
                 where b.BinId == id
                 select new BinLocationDto
                 {
@@ -1103,7 +1110,10 @@ namespace Backend.Domains.Admin.Services
                     WarehouseId = b.WarehouseId,
                     WarehouseName = w.Name,
                     Code = b.Code,
-                    Type = b.Type
+                    Type = b.Type,
+                    CurrentMaterialId = b.CurrentMaterialId,
+                    CurrentMaterialName = m != null ? m.Name : null,
+                    MaxStockLevel = b.MaxStockLevel
                 };
 
             return await query.FirstOrDefaultAsync(ct);
@@ -1131,7 +1141,9 @@ namespace Backend.Domains.Admin.Services
             {
                 WarehouseId = request.WarehouseId,
                 Code = code,
-                Type = string.IsNullOrWhiteSpace(type) ? null : type
+                Type = string.IsNullOrWhiteSpace(type) ? null : type,
+                CurrentMaterialId = request.CurrentMaterialId,
+                MaxStockLevel = request.MaxStockLevel
             };
 
             _db.BinLocations.Add(entity);
@@ -1166,6 +1178,8 @@ namespace Backend.Domains.Admin.Services
             entity.WarehouseId = request.WarehouseId;
             entity.Code = code;
             entity.Type = string.IsNullOrWhiteSpace(type) ? null : type;
+            entity.CurrentMaterialId = request.CurrentMaterialId;
+            entity.MaxStockLevel = request.MaxStockLevel;
 
             await _db.SaveChangesAsync(ct);
             return true;

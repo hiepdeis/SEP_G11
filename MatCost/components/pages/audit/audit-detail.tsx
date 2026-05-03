@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { auditService, RecountCandidateDto, StockTakeReviewDetailDto, VarianceItemDto } from "@/services/audit-service";
 import { toast } from "sonner";
 import ReactSignatureCanvas, { SignatureCanvas } from "react-signature-canvas";
@@ -25,7 +26,7 @@ type UserRole = "admin" | "manager" | "accountant" | "staff";
 interface AuditDetailProps { role: UserRole; }
 
 export default function SharedAuditDetail({ role }: AuditDetailProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const params = useParams();
   const stockTakeId = Number(params?.id);
@@ -60,6 +61,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   const [prevIsAdminFinalizing, setPrevIsAdminFinalizing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(5);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   // OTP State
   const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
@@ -95,7 +97,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
       // 1. Find Manager from signatures
       const managerSig = detailData.signatures?.find(s => s.role === "WarehouseManager");
       if (managerSig) {
-        setManagerInfo({ id: managerSig.userId, name: managerSig.fullName || `User #${managerSig.userId}` });
+        setManagerInfo({ id: managerSig.userId, name: managerSig.fullName || `${t("User")} #${managerSig.userId}` });
         setTargetManagerId(managerSig.userId.toString());
       }
 
@@ -137,6 +139,24 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   };
 
   const handleConfirmResolve = async () => {
+    if (selectedIds.length > 0) {
+      if (!resolveNotes.trim()) return toast.error(t("Please enter a resolution note"));
+      try {
+        setIsSubmitting(true);
+        await auditService.resolveVariances(stockTakeId, selectedIds, "Accept", undefined, resolveNotes.trim());
+        toast.success(t("Selected variances resolved successfully!"));
+        setSelectedIds([]);
+        await fetchData();
+        setResolveItem(null);
+        setResolveNotes("");
+      } catch (error: any) {
+        toast.error(t(error.response?.data?.message || "Error"));
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     if (!resolveItem) return;
     if (!resolveNotes.trim()) return toast.error(t("Please enter a resolution note"));
 
@@ -147,7 +167,37 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
       await fetchData(); 
       setResolveItem(null);
       setResolveNotes("");
-    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); }
+    } catch (error: any) { toast.error(t(error.response?.data?.message || "Error")); } finally { setIsSubmitting(false); }
+  };
+
+  const getActualCountRound = (v: VarianceItemDto) => {
+    let cr = (v as any).countRound;
+    if (!cr || cr <= 0) {
+      cr = (v.discrepancyStatus === "Recounted" || v.discrepancyStatus === "RecountRequested") ? 2 : 1;
+    }
+    return cr;
+  };
+
+  const resolvableVariances = variances.filter(v => 
+    !v.resolutionAction && 
+    v.discrepancyStatus !== "RecountRequested" && 
+    getActualCountRound(v) > 1
+  );
+
+  const handleToggleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(resolvableVariances.map(v => v.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleToggleSelect = (id: number, checked: boolean) => {
+    if (checked) {
+      setSelectedIds(prev => [...prev, id]);
+    } else {
+      setSelectedIds(prev => prev.filter(i => i !== id));
+    }
   };
 
   const handleManagerConfirm = async () => {
@@ -161,7 +211,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
         toast.success(t("All resolutions confirmed! Awaiting accountant approval."));
         await fetchData();
       } catch (error: any) {
-        toast.error(error.response?.data?.message || "Error");
+        toast.error(t(error.response?.data?.message || "Error"));
       } finally {
         setIsSubmitting(false);
       }
@@ -179,7 +229,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
         await auditService.requestRecountAll(stockTakeId, 0, "Manager recount all request");
         toast.success(t("Recount request sent for all pending items!"));
         await fetchData();
-    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); }
+    } catch (error: any) { toast.error(t(error.response?.data?.message || "Error")); } finally { setIsSubmitting(false); }
   };
 
   // === ACCOUNTANT ACTIONS ===
@@ -194,7 +244,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
         toast.success(t("Audit completed! All items matched."));
         router.push(`/${role}/audit`);
       } catch (error: any) {
-        toast.error(error.response?.data?.message || "Error");
+        toast.error(t(error.response?.data?.message || "Error"));
       } finally {
         setIsSubmitting(false);
       }
@@ -212,7 +262,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
       await auditService.accountantReview(stockTakeId, "ForwardToManager");
       toast.success(t("Forwarded to Manager for review!"));
       await fetchData();
-    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); }
+    } catch (error: any) { toast.error(t(error.response?.data?.message || "Error")); } finally { setIsSubmitting(false); }
   };
 
   const handleAccountantApproveResolve = async () => {
@@ -226,7 +276,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
         toast.success(t("Resolution approved! Inventory updated."));
         router.push(`/${role}/audit`);
       } catch (error: any) {
-        toast.error(error.response?.data?.message || "Error");
+        toast.error(t(error.response?.data?.message || "Error"));
       } finally {
         setIsSubmitting(false);
       }
@@ -249,7 +299,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
         toast.success(t("Resolution rejected. Escalated to Admin."));
         await fetchData();
       } catch (error: any) {
-        toast.error(error.response?.data?.message || "Error");
+        toast.error(t(error.response?.data?.message || "Error"));
       } finally {
         setIsSubmitting(false);
       }
@@ -283,7 +333,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
         toast.success(t("Penalize issued and audit completed!"));
         router.push(`/${role}/audit`);
       } catch (error: any) {
-        toast.error(error.response?.data?.message || "Error");
+        toast.error(t(error.response?.data?.message || "Error"));
       } finally {
         setIsSubmitting(false);
       }
@@ -302,7 +352,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
       await auditService.lockAudit(stockTakeId);
       toast.success(t("Warehouse locked! Staff can start counting."));
       await fetchData();
-    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); }
+    } catch (error: any) { toast.error(t(error.response?.data?.message || "Error")); } finally { setIsSubmitting(false); }
   };
 
   const handleSignatureEnd = () => { if (sigCanvas.current && !sigCanvas.current.isEmpty()) setIsSigned(true); };
@@ -313,7 +363,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
       const data = await auditService.getRecountCandidates(stockTakeId);
       setCandidates(data);
       setShowCandidates(true);
-    } catch (e) { toast.error("Error"); }
+    } catch (e) { toast.error(t("Error")); }
   };
 
   const handleRejoin = async (userId: number) => {
@@ -321,7 +371,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
       await auditService.rejoinForRecount(stockTakeId, userId);
       toast.success(t("Staff re-summoned successfully!"));
       fetchCandidates(); 
-    } catch (e: any) { toast.error(e.response?.data?.message || "Error"); }
+    } catch (e: any) { toast.error(t(e.response?.data?.message || "Error")); }
   };
 
   const handleExportPdf = async () => {
@@ -367,7 +417,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   const paginatedVariances = variances.slice(startIndex, endIndex);
 
   if (loading) return <div className="h-screen w-screen flex items-center justify-center bg-slate-50"><div className="flex flex-col items-center gap-2 text-indigo-600"><Loader2 className="w-8 h-8 animate-spin" /><p className="text-sm font-medium">{t("Loading audit data...")}</p></div></div>;
-  if (!detailData) return <div className="p-10 text-center">Audit not found</div>;
+  if (!detailData) return <div className="p-10 text-center">{t("Audit not found")}</div>;
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
@@ -378,7 +428,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
         <div className="flex-grow overflow-y-auto p-6 lg:p-10 space-y-6">
           <div className="flex items-center justify-between">
             <Button variant="ghost" onClick={() => router.back()} className="pl-0 hover:bg-transparent hover:text-indigo-600"><ArrowLeft className="w-4 h-4 mr-2" /> {t("Back to List")}</Button>
-            <div className="text-sm text-slate-500">{t("Created on:")} <span className="font-medium text-slate-700">{detailData.timeline?.createdAt ? new Date(detailData.timeline.createdAt).toLocaleDateString("vi-VN") : "N/A"}</span></div>
+            <div className="text-sm text-slate-500">{t("Created on:")} <span className="font-medium text-slate-700">{detailData.timeline?.createdAt ? new Date(detailData.timeline.createdAt).toLocaleDateString(i18n.language === 'vi' ? 'vi-VN' : 'en-US') : t("N/A")}</span></div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -394,6 +444,9 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                 <CardHeader className="border-b border-slate-100 py-4 flex flex-row justify-between items-center">
                   <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800"><ClipboardList className="w-4 h-4 text-indigo-600" /> {t("Discrepancies Details")}</CardTitle>
                   <div className="flex gap-2">
+                    {canResolve && selectedIds.length > 0 && (
+                      <Button size="sm" className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm" onClick={() => { setResolveItem({ id: 0, materialName: `${selectedIds.length} ${t("items")}` } as any); setResolveAction(""); }} disabled={isSubmitting}><CheckCircle className="w-3.5 h-3.5 mr-1.5" /> {t("Resolve Selected")} ({selectedIds.length})</Button>
+                    )}
                     {canResolve && hasRecountEligibleItems && (
                       <Button size="sm" className="h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white shadow-sm" onClick={handleRecountAll} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCcw className="w-3.5 h-3.5 mr-1.5" />} {t("Request Recount All")}</Button>
                     )}
@@ -407,7 +460,18 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                     <Table className="w-full min-w-[700px] table-fixed">
                       <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-sm outline outline-1 outline-slate-200">
                         <TableRow className="bg-slate-50 hover:bg-slate-50">
-                          <TableHead className="pl-6 w-[28%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Material")}</TableHead>
+                          {canResolve && (
+                            <TableHead className="w-[60px] pl-6 bg-slate-100/50">
+                              <div className="flex items-center justify-center">
+                                <Checkbox 
+                                  className="h-5 w-5 border-slate-400 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600 shadow-sm transition-all"
+                                  checked={resolvableVariances.length > 0 && selectedIds.length === resolvableVariances.length}
+                                  onCheckedChange={(checked) => handleToggleSelectAll(checked as boolean)}
+                                />
+                              </div>
+                            </TableHead>
+                          )}
+                          <TableHead className={`${canResolve ? "pl-2" : "pl-6"} w-[28%] font-bold text-slate-800 uppercase text-[11px] tracking-wider`}>{t("Material")}</TableHead>
                           <TableHead className="text-right w-[12%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Sys Qty")}</TableHead>
                           <TableHead className="text-right w-[12%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Count Qty")}</TableHead>
                           <TableHead className="text-right w-[12%] font-bold text-slate-800 uppercase text-[11px] tracking-wider">{t("Variance")}</TableHead>
@@ -421,11 +485,28 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                           <TableRow><TableCell colSpan={7} className="text-center py-10 text-slate-500 border-b-0"><div className="flex flex-col items-center justify-center gap-2"><CheckCircle className="w-8 h-8 text-emerald-400" /><p>{t("All items matched perfectly. No discrepancies found.")}</p></div></TableCell></TableRow>
                         ) : (
                           paginatedVariances.map((row) => {
-                            let countRound = (row as any).countRound;
-                            if (!countRound || countRound <= 0) countRound = (row.discrepancyStatus === "Recounted" || row.discrepancyStatus === "RecountRequested") ? 2 : 1;
+                            const countRound = getActualCountRound(row);
+                            const isResolvable = !row.resolutionAction && row.discrepancyStatus !== "RecountRequested" && countRound > 1;
+                            const isSelected = selectedIds.includes(row.id);
+                            
                             return (
-                            <TableRow key={row.id} className="hover:bg-slate-50/50">
-                              <TableCell className="pl-6"><div className="font-medium text-slate-700 truncate max-w-[200px]" title={row.materialName}>{row.materialName}</div><div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5"><span><LayoutGrid className="w-3 h-3 inline mr-1" />{row.binCode}</span></div></TableCell>
+                            <TableRow key={row.id} className={`hover:bg-slate-50/50 transition-colors ${isSelected ? "bg-indigo-50/40" : ""}`}>
+                              {canResolve && (
+                                <TableCell className="pl-6 bg-slate-50/30">
+                                  <div className="flex items-center justify-center">
+                                    {isResolvable ? (
+                                      <Checkbox 
+                                        className="h-5 w-5 border-slate-400 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600 shadow-sm transition-all"
+                                        checked={isSelected}
+                                        onCheckedChange={(checked) => handleToggleSelect(row.id, checked as boolean)}
+                                      />
+                                    ) : (
+                                      <div className="h-5 w-5 rounded border border-slate-200 bg-slate-100/50 cursor-not-allowed opacity-50" title={t("Not resolvable")} />
+                                    )}
+                                  </div>
+                                </TableCell>
+                              )}
+                              <TableCell className={canResolve ? "pl-2" : "pl-6"}><div className="font-medium text-slate-700 truncate max-w-[200px]" title={row.materialName}>{row.materialName}</div><div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5"><span><LayoutGrid className="w-3 h-3 inline mr-1" />{row.binCode}</span></div></TableCell>
                               <TableCell className="text-right text-slate-500">{row.systemQty}</TableCell>
                               <TableCell className="text-right font-bold text-slate-900">{row.countQty}</TableCell>
                               <TableCell className={`text-right font-bold ${row.variance < 0 ? "text-red-600" : "text-blue-600"}`}>{row.variance > 0 ? "+" : ""}{row.variance}</TableCell>
@@ -435,7 +516,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                               </TableCell>
                               <TableCell className="text-right pr-6">
                                 {canResolve && !row.resolutionAction && row.discrepancyStatus !== "RecountRequested" && countRound > 1 && (
-                                  <Button size="sm" variant="outline" className="text-indigo-600 border-indigo-200" onClick={() => { setResolveItem(row); setResolveAction(""); }}>{t("Resolve")}</Button>
+                                  <Button size="sm" variant="outline" className="text-indigo-600 border-indigo-200" onClick={() => { setResolveItem(row); setResolveAction(""); setSelectedIds([]); }}>{t("Resolve")}</Button>
                                 )}
                                 {row.resolutionAction && <span className="text-xs text-slate-400 italic block">{t(row.resolutionAction)}</span>}
                               </TableCell>
@@ -572,7 +653,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                           </DialogContent>
                         </Dialog>
                         <Dialog open={isAccountantRejecting} onOpenChange={(open) => { setIsAccountantRejecting(open); if (!open) handleClearSignature(); }}>
-                          <DialogTrigger asChild><Button variant="outline" className="flex-1 border-red-200 text-red-700 hover:bg-red-50" disabled={isSubmitting}><AlertTriangle className="w-4 h-4 mr-2" /> {t("Reject")}</Button></DialogTrigger>
+                          <DialogTrigger asChild><Button variant="outline" className="flex-1 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-700" disabled={isSubmitting}><AlertTriangle className="w-4 h-4 mr-2" /> {t("Reject")}</Button></DialogTrigger>
                           <DialogContent className="sm:max-w-[450px]">
                             <DialogHeader><DialogTitle className="text-red-700">{t("Reject Resolution")}</DialogTitle><DialogDescription>{t("Reject to escalate this audit to Admin for final review.")}</DialogDescription></DialogHeader>
                             <div className="py-4 space-y-4">
@@ -629,7 +710,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                 )}
 
                 <CardContent className="p-6 space-y-5">
-                  <div><label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Warehouse")}</label><div className="mt-1.5 flex items-center gap-2 text-slate-800 font-medium bg-slate-50 p-2.5 rounded-md border border-slate-100"><MapPin className="w-4 h-4 text-indigo-500" />{detailData.warehouseName || `ID: ${detailData.warehouseId}`}</div></div>
+                  <div><label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Warehouse")}</label><div className="mt-1.5 flex items-center gap-2 text-slate-800 font-medium bg-slate-50 p-2.5 rounded-md border border-slate-100"><MapPin className="w-4 h-4 text-indigo-500" />{detailData.warehouseName || `${t("ID")}: ${detailData.warehouseId}`}</div></div>
                   <div><label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Current Status")}</label><div className="mt-2 flex items-center gap-2">{getStatusBadge(detailData.status || "")}</div></div>
                   {detailData.notes && (<div><label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Notes")}</label><p className="text-sm text-slate-700 mt-1.5 bg-slate-50 p-3 rounded-md border border-slate-100 leading-relaxed">{detailData.notes}</p></div>)}
                 </CardContent>
@@ -647,19 +728,19 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                     <div>
                       <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Penalize Amount")}</label>
                       <div className="mt-1.5 bg-red-50 p-2.5 rounded-md border border-red-200">
-                        <span className="text-lg font-bold text-red-700">{Number(detailData.penalty.amount).toLocaleString("vi-VN")} VNĐ</span>
+                        <span className="text-lg font-bold text-red-700">{Number(detailData.penalty.amount).toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')} VNĐ</span>
                       </div>
                     </div>
                     <div>
                       <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Penalized Manager")}</label>
                       <div className="mt-1.5 flex items-center gap-2 text-slate-800 font-medium bg-slate-50 p-2.5 rounded-md border border-slate-100">
-                        <Users className="w-4 h-4 text-red-500" />{detailData.penalty.targetUserName || `ID: ${detailData.penalty.targetUserId}`}
+                        <Users className="w-4 h-4 text-red-500" />{detailData.penalty.targetUserName || `${t("ID")}: ${detailData.penalty.targetUserId}`}
                       </div>
                     </div>
                     <div>
                       <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Issued By")}</label>
                       <div className="mt-1.5 flex items-center gap-2 text-slate-800 font-medium bg-slate-50 p-2.5 rounded-md border border-slate-100">
-                        <ShieldAlert className="w-4 h-4 text-indigo-500" />{detailData.penalty.issuedByName || `ID: ${detailData.penalty.issuedByUserId}`}
+                        <ShieldAlert className="w-4 h-4 text-indigo-500" />{detailData.penalty.issuedByName || `${t("ID")}: ${detailData.penalty.issuedByUserId}`}
                       </div>
                     </div>
                     {detailData.penalty.notes && (
@@ -670,7 +751,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
                     )}
                     <div>
                       <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Issued Date")}</label>
-                      <p className="text-sm text-slate-700 mt-1.5 font-medium">{new Date(detailData.penalty.createdAt).toLocaleString("vi-VN")}</p>
+                      <p className="text-sm text-slate-700 mt-1.5 font-medium">{new Date(detailData.penalty.createdAt).toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}</p>
                     </div>
                   </CardContent>
                 </Card>

@@ -100,7 +100,7 @@ export function AuditCreate({ role }: AuditCreateProps) {
       await auditService.createPlan(formData);
       toast.success(t("Audit plan created successfully!"));
       router.push(`/${role}/audit`);
-    } catch (error: any) { toast.error(error.response?.data?.message || t("Error creating Audit Plan.")); } finally { setIsLoading(false); }
+    } catch (error: any) { toast.error(t(error.response?.data?.message || "Error creating Audit Plan.")); } finally { setIsLoading(false); }
   };
 
   return (

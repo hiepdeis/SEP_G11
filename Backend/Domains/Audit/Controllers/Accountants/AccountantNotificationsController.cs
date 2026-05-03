@@ -8,7 +8,7 @@ namespace Backend.Domains.Notifications.Controllers
 {
     [ApiController]
     [Route("api/accountant/notifications")]
-    [Authorize(Roles = "Accountant,accountant")]
+    [Authorize(Roles = "Accountant,Admin")]
     public class AccountantNotificationsController : ControllerBase
     {
         private readonly MyDbContext _db;
@@ -50,18 +50,5 @@ namespace Backend.Domains.Notifications.Controllers
             return Ok(data);
         }
 
-        [HttpPut("{notiId:long}/read")]
-        public async Task<IActionResult> MarkRead(long notiId, CancellationToken ct)
-        {
-            var n = await _db.Notifications
-                .FirstOrDefaultAsync(x => x.NotiId == notiId && x.UserId == GetUserId(), ct);
-
-            if (n != null && n.IsRead == false)
-            {
-                n.IsRead = true;
-                await _db.SaveChangesAsync(ct);
-            }
-            return Ok(new { message = "Marked as read." });
-        }
     }
 }

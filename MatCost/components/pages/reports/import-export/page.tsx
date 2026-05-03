@@ -794,7 +794,7 @@ export default function WarehouseCardPage({ role = "staff" }: Props) {
                         onClick={() => handleSort("total")}
                       >
                         <div className="flex items-center gap-1.5 select-none">
-                          {t("Total")}
+                          {t("Total Quantity")}
                           {sortConfig?.key === "total" ? (
                             sortConfig.direction === "asc" ? (
                               <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />

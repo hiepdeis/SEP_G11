@@ -2,6 +2,7 @@ using System;
 using Backend.Data;
 using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
+using Backend.Services.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -12,10 +13,13 @@ namespace Backend.Domains.Import.Services
         private readonly MyDbContext _context;
         private readonly ILogger<PurchaseRequestService> _logger;
 
-        public PurchaseRequestService(MyDbContext context, ILogger<PurchaseRequestService> logger)
+        private readonly INotificationDispatcher _notificationDispatcher;
+
+        public PurchaseRequestService(MyDbContext context, ILogger<PurchaseRequestService> logger, INotificationDispatcher notificationDispatcher)
         {
             _context = context;
             _logger = logger;
+            _notificationDispatcher = notificationDispatcher;
         }
 
         public async Task<PurchaseRequest> CreateRequestFromAlertAsync(long alertId, int adminId, List<PurchaseRequestItem> items)
@@ -83,6 +87,19 @@ namespace Backend.Domains.Import.Services
             alert.Status = "PRCreated";
 
             await _context.SaveChangesAsync();
+
+            await _notificationDispatcher.DispatchToRoleAsync(new NotificationRoleDispatchRequest
+            {
+                RoleName = "Purchasing",
+                FallbackRoleName = "WarehouseManager",
+                OnlyActiveUsers = true,
+                Message = $"Yêu cầu mua hàng có mã: {request.RequestCode} đã được tạo bởi Giám Đốc với cảnh báo có id: {alert.AlertId}.",
+                RelatedEntityType = "PurchaseRequest",
+                RelatedEntityId = request.RequestId,
+                SendEmail = true,
+                SendEmailInBackground = true,
+                SaveChanges = true
+            }, CancellationToken.None);
 
             return request;
         }

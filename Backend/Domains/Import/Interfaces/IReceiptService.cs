@@ -9,7 +9,7 @@ namespace Backend.Domains.Import.Interfaces
         // Warehouse staff flow
         Task<List<GetInboundRequestListDto>> GetReceiptsForWarehouseAsync();
         Task<GetInboundRequestListDto> GetReceiptDetailForWarehouseAsync(long receiptId);
-        Task ConfirmGoodsReceiptAsync(long receiptId, ConfirmGoodsReceiptDto dto, int staffId);
+        // Task ConfirmGoodsReceiptAsync(long receiptId, ConfirmGoodsReceiptDto dto, int staffId);
         Task<ReceiveGoodsFromPoResultDto> ReceiveGoodsFromPOAsync(ReceiveGoodsFromPoDto dto, int staffId);
         Task<List<PendingPurchaseOrderDto>> GetPendingPurchaseOrdersAsync();
         Task<PendingPurchaseOrderDto> GetPendingPurchaseOrderDetailAsync(long purchaseOrderId);

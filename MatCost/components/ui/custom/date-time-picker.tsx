@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { format } from "date-fns";
+import { vi } from "date-fns/locale";
 import { Calendar as CalendarIcon, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -99,7 +100,7 @@ export function DateTimePicker({
         >
           <CalendarIcon className="mr-2 h-4 w-4 text-indigo-600 group-hover:text-white" />
           {value ? (
-            format(value, "dd/MM/yyyy HH:mm")
+            format(value, "dd/MM/yyyy HH:mm", { locale: vi })
           ) : (
             <span>
               {disabled ? "-" : placeholder || t("Pick a date and time")}
@@ -117,6 +118,7 @@ export function DateTimePicker({
           onSelect={handleDateSelect}
           initialFocus
           className="p-3"
+          locale={vi}
           disabled={(date) => {
             if (
               disablePastDates &&
