@@ -43,6 +43,7 @@ namespace Backend.Domains.Import.DTOs.Accountants
 
     public class AccountantReceiptCloseDto
     {
+        public string? SignatureData { get; set; }
         public string? AccountingNote { get; set; }
     }
 

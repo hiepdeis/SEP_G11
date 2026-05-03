@@ -68,7 +68,7 @@ public partial class User
     [InverseProperty(nameof(StockTake.CreatedByNavigation))]
     public virtual ICollection<StockTake> StockTakeCreatedByNavigations { get; set; } = new List<StockTake>();
 
-    
+
 
     [InverseProperty(nameof(StockTake.CompletedByNavigation))]
     public virtual ICollection<StockTake> StockTakeCompletedByNavigations { get; set; } = new List<StockTake>();
@@ -81,6 +81,8 @@ public partial class User
 
 
     public virtual ICollection<StockTakeSignature> StockTakeSignatures { get; set; } = new List<StockTakeSignature>();
+
+    public virtual ICollection<ReceiptSignature> ReceiptSignatures { get; set; } = new List<ReceiptSignature>();
 
     public virtual ICollection<StockTakeTeamMember> StockTakeTeamMembers { get; set; } = new List<StockTakeTeamMember>();
 
