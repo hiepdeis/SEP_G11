@@ -247,6 +247,10 @@ export function Sidebar() {
           label: t("sidebar.tabs.purchase_orders"),
           href: "/admin/purchase-orders",
         },
+        {
+          label: t("sidebar.tabs.inbound_requests"),
+          href: "/admin/inbound-requests",
+        },
       ],
     },
     {

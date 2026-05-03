@@ -1459,7 +1459,7 @@
   "After Issue": "Sau khi xuất",
   "Over budget!": "Vượt ngân sách!",
   "Chi tiết Nguồn xuất (FIFO)": "Chi tiết Nguồn xuất (FIFO)",
-  "Line Total": "Tổng dòng",
+  "Line Total": "Tổng giá trị",
   "Phương án xử lý": "Phương án xử lý",
   "Accountant Review": "Kế toán xem xét",
   "Warning: This request exceeds the project budget. Approving it will forward it to the Admin.": "Cảnh báo: Yêu cầu này vượt quá ngân sách công trình. Phê duyệt điều này sẽ chuyển tiếp đến Admin.",
@@ -1947,5 +1947,6 @@
   "None": "Không có",
   "Max stock level must be greater than 0": "Mức tồn kho tối đa phải lớn hơn 0",
   "Capacity": "Mức tối đa",
-  "AccountantApproved":"Đã duyệt bởi kế toán"
+  "AccountantApproved": "Đã duyệt bởi kế toán",
+  "Grand Total": "Tổng cộng"
 }

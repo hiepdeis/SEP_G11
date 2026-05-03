@@ -192,6 +192,18 @@ export interface AccountantInventoryCurrentDto {
   lastUpdated?: string;
 }
 
+export interface AccountantReceiptDetailItemDto {
+  detailId: number;
+  materialId: number;
+  materialCode?: string;
+  materialName?: string;
+  materialUnit?: string;
+  quantity: number;
+  actualQuantity?: number | null;
+  unitPrice?: number | null;
+  lineTotal?: number | null;
+}
+
 export interface AccountantReceiptDetailDto {
   receiptId: number;
   receiptCode: string;
@@ -201,6 +213,7 @@ export interface AccountantReceiptDetailDto {
   stampedByName?: string | null;
   purchaseOrder?: PurchaseOrderDto;
   qcCheck?: QCCheckDto;
+  receiptDetails: AccountantReceiptDetailItemDto[];
   inventoryCurrents: AccountantInventoryCurrentDto[];
   warehouseCards: WarehouseCardDto[];
 }

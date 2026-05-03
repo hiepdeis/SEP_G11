@@ -2757,6 +2757,18 @@ namespace Backend.Domains.Import.Services
                 StampedByName = ResolveUserName(receiptUserNames, receipt.StampedByManagerId),
                 PurchaseOrder = purchaseOrder == null ? null : PurchaseOrderMapper.ToDto(purchaseOrder, purchaseOrderUserNames),
                 QCCheck = qcDto,
+                ReceiptDetails = receipt.ReceiptDetails.Select(rd => new AccountantReceiptDetailItemDto
+                {
+                    DetailId = rd.DetailId,
+                    MaterialId = rd.MaterialId,
+                    MaterialCode = rd.Material?.Code,
+                    MaterialName = rd.Material?.Name,
+                    MaterialUnit = rd.Material?.Unit,
+                    Quantity = rd.Quantity,
+                    ActualQuantity = rd.ActualQuantity,
+                    UnitPrice = rd.UnitPrice,
+                    LineTotal = rd.LineTotal
+                }).ToList(),
                 InventoryCurrents = inventoryCurrents,
                 WarehouseCards = warehouseCards
             };

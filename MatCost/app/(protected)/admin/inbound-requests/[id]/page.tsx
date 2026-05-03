@@ -2,6 +2,6 @@
 
 import AccountantReceiptDetailPage from "@/components/pages/inbound-request/manager-accountant/detail/page";
 
-export default function AccountantReceiptDetail() {
-  return <AccountantReceiptDetailPage role="accountant" />;
+export default function AdminReceiptDetail() {
+  return <AccountantReceiptDetailPage role="admin" />;
 }
