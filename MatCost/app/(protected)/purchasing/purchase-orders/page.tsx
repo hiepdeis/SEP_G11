@@ -831,7 +831,7 @@ export default function PurchasingDashboardPage() {
                                           variant="ghost"
                                           size="icon"
                                           className="h-8 w-8 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-indigo-800"
-                                          onClick={(e) => e.stopPropagation()} // Good practice to stop row click
+                                          onClick={(e) => e.stopPropagation()}
                                         >
                                           <MoreVertical className="w-4 h-4" />
                                         </Button>

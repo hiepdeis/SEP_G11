@@ -38,6 +38,9 @@ export interface BinRow extends BaseItem {
   warehouseId: number;
   code: string;
   type: string;
+  currentMaterialId: number | null;
+  currentMaterialName: string | null;
+  maxStockLevel: number | null;
 }
 
 export interface ProjectItem extends BaseItem {

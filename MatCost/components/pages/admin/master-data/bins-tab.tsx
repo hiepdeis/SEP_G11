@@ -45,6 +45,7 @@ import {
   updateBin,
 } from "@/services/admin-bins";
 import { getWarehouses } from "@/services/admin-warehouses";
+import { getMaterials } from "@/services/admin-materials";
 import { BinRow } from "@/lib/master-data-types";
 
 export function BinsTab({
@@ -59,6 +60,9 @@ export function BinsTab({
   const [warehouses, setWarehouses] = useState<
     { warehouseId: number; name: string }[]
   >([]);
+  const [materials, setMaterials] = useState<
+    { materialId: number; name: string; code: string }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -69,26 +73,37 @@ export function BinsTab({
   const perPage = 10;
 
   useEffect(() => {
-    Promise.all([getBins(), getWarehouses()])
-      .then(([binData, warehouseData]) => {
+    Promise.all([getBins(), getWarehouses(), getMaterials({ pageSize: 5000 })])
+      .then(([binData, warehouseData, materialData]) => {
         const binRows = Array.isArray(binData)
           ? binData
           : (binData.items ?? []);
         const warehouseRows = Array.isArray(warehouseData)
           ? warehouseData
           : (warehouseData.items ?? []);
+        const materialRows = materialData.items ?? [];
         setItems(
           binRows.map((b, idx) => ({
             _id: Number(b.binId ?? idx + 1),
             warehouseId: Number(b.warehouseId ?? 0),
             code: b.code ?? "",
             type: b.type ?? "",
+            currentMaterialId: b.currentMaterialId ?? null,
+            currentMaterialName: b.currentMaterialName ?? null,
+            maxStockLevel: b.maxStockLevel ?? null,
           })),
         );
         setWarehouses(
           warehouseRows.map((w) => ({
             warehouseId: w.warehouseId,
             name: w.name ?? "",
+          })),
+        );
+        setMaterials(
+          materialRows.map((m) => ({
+            materialId: m.materialId,
+            name: m.name ?? "",
+            code: m.code ?? "",
           })),
         );
         setLoading(false);
@@ -120,7 +135,11 @@ export function BinsTab({
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
 
   const openAdd = () => {
-    setEditing({ warehouseId: warehouses[0]?.warehouseId });
+    setEditing({
+      warehouseId: warehouses[0]?.warehouseId,
+      currentMaterialId: null,
+      maxStockLevel: null,
+    });
     setModalOpen(true);
   };
 
@@ -139,28 +158,75 @@ export function BinsTab({
     if (!editing) return;
     const warehouseId = Number(editing.warehouseId ?? 0),
       code = editing.code?.trim().toUpperCase(),
-      type = editing.type?.trim();
+      type = editing.type?.trim(),
+      currentMaterialId = editing.currentMaterialId ?? null,
+      maxStockLevel = editing.maxStockLevel ?? null;
 
     if (!warehouseId || !code || !type) {
       toast.error(t("Data cannot be empty"));
       return;
     }
 
+    if (maxStockLevel == null || maxStockLevel <= 0) {
+      toast.error(t("Max stock level must be greater than 0"));
+      return;
+    }
+
+    console.log(warehouseId, code, type, currentMaterialId, maxStockLevel);
+
     try {
       setSaving(true);
       if (editing._id) {
-        await updateBin(editing._id, { warehouseId, code, type });
+        await updateBin(editing._id, {
+          warehouseId,
+          code,
+          type,
+          currentMaterialId,
+          maxStockLevel,
+        });
+        const materialName = currentMaterialId
+          ? (materials.find((m) => m.materialId === currentMaterialId)?.name ??
+            null)
+          : null;
         setItems((prev) =>
           prev.map((i) =>
-            i._id === editing._id ? { ...i, warehouseId, code, type } : i,
+            i._id === editing._id
+              ? {
+                  ...i,
+                  warehouseId,
+                  code,
+                  type,
+                  currentMaterialId,
+                  currentMaterialName: materialName,
+                  maxStockLevel,
+                }
+              : i,
           ),
         );
         toast.success(t("Update Successful"));
       } else {
-        const created = await createBin({ warehouseId, code, type });
+        const created = await createBin({
+          warehouseId,
+          code,
+          type,
+          currentMaterialId,
+          maxStockLevel,
+        });
+        const materialName = currentMaterialId
+          ? (materials.find((m) => m.materialId === currentMaterialId)?.name ??
+            null)
+          : null;
         setItems((prev) => [
           ...prev,
-          { _id: created.id, warehouseId, code, type },
+          {
+            _id: created.id,
+            warehouseId,
+            code,
+            type,
+            currentMaterialId,
+            currentMaterialName: materialName,
+            maxStockLevel,
+          },
         ]);
         toast.success(t("Add New Successful"));
       }
@@ -233,6 +299,12 @@ export function BinsTab({
                 <TableHead className="sticky top-0 z-20 bg-gray-50 px-5 text-[10px] text-gray-500 uppercase tracking-wider">
                   {t("Type")}
                 </TableHead>
+                <TableHead className="sticky top-0 z-20 bg-gray-50 px-5 text-[10px] text-gray-500 uppercase tracking-wider">
+                  {t("Current Material")}
+                </TableHead>
+                <TableHead className="sticky top-0 z-20 bg-gray-50 px-5 text-[10px] text-gray-500 uppercase tracking-wider">
+                  {t("Max Stock Level")}
+                </TableHead>
                 <TableHead className="sticky top-0 z-20 bg-gray-50 px-5 text-[10px] text-gray-500 uppercase tracking-wider text-right">
                   {t("Actions")}
                 </TableHead>
@@ -242,7 +314,7 @@ export function BinsTab({
               {paginated.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={6}
                     className="px-5 py-8 text-center text-gray-400 text-sm"
                   >
                     {t("No Data")}
@@ -264,6 +336,18 @@ export function BinsTab({
                     </TableCell>
                     <TableCell className="px-5 py-3 text-sm font-medium">
                       {item.type}
+                    </TableCell>
+                    <TableCell className="px-5 py-3 text-sm">
+                      {item.currentMaterialName || (
+                        <span className="text-gray-400 italic">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="px-5 py-3 text-sm">
+                      {item.maxStockLevel != null ? (
+                        item.maxStockLevel
+                      ) : (
+                        <span className="text-gray-400 italic">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="px-5 py-3 text-right">
                       <div className="flex justify-end gap-1">
@@ -393,6 +477,56 @@ export function BinsTab({
                       maxLength={20}
                     />
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("Current Material")}</Label>
+                  <Select
+                    value={
+                      editing.currentMaterialId
+                        ? String(editing.currentMaterialId)
+                        : "none"
+                    }
+                    onValueChange={(val) =>
+                      setEditing((prev) => ({
+                        ...prev,
+                        currentMaterialId: val === "none" ? null : Number(val),
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="w-full border border-slate-300">
+                      <SelectValue placeholder={t("Select material")} />
+                    </SelectTrigger>
+                    <SelectContent showSearch>
+                      <SelectItem value="none">— {t("None")} —</SelectItem>
+                      {materials.map((m) => (
+                        <SelectItem
+                          key={m.materialId}
+                          value={String(m.materialId)}
+                        >
+                          <span>[{m.code}]</span>
+                          <span>{m.name}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("Max Stock Level")}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="any"
+                    value={editing.maxStockLevel ?? ""}
+                    onChange={(e) =>
+                      setEditing((prev) => ({
+                        ...prev,
+                        maxStockLevel: e.target.value
+                          ? Number(e.target.value)
+                          : null,
+                      }))
+                    }
+                    placeholder={t("Enter max stock level")}
+                  />
                 </div>
               </div>
             </div>

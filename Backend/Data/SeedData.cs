@@ -38,46 +38,58 @@ namespace Backend.Data
                 {
                     new User
                     {
-                        Username = "admin",
+                        Username = "Admin",
                         PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
                         RoleId = roleDict["Admin"],
-                        FullName = "System Admin",
-                        Email = "admin@system.local"
+                        FullName = "Phan Long",
+                        Email = "hiepdevo@gmail.com",
+                        Status = true
                     },
                     new User
                     {
-                        Username = "accountant",
+                        Username = "Accountant",
                         PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
                         RoleId = roleDict["Accountant"],
-                        FullName = "Accountant"
+                        FullName = "Dung Hoang",
+                        Email = "trungthanh26148@gmail.com",
+                        Status  = true
                     },
                     new User
                     {
                         Username = "warehouse_manager",
                         PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
                         RoleId = roleDict["WarehouseManager"],
-                        FullName = "Warehouse Manager"
+                        FullName = "Vương Phan",
+                        Email = "hieppdhe171309@fpt.edu.vn",
+                        Status =true
                     },
                     new User
                     {
                         Username = "construction",
                         PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
                         RoleId = roleDict["ConstructionTeam"],
-                        FullName = "Construction Team"
+                        FullName = "Phạm Văn Bài",
+                        Email = "hieppdhe@gmail.com",
+                        Status =true
                     },
                     new User
                     {
                         Username = "staff",
                         PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
                         RoleId = roleDict["WarehouseStaff"],
-                        FullName = "Warehouse Staff"
+                        FullName = "Phạm Dũng",
+                        Email = "phamduyhiep2003@gmail.com",
+                        Status =true
                     },
                     new User
                     {
                         Username = "purchasing",
                         PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
                         RoleId = roleDict["Purchasing"],
-                        FullName = "Purchasing Staff"
+                        FullName = "Trần Mai Anh",
+                        Email = "hiepphamdell@gmail.com",
+                        Status =true
+
                     }
                 };
 

@@ -132,6 +132,9 @@ namespace Backend.Domains.Admin.Dtos
         public string WarehouseName { get; set; } = null!;
         public string Code { get; set; } = null!;
         public string? Type { get; set; }
+        public int? CurrentMaterialId { get; set; }
+        public string? CurrentMaterialName { get; set; }
+        public decimal? MaxStockLevel { get; set; }
     }
 
     public sealed class UpsertBinLocationDto
@@ -139,6 +142,8 @@ namespace Backend.Domains.Admin.Dtos
         public int WarehouseId { get; set; }
         public string Code { get; set; } = null!;
         public string? Type { get; set; }
+        public int? CurrentMaterialId { get; set; }
+        public decimal? MaxStockLevel { get; set; }
     }
 
     // =========================

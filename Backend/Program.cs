@@ -9,6 +9,10 @@ using Backend.Domains.auth.Interfaces;
 using Backend.Domains.auth.Services;
 using Backend.Domains.Import.Interfaces;
 using Backend.Domains.Import.Services;
+using Backend.Domains.outbound.Interface;
+using Backend.Domains.outbound.Services;
+using Backend.Domains.Projects.Interfaces;
+using Backend.Domains.Projects.Services;
 using Backend.Domains.user.Interface;
 using Backend.Domains.user.Service;
 using Backend.Entities;
@@ -25,8 +29,6 @@ using NuGet.Packaging;
 using OfficeOpenXml;
 using System;
 using System.Text;
-using Backend.Domains.Projects.Interfaces;
-using Backend.Domains.Projects.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -74,6 +76,9 @@ builder.Services.AddScoped<IReceiptService, ReceiptService>();
 builder.Services.AddScoped<IPurchaseRequestService, PurchaseRequestService>();
 builder.Services.AddScoped<IIncidentWorkflowService, IncidentWorkflowService>();
 builder.Services.AddScoped<ISupplierService, SupplierService>();
+builder.Services.AddScoped<IIssueSlipWorkflowService, IssueService>();
+builder.Services.AddScoped<IssueService>();
+builder.Services.AddScoped<IssueDetailsService>();
 
 // Configure Swagger to support file uploads
 builder.Services.AddSwaggerGen(c =>

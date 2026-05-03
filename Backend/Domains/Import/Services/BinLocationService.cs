@@ -1,4 +1,4 @@
-﻿using Backend.Data;
+using Backend.Data;
 using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +20,8 @@ namespace Backend.Domains.Import.Services
             {
                 BinId = c.BinId,
                 Code = c.Code,
+                CurrentMaterialId = c.CurrentMaterialId,
+                MaxStockLevel = c.MaxStockLevel,
                 Warehouse = c.Warehouse == null ? null : new Warehouse
                 {
                     WarehouseId = c.Warehouse.WarehouseId,

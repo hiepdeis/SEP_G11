@@ -359,7 +359,8 @@
       "incident_reports": "Incident Reports",
       "inbound_requests": "Inbound Requests",
       "stock_shortage_alerts": "Stock Shortage Alerts",
-      "pending_pos": "Pending POS"
+      "pending_pos": "Pending POS",
+      "audit": "Audit"
     }
   },
   "reports": {
