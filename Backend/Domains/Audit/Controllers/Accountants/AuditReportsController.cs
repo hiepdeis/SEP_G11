@@ -6,7 +6,7 @@ namespace Backend.Domains.Audit.Controllers.Accountants
 {
     [ApiController]
     [Route("api/audits")]
-    [Authorize(Roles = "Accountant,Manager,Admin")]
+    [Authorize(Roles = "Accountant,Admin")]
     public sealed class AuditReportsController : ControllerBase
     {
         private readonly IAuditReportService _svc;

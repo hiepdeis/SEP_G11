@@ -68,7 +68,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   const [otpAction, setOtpAction] = useState<(() => Promise<void>) | null>(null);
 
 
-  const canExport = ["accountant", "admin", "manager"].includes(role);
+  const canExport = ["accountant", "admin"].includes(role);
   const status = detailData?.status?.toLowerCase() || "";
 
   const fetchData = async () => {
