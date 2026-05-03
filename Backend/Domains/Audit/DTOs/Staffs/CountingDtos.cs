@@ -34,13 +34,6 @@ public sealed class UpsertCountRequest
     public decimal CountQty { get; set; }
 }
 
-public sealed class MaterialSuggestDto
-{
-    public int MaterialId { get; set; }
-    public string MaterialName { get; set; } = null!;
-    public string? BatchCode { get; set; }
-    public string? UnitName { get; set; }
-}
 public sealed class MaterialBatchDto
 {
     public int MaterialId { get; set; }

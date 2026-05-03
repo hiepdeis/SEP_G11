@@ -59,33 +59,5 @@ public class StaffNotificationsController : ControllerBase
         return Ok(data);
     }
 
-    [HttpPut("{notiId:long}/read")]
-    public async Task<IActionResult> MarkRead(long notiId, CancellationToken ct)
-    {
-        var userId = GetUserId();
 
-        var n = await _db.Notifications
-            .FirstOrDefaultAsync(x => x.NotiId == notiId && x.UserId == userId, ct);
-
-        if (n == null) return NotFound(new { message = "Notification not found." });
-
-        if (n.IsRead == false)
-        {
-            n.IsRead = true;
-            await _db.SaveChangesAsync(ct);
-        }
-
-        return Ok(new { message = "Marked as read." });
-    }
-
-    [HttpGet("unread-count")]
-    public async Task<IActionResult> GetUnreadCount(CancellationToken ct)
-    {
-        var userId = GetUserId();
-        var count = await _db.Notifications
-            .AsNoTracking()
-            .CountAsync(n => n.UserId == userId && n.IsRead == false, ct);
-
-        return Ok(new { unread = count });
-    }
 }

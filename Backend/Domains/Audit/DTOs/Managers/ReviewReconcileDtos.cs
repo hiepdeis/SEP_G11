@@ -98,11 +98,6 @@ public sealed class BulkResolveVarianceRequest
     public string? Notes { get; set; }
 }
 
-public sealed class UpdateVarianceReasonRequest
-{
-    public int? AdjustmentReasonId { get; set; }
-    public string? Reason { get; set; }
-}
 
 public sealed class SignOffRequest
 {

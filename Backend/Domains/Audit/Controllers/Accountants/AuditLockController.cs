@@ -35,16 +35,5 @@ namespace Backend.Controllers
             return Ok(new { message = result.message });
         }
 
-        [HttpPost("{stockTakeId:int}/unlock")]
-        public async Task<IActionResult> UnlockScope(int stockTakeId, CancellationToken ct)
-        {
-            var userId = GetCurrentUserId();
-            var result = await _service.UnlockScopeAsync(stockTakeId, userId, ct);
-
-            if (!result.success)
-                return BadRequest(new { message = result.message });
-
-            return Ok(new { message = result.message });
-        }
     }
 }
