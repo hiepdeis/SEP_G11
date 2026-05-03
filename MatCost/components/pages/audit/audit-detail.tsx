@@ -150,7 +150,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
         setResolveItem(null);
         setResolveNotes("");
       } catch (error: any) {
-        toast.error(error.response?.data?.message || "Error");
+        toast.error(t(error.response?.data?.message || "Error"));
       } finally {
         setIsSubmitting(false);
       }
@@ -167,7 +167,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
       await fetchData(); 
       setResolveItem(null);
       setResolveNotes("");
-    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); }
+    } catch (error: any) { toast.error(t(error.response?.data?.message || "Error")); } finally { setIsSubmitting(false); }
   };
 
   const getActualCountRound = (v: VarianceItemDto) => {
@@ -211,7 +211,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
         toast.success(t("All resolutions confirmed! Awaiting accountant approval."));
         await fetchData();
       } catch (error: any) {
-        toast.error(error.response?.data?.message || "Error");
+        toast.error(t(error.response?.data?.message || "Error"));
       } finally {
         setIsSubmitting(false);
       }
@@ -229,7 +229,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
         await auditService.requestRecountAll(stockTakeId, 0, "Manager recount all request");
         toast.success(t("Recount request sent for all pending items!"));
         await fetchData();
-    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); }
+    } catch (error: any) { toast.error(t(error.response?.data?.message || "Error")); } finally { setIsSubmitting(false); }
   };
 
   // === ACCOUNTANT ACTIONS ===
@@ -244,7 +244,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
         toast.success(t("Audit completed! All items matched."));
         router.push(`/${role}/audit`);
       } catch (error: any) {
-        toast.error(error.response?.data?.message || "Error");
+        toast.error(t(error.response?.data?.message || "Error"));
       } finally {
         setIsSubmitting(false);
       }
@@ -262,7 +262,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
       await auditService.accountantReview(stockTakeId, "ForwardToManager");
       toast.success(t("Forwarded to Manager for review!"));
       await fetchData();
-    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); }
+    } catch (error: any) { toast.error(t(error.response?.data?.message || "Error")); } finally { setIsSubmitting(false); }
   };
 
   const handleAccountantApproveResolve = async () => {
@@ -276,7 +276,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
         toast.success(t("Resolution approved! Inventory updated."));
         router.push(`/${role}/audit`);
       } catch (error: any) {
-        toast.error(error.response?.data?.message || "Error");
+        toast.error(t(error.response?.data?.message || "Error"));
       } finally {
         setIsSubmitting(false);
       }
@@ -299,7 +299,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
         toast.success(t("Resolution rejected. Escalated to Admin."));
         await fetchData();
       } catch (error: any) {
-        toast.error(error.response?.data?.message || "Error");
+        toast.error(t(error.response?.data?.message || "Error"));
       } finally {
         setIsSubmitting(false);
       }
@@ -333,7 +333,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
         toast.success(t("Penalize issued and audit completed!"));
         router.push(`/${role}/audit`);
       } catch (error: any) {
-        toast.error(error.response?.data?.message || "Error");
+        toast.error(t(error.response?.data?.message || "Error"));
       } finally {
         setIsSubmitting(false);
       }
@@ -352,7 +352,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
       await auditService.lockAudit(stockTakeId);
       toast.success(t("Warehouse locked! Staff can start counting."));
       await fetchData();
-    } catch (error: any) { toast.error(error.response?.data?.message || "Error"); } finally { setIsSubmitting(false); }
+    } catch (error: any) { toast.error(t(error.response?.data?.message || "Error")); } finally { setIsSubmitting(false); }
   };
 
   const handleSignatureEnd = () => { if (sigCanvas.current && !sigCanvas.current.isEmpty()) setIsSigned(true); };
@@ -363,7 +363,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
       const data = await auditService.getRecountCandidates(stockTakeId);
       setCandidates(data);
       setShowCandidates(true);
-    } catch (e) { toast.error("Error"); }
+    } catch (e) { toast.error(t("Error")); }
   };
 
   const handleRejoin = async (userId: number) => {
@@ -371,7 +371,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
       await auditService.rejoinForRecount(stockTakeId, userId);
       toast.success(t("Staff re-summoned successfully!"));
       fetchCandidates(); 
-    } catch (e: any) { toast.error(e.response?.data?.message || "Error"); }
+    } catch (e: any) { toast.error(t(e.response?.data?.message || "Error")); }
   };
 
   const handleExportPdf = async () => {
