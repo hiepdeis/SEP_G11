@@ -1,5 +1,4 @@
-using Backend.Data;
-using Backend.Domains.Audit.Interfaces;
+﻿using Backend.Data;
 using Backend.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -13,12 +12,10 @@ namespace Backend.Domains.outbound.Controllers
     public class InventoryIssuesController : ControllerBase
     {
         private readonly MyDbContext _context;
-        private readonly IAuditLockCheckService _auditLockCheck;
 
-        public InventoryIssuesController(MyDbContext context, IAuditLockCheckService auditLockCheck)
+        public InventoryIssuesController(MyDbContext context)
         {
             _context = context;
-            _auditLockCheck = auditLockCheck;
         }
 
         // GET /api/inventory-issues?status=Processing
@@ -157,14 +154,6 @@ namespace Backend.Domains.outbound.Controllers
 
                     if ((inventoryCurrent.QuantityAllocated ?? 0) < detail.Quantity)
                         return BadRequest($"Not enough allocated stock for MaterialId {detail.IssueDetail.MaterialId}, BatchId {detail.BatchId}.");
-
-                    // Check if this bin is locked by an active audit before deducting
-                    if (inventoryCurrent.WarehouseId.HasValue)
-                    {
-                        var isLocked = await _auditLockCheck.IsBinLockedAsync(inventoryCurrent.WarehouseId.Value, inventoryCurrent.BinId, default);
-                        if (isLocked)
-                            return BadRequest($"Vị trí kệ đang bị khóa để kiểm kê (audit). Không thể xuất hàng lúc này.");
-                    }
 
                     inventoryCurrent.QuantityAllocated -= detail.Quantity;
                     inventoryCurrent.QuantityOnHand -= detail.Quantity;

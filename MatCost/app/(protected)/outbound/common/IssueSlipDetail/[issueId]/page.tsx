@@ -78,6 +78,8 @@ export default function CommonIssueSlipDetail() {
   const [isPoSigned, setIsPoSigned] = useState(false);
   const [selectedPoId, setSelectedPoId] = useState<number | null>(null);
 
+ 
+
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -301,6 +303,14 @@ export default function CommonIssueSlipDetail() {
 
   const saveBatchChanges = () => {
     if (!editingItem) return;
+
+    for (const b of availableBatches) {
+      const inputQty = batchInputs[b.batchId] || 0;
+      if (inputQty > b.availableQuantity) {
+        toast.error(`Khối lượng lấy ở lô 📦 ${b.batchCode} (${inputQty}) vượt quá tồn kho hiện có (${b.availableQuantity})!`);
+        return; // Dừng ngay, không cho chạy tiếp
+      }
+    }
     // Gom các input > 0 thành mảng FifoBatch mới
     const newAllocations: FifoBatch[] = availableBatches
       .filter(b => batchInputs[b.batchId] > 0)
@@ -318,12 +328,30 @@ export default function CommonIssueSlipDetail() {
         };
       });
 
+    // const totalSelected = newAllocations.reduce((sum, b) => sum + b.qtyToTake, 0);
+    // if (totalSelected > editingItem.requestedQuantity) {
+    //   toast.error(`Tổng số lượng chọn (${totalSelected}) vượt quá yêu cầu (${editingItem.requestedQuantity})`);
+    //   return;
+    // }
+
+    // setCustomBatchAllocations(prev => ({ ...prev, [editingItem.detailId]: newAllocations }));
+    // setIsBatchModalOpen(false);
+    // --- VALIDATION 2: Tổng chọn phải khớp với Yêu cầu ---
     const totalSelected = newAllocations.reduce((sum, b) => sum + b.qtyToTake, 0);
-    if (totalSelected > editingItem.requestedQuantity) {
-      toast.error(`Tổng số lượng chọn (${totalSelected}) vượt quá yêu cầu (${editingItem.requestedQuantity})`);
-      return;
+    
+    // Tính số lượng mục tiêu (Phòng hờ kho không đủ thì chỉ được chọn tối đa bằng kho)
+    const targetQty = Math.min(editingItem.requestedQuantity, editingItem.availableQuantity);
+
+    if (totalSelected !== targetQty) {
+      if (totalSelected > targetQty) {
+        toast.error(`Dư thừa! Bạn đang phân bổ ${totalSelected} ${editingItem.unit}, vượt mức cần thiết là ${targetQty} ${editingItem.unit}.`);
+      } else {
+        toast.error(`Chưa đủ số lượng! Vui lòng phân bổ thêm cho đủ ${targetQty} ${editingItem.unit} (Đang chọn: ${totalSelected}).`);
+      }
+      return; // Dừng ngay
     }
 
+    // Chốt hạ: Lưu vào State và đóng Modal
     setCustomBatchAllocations(prev => ({ ...prev, [editingItem.detailId]: newAllocations }));
     setIsBatchModalOpen(false);
   };
@@ -402,6 +430,7 @@ export default function CommonIssueSlipDetail() {
         customBatches: customBatchesPayload // Đã add cục Lô vào đây!
       };
 
+      
       const res = await axiosClient.post(`/IssueSlips/${issueId}/draft-process-inventory`, payload);
       toast.success("Đã tạo các bản nháp thành công!");
       
@@ -418,15 +447,62 @@ export default function CommonIssueSlipDetail() {
       // 3. Reload lại chi tiết phiếu (Lúc này status sẽ nhảy thành 'Draft_Issue_Note')
       const data = await issueSlipApi.getIssueSlipDetail(issueId);
       setDetail(data);
+      
+
     } catch (err: any) {
       toast.error(err.response?.data?.message || err.response?.data || "Có lỗi xảy ra khi xử lý kho.");
     } finally {
       setReviewing(false);
     }
   };
-
  
 
+  const handleFormatData = () => {
+  if (!detail || !detail.details) return;
+
+  // 1. Chạy thuật toán gộp đúng vào 1 cục
+  const groupedObj = detail.details.reduce((acc: any, current: any) => {
+    const matId = current.materialId;
+
+    if (!acc[matId]) {
+      acc[matId] = { 
+        ...current,
+        fifoSuggestedBatches: current.fifoSuggestedBatches ? [...current.fifoSuggestedBatches] : []
+      };
+    } else {
+      acc[matId].requestedQuantity += current.requestedQuantity;
+      const currentMoney = current.fifoSuggestedBatches?.length > 0 
+        ? current.fifoSuggestedBatches[0].lineTotal 
+        : current.lineTotal;
+        
+      acc[matId].lineTotal += currentMoney;
+      
+      if (current.fifoSuggestedBatches && current.fifoSuggestedBatches.length > 0) {
+        acc[matId].fifoSuggestedBatches.push(...current.fifoSuggestedBatches);
+      }
+    }
+
+  return acc;
+  }, {});
+
+  const finalDetails = Object.values(groupedObj).map((item: any) => {
+      item.unitPrice = item.requestedQuantity > 0 
+        ? item.lineTotal / item.requestedQuantity 
+        : 0;
+      return item;
+  })
+
+  const updatedDetail = {
+    ...detail, // Giữ nguyên issueId, status, projectInfo, createdBy...
+    details: finalDetails as IssueSlipDetailItem[] // Ép kiểu chuẩn xác mảng details mới
+  };
+  
+  console.log("=== OBJECT DETAIL SAU KHI FORMAT GỘP ===", updatedDetail);
+
+  updatedDetail.groupby = true;
+  
+  setDetail(updatedDetail);
+};
 
   // KẾ TOÁN: Gửi Phiếu xuất kho cho Thủ kho
   const handleSendInventorySlip = async (slipId: number) => {
@@ -552,8 +628,20 @@ export default function CommonIssueSlipDetail() {
                     )}
                   </CardHeader>
 
+                    {detail?.status === "Approved" && (
+                      <div className="flex justify-end mb-2">
+                        <button 
+                          onClick={handleFormatData}
+                          className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-3 py-1.5 text-sm font-medium rounded transition-colors"
+                        >
+                          🗎 Sửa lô
+                        </button>
+                      </div>
+                    )}
+
                   <CardContent className="p-0 bg-white flex flex-col justify-between flex-1">
                     <div className="overflow-x-auto relative">
+
                       <Table>
                         
                         <TableHeader>
@@ -605,9 +693,56 @@ export default function CommonIssueSlipDetail() {
                                 </TableCell>
                                   {canViewPrice && (
                                   <>
-                                    <TableCell className="text-right text-slate-600">{item.unitPrice.toLocaleString()} đ</TableCell>
-                                    
-                                    {/* CỘT CHI TIẾT LÔ (UI MỚI SIÊU GỌN GÀNG) */}
+                                    {/* <TableCell className="text-right text-slate-600">{item.unitPrice.toLocaleString()} đ</TableCell>
+                                     */}
+                                      
+                                      
+                                      {/* <TableCell className="text-right text-slate-600 font-medium">
+                                        {((detail?.groupby 
+                                            ? item.unitPrice // Nếu là dòng ĐÃ GỘP -> Lấy giá trung bình ở ngoài
+                                            : (item.fifoSuggestedBatches && item.fifoSuggestedBatches.length > 0 
+                                                ? item.fifoSuggestedBatches[0].unitPrice 
+                                                : item.unitPrice) // Nếu MẶC ĐỊNH -> Ưu tiên lấy giá Lô số 0
+                                          ) || 0).toLocaleString()} đ
+                                      </TableCell> */}
+                                      <TableCell className="text-right text-slate-600 font-medium">
+                                        {(() => {
+                                          // 1. Lấy danh sách Lô (Ưu tiên Lô Kế toán vừa thủ công chọn, không có thì lấy Lô gốc FIFO)
+                                          const allocations = customBatchAllocations[item.detailId] || item.fifoSuggestedBatches || [];
+
+                                          // 2. 🔥 ƯU TIÊN SỐ 1: NẾU KẾ TOÁN VỪA ĐỔI LÔ BẰNG TAY (Có tồn tại customBatchAllocations)
+                                          // -> Ghi đè mọi luật lệ, BẮT BUỘC tính lại Giá Trung Bình Gia Quyền dựa trên Lô mới vừa chọn!
+                                          if (customBatchAllocations[item.detailId]) {
+                                            const totalCost = allocations.reduce((sum, b) => sum + (b.qtyToTake * (b.unitPrice || item.unitPrice)), 0);
+                                            const totalQty = allocations.reduce((sum, b) => sum + b.qtyToTake, 0);
+                                            const avgPrice = totalQty > 0 ? totalCost / totalQty : 0;
+                                            return avgPrice.toLocaleString() + " đ";
+                                          }
+
+                                          // 3. NẾU CHƯA ĐỔI LÔ -> CHẠY LOGIC HIỂN THỊ THEO CHẾ ĐỘ (GỘP/TÁCH)
+                                          // - Nếu đang bật công tắc Gộp: Lấy giá trung bình gốc
+                                          if (detail?.groupby) {
+                                            return (item.unitPrice || 0).toLocaleString() + " đ";
+                                          }
+
+                                          // - Nếu Hết hàng (Không có lô nào)
+                                          if (allocations.length === 0) {
+                                            return (item.unitPrice || 0).toLocaleString() + " đ";
+                                          }
+
+                                          // - Nếu đang Tách (Chỉ có 1 lô duy nhất): Lấy chính xác giá lô đó
+                                          if (allocations.length === 1) {
+                                            return (allocations[0].unitPrice || 0).toLocaleString() + " đ";
+                                          }
+
+                                          // - Fallback phòng hờ:
+                                          const totalCost = allocations.reduce((sum, b) => sum + (b.qtyToTake * (b.unitPrice || item.unitPrice)), 0);
+                                          const totalQty = allocations.reduce((sum, b) => sum + b.qtyToTake, 0);
+                                          return (totalQty > 0 ? totalCost / totalQty : 0).toLocaleString() + " đ";
+                                        })()}
+                                      </TableCell>
+
+                                        {/* CỘT CHI TIẾT LÔ (UI MỚI SIÊU GỌN GÀNG) */}
                                     {detail.status === "Approved" && (
                                       <TableCell>
                                         <div className="flex flex-col gap-1.5 min-w-[160px]">
