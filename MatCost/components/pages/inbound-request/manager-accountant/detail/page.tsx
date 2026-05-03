@@ -113,10 +113,11 @@ export default function AccountantReceiptDetailPage({
     if (id) fetchReceiptDetail();
   }, [id, router, t]);
 
-  const executeCloseReceipt = async () => {
+  const executeCloseReceipt = async (signatureBase64?: string) => {
     setIsClosing(true);
     try {
       await accountantReceiptsApi.closeReceipt(id, {
+        signatureData: signatureBase64 || undefined,
         accountingNote: accountingNote.trim() || undefined,
       });
 
@@ -203,7 +204,9 @@ export default function AccountantReceiptDetailPage({
               </div>
             </div>
 
-            <ExportReceiptPdfButton receipt={receipt} />
+            {receipt.status === "Closed" && (
+              <ExportReceiptPdfButton receipt={receipt} />
+            )}
 
             {isPendingClosure && role === "accountant" && (
               <Button

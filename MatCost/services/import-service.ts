@@ -219,6 +219,7 @@ export interface AccountantReceiptDetailDto {
 }
 
 export interface AccountantReceiptCloseDto {
+  signatureData?: string;
   accountingNote?: string;
 }
 
@@ -338,6 +339,7 @@ export interface ManagerSupplementaryRejectResultDto {
 }
 
 export interface ManagerReceiptStampDto {
+  signatureData?: string;
   notes?: string | null;
 }
 
@@ -1219,6 +1221,31 @@ export const staffReceiptsApi = {
   getAllIncidentReports: () => {
     return axiosClient.get<IncidentReportSummaryDto[]>(
       "/staff/receipts/incident-reports",
+    );
+  },
+};
+
+// ==========================================
+// RECEIPT SIGNATURES
+// ==========================================
+export interface ReceiptSignatureDto {
+  receiptId: number;
+  userId: number;
+  fullName?: string;
+  role: string;
+  signedAt?: string;
+  signatureData?: string;
+}
+
+export interface ReceiptSignatureListDto {
+  receiptId: number;
+  signatures: ReceiptSignatureDto[];
+}
+
+export const receiptSignaturesApi = {
+  getSignatures: (receiptId: number) => {
+    return axiosClient.get<ReceiptSignatureListDto>(
+      `/receipts/${receiptId}/signatures`,
     );
   },
 };

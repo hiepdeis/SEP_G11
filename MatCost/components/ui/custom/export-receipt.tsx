@@ -4,7 +4,11 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { format } from "date-fns";
-import { AccountantReceiptDetailDto } from "@/services/import-service";
+import {
+  AccountantReceiptDetailDto,
+  receiptSignaturesApi,
+} from "@/services/import-service";
+import { toast } from "sonner";
 
 interface ExportReceiptPdfProps {
   receipt: AccountantReceiptDetailDto;
@@ -73,42 +77,61 @@ export function ExportReceiptPdfButton({
   receipt,
   disabled = false,
 }: ExportReceiptPdfProps) {
-  const handleExport = () => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      alert("Vui lòng cho phép popup để in phiếu!");
-      return;
-    }
+  const [isExporting, setIsExporting] = React.useState(false);
 
-    // Xử lý ngày tháng chứng từ
-    const receiptDate = receipt.receiptDate
-      ? new Date(receipt.receiptDate)
-      : new Date();
-    const day = format(receiptDate, "dd");
-    const month = format(receiptDate, "MM");
-    const year = format(receiptDate, "yyyy");
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
 
-    const printDate = new Date();
-    const printDay = format(printDate, "dd");
-    const printMonth = format(printDate, "MM");
-    const printYear = format(printDate, "yyyy");
+      let signatures: any[] = [];
+      try {
+        const sigRes = await receiptSignaturesApi.getSignatures(
+          receipt.receiptId,
+        );
+        signatures = sigRes.data.signatures || [];
+      } catch (e) {
+        console.error("Failed to fetch signatures", e);
+        toast.error("Không thể tải chữ ký.");
+      }
 
-    // Lấy dữ liệu từ ReceiptDetails (Có chứa Giá và Thành tiền)
-    const items = receipt.receiptDetails || [];
+      const managerSig = signatures.find((s) => s.role === "WarehouseManager");
+      const accountantSig = signatures.find((s) => s.role === "Accountant");
 
-    let totalQuantity = 0;
-    let actualTotalQuantity = 0;
-    let grandTotalAmount = 0;
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) {
+        alert("Vui lòng cho phép popup để in phiếu!");
+        return;
+      }
 
-    const trs = items
-      .map((item, index) => {
-        const qty = item.actualQuantity || 0;
-        actualTotalQuantity += qty;
-        const lineTotal = item.lineTotal || 0;
-        totalQuantity += item.quantity || 0;
-        grandTotalAmount += lineTotal;
+      // Xử lý ngày tháng chứng từ
+      const receiptDate = receipt.receiptDate
+        ? new Date(receipt.receiptDate)
+        : new Date();
+      const day = format(receiptDate, "dd");
+      const month = format(receiptDate, "MM");
+      const year = format(receiptDate, "yyyy");
 
-        return `
+      const printDate = new Date();
+      const printDay = format(printDate, "dd");
+      const printMonth = format(printDate, "MM");
+      const printYear = format(printDate, "yyyy");
+
+      // Lấy dữ liệu từ ReceiptDetails (Có chứa Giá và Thành tiền)
+      const items = receipt.receiptDetails || [];
+
+      let totalQuantity = 0;
+      let actualTotalQuantity = 0;
+      let grandTotalAmount = 0;
+
+      const trs = items
+        .map((item, index) => {
+          const qty = item.actualQuantity || 0;
+          actualTotalQuantity += qty;
+          const lineTotal = item.lineTotal || 0;
+          totalQuantity += item.quantity || 0;
+          grandTotalAmount += lineTotal;
+
+          return `
           <tr>
             <td style="text-align: center;">${index + 1}</td>
             <td class="text-left">
@@ -126,11 +149,11 @@ export function ExportReceiptPdfButton({
             <td style="text-align: right; font-weight: bold;">${formatVND(lineTotal)}</td>
           </tr>
         `;
-      })
-      .join("");
+        })
+        .join("");
 
-    // HTML Template dạng Mẫu 01-VT
-    const html = `
+      // HTML Template dạng Mẫu 01-VT
+      const html = `
       <!DOCTYPE html>
       <html lang="vi">
       <head>
@@ -305,12 +328,14 @@ export function ExportReceiptPdfButton({
           <div class="sig-box">
             <div class="sig-title">Thủ kho</div>
             <div class="sig-sub">(Ký, họ tên)</div>
-            <div class="sig-name"></div>
+            ${managerSig?.signatureData ? `<div style="margin-top: 10px; min-height: 80px;"><img src="${managerSig.signatureData}" style="max-height: 80px; max-width: 150px;" /></div>` : '<div style="min-height: 90px;"></div>'}
+            <div class="sig-name" style="margin-top: 5px;">${managerSig?.fullName || receipt.stampedByName || ""}</div>
           </div>
           <div class="sig-box">
             <div class="sig-title">Kế toán trưởng</div>
             <div class="sig-sub">(Ký, họ tên)</div>
-            <div class="sig-name">${receipt.stampedByName || ""}</div>
+            ${accountantSig?.signatureData ? `<div style="margin-top: 10px; min-height: 80px;"><img src="${accountantSig.signatureData}" style="max-height: 80px; max-width: 150px;" /></div>` : '<div style="min-height: 90px;"></div>'}
+            <div class="sig-name" style="margin-top: 5px;">${accountantSig?.fullName || ""}</div>
           </div>
         </div>
 
@@ -318,25 +343,31 @@ export function ExportReceiptPdfButton({
       </html>
     `;
 
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.focus();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
 
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.addEventListener("afterprint", () => printWindow.close());
-    }, 500);
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.addEventListener("afterprint", () => printWindow.close());
+      }, 500);
+    } catch (error) {
+      console.error(error);
+      toast.error("Đã xảy ra lỗi khi tạo phiếu in.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
     <Button
       variant="outline"
-      disabled={disabled || !receipt}
+      disabled={disabled || !receipt || isExporting}
       className="bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-700 border-slate-200 shadow-sm"
       onClick={handleExport}
     >
       <Download className="mr-2 h-4 w-4" />
-      In Phiếu Nhập
+      {isExporting ? "Đang tải phiếu..." : "In Phiếu Nhập"}
     </Button>
   );
 }

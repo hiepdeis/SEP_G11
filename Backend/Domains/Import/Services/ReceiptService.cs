@@ -3030,6 +3030,14 @@ namespace Backend.Domains.Import.Services
                 throw new ArgumentException("SignatureData is required.");
 
             var value = signatureData.Trim();
+
+            if (value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
+                value.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                sizeBytes = value.Length;
+                return value;
+            }
+
             var base64Data = value;
 
             if (value.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
@@ -3052,7 +3060,7 @@ namespace Backend.Domains.Import.Services
             }
             catch (FormatException)
             {
-                throw new ArgumentException("SignatureData must be base64-encoded PNG.");
+                throw new ArgumentException("SignatureData must be base64-encoded PNG or a valid image URL.");
             }
 
             if (bytes.Length == 0)
