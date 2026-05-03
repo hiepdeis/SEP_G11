@@ -123,6 +123,8 @@ namespace Backend.Domains.outbound.Controllers
                 .Include(x => x.IssueDetails)
                     .ThenInclude(d => d.Material) // Join để lấy Đơn giá
                 .Include(x => x.IssueDetails)
+                    .ThenInclude(d => d.Batch)
+                .Include(x => x.IssueDetails)
                     .ThenInclude(d => d.PickingLists)
                         .ThenInclude(p => p.Batch)
                 .Include(x => x.IssueDetails)
@@ -138,35 +140,39 @@ namespace Backend.Domains.outbound.Controllers
 
             // Query bảng InventoryCurrents để tính tổng tồn kho của các vật tư này TRONG KHO ĐANG CHỈ ĐỊNH
             var inventoryData = await _context.InventoryCurrents
-                .Include(ic => ic.Batch)
-                //.Where(ic => ic.WarehouseId == issue.WarehouseId && materialIds.Contains(ic.MaterialId))
                 .Where(ic => materialIds.Contains(ic.MaterialId))
-                .OrderBy(ic => ic.Batch.CreatedDate) // Sắp xếp FIFO cốt lõi ở đây!
                 .GroupBy(ic => ic.MaterialId)
                 .Select(g => new
                 {
                     MaterialId = g.Key,
-                    // Tồn kho khả dụng = Tổng tồn kho thực tế - Tổng hàng đã giữ chỗ (nếu có)
                     AvailableQty = g.Sum(ic => (ic.QuantityOnHand ?? 0) - (ic.QuantityAllocated ?? 0))
                 })
                 .ToDictionaryAsync(x => x.MaterialId, x => x.AvailableQty);
 
-            var inventoryRecords = await _context.InventoryCurrents
-                .Include(ic => ic.Batch)
-                .Where(ic => materialIds.Contains(ic.MaterialId) && ((ic.QuantityOnHand ?? 0) - (ic.QuantityAllocated ?? 0)) > 0)
-                .OrderBy(ic => ic.Batch.CreatedDate) // Xếp từ cũ đến mới (FIFO)
-                .ToListAsync();
+            //var inventoryRecords = await _context.InventoryCurrents
+            //    .Include(ic => ic.Batch)
+            //    .Where(ic => materialIds.Contains(ic.MaterialId) && ((ic.QuantityOnHand ?? 0) - (ic.QuantityAllocated ?? 0)) > 0)
+            //    .OrderBy(ic => ic.Batch.CreatedDate) // Xếp từ cũ đến mới (FIFO)
+            //    .ToListAsync();
+
             // 2. Tính tổng tiền của Phiếu xin xuất này (Số lượng * Giá hiện tại)
-            decimal totalRequestCost = issue.IssueDetails
-                .Sum(d => d.Quantity * (d.Material.UnitPrice ?? 0));
+            decimal totalRequestCost = issue.IssueDetails.Sum(d =>
+                      d.BatchId != null
+                          ? (d.Quantity * (d.UnitPrice ?? 0))           // Có hàng -> Giá FIFO
+                          : (d.Quantity * (d.Material.UnitPrice ?? 0))  // Thiếu hàng -> Giá Trung bình
+                  );
+            // tính tiên cho giá có trong kho 
+            decimal actualFifoCost = issue.IssueDetails.Sum(d => d.Quantity * (d.UnitPrice ?? d.Material.UnitPrice ?? 0));
 
             // 3. Lấy thông tin Budget từ Project
             decimal totalBudget = issue.Project.Budget ?? 0;
-            decimal budgetUsed = issue.Project.BudgetUsed ?? 0; // Cột bạn vừa add
-            decimal budgetRemaining = totalBudget - budgetUsed; // Có thể xài luôn issue.Project.BudgetRemaining nếu bạn map EF
+            decimal budgetUsed = issue.Project.BudgetUsed ?? 0; 
+            decimal budgetRemaining = totalBudget - budgetUsed; 
 
             // 4. Check xem có vượt ngân sách không
             bool isOverBudget = totalRequestCost > budgetRemaining;
+
+           
             var childSlips = await _context.IssueSlips
                         .Where(s => s.ReferenceCode == issue.IssueCode && s.IssueId != issue.IssueId)
                         .Select(s => new { s.IssueId, s.IssueCode, s.Status })
@@ -229,38 +235,33 @@ namespace Backend.Domains.outbound.Controllers
                     BudgetRemaining = budgetRemaining,
                     TotalRequestCost = totalRequestCost,
                     RemainingAfterIssue = budgetRemaining - totalRequestCost,
-                    IsOverBudget = isOverBudget
+                    IsOverBudget = isOverBudget,
+                    ActualFifoCost = actualFifoCost
                 },
 
                
                 GeneratedSlips = generatedSlips,
                 TrackingSlips = trackingSlipList,
+
                 Details = issue.IssueDetails.Select(d =>
                 {
                     decimal availableStock = inventoryData.ContainsKey(d.MaterialId) ? inventoryData[d.MaterialId] : 0;
+
                     var suggestedBatches = new List<object>();
-                    decimal qtyNeeded = d.Quantity;
-                    var batchesForThisMaterial = inventoryRecords.Where(ic => ic.MaterialId == d.MaterialId).ToList();
+                    //decimal qtyNeeded = d.Quantity;
+                    //var batchesForThisMaterial = inventoryRecords.Where(ic => ic.MaterialId == d.MaterialId).ToList();
 
-                    foreach (var inv in batchesForThisMaterial)
+                    if (d.BatchId != null && d.Batch != null)
                     {
-                        if (qtyNeeded <= 0) break; // Đủ hàng rồi thì ngừng cắt lô
-
-                        decimal qtyInThisBatch = (inv.QuantityOnHand ?? 0) - (inv.QuantityAllocated ?? 0);
-                        decimal qtyToTakeFromThisBatch = Math.Min(qtyNeeded, qtyInThisBatch);
-                        decimal batchPrice = d.Material.UnitPrice ?? 0; // Giá lấy từ vật tư
-
                         suggestedBatches.Add(new
                         {
-                            BatchId = inv.BatchId,
-                            BatchCode = inv.Batch.BatchCode,
-                            MfgDate = inv.Batch.MfgDate,
-                            QtyToTake = qtyToTakeFromThisBatch,
-                            UnitPrice = batchPrice,
-                            LineTotal = qtyToTakeFromThisBatch * batchPrice
-                        });
-
-                        qtyNeeded -= qtyToTakeFromThisBatch;
+                            BatchId = d.BatchId,
+                            BatchCode = d.Batch.BatchCode,
+                            MfgDate = d.Batch.MfgDate,
+                            QtyToTake = d.Quantity,
+                            UnitPrice = d.UnitPrice ?? 0,
+                            LineTotal = d.Quantity * (d.UnitPrice ?? 0)
+                        }); 
                     }
 
                     return new
@@ -273,8 +274,11 @@ namespace Backend.Domains.outbound.Controllers
                         RequestedQuantity = d.Quantity,
                         AvailableQuantity = availableStock,
                         IsStockSufficient = availableStock >= d.Quantity,
+                        // GIỮ NGUYÊN GIÁ TRUNG BÌNH Ở NGOÀI CHO CÁC ACTOR KHÁC XEM
                         UnitPrice = d.Material.UnitPrice ?? 0,
                         LineTotal = d.Quantity * (d.Material.UnitPrice ?? 0),
+
+                        // BÊN TRONG NÀY CHỨA GIÁ FIFO THẬT SỰ CHO KẾ TOÁN XEM
                         FifoSuggestedBatches = suggestedBatches,
                         ActualPickingItems = d.PickingLists.Select(p => new
                         {
@@ -414,8 +418,11 @@ namespace Backend.Domains.outbound.Controllers
                     BatchCode = ic.Batch.BatchCode,
                     MfgDate = ic.Batch.MfgDate,
                     CreatedDate = ic.Batch.CreatedDate,
-                    AvailableQuantity = (ic.QuantityOnHand ?? 0) - (ic.QuantityAllocated ?? 0)
-                    // Lấy thêm UnitPrice nếu bạn lưu ở bảng khác (vd: ReceiptDetails)
+                    AvailableQuantity = (ic.QuantityOnHand ?? 0) - (ic.QuantityAllocated ?? 0),
+                    UnitPrice = ic.Batch.ReceiptDetails
+                          .Where(rd => rd.MaterialId == materialId)
+                          .Select(rd => rd.UnitPrice)
+                          .FirstOrDefault() ?? 0
                 })
                 .ToListAsync();
 
@@ -505,13 +512,13 @@ namespace Backend.Domains.outbound.Controllers
                     }
 
                    
-                    var newDetail = new IssueDetail
-                    {
-                        MaterialId = detail.MaterialId,
-                        Quantity = stockToTake,
-                        UnitPrice = detail.UnitPrice,
-                        PickingLists = new List<PickingList>() 
-                    };
+                    //var newDetail = new IssueDetail
+                    //{
+                    //    MaterialId = detail.MaterialId,
+                    //    Quantity = stockToTake,
+                    //    UnitPrice = detail.UnitPrice,
+                    //    PickingLists = new List<PickingList>() 
+                    //};
 
                     // TIẾN HÀNH GIỮ CHỖ TỒN KHO THỰC TẾ & TẠO CHECKLIST NHẶT HÀNG
                     foreach (var batch in allocatedBatches)
@@ -526,20 +533,46 @@ namespace Backend.Domains.outbound.Controllers
                             // A. Cập nhật tồn kho (Giữ chỗ)
                             inventoryRecord.QuantityAllocated = (inventoryRecord.QuantityAllocated ?? 0) + batch.QtyToTake;
 
-                            // B. [MỚI] Đẻ ra 1 dòng Checklist nhặt hàng
-                            newDetail.PickingLists.Add(new PickingList
+                            var receiptDetail = await _context.ReceiptDetails
+                                        .Where(r => r.MaterialId == detail.MaterialId && r.BatchId == batch.BatchId)
+                                        .OrderByDescending(r => r.ReceiptId) 
+                                        .FirstOrDefaultAsync();
+
+                            decimal actualUnitPrice = receiptDetail != null ? (receiptDetail.UnitPrice ?? 0) : (detail.UnitPrice ?? 0);
+
+                            //// B. [MỚI] Đẻ ra 1 dòng Checklist nhặt hàng
+                            //newDetail.PickingLists.Add(new PickingList
+                            //{
+                            //    BatchId = batch.BatchId,
+                            //    BinId = inventoryRecord.Bin.BinId, // Lấy vị trí Kệ từ tồn kho
+                            //    QtyToPick = batch.QtyToTake,
+                            //    IsPicked = false, // Mặc định là chưa nhặt
+                            //    ActualPickerId = null
+                            //});
+                            var newBatchDetail = new IssueDetail
                             {
-                                BatchId = batch.BatchId,
-                                BinId = inventoryRecord.Bin.BinId, // Lấy vị trí Kệ từ tồn kho
-                                QtyToPick = batch.QtyToTake,
-                                IsPicked = false, // Mặc định là chưa nhặt
-                                ActualPickerId = null
-                            });
+                                MaterialId = detail.MaterialId,
+                                Quantity = batch.QtyToTake,  // Bốc bao nhiêu ghi bấy nhiêu
+                                BatchId = batch.BatchId,     // Trỏ thẳng ID lô này
+                                UnitPrice = actualUnitPrice, // Giá chuẩn từ lúc nhập kho
+                                PickingLists = new List<PickingList>
+                                {
+                                    // Tạo kèm luôn Checklist nhặt hàng
+                                    new PickingList
+                                    {
+                                        BatchId = batch.BatchId,
+                                        BinId = inventoryRecord.Bin.BinId,
+                                        QtyToPick = batch.QtyToTake,
+                                        IsPicked = false
+                                    }
+                                }
+                            };
+                            newInventorySlip.IssueDetails.Add(newBatchDetail);
                         }
                     }
 
                    
-                    newInventorySlip.IssueDetails.Add(newDetail);
+                    //newInventorySlip.IssueDetails.Add(newDetail);
 
                 }
                 // ==================================================   

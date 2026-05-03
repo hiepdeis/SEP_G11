@@ -52,7 +52,8 @@ builder.Services.Configure<EmailOptions>(
     builder.Configuration.GetSection(EmailOptions.SectionName));
 
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
-
+builder.Services.Configure<FrontendSettings>(
+    builder.Configuration.GetSection("Frontend"));
 builder.Services.AddScoped<IAuditReportService, AuditReportService>();
 builder.Services.AddScoped<IAuditNotificationService, AuditNotificationService>();
 builder.Services.AddControllers();
