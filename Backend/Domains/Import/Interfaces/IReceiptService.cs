@@ -1,6 +1,7 @@
 ﻿using Backend.Domains.Import.DTOs.Accountants;
 using Backend.Domains.Import.DTOs.Staff;
 using Backend.Domains.Import.DTOs.Managers;
+using Backend.Domains.Import.DTOs.Shared;
 
 namespace Backend.Domains.Import.Interfaces
 {
@@ -23,6 +24,7 @@ namespace Backend.Domains.Import.Interfaces
         Task<List<ManagerReceiptSummaryDto>> GetReceiptsForManagerAsync(string? status);
         Task<ManagerReceiptDetailDto> GetReceiptForManagerAsync(long receiptId);
         Task<ManagerReceiptStampResultDto> StampReceiptAsync(long receiptId, ManagerReceiptStampDto dto, int managerId);
+        Task<ReceiptSignatureListDto> GetReceiptSignaturesAsync(long receiptId);
 
         // Warehouse Card flow
         Task<List<WarehouseCardDto>> GetWarehouseCardsAsync(WarehouseCardQueryDto query);

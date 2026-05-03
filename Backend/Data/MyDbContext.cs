@@ -49,6 +49,8 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<ReceiptDetail> ReceiptDetails { get; set; }
 
+    public virtual DbSet<ReceiptSignature> ReceiptSignatures { get; set; }
+
     public virtual DbSet<ReceiptDetailBinAllocation> ReceiptDetailBinAllocations { get; set; }
 
     public virtual DbSet<ReceiptRejectionHistory> ReceiptRejectionHistories { get; set; }
@@ -768,6 +770,37 @@ public partial class MyDbContext : DbContext
                 .HasForeignKey(d => d.TargetUserId)
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("FK_AuditPenalties_Target_Users");
+        });
+
+        modelBuilder.Entity<ReceiptSignature>(entity =>
+        {
+            entity.HasKey(e => e.SignatureId).HasName("PK_ReceiptSignatures");
+
+            entity.HasIndex(e => e.ReceiptId, "IX_ReceiptSignatures_ReceiptID");
+
+            entity.HasIndex(e => e.UserId, "IX_ReceiptSignatures_UserID");
+
+            entity.HasIndex(e => new { e.ReceiptId, e.Role }, "UX_ReceiptSignatures_Receipt_Role").IsUnique();
+
+            entity.Property(e => e.SignatureId).HasColumnName("SignatureID");
+            entity.Property(e => e.ReceiptId).HasColumnName("ReceiptID");
+            entity.Property(e => e.UserId).HasColumnName("UserID");
+            entity.Property(e => e.Role)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.SignedAt)
+                .HasPrecision(0)
+                .HasDefaultValueSql("(sysdatetime())");
+
+            entity.HasOne(d => d.Receipt).WithMany(p => p.ReceiptSignatures)
+                .HasForeignKey(d => d.ReceiptId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ReceiptSignatures_Receipts");
+
+            entity.HasOne(d => d.User).WithMany(p => p.ReceiptSignatures)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ReceiptSignatures_Users");
         });
 
         modelBuilder.Entity<StockTakeSignature>(entity =>

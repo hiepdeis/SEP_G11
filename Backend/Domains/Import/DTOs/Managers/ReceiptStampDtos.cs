@@ -2,6 +2,7 @@ namespace Backend.Domains.Import.DTOs.Managers
 {
     public class ManagerReceiptStampDto
     {
+        public string? SignatureData { get; set; }
         public string? Notes { get; set; }
     }
 
