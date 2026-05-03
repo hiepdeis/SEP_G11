@@ -754,7 +754,7 @@ export default function PutawayPage({ role = "staff" }: { role: string }) {
                                                           {location.code}
                                                           {location.maxStockLevel !=
                                                             null && (
-                                                            <span className="text-[10px]">
+                                                            <span className="text-[10px] self-end">
                                                               ({t("Capacity")}:{" "}
                                                               {
                                                                 location.maxStockLevel
