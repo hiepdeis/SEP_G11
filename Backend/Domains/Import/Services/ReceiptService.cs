@@ -989,7 +989,7 @@ namespace Backend.Domains.Import.Services
                     if (current.MaterialId != allocation.MaterialId)
                     {
                         throw new InvalidOperationException(
-                            $"Kệ {allocation.BinId} đang được phân bổ cho nhiều loại vật tư. Vui lòng tách ra các kệ khác nhau");
+                            $"Kệ {binMap[allocation.BinId].Code} đang được phân bổ cho nhiều loại vật tư. Vui lòng tách ra các kệ khác nhau");
                     }
 
                     requestedByBin[allocation.BinId] = (current.MaterialId, current.Quantity + allocation.Quantity);
@@ -1114,7 +1114,7 @@ namespace Backend.Domains.Import.Services
                     if (batch != null)
                     {
                         if (batch.MaterialId != item.MaterialId)
-                            throw new ArgumentException("Batch này thuộc về một vật tư khác!");
+                            throw new ArgumentException($"Batch {batch.BatchCode} thuộc về một vật tư khác!");
 
                         if (batch.MfgDate != item.Batch.MfgDate || batch.ExpiryDate != item.Batch.ExpiryDate)
                             throw new InvalidOperationException($"Lô hàng {batch.BatchCode} đã tồn tại trong hệ thống với Ngày SX: {batch.MfgDate:dd/MM/yyyy} và HSD là {batch.ExpiryDate:dd/MM/yyyy}. Dữ liệu bạn nhập không khớp. Vui lòng kiểm tra lại có gõ nhầm mã lô không!");

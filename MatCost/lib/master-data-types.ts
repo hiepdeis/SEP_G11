@@ -40,6 +40,7 @@ export interface BinRow extends BaseItem {
   type: string;
   currentMaterialId: number | null;
   currentMaterialName: string | null;
+  currentMaterialCode: string | null;
   maxStockLevel: number | null;
 }
 

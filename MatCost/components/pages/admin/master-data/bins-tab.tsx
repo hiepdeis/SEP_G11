@@ -90,6 +90,7 @@ export function BinsTab({
             type: b.type ?? "",
             currentMaterialId: b.currentMaterialId ?? null,
             currentMaterialName: b.currentMaterialName ?? null,
+            currentMaterialCode: b.currentMaterialCode ?? null,
             maxStockLevel: b.maxStockLevel ?? null,
           })),
         );
@@ -188,6 +189,10 @@ export function BinsTab({
           ? (materials.find((m) => m.materialId === currentMaterialId)?.name ??
             null)
           : null;
+        const materialCode = currentMaterialId
+          ? (materials.find((m) => m.materialId === currentMaterialId)?.code ??
+            null)
+          : null;
         setItems((prev) =>
           prev.map((i) =>
             i._id === editing._id
@@ -198,6 +203,7 @@ export function BinsTab({
                   type,
                   currentMaterialId,
                   currentMaterialName: materialName,
+                  currentMaterialCode: materialCode,
                   maxStockLevel,
                 }
               : i,
@@ -216,6 +222,11 @@ export function BinsTab({
           ? (materials.find((m) => m.materialId === currentMaterialId)?.name ??
             null)
           : null;
+        const materialCode = currentMaterialId
+          ? (materials.find((m) => m.materialId === currentMaterialId)?.code ??
+            null)
+          : null;
+
         setItems((prev) => [
           ...prev,
           {
@@ -225,6 +236,7 @@ export function BinsTab({
             type,
             currentMaterialId,
             currentMaterialName: materialName,
+            currentMaterialCode: materialCode,
             maxStockLevel,
           },
         ]);
@@ -338,7 +350,15 @@ export function BinsTab({
                       {item.type}
                     </TableCell>
                     <TableCell className="px-5 py-3 text-sm">
-                      {item.currentMaterialName || (
+                      {item.currentMaterialName ? (
+                        <Badge
+                          variant="outline"
+                          className="bg-indigo-50/50 text-indigo-700 border-indigo-100"
+                        >
+                          {item.currentMaterialCode} -{" "}
+                          {item.currentMaterialName}
+                        </Badge>
+                      ) : (
                         <span className="text-gray-400 italic">—</span>
                       )}
                     </TableCell>

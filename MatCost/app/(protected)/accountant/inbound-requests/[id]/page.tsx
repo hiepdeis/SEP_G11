@@ -435,7 +435,7 @@ export default function AccountantReceiptDetailPage() {
                                 variant="outline"
                                 className="bg-indigo-50 text-indigo-700 border-indigo-200 font-normal"
                               >
-                                {card.transactionType}
+                                {t(card.transactionType)}
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right text-sm text-slate-600">

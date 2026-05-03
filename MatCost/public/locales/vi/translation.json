@@ -1479,7 +1479,7 @@
   "Direct Purchase Order": "Đơn mua hàng trực tiếp",
   "Pending Supplier": "Thiếu nhà cung cấp",
   "No items to replace or supplement.": "Không có vật tư nào để thay thế hoặc bổ sung.",
-  "Confirm & Create": "Xác nhận & Mới",
+  "Confirm & Create": "Xác nhận & Tạo mới",
   "No single supplier can provide all listed materials.": "Không có nhà cung cấp nào có thể cung cấp tất cả các vật tư đã liệt kê.",
   "View PO Details": "Xem chi tiết PO",
   "Source PR": "PR gốc",
@@ -1946,5 +1946,6 @@
   "Enter max stock level": "Nhập mức tồn kho tối đa",
   "None": "Không có",
   "Max stock level must be greater than 0": "Mức tồn kho tối đa phải lớn hơn 0",
-  "Capacity": "Mức tối đa"
+  "Capacity": "Mức tối đa",
+  "AccountantApproved":"Đã duyệt bởi kế toán"
 }
