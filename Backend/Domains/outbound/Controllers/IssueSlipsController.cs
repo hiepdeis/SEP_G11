@@ -208,6 +208,10 @@ namespace Backend.Domains.outbound.Controllers
                 }).ToList();
             }
 
+            var lockedBinIds = await _context.StockTakeLocks
+                .Where(l => l.IsActive && l.BinId != null)
+                .Select(l => l.BinId.Value)
+                .ToListAsync();
             // 5. Trả về DTO cho Frontend
             var response = new
             {
@@ -289,7 +293,8 @@ namespace Backend.Domains.outbound.Controllers
                             batchCode = p.Batch.BatchCode,
                             binLocation = p.Bin.Code, 
                             qtyToPick = p.QtyToPick,
-                            isPicked = p.IsPicked
+                            isPicked = p.IsPicked,
+                            isLocked = p.BinId != null && lockedBinIds.Contains(p.BinId)
                         }).ToList()
                     };
                 })
@@ -821,6 +826,11 @@ namespace Backend.Domains.outbound.Controllers
 
             if (slip == null)
                 return NotFound("Không tìm thấy phiếu xuất kho.");
+            var lockedBinIds = await _context.StockTakeLocks
+                .Where(l => l.IsActive && l.BinId != null)
+                .Select(l => l.BinId.Value)
+                .ToListAsync();
+            var lockedBinHashSet = lockedBinIds.ToHashSet(); // Đưa vào HashSet để soi cho lẹ
 
             // 2. Format lại Data (Làm phẳng mảng để UI dễ render thành 1 cái list dài)
             var response = new
@@ -844,7 +854,8 @@ namespace Backend.Domains.outbound.Controllers
                     BinLocation = p.Bin != null ? $"{p.Bin.Code} (ID: {p.Bin.BinId})": "N/A",
 
                     QtyToPick = p.QtyToPick,
-                    IsPicked = p.IsPicked
+                    IsPicked = p.IsPicked,
+                    IsLocked = lockedBinHashSet.Contains(p.BinId)
                 }))
                 .OrderBy(p => p.BinLocation) // TỐI ƯU UX: Xếp theo thứ tự Kệ để nhân viên đi 1 mạch
                 .ToList()
