@@ -920,7 +920,6 @@ namespace Backend.Domains.Audit.Services
             st.CompletedAt = null;
 
             // Unlock any existing locks to clean up the state
-            await UnlockActiveLocksAsync(stockTakeId, managerUserId, ct);
 
             // Reset MemberCompletedAt for ALL active members (round 2 starts)
             var mems = await _db.StockTakeTeamMembers
@@ -1338,7 +1337,6 @@ namespace Backend.Domains.Audit.Services
 
             // One representative staff signature is enough → transition immediately
             st.Status = "PendingAccountantReview";
-            await UnlockActiveLocksAsync(stockTakeId, userId, ct);
 
             await _notificationService.QueueAuditNotificationAsync(
                 stockTakeId,
