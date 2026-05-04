@@ -243,7 +243,7 @@ export default function StockShortageAlertListPage() {
             variant="secondary"
             className="bg-red-100 text-red-700 px-1.5 text-[10px]"
           >
-            High
+            {t("High")}
           </Badge>
         );
       case "medium":
@@ -252,7 +252,7 @@ export default function StockShortageAlertListPage() {
             variant="secondary"
             className="bg-yellow-100 text-yellow-700 px-1.5 text-[10px]"
           >
-            Medium
+            {t("Medium")}
           </Badge>
         );
       case "low":
@@ -261,7 +261,7 @@ export default function StockShortageAlertListPage() {
             variant="secondary"
             className="bg-blue-100 text-blue-700 px-1.5 text-[10px]"
           >
-            Low
+            {t("Low")}
           </Badge>
         );
       default:
@@ -354,7 +354,7 @@ export default function StockShortageAlertListPage() {
             {item.currentQuantity}
           </span>
           <span className="text-[11px] text-slate-500 mt-0.5">
-            Min: {item.minStockLevel}
+            {t("Min")}: {item.minStockLevel}
           </span>
         </div>
       ),

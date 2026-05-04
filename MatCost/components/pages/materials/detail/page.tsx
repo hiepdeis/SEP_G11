@@ -884,11 +884,17 @@ export default function MaterialDetailPage({
                   <SelectValue placeholder={t("Select Bin")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableBins.map((b) => (
-                    <SelectItem key={b.binId} value={b.binId.toString()}>
-                      {b.code} — {t(b.type)}
-                    </SelectItem>
-                  ))}
+                  {availableBins
+                    .filter(
+                      (b) =>
+                        b.currentMaterialId === materialId ||
+                        b.currentMaterialId === null,
+                    )
+                    .map((b) => (
+                      <SelectItem key={b.binId} value={b.binId.toString()}>
+                        {b.code} — {t(b.type)}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

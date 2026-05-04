@@ -454,7 +454,7 @@ export default function RecreatePurchaseOrderPage() {
                                         : "text-slate-600 bg-slate-50"
                                     }
                                   >
-                                    {formatPascalCase(historyItem.status)}
+                                    {t(formatPascalCase(historyItem.status))}
                                   </Badge>
                                 </div>
 
