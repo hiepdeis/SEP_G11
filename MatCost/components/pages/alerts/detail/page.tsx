@@ -146,7 +146,7 @@ export default function AlertDetailPage({ role = "manager" }) {
             variant="secondary"
             className="bg-red-100 text-red-700 px-2 py-0.5 text-xs"
           >
-            High Priority
+            {t("High Priority")}
           </Badge>
         );
       case "medium":
@@ -155,7 +155,7 @@ export default function AlertDetailPage({ role = "manager" }) {
             variant="secondary"
             className="bg-yellow-100 text-yellow-700 px-2 py-0.5 text-xs"
           >
-            Medium Priority
+            {t("Medium Priority")}
           </Badge>
         );
       case "low":
@@ -164,7 +164,7 @@ export default function AlertDetailPage({ role = "manager" }) {
             variant="secondary"
             className="bg-blue-100 text-blue-700 px-2 py-0.5 text-xs"
           >
-            Low Priority
+            {t("Low Priority")}
           </Badge>
         );
       default:
@@ -215,7 +215,7 @@ export default function AlertDetailPage({ role = "manager" }) {
                 className={`px-3 py-1.5 text-sm font-medium ${getStatusBadge(alert.status)}`}
               >
                 {alert.status === "ManagerConfirmed"
-                  ? "Manager Confirmed"
+                  ? t("Manager Confirmed")
                   : t(alert.status)}
               </Badge>
               {getPriorityBadge(alert.priority)}

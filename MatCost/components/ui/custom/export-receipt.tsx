@@ -23,7 +23,10 @@ const formatVND = (amount: number | undefined | null) => {
 
 // Hàm đọc số tiền thành chữ (Tiếng Việt)
 function readVietnameseNumber(number: number): string {
-  if (number === 0) return "Không đồng";
+  const safeNumber = Math.round(number);
+
+  if (safeNumber === 0) return "Không đồng";
+
   const units = ["", "nghìn", "triệu", "tỷ", "nghìn tỷ", "triệu tỷ"];
   const digits = [
     "không",
@@ -56,7 +59,7 @@ function readVietnameseNumber(number: number): string {
 
   let result = "";
   let unitIndex = 0;
-  let tempNumber = Math.abs(number);
+  let tempNumber = Math.abs(safeNumber);
 
   while (tempNumber > 0) {
     const group = tempNumber % 1000;
@@ -116,20 +119,24 @@ export function ExportReceiptPdfButton({
       const printMonth = format(printDate, "MM");
       const printYear = format(printDate, "yyyy");
 
-      // Lấy dữ liệu từ ReceiptDetails (Có chứa Giá và Thành tiền)
+      // Lấy dữ liệu từ ReceiptDetails
       const items = receipt.receiptDetails || [];
+      const warehouseCards = receipt.warehouseCards || [];
 
       let totalQuantity = 0;
       let actualTotalQuantity = 0;
-      let grandTotalAmount = 0;
+      let exactGrandTotal = 0;
 
       const trs = items
         .map((item, index) => {
-          const qty = item.actualQuantity || 0;
+          const qty = warehouseCards
+            .filter((card) => card.materialId === item.materialId)
+            .reduce((sum, card) => sum + (card.quantity || 0), 0);
+
           actualTotalQuantity += qty;
-          const lineTotal = item.lineTotal || 0;
+          const lineTotal = qty * (item.unitPrice || 0);
           totalQuantity += item.quantity || 0;
-          grandTotalAmount += lineTotal;
+          exactGrandTotal += lineTotal;
 
           return `
           <tr>
@@ -139,7 +146,7 @@ export function ExportReceiptPdfButton({
             </td>
             <td style="text-align: center;">${item.materialCode || ""}</td>
             <td style="text-align: center;">${item.materialUnit || "Cái"}</td>
-            <!-- Số lượng theo chứng từ (tạm lấy bằng thực nhập) -->
+            <!-- Số lượng theo chứng từ -->
             <td style="text-align: right;">${formatVND(item.quantity)}</td>
             <!-- Số lượng thực nhập -->
             <td style="text-align: right; font-weight: bold;">${formatVND(qty)}</td>
@@ -151,6 +158,13 @@ export function ExportReceiptPdfButton({
         `;
         })
         .join("");
+
+      // Xử lý làm tròn
+      const roundedGrandTotal = Math.round(exactGrandTotal);
+      // Dùng toFixed và parseFloat để sửa lỗi dấu phẩy động của JavaScript (VD: 0.1 + 0.2 = 0.3000000004)
+      const roundingDiff = parseFloat(
+        (roundedGrandTotal - exactGrandTotal).toFixed(4),
+      );
 
       // HTML Template dạng Mẫu 01-VT
       const html = `
@@ -252,10 +266,6 @@ export function ExportReceiptPdfButton({
         </div>
 
         <div style="margin-bottom: 15px;">
-          <!-- <div class="info-row" style="display: flex;">
-            <span style="white-space: nowrap; width: 170px;">- Họ, tên người giao:</span> 
-            <span style="border-bottom: 1px dotted #000; flex-grow: 1;">&nbsp;</span>
-          </div>-->
           <div class="info-row" style="display: flex;">
             <span style="white-space: nowrap; width: 170px;">- Theo Đơn đặt hàng số:</span>
             <span style="border-bottom: 1px dotted #000; width: 220px; font-weight: bold;">
@@ -292,23 +302,34 @@ export function ExportReceiptPdfButton({
           </thead>
           <tbody>
             ${trs}
-            <!-- Dòng tổng cộng -->
+            
+            <!-- Dòng 1: Cộng tiền hàng gốc -->
             <tr style="background-color: #fafafa !important;">
               <td colspan="4" style="text-align: center; font-weight: bold; font-size: 15px;">Cộng</td>
               <td style="text-align: right; font-weight: bold;">${formatVND(totalQuantity)}</td>
               <td style="text-align: right; font-weight: bold;">${formatVND(actualTotalQuantity)}</td>
               <td></td>
-              <td style="text-align: right; font-weight: bold;">${formatVND(grandTotalAmount)}</td>
+              <td style="text-align: right; font-weight: bold;">${formatVND(exactGrandTotal)}</td>
             </tr>
+            
+            <!-- Dòng 2: Chênh lệch làm tròn -->
+            <tr style="background-color: #fafafa !important;">
+              <td colspan="7" style="text-align: right; font-weight: bold; font-size: 15px; padding-right: 15px;">Làm tròn</td>
+              <td style="text-align: right; font-weight: bold;">${formatVND(roundingDiff)}</td>
+            </tr>
+
+            <!-- Dòng 3: Tổng cộng thanh toán -->
+            <tr style="background-color: #fafafa !important;">
+              <td colspan="7" style="text-align: right; font-weight: bold; font-size: 15px; padding-right: 15px;">Tổng cộng thanh toán (VNĐ)</td>
+              <td style="text-align: right; font-weight: bold; color: #b91c1c;">${formatVND(roundedGrandTotal)}</td>
+            </tr>
+            
           </tbody>
         </table>
 
         <div class="info-row" style="margin-top: 15px;">
-          <span>- Tổng số tiền (viết bằng chữ): <strong>${readVietnameseNumber(grandTotalAmount)}</strong></span>
+          <span>- Tổng số tiền (viết bằng chữ): <strong>${readVietnameseNumber(roundedGrandTotal)}</strong></span>
         </div>
-        <!-- <div class="info-row">
-          <span>- Số chứng từ gốc kèm theo: ................................................................................................................................................................................</span>
-        </div> -->
 
         <div style="text-align: right; margin-top: 20px; font-style: italic; font-size: 15px;">
           Ngày ${printDay} tháng ${printMonth} năm ${printYear}
@@ -328,13 +349,21 @@ export function ExportReceiptPdfButton({
           <div class="sig-box">
             <div class="sig-title">Thủ kho</div>
             <div class="sig-sub">(Ký, họ tên)</div>
-            ${managerSig?.signatureData ? `<div style="margin-top: 10px; min-height: 80px;"><img src="${managerSig.signatureData}" style="max-height: 80px; max-width: 150px;" /></div>` : '<div style="min-height: 90px;"></div>'}
+            ${
+              managerSig?.signatureData
+                ? `<div style="margin-top: 10px; min-height: 80px;"><img src="${managerSig.signatureData}" style="max-height: 80px; max-width: 150px;" /></div>`
+                : '<div style="min-height: 90px;"></div>'
+            }
             <div class="sig-name" style="margin-top: 5px;">${managerSig?.fullName || receipt.stampedByName || ""}</div>
           </div>
           <div class="sig-box">
             <div class="sig-title">Kế toán trưởng</div>
             <div class="sig-sub">(Ký, họ tên)</div>
-            ${accountantSig?.signatureData ? `<div style="margin-top: 10px; min-height: 80px;"><img src="${accountantSig.signatureData}" style="max-height: 80px; max-width: 150px;" /></div>` : '<div style="min-height: 90px;"></div>'}
+            ${
+              accountantSig?.signatureData
+                ? `<div style="margin-top: 10px; min-height: 80px;"><img src="${accountantSig.signatureData}" style="max-height: 80px; max-width: 150px;" /></div>`
+                : '<div style="min-height: 90px;"></div>'
+            }
             <div class="sig-name" style="margin-top: 5px;">${accountantSig?.fullName || ""}</div>
           </div>
         </div>

@@ -169,6 +169,24 @@ export default function AccountantReceiptDetailPage({
       startInventoryIndex + inventoryPerPage,
     ) || [];
 
+  const processedReceiptDetails =
+    receipt.receiptDetails?.map((rd) => {
+      const qty = (receipt.warehouseCards || [])
+        .filter((card) => card.materialId === rd.materialId)
+        .reduce((sum, card) => sum + (card.quantity || 0), 0);
+      const lineTotal = qty * (rd.unitPrice || 0);
+      return {
+        ...rd,
+        displayQuantity: qty,
+        displayLineTotal: lineTotal,
+      };
+    }) || [];
+
+  const grandTotal = processedReceiptDetails.reduce(
+    (sum, rd) => sum + rd.displayLineTotal,
+    0,
+  );
+
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-slate-50/50">
       <Sidebar />
@@ -374,7 +392,7 @@ export default function AccountantReceiptDetailPage({
 
             {/* CỘT PHẢI: BẢNG SỐ LIỆU */}
             <div className="lg:col-span-2 space-y-6">
-              {receipt.receiptDetails && receipt.receiptDetails.length > 0 && (
+              {processedReceiptDetails.length > 0 && (
                 <Card className="border-slate-200 shadow-sm bg-white flex flex-col gap-0 pb-0">
                   <CardHeader className="border-b border-slate-100 py-4 flex flex-row items-center justify-between shrink-0">
                     <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800 pb-2">
@@ -385,20 +403,23 @@ export default function AccountantReceiptDetailPage({
                       variant="secondary"
                       className="bg-white border-slate-200 text-slate-700"
                     >
-                      {receipt.receiptDetails.length} {t("Items")}
+                      {processedReceiptDetails.length} {t("Items")}
                     </Badge>
                   </CardHeader>
                   <CardContent className="p-0 flex-1">
                     <Table>
                       <TableHeader className="bg-white">
                         <TableRow>
-                          <TableHead className="pl-6 w-[35%]">
+                          <TableHead className="pl-6 w-[30%]">
                             {t("Material")}
                           </TableHead>
-                          <TableHead className="w-[15%] text-right">
+                          <TableHead className="w-[10%] text-right">
                             {t("Quantity")}
                           </TableHead>
-                          <TableHead className="w-[25%] text-right">
+                          <TableHead className="w-[10%] text-right">
+                            {t("Actual Quantity")}
+                          </TableHead>
+                          <TableHead className="w-[20%] text-right">
                             {t("Unit Price")}
                           </TableHead>
                           <TableHead className="w-[25%] pr-6 text-right font-bold">
@@ -407,7 +428,7 @@ export default function AccountantReceiptDetailPage({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {receipt.receiptDetails.map((rd) => (
+                        {processedReceiptDetails.map((rd) => (
                           <TableRow
                             key={rd.detailId}
                             className="hover:bg-slate-50/50"
@@ -422,7 +443,10 @@ export default function AccountantReceiptDetailPage({
                               </p>
                             </TableCell>
                             <TableCell className="text-right text-sm text-slate-700">
-                              {rd.actualQuantity}
+                              {rd.quantity}
+                            </TableCell>
+                            <TableCell className="text-right text-sm text-slate-700">
+                              {rd.displayQuantity}
                             </TableCell>
                             <TableCell className="text-right text-sm text-slate-600">
                               {rd.unitPrice != null
@@ -430,26 +454,19 @@ export default function AccountantReceiptDetailPage({
                                 : "—"}
                             </TableCell>
                             <TableCell className="pr-6 text-right text-sm font-bold text-slate-900">
-                              {rd.lineTotal != null
-                                ? formatCurrency(rd.lineTotal)
-                                : "—"}
+                              {formatCurrency(rd.displayLineTotal)}
                             </TableCell>
                           </TableRow>
                         ))}
                         <TableRow className="border-t border-slate-200">
                           <TableCell
-                            colSpan={3}
+                            colSpan={4}
                             className="pl-6 py-3 text-sm font-semibold text-slate-700 text-right"
                           >
                             {t("Grand Total")}
                           </TableCell>
                           <TableCell className="pr-6 text-right text-sm font-bold text-indigo-700">
-                            {formatCurrency(
-                              receipt.receiptDetails.reduce(
-                                (sum, rd) => sum + (rd.lineTotal ?? 0),
-                                0,
-                              ),
-                            )}
+                            {formatCurrency(grandTotal)}
                           </TableCell>
                         </TableRow>
                       </TableBody>
