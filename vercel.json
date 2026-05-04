@@ -1,6 +1,0 @@
-{
-  "framework": "nextjs",
-  "buildCommand": "cd MatCost && npm install && npm run build",
-  "outputDirectory": "MatCost/.next",
-  "installCommand": "cd MatCost && npm install"
-}
