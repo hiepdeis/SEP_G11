@@ -6,6 +6,7 @@ using QuestPDF.Infrastructure;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 
 namespace Backend.Domains.Audit.Services;
 
@@ -470,6 +471,31 @@ public sealed class AuditReportPdfDocument : IDocument
 
     private static void SignatureCell(IContainer container, string title, string subTitle, string? signerName, string? signatureData = null)
     {
+        byte[]? imageBytes = null;
+
+        // Try to resolve signature image bytes
+        if (!string.IsNullOrWhiteSpace(signatureData))
+        {
+            try
+            {
+                if (signatureData.StartsWith("data:image"))
+                {
+                    // Base64 data URI
+                    var base64Data = signatureData.Substring(signatureData.IndexOf(",") + 1);
+                    imageBytes = Convert.FromBase64String(base64Data);
+                }
+                else if (signatureData.StartsWith("http://") || signatureData.StartsWith("https://"))
+                {
+                    // Cloudinary or any remote URL — download the image
+                    imageBytes = DownloadImageBytes(signatureData);
+                }
+            }
+            catch
+            {
+                imageBytes = null;
+            }
+        }
+
         container
             .Border(1)
             .Padding(6)
@@ -483,19 +509,9 @@ public sealed class AuditReportPdfDocument : IDocument
 
                 col.Item().AlignCenter().Text("(Ký, họ tên)").Italic().FontSize(8);
 
-                // Render signature image if available (base64 data URI)
-                if (!string.IsNullOrWhiteSpace(signatureData) && signatureData.StartsWith("data:image"))
+                if (imageBytes != null && imageBytes.Length > 0)
                 {
-                    try
-                    {
-                        var base64Data = signatureData.Substring(signatureData.IndexOf(",") + 1);
-                        var imageBytes = Convert.FromBase64String(base64Data);
-                        col.Item().AlignCenter().Height(36).Image(imageBytes, ImageScaling.FitHeight);
-                    }
-                    catch
-                    {
-                        col.Item().Height(36); // fallback if image parsing fails
-                    }
+                    col.Item().AlignCenter().Height(36).Image(imageBytes, ImageScaling.FitHeight);
                 }
                 else
                 {
@@ -505,5 +521,27 @@ public sealed class AuditReportPdfDocument : IDocument
                 col.Item().AlignCenter().Text(string.IsNullOrWhiteSpace(signerName) ? "" : signerName)
                     .SemiBold().FontSize(9);
             });
+    }
+
+    /// <summary>
+    /// Downloads image bytes from a remote URL (e.g. Cloudinary).
+    /// Uses a short timeout to avoid blocking PDF generation.
+    /// </summary>
+    private static byte[]? DownloadImageBytes(string url)
+    {
+        try
+        {
+            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            var response = httpClient.GetAsync(url).GetAwaiter().GetResult();
+            if (response.IsSuccessStatusCode)
+            {
+                return response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
+            }
+        }
+        catch
+        {
+            // Silently fail — signature will just be blank
+        }
+        return null;
     }
 }

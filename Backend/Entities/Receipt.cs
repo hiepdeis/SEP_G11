@@ -103,6 +103,9 @@ public partial class Receipt
     [InverseProperty("Receipt")]
     public virtual ICollection<IncidentReport> IncidentReports { get; set; } = new List<IncidentReport>();
 
+    [InverseProperty("Receipt")]
+    public virtual ICollection<ReceiptSignature> ReceiptSignatures { get; set; } = new List<ReceiptSignature>();
+
     [ForeignKey("WarehouseId")]
     [InverseProperty("Receipts")]
     public virtual Warehouse Warehouse { get; set; } = null!;

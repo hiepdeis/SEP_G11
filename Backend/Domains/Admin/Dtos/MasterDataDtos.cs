@@ -134,6 +134,7 @@ namespace Backend.Domains.Admin.Dtos
         public string? Type { get; set; }
         public int? CurrentMaterialId { get; set; }
         public string? CurrentMaterialName { get; set; }
+        public string? CurrentMaterialCode { get; set; }
         public decimal? MaxStockLevel { get; set; }
     }
 

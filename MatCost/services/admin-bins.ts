@@ -7,6 +7,7 @@ export type BinDto = {
   type: string;
   currentMaterialId: number | null;
   currentMaterialName: string | null;
+  currentMaterialCode: string | null;
   maxStockLevel: number | null;
 };
 
@@ -46,7 +47,9 @@ export function getBins(params: GetBinsParams = {}) {
 
   const query = qs.toString();
   return axiosClient
-    .get<BinResponse>(`/admin/master-data/bin-locations${query ? `?${query}` : ""}`)
+    .get<BinResponse>(
+      `/admin/master-data/bin-locations${query ? `?${query}` : ""}`,
+    )
     .then((res) => res.data);
 }
 
@@ -63,5 +66,7 @@ export function updateBin(id: number, body: UpsertBinPayload) {
 }
 
 export function deleteBin(id: number) {
-  return axiosClient.delete<void>(`/admin/master-data/bin-locations/${id}`).then((res) => res.data);
+  return axiosClient
+    .delete<void>(`/admin/master-data/bin-locations/${id}`)
+    .then((res) => res.data);
 }

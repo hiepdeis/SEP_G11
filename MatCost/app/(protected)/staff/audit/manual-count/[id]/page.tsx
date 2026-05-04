@@ -17,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import ReactSignatureCanvas from "react-signature-canvas";
 import { OtpVerificationModal } from "@/components/ui/custom/otp-modal";
 import { Eraser, FileSignature } from "lucide-react";
+import { uploadBase64ToCloudinary } from "@/lib/cloudinary";
 import * as XLSX from "xlsx";
 
 interface NormalizedTask {
@@ -288,7 +289,8 @@ export default function StaffCountingPage() {
     if (!signatureData) return;
     try {
       setIsSubmittingFinal(true);
-      await auditService.signOff(stockTakeId, signatureData);
+      const sigUrl = await uploadBase64ToCloudinary(signatureData);
+      await auditService.signOff(stockTakeId, sigUrl);
       toast.success(t("Audit results submitted and signed successfully!"));
       router.push('/staff/audit');
     } catch (error: any) {

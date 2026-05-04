@@ -18,3 +18,17 @@ export const uploadToCloudinary = async (file: File): Promise<string> => {
   const data = await response.json();
   return data.secure_url;
 };
+
+/**
+ * Upload a base64 data URL (e.g. from a canvas signature) to Cloudinary.
+ * Converts the base64 string to a File, then delegates to uploadToCloudinary.
+ */
+export const uploadBase64ToCloudinary = async (
+  base64DataUrl: string,
+  filename: string = `signature_${Date.now()}.png`,
+): Promise<string> => {
+  const res = await fetch(base64DataUrl);
+  const blob = await res.blob();
+  const file = new File([blob], filename, { type: blob.type || "image/png" });
+  return uploadToCloudinary(file);
+};

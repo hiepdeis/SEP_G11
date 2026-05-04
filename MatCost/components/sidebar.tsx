@@ -138,13 +138,8 @@ export function Sidebar() {
     {
       label: t("sidebar.roles.construction"),
       href: "/outbound/contruction/IncomingShipments",
+      roles: ["Construction"],
     },
-    // { label: t("sidebar.roles.accountant"), href: "/outbound/account" },
-    // { label: t("sidebar.roles.manager"), href: "/outbound/manager" },
-    // {
-    //   label: t("sidebar.tabs.inventory_issue"),
-    //   href: "/outbound/staff/InventoryIssueList",
-    // },
   ];
 
   const allAuditTabs = [
@@ -246,6 +241,10 @@ export function Sidebar() {
         {
           label: t("sidebar.tabs.purchase_orders"),
           href: "/admin/purchase-orders",
+        },
+        {
+          label: t("sidebar.tabs.inbound_requests"),
+          href: "/admin/inbound-requests",
         },
       ],
     },
@@ -619,17 +618,19 @@ export function Sidebar() {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="right" align="start" className="ml-4">
-              {outboundTabs.map((tab) => (
-                <DropdownMenuItem
-                  key={tab.href}
-                  onClick={() => router.push(tab.href)}
-                  className={
-                    pathname === tab.href ? "bg-blue-100 font-semibold" : ""
-                  }
-                >
-                  {tab.label}
-                </DropdownMenuItem>
-              ))}
+              {outboundTabs
+                .filter((tab) => checkHasRole(tab.roles, userRole))
+                .map((tab) => (
+                  <DropdownMenuItem
+                    key={tab.href}
+                    onClick={() => router.push(tab.href)}
+                    className={
+                      pathname === tab.href ? "bg-blue-100 font-semibold" : ""
+                    }
+                  >
+                    {tab.label}
+                  </DropdownMenuItem>
+                ))}
             </DropdownMenuContent>
           </DropdownMenu>
 

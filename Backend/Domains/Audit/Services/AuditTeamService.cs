@@ -252,48 +252,6 @@ public class AuditTeamService : IAuditTeamService
 
         await _db.SaveChangesAsync(ct);
     }
-    public async Task MarkMyWorkDoneAsync(int stockTakeId, int staffUserId, CancellationToken ct)
-    {
-        var st = await _db.StockTakes
-            .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
-
-        if (st == null)
-            throw new ArgumentException("Audit không tồn tại.");
-
-        if (string.Equals(st.Status, "Completed", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Audit đã Completed.");
-
-        var member = await _db.StockTakeTeamMembers
-            .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId
-                                   && x.UserId == staffUserId
-                                   && (x.IsActive || x.MemberCompletedAt != null), ct);
-
-        if (member == null)
-            throw new InvalidOperationException("Bạn chưa được phân công audit này.");
-
-        var now = DateTime.UtcNow;
-
-        if (member.MemberCompletedAt == null)
-            member.MemberCompletedAt = now;
-
-        var creatorId = st.CreatedBy;
-
-        if (creatorId > 0)
-        {
-            var staffName = await _db.Users.AsNoTracking()
-                .Where(u => u.UserId == staffUserId)
-                .Select(u => u.FullName)
-                .FirstOrDefaultAsync(ct) ?? $"User#{staffUserId}";
-
-            await _notificationService.QueueNotificationAsync(
-                new[] { creatorId },
-                $"{staffName} đã hoàn thành phần kiểm kê của mình cho Audit #{st.StockTakeId} ({st.Title}).",
-                relatedEntityType: "Audit",
-                relatedEntityId: st.StockTakeId,
-                ct);
-        }
-
-        await _db.SaveChangesAsync(ct);
-    }
 
 }
+

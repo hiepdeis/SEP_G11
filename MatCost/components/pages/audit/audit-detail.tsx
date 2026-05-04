@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import ReactSignatureCanvas, { SignatureCanvas } from "react-signature-canvas";
 import { useTranslation } from "react-i18next";
 import { OtpVerificationModal } from "@/components/ui/custom/otp-modal";
+import { uploadBase64ToCloudinary } from "@/lib/cloudinary";
 
 
 type UserRole = "admin" | "manager" | "accountant" | "staff";
@@ -68,7 +69,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   const [otpAction, setOtpAction] = useState<(() => Promise<void>) | null>(null);
 
 
-  const canExport = ["accountant", "admin", "manager"].includes(role);
+  const canExport = ["accountant", "admin"].includes(role);
   const status = detailData?.status?.toLowerCase() || "";
 
   const fetchData = async () => {
@@ -202,12 +203,16 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
 
   const handleManagerConfirm = async () => {
     if (!isSigned) return toast.error(t("Please sign before confirming"));
-    const sigData = sigCanvas.current?.toDataURL();
+    const sigDataBase64 = sigCanvas.current?.toDataURL();
     
     setOtpAction(() => async () => {
       try {
         setIsSubmitting(true);
-        await auditService.managerConfirmResolution(stockTakeId, sigData);
+        let sigUrl: string | undefined;
+        if (sigDataBase64) {
+          sigUrl = await uploadBase64ToCloudinary(sigDataBase64);
+        }
+        await auditService.managerConfirmResolution(stockTakeId, sigUrl);
         toast.success(t("All resolutions confirmed! Awaiting accountant approval."));
         await fetchData();
       } catch (error: any) {
@@ -235,12 +240,16 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
   // === ACCOUNTANT ACTIONS ===
   const handleAccountantApprove = async () => {
     if (!isSigned) return toast.error(t("Please sign before completing"));
-    const sigData = sigCanvas.current?.toDataURL();
+    const sigDataBase64 = sigCanvas.current?.toDataURL();
     
     setOtpAction(() => async () => {
       try {
         setIsSubmitting(true);
-        await auditService.accountantReview(stockTakeId, "Approve", sigData);
+        let sigUrl: string | undefined;
+        if (sigDataBase64) {
+          sigUrl = await uploadBase64ToCloudinary(sigDataBase64);
+        }
+        await auditService.accountantReview(stockTakeId, "Approve", sigUrl);
         toast.success(t("Audit completed! All items matched."));
         router.push(`/${role}/audit`);
       } catch (error: any) {
@@ -267,12 +276,16 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
 
   const handleAccountantApproveResolve = async () => {
     if (!isSigned) return toast.error(t("Please sign before approving"));
-    const sigData = sigCanvas.current?.toDataURL();
+    const sigDataBase64 = sigCanvas.current?.toDataURL();
     
     setOtpAction(() => async () => {
       try {
         setIsSubmitting(true);
-        await auditService.accountantApproveResolve(stockTakeId, sigData);
+        let sigUrl: string | undefined;
+        if (sigDataBase64) {
+          sigUrl = await uploadBase64ToCloudinary(sigDataBase64);
+        }
+        await auditService.accountantApproveResolve(stockTakeId, sigUrl);
         toast.success(t("Resolution approved! Inventory updated."));
         router.push(`/${role}/audit`);
       } catch (error: any) {
@@ -290,12 +303,16 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
 
   const handleAccountantRejectResolve = async () => {
     if (!isSigned) return toast.error(t("Please sign before rejecting"));
-    const sigData = sigCanvas.current?.toDataURL();
+    const sigDataBase64 = sigCanvas.current?.toDataURL();
     
     setOtpAction(() => async () => {
       try {
         setIsSubmitting(true);
-        await auditService.accountantRejectResolve(stockTakeId, rejectNotes, sigData);
+        let sigUrl: string | undefined;
+        if (sigDataBase64) {
+          sigUrl = await uploadBase64ToCloudinary(sigDataBase64);
+        }
+        await auditService.accountantRejectResolve(stockTakeId, rejectNotes, sigUrl);
         toast.success(t("Resolution rejected. Escalated to Admin."));
         await fetchData();
       } catch (error: any) {
@@ -317,18 +334,22 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
     if (!penaltyReason || !penaltyAmount || !targetManagerId) return toast.error(t("Please fill all penalize fields"));
     if (!isSigned) return toast.error(t("Please sign before completing"));
     
-    const sigData = sigCanvas.current?.toDataURL();
+    const sigDataBase64 = sigCanvas.current?.toDataURL();
 
     setOtpAction(() => async () => {
       try {
         setIsSubmitting(true);
+        let sigUrl: string | undefined;
+        if (sigDataBase64) {
+          sigUrl = await uploadBase64ToCloudinary(sigDataBase64);
+        }
         await auditService.adminFinalize(stockTakeId, {
           penaltyReason,
           penaltyAmount: Number(penaltyAmount),
           penaltyNotes: penaltyNotes || undefined,
           targetManagerUserId: Number(targetManagerId),
           auditNotes: "Admin finalized with penalize",
-          signatureData: sigData
+          signatureData: sigUrl
         });
         toast.success(t("Penalize issued and audit completed!"));
         router.push(`/${role}/audit`);

@@ -4,6 +4,7 @@ using Backend.Domains.Import.DTOs.Accountants;
 using Backend.Domains.Import.DTOs.Managers;
 using Backend.Domains.Import.DTOs.Purchasing;
 using Backend.Domains.Import.DTOs.Staff;
+using Backend.Domains.Import.DTOs.Shared;
 using Backend.Domains.Import.Interfaces;
 using Backend.Entities;
 using Backend.Services.Notifications;
@@ -17,6 +18,7 @@ namespace Backend.Domains.Import.Services
         private readonly MyDbContext _context;
         private readonly INotificationDispatcher _notificationDispatcher;
         private readonly IAuditLockCheckService _auditLockCheck;
+        private const int ReceiptSignatureMaxBytes = 300 * 1024;
         public ReceiptService(MyDbContext context, INotificationDispatcher notificationDispatcher, IAuditLockCheckService auditLockCheck)
         {
             _context = context;
@@ -989,7 +991,7 @@ namespace Backend.Domains.Import.Services
                     if (current.MaterialId != allocation.MaterialId)
                     {
                         throw new InvalidOperationException(
-                            $"Kệ {allocation.BinId} đang được phân bổ cho nhiều loại vật tư. Vui lòng tách ra các kệ khác nhau");
+                            $"Kệ {binMap[allocation.BinId].Code} đang được phân bổ cho nhiều loại vật tư. Vui lòng tách ra các kệ khác nhau");
                     }
 
                     requestedByBin[allocation.BinId] = (current.MaterialId, current.Quantity + allocation.Quantity);
@@ -1114,7 +1116,7 @@ namespace Backend.Domains.Import.Services
                     if (batch != null)
                     {
                         if (batch.MaterialId != item.MaterialId)
-                            throw new ArgumentException("Batch này thuộc về một vật tư khác!");
+                            throw new ArgumentException($"Batch {batch.BatchCode} thuộc về một vật tư khác!");
 
                         if (batch.MfgDate != item.Batch.MfgDate || batch.ExpiryDate != item.Batch.ExpiryDate)
                             throw new InvalidOperationException($"Lô hàng {batch.BatchCode} đã tồn tại trong hệ thống với Ngày SX: {batch.MfgDate:dd/MM/yyyy} và HSD là {batch.ExpiryDate:dd/MM/yyyy}. Dữ liệu bạn nhập không khớp. Vui lòng kiểm tra lại có gõ nhầm mã lô không!");
@@ -1646,6 +1648,9 @@ namespace Backend.Domains.Import.Services
             if (!canStampCurrentReceipt)
                 throw new InvalidOperationException("Chỉ có thể đóng dấu phiếu ReadyForStamp hoặc phiếu bổ sung PartiallyPutaway");
 
+            var normalizedSignatureData = NormalizeReceiptSignatureData(dto?.SignatureData, out _);
+            var receiptIdsToSign = new HashSet<long> { receipt.ReceiptId };
+
             var hasIncident = await _context.IncidentReports
                 .AnyAsync(i => i.ReceiptId == receipt.ReceiptId);
 
@@ -1715,6 +1720,8 @@ namespace Backend.Domains.Import.Services
                     .Where(r => relatedReceiptIdsList.Contains(r.ReceiptId))
                     .ToListAsync();
 
+                receiptIdsToSign = relatedReceipts.Select(r => r.ReceiptId).ToHashSet();
+
                 var invalidReceipts = relatedReceipts
                     .Where(r => r.ReceiptId != receipt.ReceiptId && r.Status != "PartiallyPutaway")
                     .ToList();
@@ -1735,10 +1742,28 @@ namespace Backend.Domains.Import.Services
                 }
             }
 
+            var hasExistingSignature = await _context.ReceiptSignatures
+                .AnyAsync(s => receiptIdsToSign.Contains(s.ReceiptId) && s.Role == "WarehouseManager");
+
+            if (hasExistingSignature)
+                throw new InvalidOperationException("Phiếu đã có chữ ký quản lý.");
+
             receipt.Status = "Stamped";
             receipt.StampedByManagerId = managerId;
             receipt.StampedAt = now;
             receipt.StampNotes = dto.Notes;
+
+            foreach (var id in receiptIdsToSign)
+            {
+                _context.ReceiptSignatures.Add(new ReceiptSignature
+                {
+                    ReceiptId = id,
+                    UserId = managerId,
+                    Role = "WarehouseManager",
+                    SignedAt = now,
+                    SignatureData = normalizedSignatureData
+                });
+            }
 
             await _context.SaveChangesAsync();
 
@@ -1767,6 +1792,38 @@ namespace Backend.Domains.Import.Services
                 StampedAt = receipt.StampedAt,
                 Notes = receipt.StampNotes,
                 NextStep = $"POST /api/accountant/receipts/{receiptId}/close"
+            };
+        }
+
+        public async Task<ReceiptSignatureListDto> GetReceiptSignaturesAsync(long receiptId)
+        {
+            var exists = await _context.Receipts
+                .AsNoTracking()
+                .AnyAsync(r => r.ReceiptId == receiptId);
+
+            if (!exists)
+                throw new KeyNotFoundException($"Receipt with ID {receiptId} not found");
+
+            var signatures = await _context.ReceiptSignatures
+                .AsNoTracking()
+                .Where(s => s.ReceiptId == receiptId)
+                .Include(s => s.User)
+                .OrderBy(s => s.SignedAt)
+                .Select(s => new ReceiptSignatureDto
+                {
+                    ReceiptId = s.ReceiptId,
+                    UserId = s.UserId,
+                    FullName = s.User.FullName ?? s.User.Email,
+                    Role = s.Role,
+                    SignedAt = s.SignedAt,
+                    SignatureData = s.SignatureData
+                })
+                .ToListAsync();
+
+            return new ReceiptSignatureListDto
+            {
+                ReceiptId = receiptId,
+                Signatures = signatures
             };
         }
 
@@ -2757,6 +2814,18 @@ namespace Backend.Domains.Import.Services
                 StampedByName = ResolveUserName(receiptUserNames, receipt.StampedByManagerId),
                 PurchaseOrder = purchaseOrder == null ? null : PurchaseOrderMapper.ToDto(purchaseOrder, purchaseOrderUserNames),
                 QCCheck = qcDto,
+                ReceiptDetails = receipt.ReceiptDetails.Select(rd => new AccountantReceiptDetailItemDto
+                {
+                    DetailId = rd.DetailId,
+                    MaterialId = rd.MaterialId,
+                    MaterialCode = rd.Material?.Code,
+                    MaterialName = rd.Material?.Name,
+                    MaterialUnit = rd.Material?.Unit,
+                    Quantity = rd.Quantity,
+                    ActualQuantity = rd.ActualQuantity,
+                    UnitPrice = rd.UnitPrice,
+                    LineTotal = rd.LineTotal
+                }).ToList(),
                 InventoryCurrents = inventoryCurrents,
                 WarehouseCards = warehouseCards
             };
@@ -2776,11 +2845,27 @@ namespace Backend.Domains.Import.Services
             if (receipt.Status != "Stamped")
                 throw new InvalidOperationException("Phiếu nhập chưa được Thủ kho đóng dấu");
 
+            var normalizedSignatureData = NormalizeReceiptSignatureData(dto?.SignatureData, out _);
+            var hasExistingSignature = await _context.ReceiptSignatures
+                .AnyAsync(s => s.ReceiptId == receiptId && s.Role == "Accountant");
+
+            if (hasExistingSignature)
+                throw new InvalidOperationException("Phiếu đã có chữ ký kế toán.");
+
             var now = DateTime.UtcNow;
             receipt.Status = "Closed";
             receipt.AccountingNote = dto.AccountingNote;
             receipt.ClosedByAccountantId = accountantId;
             receipt.ClosedAt = now;
+
+            _context.ReceiptSignatures.Add(new ReceiptSignature
+            {
+                ReceiptId = receiptId,
+                UserId = accountantId,
+                Role = "Accountant",
+                SignedAt = now,
+                SignatureData = normalizedSignatureData
+            });
 
             await _context.SaveChangesAsync();
 
@@ -2937,6 +3022,60 @@ namespace Backend.Domains.Import.Services
             return await _context.Users
                 .Where(u => id.Contains(u.UserId))
                 .ToDictionaryAsync(u => u.UserId, u => u.FullName ?? u.Email ?? $"User {u.UserId}");
+        }
+
+        private static string NormalizeReceiptSignatureData(string? signatureData, out int sizeBytes)
+        {
+            if (string.IsNullOrWhiteSpace(signatureData))
+                throw new ArgumentException("SignatureData is required.");
+
+            var value = signatureData.Trim();
+
+            if (value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
+                value.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                sizeBytes = value.Length;
+                return value;
+            }
+
+            var base64Data = value;
+
+            if (value.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
+            {
+                var commaIndex = value.IndexOf(',');
+                if (commaIndex <= 0)
+                    throw new ArgumentException("SignatureData must be a valid PNG data URI.");
+
+                var meta = value.Substring(0, commaIndex);
+                if (!meta.Contains("image/png", StringComparison.OrdinalIgnoreCase))
+                    throw new ArgumentException("SignatureData must be PNG.");
+
+                base64Data = value.Substring(commaIndex + 1);
+            }
+
+            byte[] bytes;
+            try
+            {
+                bytes = Convert.FromBase64String(base64Data);
+            }
+            catch (FormatException)
+            {
+                throw new ArgumentException("SignatureData must be base64-encoded PNG or a valid image URL.");
+            }
+
+            if (bytes.Length == 0)
+                throw new ArgumentException("SignatureData is empty.");
+
+            if (bytes.Length > ReceiptSignatureMaxBytes)
+                throw new ArgumentException($"SignatureData exceeds {ReceiptSignatureMaxBytes / 1024}KB.");
+
+            if (bytes.Length < 8 ||
+                bytes[0] != 0x89 || bytes[1] != 0x50 || bytes[2] != 0x4E || bytes[3] != 0x47 ||
+                bytes[4] != 0x0D || bytes[5] != 0x0A || bytes[6] != 0x1A || bytes[7] != 0x0A)
+                throw new ArgumentException("SignatureData must be a PNG image.");
+
+            sizeBytes = bytes.Length;
+            return $"data:image/png;base64,{base64Data}";
         }
 
         private async Task<string> GenerateReceiptCodeAsync()

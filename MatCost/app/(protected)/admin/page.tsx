@@ -90,11 +90,14 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-const formatDate = (dateStr: string, language: string = 'vi') => {
-  return new Date(dateStr).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US', {
-    month: "short",
-    day: "numeric",
-  });
+const formatDate = (dateStr: string, language: string = "vi") => {
+  return new Date(dateStr).toLocaleDateString(
+    language === "vi" ? "vi-VN" : "en-US",
+    {
+      month: "short",
+      day: "numeric",
+    },
+  );
 };
 
 // --- PAGE COMPONENT ---
@@ -127,8 +130,12 @@ export default function DashboardPage() {
         const [poRes, prRes, adminPoRes, adminPrRes, issueRes, auditRes] =
           await Promise.all([
             purchasingPurchaseOrderApi.getOrders().catch(() => ({ data: [] })),
-            purchasingPurchaseRequestApi.getRequests().catch(() => ({ data: [] })),
-            adminPurchaseOrderApi.getPendingOrders().catch(() => ({ data: [] })),
+            purchasingPurchaseRequestApi
+              .getRequests()
+              .catch(() => ({ data: [] })),
+            adminPurchaseOrderApi
+              .getPendingOrders()
+              .catch(() => ({ data: [] })),
             adminPurchaseRequestApi.getRequests().catch(() => ({ data: [] })),
             issueSlipApi.getIssueSlips().catch(() => []),
             auditService.getAll().catch(() => []),
@@ -793,7 +800,7 @@ export default function DashboardPage() {
                           ? "/admin/purchase-requests"
                           : activeTab === "issues"
                             ? "/outbound/common/IssueSlipList"
-                            : "/admin/audits",
+                            : "/admin/audit",
                     )
                   }
                   className="rounded-full text-xs font-bold text-indigo-600 hover:text-white"
@@ -844,7 +851,9 @@ export default function DashboardPage() {
                           key={audit.stockTakeId}
                           className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors cursor-pointer"
                           onClick={() =>
-                            router.push(`/admin/audits/${audit.stockTakeId}`)
+                            router.push(
+                              `/admin/audit/detail/${audit.stockTakeId}`,
+                            )
                           }
                         >
                           <div className="flex-1 min-w-0">

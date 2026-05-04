@@ -65,11 +65,6 @@ namespace Backend.Domains.Audit.Interfaces
             SignOffRequest request,
             CancellationToken ct);
 
-        Task<(bool success, string message)> CompleteAuditAsync(
-            int stockTakeId,
-            int managerId,
-            CompleteAuditRequest request,
-            CancellationToken ct);
 
         // ===== NEW WORKFLOW METHODS =====
         

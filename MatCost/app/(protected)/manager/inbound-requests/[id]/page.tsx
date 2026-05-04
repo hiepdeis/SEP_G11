@@ -92,10 +92,11 @@ export default function ManagerReceiptDetailPage() {
     if (id) fetchReceiptDetail();
   }, [id, router, t]);
 
-  const handleStampReceipt = async () => {
+  const handleStampReceipt = async (signatureBase64?: string) => {
     setIsStamping(true);
     try {
       await managerReceiptsApi.stampReceipt(id, {
+        signatureData: signatureBase64 || undefined,
         notes: stampNotes.trim() || null,
       });
 

@@ -192,6 +192,18 @@ export interface AccountantInventoryCurrentDto {
   lastUpdated?: string;
 }
 
+export interface AccountantReceiptDetailItemDto {
+  detailId: number;
+  materialId: number;
+  materialCode?: string;
+  materialName?: string;
+  materialUnit?: string;
+  quantity: number;
+  actualQuantity?: number | null;
+  unitPrice?: number | null;
+  lineTotal?: number | null;
+}
+
 export interface AccountantReceiptDetailDto {
   receiptId: number;
   receiptCode: string;
@@ -201,11 +213,13 @@ export interface AccountantReceiptDetailDto {
   stampedByName?: string | null;
   purchaseOrder?: PurchaseOrderDto;
   qcCheck?: QCCheckDto;
+  receiptDetails: AccountantReceiptDetailItemDto[];
   inventoryCurrents: AccountantInventoryCurrentDto[];
   warehouseCards: WarehouseCardDto[];
 }
 
 export interface AccountantReceiptCloseDto {
+  signatureData?: string;
   accountingNote?: string;
 }
 
@@ -325,6 +339,7 @@ export interface ManagerSupplementaryRejectResultDto {
 }
 
 export interface ManagerReceiptStampDto {
+  signatureData?: string;
   notes?: string | null;
 }
 
@@ -1206,6 +1221,31 @@ export const staffReceiptsApi = {
   getAllIncidentReports: () => {
     return axiosClient.get<IncidentReportSummaryDto[]>(
       "/staff/receipts/incident-reports",
+    );
+  },
+};
+
+// ==========================================
+// RECEIPT SIGNATURES
+// ==========================================
+export interface ReceiptSignatureDto {
+  receiptId: number;
+  userId: number;
+  fullName?: string;
+  role: string;
+  signedAt?: string;
+  signatureData?: string;
+}
+
+export interface ReceiptSignatureListDto {
+  receiptId: number;
+  signatures: ReceiptSignatureDto[];
+}
+
+export const receiptSignaturesApi = {
+  getSignatures: (receiptId: number) => {
+    return axiosClient.get<ReceiptSignatureListDto>(
+      `/receipts/${receiptId}/signatures`,
     );
   },
 };

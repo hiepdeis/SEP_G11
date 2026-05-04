@@ -67,7 +67,7 @@ import StaffInboundRequest from "@/components/pages/inbound-requests-staff/page"
 export default function SharedReceiptsListPage({
   role = "accountant",
 }: {
-  role?: "manager" | "accountant";
+  role?: "manager" | "accountant" | "admin";
 }) {
   const router = useRouter();
   const { t } = useTranslation();
@@ -78,7 +78,11 @@ export default function SharedReceiptsListPage({
   const [searchTerm, setSearchTerm] = useState("");
 
   const [filterStatus, setFilterStatus] = useState<string>(
-    role === "manager" ? "ReadyForStamp" : "Stamped",
+    role === "manager"
+      ? "ReadyForStamp"
+      : role === "admin"
+        ? "Closed"
+        : "Stamped",
   );
 
   const [dateRange, setDateRange] = useState<{
@@ -214,7 +218,9 @@ export default function SharedReceiptsListPage({
     const basePath =
       role === "manager"
         ? "/manager/inbound-requests"
-        : "/accountant/inbound-requests";
+        : role === "admin"
+          ? "/admin/inbound-requests"
+          : "/accountant/inbound-requests";
     router.push(`${basePath}/${id}`);
   };
 
@@ -251,7 +257,9 @@ export default function SharedReceiptsListPage({
           title={
             role === "manager"
               ? t("Manager Dashboard")
-              : t("Accounting Dashboard")
+              : role === "admin"
+                ? t("Admin Dashboard")
+                : t("Accounting Dashboard")
           }
         />
 
@@ -414,6 +422,17 @@ export default function SharedReceiptsListPage({
                                 className="bg-slate-50 text-slate-700 border-slate-200"
                               >
                                 {t("All")}
+                              </Badge>
+                            </SelectItem>
+                          </SelectContent>
+                        ) : role === "admin" ? (
+                          <SelectContent>
+                            <SelectItem value="Closed">
+                              <Badge
+                                variant="outline"
+                                className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                              >
+                                {t("Closed")}
                               </Badge>
                             </SelectItem>
                           </SelectContent>

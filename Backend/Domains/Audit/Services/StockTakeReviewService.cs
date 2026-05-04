@@ -1371,34 +1371,5 @@ namespace Backend.Domains.Audit.Services
             }
         }
 
-        public async Task<(bool success, string message)> CompleteAuditAsync(
-            int stockTakeId,
-            int userId,
-            CompleteAuditRequest request,
-            CancellationToken ct)
-        {
-            // Keep for backward compatibility but route through new flow
-            var st = await _db.StockTakes
-                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
-
-            if (st == null)
-                return (false, "Audit not found.");
-
-            if (st.CompletedAt != null || string.Equals(st.Status, "Completed", StringComparison.OrdinalIgnoreCase))
-                return (false, "Audit is already completed.");
-
-            var currentUser = await _db.Users
-                .AsNoTracking()
-                .Include(x => x.Role)
-                .FirstOrDefaultAsync(x => x.UserId == userId, ct);
-
-            var isAccountant = string.Equals(currentUser?.Role?.RoleName, "Accountant", StringComparison.OrdinalIgnoreCase);
-            var isAdmin = string.Equals(currentUser?.Role?.RoleName, "Admin", StringComparison.OrdinalIgnoreCase);
-
-            if (currentUser == null || (!isAccountant && !isAdmin))
-                return (false, "Only accountants or admins can complete the audit.");
-
-            return await CompleteAndUpdateInventoryAsync(st, userId, request.Notes, ct);
-        }
     }
 }
