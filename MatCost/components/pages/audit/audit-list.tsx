@@ -248,7 +248,7 @@ export default function SharedAuditList({ role }: AuditListProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="bg-white border-slate-200 shadow-sm"><CardContent className="p-4 flex items-center gap-4"><div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg"><ClipboardList className="w-6 h-6" /></div><div><p className="text-sm font-medium text-slate-500">{t("Total Audits")}</p><h3 className="text-2xl font-bold text-slate-900">{audits.length}</h3></div></CardContent></Card>
-            <Card className="bg-white border-slate-200 shadow-sm"><CardContent className="p-4 flex items-center gap-4"><div className="p-3 bg-blue-100 text-blue-600 rounded-lg"><Lock className="w-6 h-6" /></div><div><p className="text-sm font-medium text-slate-500">{t("In Progress (Locked)")}</p><h3 className="text-2xl font-bold text-slate-900">{audits.filter((a) => a.status === "InProgress").length}</h3></div></CardContent></Card>
+            <Card className="bg-white border-slate-200 shadow-sm"><CardContent className="p-4 flex items-center gap-4"><div className="p-3 bg-blue-100 text-blue-600 rounded-lg"><Lock className="w-6 h-6" /></div><div><p className="text-sm font-medium text-slate-500">{t("In Progress (Locked)")}</p><h3 className="text-2xl font-bold text-slate-900">{audits.filter((a) => !["Planned", "Assigned", "Completed"].includes(a.status)).length}</h3></div></CardContent></Card>
             <Card className="bg-white border-slate-200 shadow-sm"><CardContent className="p-4 flex items-center gap-4"><div className="p-3 bg-emerald-100 text-emerald-600 rounded-lg"><CheckCircle2 className="w-6 h-6" /></div><div><p className="text-sm font-medium text-slate-500">{t("Completed")}</p><h3 className="text-2xl font-bold text-slate-900">{audits.filter((a) => a.status === "Completed").length}</h3></div></CardContent></Card>
           </div>
 
@@ -257,7 +257,7 @@ export default function SharedAuditList({ role }: AuditListProps) {
               <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 w-full">
                 <div className="flex flex-wrap items-center gap-3">
                   <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="w-[160px] bg-white border-slate-200 shadow-sm h-10 px-4 cursor-pointer transition-colors">
+                    <SelectTrigger className="w-[200px] bg-white border-slate-200 shadow-sm h-10 px-4 cursor-pointer transition-colors">
                       <SelectValue placeholder={t("Filter by status")} />
                     </SelectTrigger>
                     <SelectContent className="[&_[data-slot=select-viewport]]:p-0">

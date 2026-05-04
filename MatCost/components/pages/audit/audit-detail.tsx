@@ -113,8 +113,6 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
       setPenaltyAmount(total.toString());
     } else if (!isAdminFinalizing && prevIsAdminFinalizing) {
        handleClearSignature();
-       // Clear values when closing if you want, or leave them. 
-       // User usually wants them cleared on close to re-init next time.
        setPenaltyReason("");
        setPenaltyAmount("0");
        setTargetManagerId("");
@@ -572,7 +570,7 @@ export default function SharedAuditDetail({ role }: AuditDetailProps) {
               <Card className="border-slate-200 shadow-sm gap-0 bg-white">
                 <CardHeader className="border-b border-slate-100 py-4"><CardTitle className="text-base font-semibold text-slate-800">{t("Audit Information")}</CardTitle></CardHeader>
                 
-                {/* ACCOUNTANT/ADMIN: Lock & Start (Assigned status) */}
+                {/* ACCOUNTANT/ADMIN: Lock & Start (Assigned) */}
                 {(role === "accountant" || role === "admin") && detailData.status === "Assigned" && (
                   <Card className="border-blue-200 shadow-sm bg-blue-50/30 gap-0 border-x-0 border-t-0 rounded-none">
                     <CardHeader className="border-b border-blue-100 pt-4 pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2 text-blue-800"><Lock className="w-5 h-5" /> {t("Start Audit")}</CardTitle></CardHeader>
