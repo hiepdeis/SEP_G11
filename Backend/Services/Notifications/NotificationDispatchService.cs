@@ -1,4 +1,5 @@
 using System.Net;
+using System.Threading;
 using Backend.Data;
 using Backend.Entities;
 using Backend.Options;
@@ -316,37 +317,49 @@ public sealed class NotificationDispatchService : INotificationDispatcher
             return await QueueNotificationEmailsAsync(recipients, message, createdAtUtc, ct);
         }
 
-        var result = new EmailDispatchCounters();
+        var sentCount = 0;
+        var missingCount = 0;
+        var failedCount = 0;
 
-        foreach (var recipient in recipients)
+        var options = new ParallelOptions
         {
-            ct.ThrowIfCancellationRequested();
+            MaxDegreeOfParallelism = 10,
+            CancellationToken = ct
+        };
 
+        // Send emails in parallel with a bounded degree of concurrency.
+        await Parallel.ForEachAsync(recipients, options, async (recipient, token) =>
+        {
             if (string.IsNullOrWhiteSpace(recipient.Email))
             {
-                result.EmailMissingAddressCount++;
-                continue;
+                Interlocked.Increment(ref missingCount);
+                return;
             }
 
             try
             {
                 await _emailSender.SendAsync(
                     BuildNotificationEmail(recipient, message, createdAtUtc),
-                    ct);
-                result.EmailSentCount++;
+                    token);
+                Interlocked.Increment(ref sentCount);
             }
             catch (Exception ex)
             {
-                result.EmailFailedCount++;
-                _logger.LogWarning(
+                Interlocked.Increment(ref failedCount);
+                _logger.LogError(
                     ex,
                     "Failed to send notification email to user {UserId} ({Email})",
                     recipient.UserId,
                     recipient.Email);
             }
-        }
+        });
 
-        return result;
+        return new EmailDispatchCounters
+        {
+            EmailSentCount = sentCount,
+            EmailMissingAddressCount = missingCount,
+            EmailFailedCount = failedCount
+        };
     }
 
     private async Task<EmailDispatchCounters> QueueNotificationEmailsAsync(
