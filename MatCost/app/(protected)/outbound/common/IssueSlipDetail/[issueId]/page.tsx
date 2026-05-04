@@ -113,6 +113,7 @@ export default function CommonIssueSlipDetail() {
         if (role === "WarehouseStaff" && data.status === "Picking_In_Progress") {
            const pickData = await issueSlipApi.getPickingList(issueId);
            setPickingList(pickData.pickingItems || []);
+           console.log(pickData);
         }
       } catch (error) {
         toast.error(t("Không thể tải chi tiết phiếu xuất."));
@@ -430,7 +431,7 @@ export default function CommonIssueSlipDetail() {
         customBatches: customBatchesPayload // Đã add cục Lô vào đây!
       };
 
-      
+
       const res = await axiosClient.post(`/IssueSlips/${issueId}/draft-process-inventory`, payload);
       toast.success("Đã tạo các bản nháp thành công!");
       
@@ -927,6 +928,7 @@ export default function CommonIssueSlipDetail() {
                                     type="checkbox" 
                                     className="w-6 h-6 accent-indigo-500 cursor-pointer rounded border-slate-300 shadow-sm"
                                     checked={pick.isPicked}
+                                    disabled={pick.isLocked} 
                                     onChange={() => handleTogglePick(pick.pickingId)}
                                   />
                                 </TableCell>
