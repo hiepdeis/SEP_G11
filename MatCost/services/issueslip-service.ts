@@ -40,6 +40,7 @@ export interface IssueSlipDetailItem {
   unitPrice: number;
   lineTotal: number;
   fifoSuggestedBatches: FifoBatch[];
+  
 }
 
 export interface FifoBatch {
@@ -67,6 +68,7 @@ export interface IssueSlipDetail {
   description?: string;
   deliveryLocation?: string;
   department?: string;
+  groupby: boolean;
   createdBy: {
     createdBy: number;
     username: string;
@@ -89,6 +91,7 @@ export interface IssueSlipDetail {
     totalRequestCost: number;
     remainingAfterIssue: number;
     isOverBudget: boolean;
+    actualFifoCost: number;
   };
  details: IssueSlipDetailItem[];
 }
@@ -277,6 +280,64 @@ export const issueSlipApi = {
         }));
       }
     }
+
+    data.groupby = false;
+
+    // 2. FORMAT LẠI BẢNG VẬT TƯ
+    if (data && data.details) {
+      if (role === 'Accountant') {
+
+      } else {
+        // --- VIEW CÁC ROLE KHÁC: GỘP THEO MATERIAL ID ---
+        const groupedObj = data.details.reduce((acc: Record<number, any>, current: any) => {
+          const matId = current.materialId;
+
+          if (!acc[matId]) {
+            // Lần đầu gặp: Clone object và clone mảng fifo ra để không bị tham chiếu
+            acc[matId] = { ...current };
+            if (current.fifoSuggestedBatches && current.fifoSuggestedBatches.length > 0) {
+              acc[matId].fifoSuggestedBatches = [ { ...current.fifoSuggestedBatches[0] } ];
+            } else {
+              acc[matId].fifoSuggestedBatches = [];
+            }
+          } else {
+            // Đã có: CỘNG DỒN CÁI NGOÀI (Kệ nó, cứ cộng)
+            acc[matId].requestedQuantity += current.requestedQuantity;
+            acc[matId].lineTotal += current.lineTotal; 
+
+            // GỘP VÀ CỘNG DỒN CÁI BÊN TRONG (fifoSuggestedBatches)
+            const hasCurrBatch = current.fifoSuggestedBatches && current.fifoSuggestedBatches.length > 0;
+            
+            if (hasCurrBatch) {
+              if (!acc[matId].fifoSuggestedBatches || acc[matId].fifoSuggestedBatches.length === 0) {
+                acc[matId].fifoSuggestedBatches = [ { ...current.fifoSuggestedBatches[0] } ];
+              } else {
+                // Cộng dồn Số lượng lô và Tổng tiền lô
+                const accBatch = acc[matId].fifoSuggestedBatches[0];
+                const currBatch = current.fifoSuggestedBatches[0];
+                
+                accBatch.qtyToTake += currBatch.qtyToTake;
+                accBatch.lineTotal += currBatch.lineTotal;
+              }
+            }
+          }
+          return acc;
+        }, {});
+
+        // CHUYỂN OBJECT THÀNH MẢNG VÀ TÍNH LẠI UNITPRICE "BÊN TRONG"
+        data.details = Object.values(groupedObj).map((item: any) => {
+          if (item.fifoSuggestedBatches && item.fifoSuggestedBatches.length > 0) {
+            const batch = item.fifoSuggestedBatches[0];
+            // Trung bình giá Lô = Tổng tiền các lô / Tổng số lượng
+            batch.unitPrice = batch.qtyToTake > 0 
+              ? (batch.lineTotal / batch.qtyToTake) 
+              : 0;
+          }
+          return item;
+        });
+      }
+    }
+    console.log(data);
     return data;
   },
 

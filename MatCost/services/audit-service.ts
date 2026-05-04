@@ -78,10 +78,6 @@ export const auditService = {
     const response = await axiosClient.post(`/staff/audits/${stockTakeId}/count-items`, data);
     return response.data;
   },
-  finishWork: async (stockTakeId: number) => {
-    const response = await axiosClient.post(`/staff/audits/${stockTakeId}/finish`);
-    return response.data;
-  },
 
   // --- REVIEW APIs ---
   getReviewDetail: async (stockTakeId: number) => {
@@ -100,11 +96,6 @@ export const auditService = {
   resolveVariances: async (stockTakeId: number, detailIds: number[], resolutionAction: string, adjustmentReasonId?: number, notes?: string) => {
     const payload = { detailIds, resolutionAction, adjustmentReasonId, notes };
     const response = await axiosClient.put(`/manager/audits/${stockTakeId}/variances/bulk-resolve`, payload);
-    return response.data;
-  },
-  requestRecount: async (stockTakeId: number, detailId: number, reasonId: number, note: string = "") => {
-    const payload = { reasonId, note };
-    const response = await axiosClient.put(`/manager/audits/${stockTakeId}/variances/${detailId}/request-recount`, payload);
     return response.data;
   },
   requestRecountAll: async (stockTakeId: number, reasonId: number, note: string = "") => {
@@ -133,10 +124,6 @@ export const auditService = {
   },
   signOff: async (stockTakeId: number, notes: string = "") => {
     const response = await axiosClient.post(`/manager/audits/${stockTakeId}/sign-off`, { notes });
-    return response.data;
-  },
-  finalizeAudit: async (stockTakeId: number, notes: string = "") => {
-    const response = await axiosClient.post(`/manager/audits/${stockTakeId}/complete`, { notes });
     return response.data;
   },
 

@@ -21,12 +21,6 @@ namespace Backend.Domains.Audit.Interfaces
             int take,
             CancellationToken ct);
 
-        Task<List<MaterialSuggestDto>> SuggestMaterialsAsync(
-            int stockTakeId,
-            int userId,
-            string? keyword,
-            int take,
-            CancellationToken ct);
 
         Task<(bool success, string message)> UpsertCountAsync(
             int stockTakeId,

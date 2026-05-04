@@ -177,43 +177,5 @@ namespace Backend.Domains.Audit.Services
             return (true, "Audit scope locked successfully.");
         }
 
-        public async Task<(bool success, string message)> UnlockScopeAsync(
-            int stockTakeId,
-            int userId,
-            CancellationToken ct)
-        {
-            var st = await _db.StockTakes
-                .FirstOrDefaultAsync(x => x.StockTakeId == stockTakeId, ct);
-
-            if (st == null)
-                return (false, "Audit not found.");
-
-            var locks = await _db.StockTakeLocks
-                .Where(x => x.StockTakeId == stockTakeId && x.IsActive)
-                .ToListAsync(ct);
-
-            if (locks.Count == 0)
-                return (false, "Audit scope is not locked.");
-
-            foreach (var item in locks)
-            {
-                item.IsActive = false;
-                item.UnlockedAt = DateTime.UtcNow;
-                item.UnlockedBy = userId;
-            }
-
-            await _notificationService.QueueAuditNotificationAsync(
-                stockTakeId,
-                $"Audit #{st.StockTakeId} ({st.Title}) đã được mở khóa phạm vi kiểm kê.",
-                includeCreator: true,
-                includeTeamMembers: true,
-                roleNames: new[] { "WarehouseManager" },
-                extraUserIds: null,
-                excludeUserIds: new[] { userId },
-                ct);
-
-            await _db.SaveChangesAsync(ct);
-            return (true, "Audit scope unlocked successfully.");
-        }
     }
 }

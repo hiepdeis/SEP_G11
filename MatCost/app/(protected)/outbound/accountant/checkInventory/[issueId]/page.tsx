@@ -225,7 +225,7 @@ export default function SharedIssueSlipDetail({ role, issueId }: IssueSlipDetail
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Reference Code")}</label>
-                    <div className="mt-1 text-slate-800">{detail. || "—"}</div>
+                    <div className="mt-1 text-slate-800">{detail?.referenceCode   || "—"}</div>
                   </div>
                   <div className="col-span-2 pt-2 border-t border-slate-100">
                     <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("Requester")}</label>

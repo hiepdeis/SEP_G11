@@ -1,5 +1,4 @@
-using Backend.Data;
-using Backend.Domains.Audit.Interfaces;
+﻿using Backend.Data;
 using Backend.Domains.outbound.Dtos;
 using Backend.Entities;
 using Microsoft.AspNetCore.Http;
@@ -14,12 +13,10 @@ namespace Backend.Domains.outbound.Controllers
     {
 
         private readonly MyDbContext _context;
-        private readonly IAuditLockCheckService _auditLockCheck;
 
-        public IssueSlipDetailsController(MyDbContext context, IAuditLockCheckService auditLockCheck)
+        public IssueSlipDetailsController(MyDbContext context)
         {
             _context = context;
-            _auditLockCheck = auditLockCheck;
         }
 
 
@@ -295,14 +292,6 @@ namespace Backend.Domains.outbound.Controllers
                             x.BatchId == item.BatchId);
 
                     // Tăng Allocated
-                    // Check if this bin is locked by an active audit before allocating
-                    if (inventory.WarehouseId.HasValue)
-                    {
-                        var isLocked = await _auditLockCheck.IsBinLockedAsync(inventory.WarehouseId.Value, inventory.BinId, default);
-                        if (isLocked)
-                            return BadRequest($"Vị trí kệ đang bị khóa để kiểm kê (audit). Không thể xuất hàng từ vị trí này.");
-                    }
-
                     inventory.QuantityAllocated =
                         (inventory.QuantityAllocated ?? 0m) + item.Quantity;
 

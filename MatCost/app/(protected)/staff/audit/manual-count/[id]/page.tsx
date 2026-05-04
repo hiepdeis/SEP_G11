@@ -17,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import ReactSignatureCanvas from "react-signature-canvas";
 import { OtpVerificationModal } from "@/components/ui/custom/otp-modal";
 import { Eraser, FileSignature } from "lucide-react";
+import { uploadBase64ToCloudinary } from "@/lib/cloudinary";
 import * as XLSX from "xlsx";
 
 interface NormalizedTask {
@@ -118,7 +119,7 @@ export default function StaffCountingPage() {
                     binCode: item.binCode || "",
                     countQty: qty,
                     originalQty: qty,
-                    isRecount: isPending,
+                    isRecount: true,
                     status: isPending ? "uncounted" : "counted"
                 };
                 if (!merged.find(x => x.id === nTask.id)) {
@@ -161,7 +162,7 @@ export default function StaffCountingPage() {
         toast.success(`${t("Saved")} ${task.materialName}`);
         setTasks(prev => prev.map(t => t.id === task.id ? { ...t, originalQty: task.countQty, status: "counted" } : t));
     } catch (error: any) { 
-        toast.error(error.response?.data?.message || t("Error saving quantity.")); 
+        toast.error(t(error.response?.data?.message || "Error saving quantity.")); 
     } finally { 
         setSavingIds(prev => {
             const next = new Set(prev);
@@ -177,12 +178,15 @@ export default function StaffCountingPage() {
       "Tên vật tư": t.materialName,
       "Mã": t.materialId,
       "Số lô": t.batchCode,
+      "Ngày SX": t.mfgDate ? new Date(t.mfgDate).toLocaleDateString('en-GB') : '',
+      "Hạn SD": t.expiryDate ? new Date(t.expiryDate).toLocaleDateString('en-GB') : '',
       "Kho": t.binCode,
+      "BatchId": t.batchId,
       "Số lượng": null 
     }));
 
     const ws = XLSX.utils.json_to_sheet(dataToExport);
-    ws['!cols'] = [{wch: 5}, {wch: 30}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 15}];
+    ws['!cols'] = [{wch: 5}, {wch: 30}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 10}, {wch: 15}];
     
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Kiem_ke");
@@ -211,6 +215,7 @@ export default function StaffCountingPage() {
                 const mCode = row["Mã"];
                 const bCode = row["Số lô"] ? String(row["Số lô"]) : "";
                 const binCode = row["Kho"] ? String(row["Kho"]) : "";
+                const bId = row["BatchId"];
                 const qtyVal = row["Số lượng"];
 
                 if (qtyVal !== undefined && qtyVal !== null && qtyVal !== "") {
@@ -222,7 +227,7 @@ export default function StaffCountingPage() {
                     const parsedQty = parseFloat(stringVal);
                     
                     if (!isNaN(parsedQty) && parsedQty >= 0) {
-                        const matched = tasks.find(t => t.materialId == mCode && t.batchCode == bCode && t.binCode == binCode);
+                        const matched = tasks.find(t => t.materialId == mCode && t.batchCode == bCode && t.binCode == binCode && t.batchId == bId);
                         if (matched && matched.originalQty !== String(parsedQty)) {
                             const payload = { materialId: matched.materialId, binCode: matched.binCode, batchCode: matched.batchCode, batchId: matched.batchId, countQty: parsedQty };
                             const p = matched.isRecount ? auditService.submitRecount(stockTakeId, payload) : auditService.submitCount(stockTakeId, payload);
@@ -235,7 +240,7 @@ export default function StaffCountingPage() {
 
             if (promises.length > 0) {
                 await Promise.all(promises);
-                toast.success(t(`Import successful! Updated ${successCount} items.`));
+                toast.success(t(`Import successful! `)+ t(`Updated `) + `${successCount} ` +  t(`items.`));
                 await loadTasks();
             } else {
                 toast.info(t("No valid quantity changes found in the file."));
@@ -284,11 +289,12 @@ export default function StaffCountingPage() {
     if (!signatureData) return;
     try {
       setIsSubmittingFinal(true);
-      await auditService.signOff(stockTakeId, signatureData);
+      const sigUrl = await uploadBase64ToCloudinary(signatureData);
+      await auditService.signOff(stockTakeId, sigUrl);
       toast.success(t("Audit results submitted and signed successfully!"));
       router.push('/staff/audit');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || t("Error submitting results."));
+      toast.error(t(error.response?.data?.message || "Error submitting results."));
     } finally {
       setIsSubmittingFinal(false);
     }
@@ -343,7 +349,7 @@ export default function StaffCountingPage() {
               
               <div className="flex items-center justify-between">
                   <Button variant="ghost" onClick={() => router.back()} className="pl-0 hover:bg-transparent hover:text-indigo-600"><ArrowLeft className="w-4 h-4 mr-2" /> {t("Back")}</Button>
-                  <div className="text-sm font-medium text-slate-500">Audit ID: <span className="text-slate-900 font-bold">#{stockTakeId}</span></div>
+                  <div className="text-sm font-medium text-slate-500">{t("Audit ID")} : <span className="text-slate-900 font-bold">#{stockTakeId}</span></div>
               </div>
               
               <div className={`${isRecountMode ? "bg-amber-600" : "bg-indigo-600"} rounded-xl p-6 text-white shadow-md relative overflow-hidden`}>
@@ -414,7 +420,7 @@ export default function StaffCountingPage() {
                                     <TableHead className="w-[6%] text-center pl-4 font-bold text-slate-800 text-[11px] tracking-wider uppercase">{t("No.")}</TableHead>
                                     <TableHead className="w-[28%] font-bold text-slate-800 text-[11px] tracking-wider uppercase">{t("Material")}</TableHead>
                                     <TableHead className="w-[12%] text-center font-bold text-slate-800 text-[11px] tracking-wider uppercase">{t("Batch")}</TableHead>
-                                    <TableHead className="w-[12%] text-center font-bold text-slate-800 text-[11px] tracking-wider uppercase">{t("Bin")}</TableHead>
+                                    <TableHead className="w-[12%] text-center font-bold text-slate-800 text-[11px] tracking-wider uppercase">{t("Bin Location")}</TableHead>
                                     <TableHead className="w-[14%] text-center font-bold text-slate-800 text-[11px] tracking-wider uppercase">{t("Status")}</TableHead>
                                     <TableHead className="w-[14%] text-center font-bold text-slate-800 text-[11px] tracking-wider uppercase">{t("Quantity")}</TableHead>
                                     <TableHead className="w-[14%] text-right pr-6 font-bold text-slate-800 text-[11px] tracking-wider uppercase">{t("Action")}</TableHead>
@@ -538,7 +544,7 @@ export default function StaffCountingPage() {
                 onClick={handleCompleteAudit} 
                 disabled={progress < 100}
             >
-                <FileSignature className="w-5 h-5 mr-2" /> {t("Review & Submit Entire Count")}
+                <FileSignature className="w-5 h-5 mr-2" /> {t("Submit Entire Count")}
             </Button>
           </div>
         )}
@@ -590,7 +596,7 @@ export default function StaffCountingPage() {
                 disabled={!isSigned || isSubmittingFinal}
               >
                 {isSubmittingFinal ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-                {t("Submit & Finish")}
+                {t("Submit & Return to List")}
               </Button>
             </DialogFooter>
           </DialogContent>

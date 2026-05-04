@@ -2,9 +2,11 @@
 ﻿using Backend.Domains.auth.Business;
 using Backend.Domains.auth.Dtos;
 using Backend.Domains.auth.Interfaces;
+using Backend.Domains.auth.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using System.Security.Claims;
 
 namespace Backend.Domains.auth.Controllers
@@ -16,15 +18,17 @@ namespace Backend.Domains.auth.Controllers
         private readonly IAuthService _authService;
         private readonly IGoogleOAuthService _googleOAuthService;
         private readonly GoogleLoginHandler _googleLoginHandler;
+        private readonly FrontendSettings _frontendSettings;
 
         public AuthController(
             IAuthService authService,
             IGoogleOAuthService googleOAuthService,
-            GoogleLoginHandler googleLoginHandler)
+            GoogleLoginHandler googleLoginHandler, IOptions<FrontendSettings> frontendOptions)
         {
             _authService = authService;
             _googleOAuthService = googleOAuthService;
             _googleLoginHandler = googleLoginHandler;
+            _frontendSettings = frontendOptions.Value;
         }
 
         [HttpGet("user-id")]
@@ -58,11 +62,13 @@ namespace Backend.Domains.auth.Controllers
 
                 SetRefreshTokenCookie(result.refreshToken, result.Expiry);
 
-                return Redirect("http://localhost:3000/login-success");
+                //return Redirect("http://localhost:3000/login-success");
+                return Redirect($"{_frontendSettings.BaseUrl}{_frontendSettings.LoginSuccessPath}");
             }
             catch (UnauthorizedAccessException ex)
             {
-                return Redirect($"http://localhost:3000/login-error?message={Uri.EscapeDataString(ex.Message)}");
+                //return Redirect($"http://localhost:3000");
+                return Redirect(_frontendSettings.BaseUrl);
             }
         }
 

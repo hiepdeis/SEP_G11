@@ -54,18 +54,5 @@ namespace Backend.Domains.Audit.Controllers.Managers
             return Ok(data);
         }
 
-        [HttpPut("{notiId:long}/read")]
-        public async Task<IActionResult> MarkRead(long notiId, CancellationToken ct)
-        {
-            var n = await _db.Notifications
-                .FirstOrDefaultAsync(x => x.NotiId == notiId && x.UserId == GetManagerId(), ct);
-
-            if (n != null && n.IsRead == false)
-            {
-                n.IsRead = true;
-                await _db.SaveChangesAsync(ct);
-            }
-            return Ok(new { message = "Marked as read." });
-        }
     }
 }
