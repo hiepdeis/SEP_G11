@@ -191,7 +191,7 @@ export default function StaffCountingPage() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Kiem_ke");
     XLSX.writeFile(wb, `Mau_Kiem_Ke_Phieu_${stockTakeId}_Kho_${binFilter}.xlsx`);
-    toast.success(t("Exported successfully! Fill 'Số lượng' and import back."));
+    toast.success(t("Exported successfully! Fill 'Quantity' and import back."));
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -313,11 +313,11 @@ export default function StaffCountingPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [binFilter, statusFilter, searchTerm]);
+  }, [binFilter, statusFilter, searchTerm, itemsPerPage]);
 
   const totalPages = itemsPerPage > 0 ? Math.ceil(filteredData.length / itemsPerPage) : 1;
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
+  const startIndex = itemsPerPage > 0 ? (currentPage - 1) * itemsPerPage : 0;
+  const endIndex = itemsPerPage > 0 ? startIndex + itemsPerPage : filteredData.length;
   const paginatedData = itemsPerPage > 0 ? filteredData.slice(startIndex, endIndex) : filteredData;
 
   const totalTasks = tasks.length;
@@ -375,7 +375,7 @@ export default function StaffCountingPage() {
                                     <SelectTrigger className="w-[180px] bg-white border-slate-200 shadow-sm h-10 px-4 cursor-pointer">
                                         <SelectValue placeholder={t("Filter by Bin")} />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent showSearch>
                                         <SelectItem value="All" className="font-bold">{t("All Bins")}</SelectItem>
                                         {uniqueBins.map(bin => <SelectItem key={bin} value={bin}>{bin}</SelectItem>)}
                                     </SelectContent>

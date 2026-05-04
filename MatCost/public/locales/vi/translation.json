@@ -1980,5 +1980,6 @@
   "adjustsystem": "Điều chỉnh hệ thống",
   "investigate": "Điều tra thêm",
   "AccountantApproved": "Đã duyệt bởi kế toán",
-  "Grand Total": "Tổng cộng"
+  "Grand Total": "Tổng cộng",
+  "Exported successfully! Fill 'Quantity' and import back.": "Xuất file Excel thành công! Điền 'Số lượng' và nhập lại."
 }
