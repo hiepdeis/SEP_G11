@@ -33,7 +33,7 @@ interface NormalizedTask {
   countQty: string;
   originalQty: string;
   isRecount: boolean;
-  status: "uncounted" | "counted"; // local tracking
+  status: "uncounted" | "counted";
 }
 
 export default function StaffCountingPage() {
